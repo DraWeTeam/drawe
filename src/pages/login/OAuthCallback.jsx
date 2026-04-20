@@ -6,7 +6,7 @@ const OAuthCallback = () => {
   const hasRun = useRef(false);
 
   useEffect(() => {
-    if(hasRun.current) return;
+    if (hasRun.current) return;
     hasRun.current = true;
 
     console.log("OAuthCallback 진입");
@@ -26,7 +26,7 @@ const OAuthCallback = () => {
       navigate("/login");
     }
   }, [navigate]);
-  
+
   return null;
 };
 

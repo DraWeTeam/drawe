@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "./login/api";
-import styles from "./Home.module.css"
+import styles from "./Home.module.css";
 
 const Home = () => {
   const [user, setUser] = useState(null);
@@ -34,16 +34,14 @@ const Home = () => {
     <div className={styles.wrapper}>
       <h1>홈</h1>
       <div>
-      {user && (
-        <>
-          <p>{user.email}</p>
-          <p>{user.nickname}</p>
+        {user && (
+          <>
+            <p>{user.email}</p>
+            <p>{user.nickname}</p>
 
-          <button onClick={handleLogout}>
-            로그아웃
-          </button>
-        </>
-      )}
+            <button onClick={handleLogout}>로그아웃</button>
+          </>
+        )}
       </div>
     </div>
   );
