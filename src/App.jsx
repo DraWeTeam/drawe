@@ -16,7 +16,14 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/oauth/callback" element={<OAuthCallback />} />
-          <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Home />
+              </PrivateRoute>
+            }
+          />
         </Routes>
       </Template>
     </BrowserRouter>
