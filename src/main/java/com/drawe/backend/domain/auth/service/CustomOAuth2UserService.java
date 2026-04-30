@@ -25,9 +25,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
   @Transactional
   public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
     DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
-    OAuth2User oAuth2User = delegate.loadUser(userRequest);
+    OAuth2User oauth2User = delegate.loadUser(userRequest);
 
-    OAuthAttributes attributes = OAuthAttributes.ofGoogle(oAuth2User.getAttributes());
+    OAuthAttributes attributes = OAuthAttributes.ofGoogle(oauth2User.getAttributes());
 
     if (attributes.getEmail() == null || attributes.getEmail().isBlank()) {
       throw new OAuth2AuthenticationException("Email not found from OAuth provider");
