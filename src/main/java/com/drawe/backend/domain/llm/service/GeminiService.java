@@ -58,7 +58,6 @@ public class GeminiService implements LlmService {
   }
 
   private Map<String, Object> buildBody(LlmCallContext context) {
-    Map<String, Object> body = new HashMap<>();
     List<Map<String, Object>> contents = new ArrayList<>();
 
     String systemPrompt = null;
@@ -85,6 +84,7 @@ public class GeminiService implements LlmService {
     }
     contents.add(Map.of("role", "user", "parts", parts));
 
+    Map<String, Object> body = new HashMap<>();
     body.put("contents", contents);
     if (systemPrompt != null) {
       body.put("systemInstruction", Map.of("parts", List.of(Map.of("text", systemPrompt))));

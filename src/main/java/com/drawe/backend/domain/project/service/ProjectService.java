@@ -72,13 +72,27 @@ public class ProjectService {
   @Transactional
   public void update(User user, Long projectId, UpdateProjectRequest request) {
     Project project = loadAuthorized(user, projectId);
-    if (request.name() != null) project.setName(request.name());
-    if (request.subject() != null) project.setSubject(request.subject());
-    if (request.technique() != null) project.setTechnique(request.technique());
-    if (request.mood() != null) project.setMood(request.mood());
-    if (request.description() != null) project.setDescription(request.description());
-    if (request.status() != null) project.setStatus(parseStatusStrict(request.status()));
-    if (request.detailAnswers() != null) project.setDetailAnswers(request.detailAnswers());
+    if (request.name() != null) {
+      project.setName(request.name());
+    }
+    if (request.subject() != null) {
+      project.setSubject(request.subject());
+    }
+    if (request.technique() != null) {
+      project.setTechnique(request.technique());
+    }
+    if (request.mood() != null) {
+      project.setMood(request.mood());
+    }
+    if (request.description() != null) {
+      project.setDescription(request.description());
+    }
+    if (request.status() != null) {
+      project.setStatus(parseStatusStrict(request.status()));
+    }
+    if (request.detailAnswers() != null) {
+      project.setDetailAnswers(request.detailAnswers());
+    }
   }
 
   @Transactional

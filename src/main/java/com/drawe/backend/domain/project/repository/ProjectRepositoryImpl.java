@@ -18,7 +18,8 @@ public class ProjectRepositoryImpl implements ProjectRepositoryCustom {
     String jpql =
         statusOrNull == null
             ? "SELECT p FROM Project p WHERE p.user = :user ORDER BY p.createdAt DESC"
-            : "SELECT p FROM Project p WHERE p.user = :user AND p.status = :status ORDER BY p.createdAt DESC";
+            : "SELECT p FROM Project p WHERE p.user = :user AND p.status = :status "
+                + "ORDER BY p.createdAt DESC";
 
     TypedQuery<Project> query = em.createQuery(jpql, Project.class).setParameter("user", user);
     if (statusOrNull != null) {

@@ -35,7 +35,7 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(
       HttpSecurity http,
-      OAuth2SuccessHandler oAuth2SuccessHandler,
+      OAuth2SuccessHandler oauth2SuccessHandler,
       JwtAuthenticationFilter jwtAuthenticationFilter)
       throws Exception {
     http.cors(Customizer.withDefaults())
@@ -74,7 +74,7 @@ public class SecurityConfig {
             oauth2 ->
                 oauth2
                     .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                    .successHandler(oAuth2SuccessHandler))
+                    .successHandler(oauth2SuccessHandler))
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
