@@ -38,12 +38,9 @@ api.interceptors.response.use(
           throw new Error("refreshToken 없음");
         }
 
-        const response = await axios.post(
-          `${API_URL}/auth/refresh`,
-          {
-            refreshToken,
-          },
-        );
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
+          refreshToken,
+        });
 
         const newAccessToken = response.data.data.accessToken;
         const newRefreshToken = response.data.data.refreshToken;
