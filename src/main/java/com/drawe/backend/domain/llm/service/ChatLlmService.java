@@ -15,7 +15,7 @@ import com.drawe.backend.domain.llm.dto.LlmCallContext;
 import com.drawe.backend.domain.llm.dto.LlmCallResult;
 import com.drawe.backend.domain.llm.repository.ChatSessionRepository;
 import com.drawe.backend.domain.llm.repository.LlmMessageRepository;
-import com.drawe.backend.domain.llm.repository.ProjectRepository;
+import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.config.LlmProperties;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
@@ -154,13 +154,53 @@ public class ChatLlmService {
     session.setLastActive(Instant.now());
     chatSessionRepository.save(session);
 
-    LlmMessage system = new LlmMessage();
-    system.setChatSession(session);
-    system.setRole(MessageRole.SYSTEM);
-    system.setContent(personaRegistry.resolve(PersonaRegistry.DEFAULT_KEY));
-    system.setHasImage(false);
-    llmMessageRepository.save(system);
+    LlmMessage persona = new LlmMessage();
+    persona.setChatSession(session);
+    persona.setRole(MessageRole.SYSTEM);
+    persona.setContent(personaRegistry.resolve(PersonaRegistry.DEFAULT_KEY));
+    persona.setHasImage(false);
+    llmMessageRepository.save(persona);
+
+    String projectContext = buildProjectContext(project);
+    if (projectContext != null) {
+      LlmMessage context = new LlmMessage();
+      context.setChatSession(session);
+      context.setRole(MessageRole.SYSTEM);
+      context.setContent(projectContext);
+      context.setHasImage(false);
+      llmMessageRepository.save(context);
+    }
     return session;
+  }
+
+  private String buildProjectContext(Project project) {
+    StringBuilder sb = new StringBuilder("[프로젝트 정보]\n");
+    boolean any = false;
+    if (notBlank(project.getName())) {
+      sb.append("- 이름: ").append(project.getName()).append('\n');
+      any = true;
+    }
+    if (notBlank(project.getSubject())) {
+      sb.append("- 주제: ").append(project.getSubject()).append('\n');
+      any = true;
+    }
+    if (notBlank(project.getTechnique())) {
+      sb.append("- 스타일: ").append(project.getTechnique()).append('\n');
+      any = true;
+    }
+    if (notBlank(project.getMood())) {
+      sb.append("- 분위기: ").append(project.getMood()).append('\n');
+      any = true;
+    }
+    if (notBlank(project.getDescription())) {
+      sb.append("- 메모: ").append(project.getDescription()).append('\n');
+      any = true;
+    }
+    return any ? sb.toString() : null;
+  }
+
+  private boolean notBlank(String s) {
+    return s != null && !s.isBlank();
   }
 
   private LlmProvider resolveProvider(User user) {
