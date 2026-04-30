@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: API_URL,
 });
 
 api.interceptors.request.use(
@@ -36,12 +38,9 @@ api.interceptors.response.use(
           throw new Error("refreshToken 없음");
         }
 
-        const response = await axios.post(
-          "http://localhost:8080/auth/refresh",
-          {
-            refreshToken,
-          },
-        );
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
+          refreshToken,
+        });
 
         const newAccessToken = response.data.data.accessToken;
         const newRefreshToken = response.data.data.refreshToken;
