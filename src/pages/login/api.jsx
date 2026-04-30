@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: "http://localhost:8081",
 });
 
 api.interceptors.request.use(
@@ -36,7 +36,7 @@ api.interceptors.response.use(
           throw new Error("refreshToken 없음");
         }
 
-        const response = await axios.post("http://localhost:8080/auth/refresh", {
+        const response = await axios.post("http://localhost:8081/auth/refresh", {
           refreshToken,
         });
 

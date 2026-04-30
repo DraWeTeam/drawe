@@ -1,9 +1,101 @@
-.wrapper{
-    display: flex;
-    flex-direction: column;
-    margin: auto;
-    align-items: center;
-    justify-content: center;
-    padding: 93px 0 83px;
-    gap: 52px;
+.wrapper {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 80px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ff8534;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #202124;
+}
+
+.lead {
+  margin: 4px 0 0 0;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.6);
+  line-height: 1.6;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.primaryCard {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 28px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fff7f0 0%, #ffffff 100%);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.primaryCard:hover {
+  transform: translateY(-2px);
+  border-color: #ff8534;
+  box-shadow: 0 8px 24px rgba(255, 133, 52, 0.15);
+}
+
+.cardIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #ff8534;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.cardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #202124;
+}
+
+.cardDesc {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.55);
+  line-height: 1.5;
+}
+
+.cardArrow {
+  font-size: 22px;
+  color: #ff8534;
+  flex-shrink: 0;
 }

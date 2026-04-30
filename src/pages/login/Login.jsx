@@ -14,7 +14,7 @@ const Login = () => {
     const [errorMessage, setErrorMessage] = useState("");
   
     const handleGoogleLogin = () => {
-        window.location.href = "http://localhost:8080/oauth2/authorization/google";
+        window.location.href = "http://localhost:8081/oauth2/authorization/google";
     };
 
     const handleChange = (e) => {
@@ -91,7 +91,7 @@ const Login = () => {
                 </button>
                 <div className={styles.signin}>
                     <p style={{margin: "0", fontWeight: "350"}}>계정이 없으신가요?</p>
-                    <Link style={{margin: "0", fontWeight: "500"}}>회원가입하기</Link>
+                    <Link to="/signup" style={{margin: "0", fontWeight: "500", color: "#ff8534"}}>회원가입하기</Link>
                 </div>
             </form>
         </div>
