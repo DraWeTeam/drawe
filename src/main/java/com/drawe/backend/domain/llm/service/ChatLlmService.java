@@ -7,6 +7,7 @@ import com.drawe.backend.domain.User;
 import com.drawe.backend.domain.enums.LlmCallStatus;
 import com.drawe.backend.domain.enums.LlmProvider;
 import com.drawe.backend.domain.enums.MessageRole;
+import com.drawe.backend.domain.enums.UserPlan;
 import com.drawe.backend.domain.llm.dto.ChatHistoryResponse;
 import com.drawe.backend.domain.llm.dto.ChatRequest;
 import com.drawe.backend.domain.llm.dto.ChatResponse;
@@ -51,7 +52,7 @@ public class ChatLlmService {
     List<LlmMessage> all = llmMessageRepository.findByChatSessionOrderByCreatedAtAsc(session);
     List<LlmCallContext.Turn> history = trimHistory(all, llmProperties.getMaxHistory());
 
-    LlmProvider provider = resolveProvider();
+    LlmProvider provider = resolveProvider(user);
     LlmService llm = pickService(provider);
     LlmCallContext ctx =
         new LlmCallContext(history, request.message(), image.bytes(), image.mimeType());
@@ -162,12 +163,13 @@ public class ChatLlmService {
     return session;
   }
 
-  private LlmProvider resolveProvider() {
-    String code = llmProperties.getDefaultProvider();
-    if (code == null || code.isBlank()) {
-      return LlmProvider.GEMINI;
+  private LlmProvider resolveProvider(User user) {
+    // 플랜 기반 라우팅: PAID → CLAUDE, FREE → GROK
+    UserPlan plan = user.getPlan();
+    if (plan == UserPlan.PAID) {
+      return LlmProvider.CLAUDE;
     }
-    return LlmProvider.fromCode(code);
+    return LlmProvider.GROK;
   }
 
   private LlmService pickService(LlmProvider provider) {

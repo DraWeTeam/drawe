@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum LlmProvider {
   GROK("grok"),
-  GEMINI("gemini");
+  GEMINI("gemini"),
+  CLAUDE("claude");
 
   private final String code;
 

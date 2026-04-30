@@ -40,13 +40,12 @@ public class LlmMessage {
   @Column(name = "role", nullable = false, length = 20)
   private MessageRole role;
 
-  @Lob
   @NotNull
-  @Column(name = "content", nullable = false)
+  @Column(name = "content", nullable = false, columnDefinition = "TEXT")
   private String content;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "provider", length = 20)
+  @Column(name = "provider", length = 20, columnDefinition = "VARCHAR(20)")
   private LlmProvider provider;
 
   @Size(max = 100)
@@ -79,8 +78,7 @@ public class LlmMessage {
   @Column(name = "status", length = 20)
   private LlmCallStatus status;
 
-  @Lob
-  @Column(name = "error_message")
+  @Column(name = "error_message", columnDefinition = "TEXT")
   private String errorMessage;
 
   @CreationTimestamp

@@ -1,5 +1,6 @@
 package com.drawe.backend.domain;
 
+import com.drawe.backend.domain.enums.UserPlan;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -48,6 +49,12 @@ public class User {
   @Size(max = 100)
   @Column(name = "provider_id", length = 100)
   private String providerId;
+
+  @NotNull
+  @Enumerated(EnumType.STRING)
+  @Column(name = "plan", nullable = false, length = 20)
+  @Builder.Default
+  private UserPlan plan = UserPlan.FREE;
 
   @CreationTimestamp
   @Column(name = "created_at", updatable = false)
