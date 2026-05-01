@@ -1,0 +1,138 @@
+.wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.createBtn {
+  background: #ff8534;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.error {
+  color: #d83a3a;
+  font-size: 14px;
+  margin: 0 0 16px 0;
+}
+
+.placeholder {
+  color: #888;
+  font-size: 15px;
+  text-align: center;
+  padding: 60px 0;
+}
+
+.grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.cardBody {
+  cursor: pointer;
+  flex: 1;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cardName {
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardStatus {
+  font-size: 12px;
+  color: #ff8534;
+  background: #fff3ea;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.cardMeta {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.cardSub {
+  margin: 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+}
+
+.editBtn,
+.deleteBtn {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 13px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.editBtn:hover {
+  background: #fff7f0;
+  border-color: #ff8534;
+  color: #ff8534;
+}
+
+.deleteBtn:hover {
+  background: #fff0f0;
+  border-color: #d83a3a;
+  color: #d83a3a;
+}

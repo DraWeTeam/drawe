@@ -1,33 +1,27 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Template from "./template/Template";
 import Login from "./pages/login/Login";
+import Signup from "./pages/login/Signup";
 import OAuthCallback from "./pages/login/OAuthCallback";
 import Home from "./pages/Home";
-
-const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem("accessToken");
-  return token ? children : <Navigate to="/login" replace />;
-};
+import ProjectList from "./pages/projects/ProjectList";
+import ChatPage from "./pages/chat/ChatPage";
 
 function App() {
   return (
     <BrowserRouter>
-      <Template>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/oauth/callback" element={<OAuthCallback />} />
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Home />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
-      </Template>
+        <Template>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/projects" element={<ProjectList />} />
+            <Route path="/projects/:projectId/chat" element={<ChatPage />} />
+          </Routes>
+        </Template>
     </BrowserRouter>
-  );
+  )
 }
 
-export default App;
+export default App

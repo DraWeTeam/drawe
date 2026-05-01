@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: "http://localhost:8081",
 });
 
 api.interceptors.request.use(
@@ -14,7 +14,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
@@ -36,12 +36,9 @@ api.interceptors.response.use(
           throw new Error("refreshToken 없음");
         }
 
-        const response = await axios.post(
-          "http://localhost:8080/auth/refresh",
-          {
-            refreshToken,
-          },
-        );
+        const response = await axios.post("http://localhost:8081/auth/refresh", {
+          refreshToken,
+        });
 
         const newAccessToken = response.data.data.accessToken;
         const newRefreshToken = response.data.data.refreshToken;
@@ -50,7 +47,7 @@ api.interceptors.response.use(
         localStorage.setItem("refreshToken", newRefreshToken);
 
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
+        return api(originalRequest);        
       } catch (refreshError) {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
@@ -60,7 +57,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;
