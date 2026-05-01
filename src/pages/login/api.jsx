@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL: "http://localhost:8081",
+  baseURL: API_URL,
 });
 
 api.interceptors.request.use(
@@ -14,7 +16,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
@@ -36,7 +38,7 @@ api.interceptors.response.use(
           throw new Error("refreshToken 없음");
         }
 
-        const response = await axios.post("http://localhost:8081/auth/refresh", {
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken,
         });
 
@@ -47,7 +49,7 @@ api.interceptors.response.use(
         localStorage.setItem("refreshToken", newRefreshToken);
 
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);        
+        return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
@@ -57,7 +59,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
