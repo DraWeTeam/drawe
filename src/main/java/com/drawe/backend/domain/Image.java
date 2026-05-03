@@ -16,7 +16,10 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(
     name = "images",
-    indexes = {@Index(name = "idx_img_src_srcId", columnList = "source, source_id")})
+    indexes = {
+            @Index(name = "idx_img_src_srcId", columnList = "source, source_id"),
+            @Index(name = "idx_img_embedding", columnList = "embedding_id")
+    })
 public class Image {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,6 +43,14 @@ public class Image {
   @Size(max = 100)
   @Column(name = "embedding_id", length = 100)
   private String embeddingId;
+
+  @Size(max = 100)
+  @Column(name = "photographer_username", length = 100)
+  private String photographerUsername;
+
+  @Size(max = 200)
+  @Column(name = "photographer_name", length = 200)
+  private String photographerName;
 
   @Column(name = "is_onboarding", nullable = false)
   @ColumnDefault("false")
