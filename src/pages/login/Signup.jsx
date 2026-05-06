@@ -14,7 +14,10 @@ const Signup = () => {
     nickname: "",
   });
   const [emailCheck, setEmailCheck] = useState({ status: "idle", message: "" });
-  const [nicknameCheck, setNicknameCheck] = useState({ status: "idle", message: "" });
+  const [nicknameCheck, setNicknameCheck] = useState({
+    status: "idle",
+    message: "",
+  });
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,7 +30,10 @@ const Signup = () => {
 
   const handleCheckEmail = async () => {
     if (!emailRegex.test(form.email)) {
-      setEmailCheck({ status: "error", message: "이메일 형식이 올바르지 않아요." });
+      setEmailCheck({
+        status: "error",
+        message: "이메일 형식이 올바르지 않아요.",
+      });
       return;
     }
     try {
@@ -35,7 +41,10 @@ const Signup = () => {
       if (data?.available) {
         setEmailCheck({ status: "ok", message: "사용 가능한 이메일이에요." });
       } else {
-        setEmailCheck({ status: "error", message: "이미 사용 중인 이메일이에요." });
+        setEmailCheck({
+          status: "error",
+          message: "이미 사용 중인 이메일이에요.",
+        });
       }
     } catch (err) {
       const message =
@@ -47,15 +56,24 @@ const Signup = () => {
   const handleCheckNickname = async () => {
     const trimmed = form.nickname.trim();
     if (trimmed.length < 2 || trimmed.length > 20) {
-      setNicknameCheck({ status: "error", message: "닉네임은 2~20자여야 해요." });
+      setNicknameCheck({
+        status: "error",
+        message: "닉네임은 2~20자여야 해요.",
+      });
       return;
     }
     try {
       const data = await checkNickname(trimmed);
       if (data?.available) {
-        setNicknameCheck({ status: "ok", message: "사용 가능한 닉네임이에요." });
+        setNicknameCheck({
+          status: "ok",
+          message: "사용 가능한 닉네임이에요.",
+        });
       } else {
-        setNicknameCheck({ status: "error", message: "이미 사용 중인 닉네임이에요." });
+        setNicknameCheck({
+          status: "error",
+          message: "이미 사용 중인 닉네임이에요.",
+        });
       }
     } catch (err) {
       const message =
@@ -116,9 +134,7 @@ const Signup = () => {
     <div className={styles.wrapper}>
       <div className={styles.section}>
         <div className={styles.heroTitle}>회원가입</div>
-        <p className={styles.heroSub}>
-          DraWe와 함께 그림 여정을 시작해보세요.
-        </p>
+        <p className={styles.heroSub}>DraWe와 함께 그림 여정을 시작해보세요.</p>
       </div>
       <form className={styles.signupBox} onSubmit={handleSubmit}>
         <div className={styles.field}>
@@ -143,7 +159,9 @@ const Signup = () => {
           {emailCheck.message && (
             <p
               className={
-                emailCheck.status === "ok" ? styles.helperOk : styles.helperError
+                emailCheck.status === "ok"
+                  ? styles.helperOk
+                  : styles.helperError
               }
             >
               {emailCheck.message}
@@ -208,9 +226,7 @@ const Signup = () => {
           />
         </div>
 
-        {errorMessage && (
-          <p className={styles.error}>{errorMessage}</p>
-        )}
+        {errorMessage && <p className={styles.error}>{errorMessage}</p>}
 
         <button
           type="submit"

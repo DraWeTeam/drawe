@@ -29,7 +29,8 @@ const Home = () => {
           오늘은 무엇을 그려볼까요?
         </h1>
         <p className={styles.lead}>
-          DraWe의 AI 가이드와 함께 아이디어를 다듬고, 한 장의 그림으로 완성해보세요.
+          DraWe의 AI 가이드와 함께 아이디어를 다듬고, 한 장의 그림으로
+          완성해보세요.
         </p>
       </section>
 

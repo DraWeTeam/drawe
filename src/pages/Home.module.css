@@ -53,7 +53,10 @@
   background: linear-gradient(135deg, #fff7f0 0%, #ffffff 100%);
   cursor: pointer;
   text-align: left;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
   font-family: inherit;
 }
 

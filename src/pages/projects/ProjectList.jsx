@@ -34,7 +34,8 @@ const ProjectList = () => {
       setProjects(data?.projects ?? []);
     } catch (err) {
       const message =
-        err.response?.data?.error?.message || "프로젝트 목록을 불러오지 못했어요.";
+        err.response?.data?.error?.message ||
+        "프로젝트 목록을 불러오지 못했어요.";
       setErrorMessage(message);
     } finally {
       setLoading(false);
@@ -61,7 +62,8 @@ const ProjectList = () => {
       setEditTarget(detail);
     } catch (err) {
       const message =
-        err.response?.data?.error?.message || "프로젝트 정보를 불러오지 못했어요.";
+        err.response?.data?.error?.message ||
+        "프로젝트 정보를 불러오지 못했어요.";
       setErrorMessage(message);
     }
   };
