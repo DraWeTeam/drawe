@@ -311,7 +311,7 @@ public class ChatLlmService {
     }
   }
 
-  /** 검색 결과를 LLM에게 줄 system 메시지로 포맷팅 LLM이 응답에서 [1], [2] 형식으로 인용하도록 지시 */
+  /** 검색 결과를 LLM에게 줄 system 메시지로 포맷팅 LLM이 응답에서 [1], [2] 형식으로 인용하도록 지시. */
   private String buildReferenceContext(List<ImageResult> references) {
     StringBuilder sb = new StringBuilder();
     sb.append("[참고 이미지]\n");
@@ -326,9 +326,15 @@ public class ChatLlmService {
       // 카테고리 한 줄로
       if (ref.technique() != null || ref.subject() != null || ref.mood() != null) {
         sb.append(" (");
-        if (ref.technique() != null) sb.append(ref.technique());
-        if (ref.subject() != null) sb.append("/").append(ref.subject());
-        if (ref.mood() != null) sb.append("/").append(ref.mood());
+        if (ref.technique() != null) {
+          sb.append(", 기법: ").append(ref.technique());
+        }
+        if (ref.subject() != null) {
+          sb.append(", 주제: ").append(ref.subject());
+        }
+        if (ref.mood() != null) {
+          sb.append(", 분위기: ").append(ref.mood());
+        }
         sb.append(")");
       }
       sb.append("\n");
@@ -354,7 +360,7 @@ public class ChatLlmService {
     return sb.toString();
   }
 
-  /** SearchService의 ImageResult를 ChatResponse의 ReferenceItem으로 변환합니다. */
+  /** SearchService의 ImageResult를 ChatResponse의 ReferenceItem으로 변환. */
   private List<ChatResponse.ReferenceItem> convertToReferenceItems(List<ImageResult> results) {
     return results.stream()
         .map(

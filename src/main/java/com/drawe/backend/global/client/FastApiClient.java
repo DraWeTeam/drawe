@@ -23,7 +23,7 @@ public class FastApiClient {
             .build();
   }
 
-  /** 텍스트 -> 768차원 CLIP 벡터로 변환 */
+  /** 텍스트 -> 768차원 CLIP 벡터로 변환. */
   public List<Float> embedText(String text) {
     try {
       EmbedResponse response =

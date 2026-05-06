@@ -54,7 +54,9 @@ public class SearchLogService {
   }
 
   private String truncate(String originalMessage, int maxLength) {
-    if (originalMessage == null) return null;
+    if (originalMessage == null) {
+      return null;
+    }
     return originalMessage.length() > maxLength
         ? originalMessage.substring(0, maxLength)
         : originalMessage;

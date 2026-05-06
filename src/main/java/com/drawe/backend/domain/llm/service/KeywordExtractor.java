@@ -17,25 +17,29 @@ public class KeywordExtractor {
 
   private static final String SYSTEM_PROMPT =
       """
-            You are a keyword extractor for an image search system that uses CLIP embeddings.
+            You are a keyword extractor for an image search system using CLIP embeddings.
 
-            Your task: Read the user's message (in any language) considering the conversation context, \
-            and extract 3-6 English keywords that would best match the user's intent for finding visual reference images.
+            Your task: Read the user's message (in any language) considering the
+            conversation context. Extract 3-6 English keywords that best match
+            the user's intent for finding visual reference images.
 
             Rules:
             1. Output ONLY the keywords, separated by spaces. No quotes, no explanations.
             2. Convert any non-English input to natural English keywords.
-            3. Focus on visual elements: subjects, scenes, moods, lighting, colors, styles, poses, actions.
-            4. Use conversation context to disambiguate. The user often refers to previous messages.
+            3. Focus on visual elements: subjects, scenes, moods, lighting,
+               colors, styles, poses, actions.
+            4. Use conversation context to disambiguate.
+               The user often refers to previous messages.
             5. CAREFUL with Korean homophones — choose meaning based on visual/action context:
-               - 쥐다 (to grasp/hold) vs 쥐 (mouse animal): if discussing hands, poses, actions → "grasping/holding"
+               - 쥐다 (to grasp/hold) vs 쥐 (mouse animal):
+                 if discussing hands or poses → "grasping/holding"
                - 손 (hand) vs 손님 (guest): default to body part unless context says otherwise
                - 눈 (eye) vs 눈 (snow): use context (face/weather)
                - 배 (boat/stomach/pear): use context
                - 다리 (leg/bridge): use context
-            6. If the message refers to "this/that image" or implies continuation of previous topic, \
+            6. If the message refers to "this/that image" or implies continuation,
                maintain the topic from the conversation context.
-            7. If the message is NOT asking about visual content (greeting, thanks, off-topic), \
+            7. If the message is NOT about visual content (greeting, thanks, off-topic),
                output exactly: SKIP
 
             Examples with context:
@@ -112,7 +116,7 @@ public class KeywordExtractor {
     }
   }
 
-  /** 기존 호환성 — 컨텍스트 없이 호출 (사용 안 함, 폴백용) */
+  /** 기존 호환성 — 컨텍스트 없이 호출 (사용 안 함, 폴백용). */
   public String extract(String userMessage) {
     return extract(userMessage, null);
   }

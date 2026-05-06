@@ -27,7 +27,7 @@ public class PineconeClient {
   }
 
   /**
-   * 주어진 벡터와 가장 유사한 top-K 이미지의 ID와 점수 반환
+   * 주어진 벡터와 가장 유사한 top-K 이미지의 ID와 점수 반환.
    *
    * @param vector CLIP에서 생성된 768차원 정규화 벡터
    * @param topK 반환할 결과 개수
