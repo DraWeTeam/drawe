@@ -12,5 +12,12 @@ public record ChatResponse(
     String followUp) {
 
   public record ReferenceItem(
-      Long id, String url, String technique, String subject, String mood, Double similarity) {}
+      Long id,
+      String url,
+      String photographerName, // ← 추가
+      String photographerUsername, // ← 추가
+      String technique,
+      String subject,
+      String mood,
+      Double similarity) {}
 }
