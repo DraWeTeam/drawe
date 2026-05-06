@@ -9,13 +9,14 @@ const ReferenceGrid = ({ references, loading }) => {
     <div className={styles.wrapper}>
       <div className={styles.header}>
         <h2 className={styles.title}>참고 이미지</h2>
-        {hasReferences && <span className={styles.count}>{references.length}개</span>}
+        {hasReferences && (
+          <span className={styles.count}>{references.length}개</span>
+        )}
       </div>
 
       {loading && hasReferences && (
         <div className={styles.searchingBadge}>
-          <span className={styles.searchingDot}></span>
-          새 이미지 검색 중
+          <span className={styles.searchingDot}></span>새 이미지 검색 중
         </div>
       )}
 
@@ -75,9 +76,15 @@ const ReferenceCard = ({ reference, index }) => {
         <div className={styles.overlay}>
           {(reference.technique || reference.subject || reference.mood) && (
             <div className={styles.tags}>
-              {reference.technique && <span className={styles.tag}>{reference.technique}</span>}
-              {reference.subject && <span className={styles.tag}>{reference.subject}</span>}
-              {reference.mood && <span className={styles.tag}>{reference.mood}</span>}
+              {reference.technique && (
+                <span className={styles.tag}>{reference.technique}</span>
+              )}
+              {reference.subject && (
+                <span className={styles.tag}>{reference.subject}</span>
+              )}
+              {reference.mood && (
+                <span className={styles.tag}>{reference.mood}</span>
+              )}
             </div>
           )}
         </div>
@@ -96,7 +103,9 @@ const ReferenceCard = ({ reference, index }) => {
               {reference.photographerName}
             </a>
           ) : (
-            <span className={styles.photographer}>{reference.photographerName}</span>
+            <span className={styles.photographer}>
+              {reference.photographerName}
+            </span>
           )}
           <span className={styles.source}>· Unsplash</span>
         </div>

@@ -1,7 +1,13 @@
 import { useState } from "react";
 import styles from "./ConfirmModal.module.css";
 
-const ConfirmModal = ({ title, description, confirmLabel = "확인", onConfirm, onClose }) => {
+const ConfirmModal = ({
+  title,
+  description,
+  confirmLabel = "확인",
+  onConfirm,
+  onClose,
+}) => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 

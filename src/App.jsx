@@ -10,18 +10,18 @@ import ChatPage from "./pages/chat/ChatPage";
 function App() {
   return (
     <BrowserRouter>
-        <Template>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/oauth/callback" element={<OAuthCallback />} />
-            <Route path="/" element={<Home />} />
-            <Route path="/projects" element={<ProjectList />} />
-            <Route path="/projects/:projectId/chat" element={<ChatPage />} />
-          </Routes>
-        </Template>
+      <Template>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/projects" element={<ProjectList />} />
+          <Route path="/projects/:projectId/chat" element={<ChatPage />} />
+        </Routes>
+      </Template>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -1,6 +1,9 @@
 import api from "../login/api";
 
-export const sendMessage = async (projectId, { message, sessionId, imageUrl }) => {
+export const sendMessage = async (
+  projectId,
+  { message, sessionId, imageUrl },
+) => {
   const body = { message };
   if (sessionId) body.sessionId = sessionId;
   if (imageUrl) body.imageUrl = imageUrl;

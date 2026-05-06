@@ -14,7 +14,7 @@ const ChatPage = () => {
   const [project, setProject] = useState(null);
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(
-    () => localStorage.getItem(sessionKey(projectId)) || null
+    () => localStorage.getItem(sessionKey(projectId)) || null,
   );
   const [input, setInput] = useState("");
   const [followUp, setFollowUp] = useState(null);
@@ -32,7 +32,8 @@ const ChatPage = () => {
         setProject(detail);
       } catch (err) {
         const message =
-          err.response?.data?.error?.message || "프로젝트 정보를 불러오지 못했어요.";
+          err.response?.data?.error?.message ||
+          "프로젝트 정보를 불러오지 못했어요.";
         setErrorMessage(message);
       }
     };
@@ -47,20 +48,18 @@ const ChatPage = () => {
         const restored = (data?.messages ?? []).map((m) => ({
           role: m.role,
           content: m.content,
-          references: m.references
+          references: m.references,
         }));
         setMessages(restored);
 
-      
-      // references가 "있는" 가장 최근 메시지를 찾음
-      const lastWithReferences = [...restored]
-        .reverse()
-        .find(m => m.references && m.references.length > 0);
-      
-      if (lastWithReferences) {
-        setReferences(lastWithReferences.references);
-      }
+        // references가 "있는" 가장 최근 메시지를 찾음
+        const lastWithReferences = [...restored]
+          .reverse()
+          .find((m) => m.references && m.references.length > 0);
 
+        if (lastWithReferences) {
+          setReferences(lastWithReferences.references);
+        }
       } catch (err) {
         if (err.response?.status === 404) {
           localStorage.removeItem(sessionKey(projectId));
@@ -94,9 +93,16 @@ const ChatPage = () => {
         setSessionId(res.sessionId);
         localStorage.setItem(sessionKey(projectId), res.sessionId);
       }
-      setMessages((prev) => [...prev, { role: "assistant", content: res.message, references: res.references || [] }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: res.message,
+          references: res.references || [],
+        },
+      ]);
       setFollowUp(res.followUp || null);
-      
+
       if (res.references && res.references.length > 0) {
         setReferences(res.references);
       }
@@ -141,7 +147,10 @@ const ChatPage = () => {
       <section className={styles.rightPanel}>
         <div className={styles.wrapper}>
           <header className={styles.header}>
-            <button className={styles.backBtn} onClick={() => navigate("/projects")}>
+            <button
+              className={styles.backBtn}
+              onClick={() => navigate("/projects")}
+            >
               ← 목록
             </button>
             <div className={styles.headerInfo}>
@@ -176,7 +185,9 @@ const ChatPage = () => {
                 <div
                   key={idx}
                   className={
-                    m.role === "user" ? styles.userBubble : styles.assistantBubble
+                    m.role === "user"
+                      ? styles.userBubble
+                      : styles.assistantBubble
                   }
                 >
                   {m.content}

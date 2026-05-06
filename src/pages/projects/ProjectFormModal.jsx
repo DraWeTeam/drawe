@@ -116,7 +116,9 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
             >
               <option value="">선택 안 함</option>
               {TECHNIQUE_OPTIONS.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </label>
@@ -131,7 +133,9 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
             >
               <option value="">선택 안 함</option>
               {MOOD_OPTIONS.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
             </select>
           </label>
@@ -158,15 +162,15 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
                 className={styles.input}
               >
                 {STATUS_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
                 ))}
               </select>
             </label>
           )}
 
-          {errorMessage && (
-            <p className={styles.error}>{errorMessage}</p>
-          )}
+          {errorMessage && <p className={styles.error}>{errorMessage}</p>}
 
           <div className={styles.actions}>
             <button
