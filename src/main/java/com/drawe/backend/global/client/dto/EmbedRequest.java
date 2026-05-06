@@ -1,6 +1,3 @@
 package com.drawe.backend.global.client.dto;
 
-public record EmbedRequest(
-        String text
-) {
-}
+public record EmbedRequest(String text) {}

@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -67,8 +66,8 @@ public class ChatLlmService {
 
     // 레퍼런스 검색 결과를 system 컨텍스트에 추가
     if (!references.isEmpty()) {
-        String referenceContext = buildReferenceContext(references);
-        history.add(new LlmCallContext.Turn(MessageRole.SYSTEM, referenceContext));
+      String referenceContext = buildReferenceContext(references);
+      history.add(new LlmCallContext.Turn(MessageRole.SYSTEM, referenceContext));
     }
 
     LlmProvider provider = resolveProvider(user);
@@ -104,8 +103,7 @@ public class ChatLlmService {
       llmMessageRepository.save(assistantMsg);
       session.setLastActive(Instant.now());
 
-      return new ChatResponse(
-          session.getId(), "guide", result.content(), refItems, null);
+      return new ChatResponse(session.getId(), "guide", result.content(), refItems, null);
     } catch (CustomException e) {
       persistFailure(assistantMsg, e);
       throw e;
@@ -277,112 +275,99 @@ public class ChatLlmService {
     return msg.length() > 1000 ? msg.substring(0, 1000) : msg;
   }
 
-    /**
-     * 사용자 메시지에서 키워드를 추출하고 이미지 검색 수행
-     * 검색이 불필요하거나 실패하면 빈 리스트 반환 (가이드 응답에 영향 없음).
-     */
-    private List<ImageResult> retrieveReferences(User user, Project project, String userMessage, List<LlmCallContext.Turn> recentHistory) {
-        String keywords = keywordExtractor.extract(userMessage, recentHistory);
-        if (keywords.isEmpty()) {
-            return List.of();
-        }
-
-        try {
-            SearchResponse searchResult = searchService.search(
-                    new SearchRequest(keywords, 6)
-            );
-            log.info("RAG 검색: keywords='{}', 결과={}개",
-                    keywords, searchResult.results().size());
-
-            // 로그 저장 (비동기)
-            searchLogService.log(
-                    user, project, userMessage, keywords,
-                    searchResult.results(), "rag_chat"
-            );
-
-            // 평균 점수 계산
-            double avgScore = searchResult.results().stream()
-                    .mapToDouble(r -> r.score().doubleValue())
-                    .average()
-                    .orElse(0.0);
-
-            // 점수 너무 낮으면 무관한 결과로 판단
-            if (avgScore < 0.18) {
-                log.info("검색 결과 점수 낮음 (avgScore={}), 무관한 결과로 판단", avgScore);
-                return List.of();  // 빈 배열 → 프론트에서 이전 references 유지
-            }
-
-            return searchResult.results();
-        } catch (Exception e) {
-            log.warn("RAG 검색 실패, references 없이 응답: error={}", e.getMessage());
-            return List.of();
-        }
+  /** 사용자 메시지에서 키워드를 추출하고 이미지 검색 수행 검색이 불필요하거나 실패하면 빈 리스트 반환 (가이드 응답에 영향 없음). */
+  private List<ImageResult> retrieveReferences(
+      User user, Project project, String userMessage, List<LlmCallContext.Turn> recentHistory) {
+    String keywords = keywordExtractor.extract(userMessage, recentHistory);
+    if (keywords.isEmpty()) {
+      return List.of();
     }
 
-    /**
-     * 검색 결과를 LLM에게 줄 system 메시지로 포맷팅
-     * LLM이 응답에서 [1], [2] 형식으로 인용하도록 지시
-     */
-    private String buildReferenceContext(List<ImageResult> references) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("[참고 이미지]\n");
-        sb.append("아래는 사용자 질문과 관련하여 검색된 참고 이미지들입니다. ")
-                .append("응답할 때 자연스럽게 이 이미지들을 [1], [2] 같은 형식으로 인용해주세요.\n\n");
+    try {
+      SearchResponse searchResult = searchService.search(new SearchRequest(keywords, 6));
+      log.info("RAG 검색: keywords='{}', 결과={}개", keywords, searchResult.results().size());
 
-        for (int i = 0; i < references.size(); i++) {
-            ImageResult ref = references.get(i);
-            sb.append("[").append(i + 1).append("] ");
-            sb.append("유사도: ").append(String.format("%.2f", ref.score()));
+      // 로그 저장 (비동기)
+      searchLogService.log(
+          user, project, userMessage, keywords, searchResult.results(), "rag_chat");
 
-            // 카테고리 한 줄로
-            if (ref.technique() != null || ref.subject() != null || ref.mood() != null) {
-                sb.append(" (");
-                if (ref.technique() != null) sb.append(ref.technique());
-                if (ref.subject() != null) sb.append("/").append(ref.subject());
-                if (ref.mood() != null) sb.append("/").append(ref.mood());
-                sb.append(")");
-            }
-            sb.append("\n");
+      // 평균 점수 계산
+      double avgScore =
+          searchResult.results().stream()
+              .mapToDouble(r -> r.score().doubleValue())
+              .average()
+              .orElse(0.0);
 
-            // utility (구체적 용도)
-            if (ref.utility() != null && !ref.utility().isEmpty()) {
-                sb.append("    용도: ").append(String.join(", ", ref.utility())).append("\n");
-            }
+      // 점수 너무 낮으면 무관한 결과로 판단
+      if (avgScore < 0.18) {
+        log.info("검색 결과 점수 낮음 (avgScore={}), 무관한 결과로 판단", avgScore);
+        return List.of(); // 빈 배열 → 프론트에서 이전 references 유지
+      }
 
-            // rawTags — 핵심 정보 (10개 제한)
-            if (ref.rawTags() != null && !ref.rawTags().isEmpty()) {
-                String topTags = ref.rawTags().stream()
-                        .limit(10)
-                        .collect(Collectors.joining(", "));
-                sb.append("    태그: ").append(topTags).append("\n");
-            }
-        }
+      return searchResult.results();
+    } catch (Exception e) {
+      log.warn("RAG 검색 실패, references 없이 응답: error={}", e.getMessage());
+      return List.of();
+    }
+  }
 
-        sb.append("\n응답 가이드:\n");
-        sb.append("- 위 참고 이미지를 자연스럽게 언급하며 답변하세요.\n");
-        sb.append("- 예: \"[1]번 이미지처럼 부드러운 색감을 표현하려면...\"\n");
-        sb.append("- 모든 이미지를 다 언급할 필요는 없습니다. 관련 있는 것만 인용하세요.\n");
-        sb.append("- 태그 정보를 활용해 구체적인 조언을 해주세요.\n");
+  /** 검색 결과를 LLM에게 줄 system 메시지로 포맷팅 LLM이 응답에서 [1], [2] 형식으로 인용하도록 지시 */
+  private String buildReferenceContext(List<ImageResult> references) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("[참고 이미지]\n");
+    sb.append("아래는 사용자 질문과 관련하여 검색된 참고 이미지들입니다. ")
+        .append("응답할 때 자연스럽게 이 이미지들을 [1], [2] 같은 형식으로 인용해주세요.\n\n");
 
-        return sb.toString();
+    for (int i = 0; i < references.size(); i++) {
+      ImageResult ref = references.get(i);
+      sb.append("[").append(i + 1).append("] ");
+      sb.append("유사도: ").append(String.format("%.2f", ref.score()));
+
+      // 카테고리 한 줄로
+      if (ref.technique() != null || ref.subject() != null || ref.mood() != null) {
+        sb.append(" (");
+        if (ref.technique() != null) sb.append(ref.technique());
+        if (ref.subject() != null) sb.append("/").append(ref.subject());
+        if (ref.mood() != null) sb.append("/").append(ref.mood());
+        sb.append(")");
+      }
+      sb.append("\n");
+
+      // utility (구체적 용도)
+      if (ref.utility() != null && !ref.utility().isEmpty()) {
+        sb.append("    용도: ").append(String.join(", ", ref.utility())).append("\n");
+      }
+
+      // rawTags — 핵심 정보 (10개 제한)
+      if (ref.rawTags() != null && !ref.rawTags().isEmpty()) {
+        String topTags = ref.rawTags().stream().limit(10).collect(Collectors.joining(", "));
+        sb.append("    태그: ").append(topTags).append("\n");
+      }
     }
 
-    /**
-     * SearchService의 ImageResult를 ChatResponse의 ReferenceItem으로 변환합니다.
-     */
-    private List<ChatResponse.ReferenceItem> convertToReferenceItems(List<ImageResult> results) {
-        return results.stream()
-                .map(r -> new ChatResponse.ReferenceItem(
-                        r.id(),
-                        r.url(),
-                        r.photographerName(),
-                        r.photographerUsername(),
-                        r.technique(),
-                        r.subject(),
-                        r.mood(),
-                        r.score().doubleValue()
-                ))
-                .toList();
-    }
+    sb.append("\n응답 가이드:\n");
+    sb.append("- 위 참고 이미지를 자연스럽게 언급하며 답변하세요.\n");
+    sb.append("- 예: \"[1]번 이미지처럼 부드러운 색감을 표현하려면...\"\n");
+    sb.append("- 모든 이미지를 다 언급할 필요는 없습니다. 관련 있는 것만 인용하세요.\n");
+    sb.append("- 태그 정보를 활용해 구체적인 조언을 해주세요.\n");
 
+    return sb.toString();
+  }
+
+  /** SearchService의 ImageResult를 ChatResponse의 ReferenceItem으로 변환합니다. */
+  private List<ChatResponse.ReferenceItem> convertToReferenceItems(List<ImageResult> results) {
+    return results.stream()
+        .map(
+            r ->
+                new ChatResponse.ReferenceItem(
+                    r.id(),
+                    r.url(),
+                    r.photographerName(),
+                    r.photographerUsername(),
+                    r.technique(),
+                    r.subject(),
+                    r.mood(),
+                    r.score().doubleValue()))
+        .toList();
+  }
 }
