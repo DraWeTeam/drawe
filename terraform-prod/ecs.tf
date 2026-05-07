@@ -166,8 +166,7 @@ locals {
     { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://localhost:4317" },
     { name = "OTEL_EXPORTER_OTLP_PROTOCOL", value = "grpc" },
     { name = "OTEL_RESOURCE_ATTRIBUTES", value = "deployment.environment=${var.env},service.namespace=drawe" },
-    { name = "OTEL_TRACES_SAMPLER", value = "parentbased_traceidratio" },
-    { name = "OTEL_TRACES_SAMPLER_ARG", value = var.otel_sampling_rate },
+    { name = "OTEL_TRACES_SAMPLER", value = "parentbased_always_on" },
   ]
 
   # prod alloy env — Grafana Cloud 가 아닌 self-host endpoint 들
