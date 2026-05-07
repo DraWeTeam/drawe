@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:cf": "VITE_API_URL=$([ \"$CF_PAGES_BRANCH\" = \"main\" ] && echo https://api.drawe.xyz || echo https://api-dev.drawe.xyz) vite build",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
