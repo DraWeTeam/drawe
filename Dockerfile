@@ -14,14 +14,29 @@ RUN ./gradlew bootJar -x test --no-daemon
 
 # ─────────────────────────────────────────────────────────────
 # Stage 2: Runtime — Temurin JRE + OTel Agent + 비루트 사용자
-# (base: Ubuntu 24.04 noble — default ubuntu 사용자 사전 제거 필요)
 # ─────────────────────────────────────────────────────────────
 FROM eclipse-temurin:17-jre
 
-# OTel Java Agent — 빌드 시점에 받아 이미지에 포함
+# OTel Java Agent
 ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar \
     /opt/otel-javaagent.jar
 RUN chmod 644 /opt/otel-javaagent.jar
+
+# RDS CA 번들 → JVM truststore (sslMode=VERIFY_IDENTITY 가 신뢰하도록)
+ADD https://truststore.pki.rds.amazonaws.com/ap-northeast-2/ap-northeast-2-bundle.pem \
+    /tmp/rds-bundle.pem
+RUN cd /tmp && \
+    csplit -z -s -f rds-cert- rds-bundle.pem '/-----BEGIN CERTIFICATE-----/' '{*}' && \
+    n=0; \
+    for cert in rds-cert-*; do \
+        n=$((n+1)); \
+        keytool -importcert -trustcacerts -noprompt \
+            -alias "rds-ca-${n}" \
+            -file "$cert" \
+            -keystore "$JAVA_HOME/lib/security/cacerts" \
+            -storepass changeit; \
+    done && \
+    rm -f rds-bundle.pem rds-cert-*
 
 # 비루트 사용자 (1000:1000) 로 실행 — security best practice
 # Ubuntu 24.04 base 에는 default ubuntu 사용자(UID 1000)가 이미 존재 → 제거 후 재생성
