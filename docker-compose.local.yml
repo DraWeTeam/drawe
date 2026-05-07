@@ -1,0 +1,99 @@
+# ── 로컬 개발 환경 (전체 스택) ────────────────────────────
+# docker compose -f docker-compose.local.yml up -d
+#
+# 사용 포트:
+#   3306 — MySQL
+#   6379 — Valkey
+#   8080 — Backend (Spring Boot)
+#   8000 — FastAPI (CLIP Embedding)
+#   5173 — Frontend (Vite dev server — 별도 실행)
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: drawe-mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: drawe_db
+      MYSQL_USER: ${DB_USERNAME:-drawe_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-drawe_pass}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      retries: 10
+    networks:
+      - drawe-net
+
+  valkey:
+    image: valkey/valkey:8.1.6-alpine
+    container_name: drawe-valkey
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: ["valkey-server", "--requirepass", "${REDIS_PASSWORD:-valkey_pass}", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "${REDIS_PASSWORD:-valkey_pass}", "PING"]
+      interval: 5s
+      retries: 10
+    networks:
+      - drawe-net
+
+  backend:
+    build:
+      context: ../drawe-backend
+    container_name: drawe-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: drawe_db
+      DB_USERNAME: ${DB_USERNAME:-drawe_user}
+      DB_PASSWORD: ${DB_PASSWORD:-drawe_pass}
+      # DB_SSL_MODE 미설정 시 application.properties default(PREFERRED) 사용 — 로컬 docker MySQL OK
+      REDIS_HOST: valkey
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-valkey_pass}
+      JWT_SECRET: ${JWT_SECRET:-bG9jYWxkZXZlbG9wbWVudHNlY3JldGtleWZvcmRyYXdlcHJvamVjdDEyMzQ1Njc4OTA=}
+      JPA_DDL_AUTO: update
+      JPA_SHOW_SQL: "true"
+      LOG_LEVEL_SQL: debug
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173
+      FASTAPI_BASE_URL: http://fastapi:8000
+      GROK_API_KEY: ${GROK_API_KEY:-}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APP_OAUTH2_REDIRECT_URI: http://localhost:5173/oauth/callback
+    depends_on:
+      mysql:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks:
+      - drawe-net
+
+  fastapi:
+    build:
+      context: ../drawe-fastapi
+    container_name: drawe-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      WORKERS: 1
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+    networks:
+      - drawe-net
+
+volumes:
+  mysql-data:
+
+networks:
+  drawe-net:
+    driver: bridge

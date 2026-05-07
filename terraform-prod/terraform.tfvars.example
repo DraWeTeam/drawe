@@ -1,0 +1,39 @@
+############################################################
+# DraWe prod — terraform.tfvars
+############################################################
+
+# ── 필수 ─────────────────────────────────────────────────
+key_pair_name = "drawe-prod-keypair"
+
+# 가비아에서 산 도메인 (Cloudflare DNS 에 등록되어 있다고 가정)
+domain_name  = "api.drawe.com"
+frontend_url = "https://drawe.com"
+
+# Cloudflare zone ID — 대시보드 Overview 우측 사이드바에서 복사
+cloudflare_zone_id = "abc123def456..."
+
+# Cloudflare API token (Zone > DNS > Edit 권한)
+# 빈 문자열이면 환경변수 CLOUDFLARE_API_TOKEN 사용 (권장)
+# cloudflare_api_token = "..."
+
+# ── GitHub OIDC (CI/CD) ──────────────────────────────────
+# OIDC trust 가 refs/heads/main 만 허용 — main 외 브랜치에서 prod 배포 시도 시 STS 거부
+github_owner = "hyegyeongseo"
+github_repos = ["drawe-backend", "drawe-fastapi"]
+
+# ── SNS alert email ──────────────────────────────────────
+alert_email = "ops@example.com"
+
+# ── RDS Multi-AZ (default false, 추후 토글 가능) ─────────
+# 사용자 늘어서 다운타임 감수 어려워지면:
+#   rds_multi_az = true → terraform apply → AWS 가 in-place 로 standby 추가
+# rds_multi_az = false
+
+# ── 선택: DB / Valkey 비밀번호 본인 지정 ─────────────────
+# prod 에선 random 자동 생성 권장 (사람이 평문 알 필요 없음).
+# 특수 사정 (회사 비번 정책 등) 으로 지정해야 하면 환경변수로:
+#     export TF_VAR_db_password='strong-prod-password'
+#     export TF_VAR_valkey_auth_token='strong-valkey-token'
+# 또는 이 파일에 직접 (.gitignore 확인 필수).
+# db_password       = ""
+# valkey_auth_token = ""

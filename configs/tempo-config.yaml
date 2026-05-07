@@ -1,0 +1,57 @@
+# ────────────────────────────────────────────────────────
+# Tempo monolithic config (prod)
+# ────────────────────────────────────────────────────────
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9096
+  log_level: info
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  trace_idle_period: 30s
+  max_block_bytes: 1_000_000
+  max_block_duration: 5m
+  flush_check_period: 10s
+
+compactor:
+  compaction:
+    block_retention: 720h    # 30일 — S3 lifecycle 와 정합
+
+storage:
+  trace:
+    backend: s3
+    s3:
+      bucket: ${TEMPO_S3_BUCKET}
+      region: ${AWS_REGION}
+    wal:
+      path: /tmp/tempo/wal
+    local:
+      path: /tmp/tempo/blocks
+    pool:
+      max_workers: 100
+      queue_depth: 10000
+
+querier:
+  frontend_worker:
+    frontend_address: 127.0.0.1:9096
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: drawe-prod
+  storage:
+    path: /tmp/tempo/generator/wal
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
