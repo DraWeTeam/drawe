@@ -1,4 +1,6 @@
+# ─────────────────────────────────────────────────────────────
 # Stage 1: Build
+# ─────────────────────────────────────────────────────────────
 FROM gradle:jdk17 AS builder
 WORKDIR /app
 
@@ -7,7 +9,8 @@ COPY gradle ./gradle
 COPY build.gradle settings.gradle ./
 RUN chmod +x ./gradlew
 
-RUN ./gradlew dependencies -x test --no-daemon
+# 의존성만 먼저 받기 — Docker layer caching 최적화
+RUN ./gradlew dependencies -x test --no-daemon || true
 
 COPY src ./src
 RUN ./gradlew bootJar -x test --no-daemon
@@ -45,7 +48,9 @@ RUN userdel -r ubuntu 2>/dev/null; \
     useradd -u 1000 -g drawe -m drawe
 
 WORKDIR /app
-COPY --from=builder /app/build/libs/*-SNAPSHOT.jar app.jar
+COPY --from=builder --chown=drawe:drawe /app/build/libs/*-SNAPSHOT.jar app.jar
+
+USER drawe:drawe
 EXPOSE 8080
 
 # JAVA_TOOL_OPTIONS 으로 OTel Agent attach (전체 trace 자동 instrumentation)
