@@ -10,13 +10,5 @@ reviews:
 
   profile: assertive
 
-  path_filters:
-    - "!package-lock.json"
-    - "!yarn.lock"
-    - "!pnpm-lock.yaml"
-    - "!dist/**"
-    - "!build/**"
-    - "!coverage/**"
-
 chat:
   auto_reply: true
