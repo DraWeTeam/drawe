@@ -5,18 +5,14 @@ reviews:
     enabled: true
     drafts: false
     base_branches:
-      - develop
       - main
+      - develop
 
   profile: assertive
 
-  path_filters:
-    - "!package-lock.json"
-    - "!yarn.lock"
-    - "!pnpm-lock.yaml"
-    - "!dist/**"
-    - "!build/**"
-    - "!coverage/**"
-
 chat:
   auto_reply: true
+
+finishing_touches:
+  unit_tests:
+    enabled: false
