@@ -10,17 +10,42 @@ const ReferencePage = () => {
 
   const [reference, setReference] = useState(location.state?.reference || null);
   const [userFeedback, setUserFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
+  const [feedbackLoading, setFeedbackLoading] = useState(true); // 추가
 
+  // reference 없으면 챗으로 돌아감
   useEffect(() => {
     if (!reference) {
       navigate(`/projects/${projectId}/chat`);
     }
   }, [reference, projectId, navigate]);
 
+  // 추가 — 페이지 진입 시 피드백 상태 조회
+  useEffect(() => {
+    if (!reference) return;
+
+    const fetchFeedback = async () => {
+      try {
+        const res = await api.get(`/images/${reference.id}/feedback`);
+        const type = res.data.data?.type;
+        setUserFeedback(type); // "LIKE", "DISLIKE", 또는 null
+      } catch (err) {
+        console.error("피드백 조회 실패:", err);
+        setUserFeedback(null);
+      } finally {
+        setFeedbackLoading(false);
+      }
+    };
+
+    fetchFeedback();
+  }, [reference]);
+
   if (!reference) return null;
 
   // AI 생성 vs 외부 소스 판별
-  const isAiGenerated = reference.source && reference.source !== "UNSPLASH";
+  const isAiGenerated =
+    reference.source &&
+    reference.source !== "UNSPLASH" &&
+    reference.source !== "PEXELS";
 
   const photographerLink = reference.photographerUsername
     ? "https://unsplash.com/@" +
@@ -47,7 +72,6 @@ const ReferencePage = () => {
   const handleLike = async () => {
     try {
       if (userFeedback === "LIKE") {
-        // 이미 좋아요 → 취소
         await api.delete(`/images/${reference.id}/feedback`);
         setUserFeedback(null);
       } else {
@@ -137,24 +161,22 @@ const ReferencePage = () => {
             </div>
           )}
 
-          {/*
-          {reference.similarity !== undefined && (
-            <div className={styles.similarity}>
-              유사도: {(reference.similarity * 100).toFixed(0)}%
-            </div>
-          )}
-          */}
-
           <div className={styles.feedback}>
             <button
-              className={`${styles.feedbackBtn} ${userFeedback === "LIKE" ? styles.active : ""}`}
+              className={`${styles.feedbackBtn} ${
+                userFeedback === "LIKE" ? styles.active : ""
+              }`}
               onClick={handleLike}
+              disabled={feedbackLoading}
             >
               <ThumbsUpIcon />
             </button>
             <button
-              className={`${styles.feedbackBtn} ${userFeedback === "DISLIKE" ? styles.active : ""}`}
+              className={`${styles.feedbackBtn} ${
+                userFeedback === "DISLIKE" ? styles.active : ""
+              }`}
               onClick={handleDislike}
+              disabled={feedbackLoading}
             >
               <ThumbsDownIcon />
             </button>
