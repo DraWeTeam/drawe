@@ -9,7 +9,7 @@ const ReferencePage = () => {
   const location = useLocation();
 
   const [reference, setReference] = useState(location.state?.reference || null);
-  const [userFeedback, setUserFeedback] = useState(null);  // 'LIKE' | 'DISLIKE' | null
+  const [userFeedback, setUserFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
 
   useEffect(() => {
     if (!reference) {
@@ -20,9 +20,7 @@ const ReferencePage = () => {
   if (!reference) return null;
 
   // AI 생성 vs 외부 소스 판별
-  const isAiGenerated =
-    reference.source &&
-    reference.source !== "UNSPLASH"
+  const isAiGenerated = reference.source && reference.source !== "UNSPLASH";
 
   const photographerLink = reference.photographerUsername
     ? "https://unsplash.com/@" +
@@ -30,11 +28,9 @@ const ReferencePage = () => {
       "?utm_source=drawe&utm_medium=referral"
     : null;
 
-  const tags = [
-    reference.technique,
-    reference.subject,
-    reference.mood,
-  ].filter(Boolean);
+  const tags = [reference.technique, reference.subject, reference.mood].filter(
+    Boolean,
+  );
 
   const handleBack = () => {
     navigate(-1);
@@ -150,14 +146,14 @@ const ReferencePage = () => {
           */}
 
           <div className={styles.feedback}>
-            <button 
-              className={`${styles.feedbackBtn} ${userFeedback === 'LIKE' ? styles.active : ''}`}
+            <button
+              className={`${styles.feedbackBtn} ${userFeedback === "LIKE" ? styles.active : ""}`}
               onClick={handleLike}
             >
               <ThumbsUpIcon />
             </button>
-            <button 
-              className={`${styles.feedbackBtn} ${userFeedback === 'DISLIKE' ? styles.active : ''}`}
+            <button
+              className={`${styles.feedbackBtn} ${userFeedback === "DISLIKE" ? styles.active : ""}`}
               onClick={handleDislike}
             >
               <ThumbsDownIcon />

@@ -98,7 +98,7 @@ const ChatPage = () => {
         setSessionId(res.sessionId);
         localStorage.setItem(sessionKey(projectId), res.sessionId);
       }
-      
+
       const action = res.referencesAction;
       const newRefs = res.references || [];
 
@@ -121,7 +121,6 @@ const ChatPage = () => {
         setTimeout(() => setJustUpdated(false), 2500);
       }
       // KEEP, SKIP, 또는 NEW_SEARCH인데 빈 배열: 이전 references 유지 (아무것도 안 함)
-
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "메시지 전송에 실패했어요.";
@@ -141,7 +140,7 @@ const ChatPage = () => {
       setMessages([]);
       setFollowUp(null);
       setReferences([]);
-      setJustUpdated(false);  // ← 추가
+      setJustUpdated(false); // ← 추가
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "초기화에 실패했어요.";
@@ -169,7 +168,7 @@ const ChatPage = () => {
   const handleCardClick = (reference) => {
     navigate(
       `/projects/${projectId}/reference/${reference.id}`,
-      { state: { reference } }  // state로 reference 데이터 전달
+      { state: { reference } }, // state로 reference 데이터 전달
     );
   };
 
@@ -177,7 +176,12 @@ const ChatPage = () => {
     <div className={styles.layout}>
       {/* 좌측: 참고 이미지 그리드 */}
       <aside className={styles.leftPanel}>
-        <ReferenceGrid references={references} loading={sending} justUpdated={justUpdated} onCardClick={handleCardClick} />
+        <ReferenceGrid
+          references={references}
+          loading={sending}
+          justUpdated={justUpdated}
+          onCardClick={handleCardClick}
+        />
       </aside>
 
       {/* 우측: 챗 */}

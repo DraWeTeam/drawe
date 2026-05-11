@@ -54,7 +54,9 @@ const OnboardingPage = () => {
   };
 
   const handleSkip = () => {
-    if (window.confirm("나중에 마이페이지에서 다시 설정할 수 있어요. 건너뛸까요?")) {
+    if (
+      window.confirm("나중에 마이페이지에서 다시 설정할 수 있어요. 건너뛸까요?")
+    ) {
       navigate("/projects");
     }
   };
@@ -128,7 +130,14 @@ const OnboardingPage = () => {
 };
 
 const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+  >
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );

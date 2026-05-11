@@ -3,7 +3,7 @@ import Google from "../../assets/google.png";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api from "./api";
-import { getOnboardingStatus } from "../onboarding/api";  // ← 추가
+import { getOnboardingStatus } from "../onboarding/api"; // ← 추가
 
 const Login = () => {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ const Login = () => {
       }
     } catch (err) {
       console.error("온보딩 상태 조회 실패:", err);
-      navigate("/projects");  // 에러 시 안전 진행
+      navigate("/projects"); // 에러 시 안전 진행
     }
   };
 

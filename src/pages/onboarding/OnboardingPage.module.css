@@ -94,7 +94,11 @@
 }
 
 .card.selected .cardOverlay {
-  background: linear-gradient(180deg, rgba(255, 133, 52, 0.3) 0%, rgba(255, 133, 52, 0.6) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 133, 52, 0.3) 0%,
+    rgba(255, 133, 52, 0.6) 100%
+  );
 }
 
 .cardLabel {
@@ -182,7 +186,7 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
   }
-  
+
   .title {
     font-size: 22px;
   }
@@ -192,7 +196,7 @@
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .page {
     padding: 40px 16px;
   }

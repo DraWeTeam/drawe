@@ -235,7 +235,9 @@
   padding: 4px 10px;
   border-radius: 999px;
   font-weight: 600;
-  animation: slideInBadge 0.3s ease, fadeOutBadge 0.3s ease 2.2s forwards;
+  animation:
+    slideInBadge 0.3s ease,
+    fadeOutBadge 0.3s ease 2.2s forwards;
   box-shadow: 0 2px 6px rgba(255, 133, 52, 0.3);
   white-space: nowrap;
 }
@@ -267,7 +269,7 @@
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  cursor: pointer;  /* ← 추가 */
+  cursor: pointer; /* ← 추가 */
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;

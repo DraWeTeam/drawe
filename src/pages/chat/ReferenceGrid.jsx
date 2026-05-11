@@ -69,7 +69,11 @@ const ReferenceCard = ({ reference, index, onClick }) => {
     : null;
 
   return (
-    <div className={styles.card} onClick={onClick} style={{ cursor: 'pointer' }} >
+    <div
+      className={styles.card}
+      onClick={onClick}
+      style={{ cursor: "pointer" }}
+    >
       <div className={styles.imageWrapper}>
         <img
           src={reference.url}

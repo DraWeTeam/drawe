@@ -18,7 +18,10 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route path="/" element={<Home />} />
-          <Route path="/projects/:projectId/reference/:referenceId" element={<ReferencePage />} />
+          <Route
+            path="/projects/:projectId/reference/:referenceId"
+            element={<ReferencePage />}
+          />
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/projects/:projectId/chat" element={<ChatPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
