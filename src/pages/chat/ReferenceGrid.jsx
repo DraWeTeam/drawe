@@ -1,6 +1,6 @@
 import styles from "./ReferenceGrid.module.css";
 
-const ReferenceGrid = ({ references, loading }) => {
+const ReferenceGrid = ({ references, loading, justUpdated, onCardClick }) => {
   const hasReferences = references && references.length > 0;
 
   const columns = splitIntoColumns(references || [], 2);
@@ -9,9 +9,14 @@ const ReferenceGrid = ({ references, loading }) => {
     <div className={styles.wrapper}>
       <div className={styles.header}>
         <h2 className={styles.title}>참고 이미지</h2>
-        {hasReferences && (
-          <span className={styles.count}>{references.length}개</span>
-        )}
+        <div className={styles.headerRight}>
+          {justUpdated && (
+            <span className={styles.updateBadge}>🆕 새로 추가됨</span>
+          )}
+          {hasReferences && (
+            <span className={styles.count}>{references.length}개</span>
+          )}
+        </div>
       </div>
 
       {loading && hasReferences && (
@@ -38,6 +43,7 @@ const ReferenceGrid = ({ references, loading }) => {
                   key={item.ref.id}
                   reference={item.ref}
                   index={item.index}
+                  onClick={() => onCardClick(item.ref)}
                 />
               ))}
             </div>
@@ -57,13 +63,13 @@ function splitIntoColumns(refs, columnCount) {
   return columns;
 }
 
-const ReferenceCard = ({ reference, index }) => {
+const ReferenceCard = ({ reference, index, onClick }) => {
   const photographerLink = reference.photographerUsername
     ? `https://unsplash.com/@${reference.photographerUsername}?utm_source=drawe&utm_medium=referral`
     : null;
 
   return (
-    <div className={styles.card}>
+    <div className={styles.card} onClick={onClick} style={{ cursor: 'pointer' }} >
       <div className={styles.imageWrapper}>
         <img
           src={reference.url}
