@@ -33,6 +33,7 @@ const ReferenceGrid = ({ references, loading, justUpdated, onCardClick }) => {
           <p className={styles.emptyHint}>
             관련 참고 이미지를 자동으로 찾아드려요.
           </p>
+          <p className={styles.scopeText}>(풍경 · 인물 · 동물 · 정물 위주)</p>
         </div>
       ) : (
         <div className={styles.masonry}>
