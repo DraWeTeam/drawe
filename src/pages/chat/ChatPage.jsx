@@ -26,6 +26,7 @@ const ChatPage = () => {
   const [attachment, setAttachment] = useState(null);
 
   const [references, setReferences] = useState([]);
+  const [justUpdated, setJustUpdated] = useState(false);
 
   const listRef = useRef(null);
   const textareaRef = useRef(null);
@@ -120,19 +121,29 @@ const ChatPage = () => {
         setSessionId(res.sessionId);
         localStorage.setItem(sessionKey(projectId), res.sessionId);
       }
+
+      const action = res.referencesAction;
+      const newRefs = res.references || [];
+
+      // 메시지에 references 저장 (히스토리 복원용)
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content: res.message,
-          references: res.references || [],
+          references: action === "NEW_SEARCH" ? newRefs : [],
+          referencesAction: action,
         },
       ]);
       setFollowUp(res.followUp || null);
 
-      if (res.references && res.references.length > 0) {
-        setReferences(res.references);
+      // references 갱신 — NEW_SEARCH이고 결과 있을 때만
+      if (action === "NEW_SEARCH" && newRefs.length > 0) {
+        setReferences(newRefs);
+        setJustUpdated(true);
+        setTimeout(() => setJustUpdated(false), 2500);
       }
+      // KEEP, SKIP, 또는 NEW_SEARCH인데 빈 배열: 이전 references 유지 (아무것도 안 함)
     } catch (err) {
       const status = err.response?.status;
       let message = err.response?.data?.error?.message;
@@ -156,6 +167,7 @@ const ChatPage = () => {
       setMessages([]);
       setFollowUp(null);
       setReferences([]);
+      setJustUpdated(false); // ← 추가
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "초기화에 실패했어요.";
@@ -174,11 +186,22 @@ const ChatPage = () => {
     }
   };
 
+  const handleCardClick = (reference) => {
+    navigate(`/projects/${projectId}/reference/${reference.id}`, {
+      state: { reference },
+    });
+  };
+
   return (
     <div className={styles.layout}>
       {/* 좌측: 참고 이미지 그리드 */}
       <aside className={styles.leftPanel}>
-        <ReferenceGrid references={references} loading={sending} />
+        <ReferenceGrid
+          references={references}
+          loading={sending}
+          justUpdated={justUpdated}
+          onCardClick={handleCardClick}
+        />
       </aside>
 
       {/* 우측: 챗 */}
