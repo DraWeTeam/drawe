@@ -11,6 +11,7 @@ const ReferencePage = () => {
   const reference = location.state?.reference || null;
   const [userFeedback, setUserFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
   const [feedbackLoading, setFeedbackLoading] = useState(true); // 추가
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   // reference 없으면 챗으로 돌아감
   useEffect(() => {
@@ -62,7 +63,8 @@ const ReferencePage = () => {
   };
 
   const handleDownload = () => {
-    window.open(reference.url, "_blank");
+    if (!reference?.url) return;
+    window.open(reference.url, "_blank", "noopener,noreferrer");
   };
 
   const handleSave = () => {
@@ -70,6 +72,8 @@ const ReferencePage = () => {
   };
 
   const handleLike = async () => {
+    if (feedbackSubmitting) return;
+    setFeedbackSubmitting(true);
     try {
       if (userFeedback === "LIKE") {
         await api.delete(`/images/${reference.id}/feedback`);
@@ -80,10 +84,14 @@ const ReferencePage = () => {
       }
     } catch (err) {
       console.error("피드백 저장 실패", err);
+    } finally {
+      setFeedbackSubmitting(false);
     }
   };
 
   const handleDislike = async () => {
+    if (feedbackSubmitting) return;
+    setFeedbackSubmitting(true);
     try {
       if (userFeedback === "DISLIKE") {
         await api.delete(`/images/${reference.id}/feedback`);
@@ -94,17 +102,19 @@ const ReferencePage = () => {
       }
     } catch (err) {
       console.error("피드백 저장 실패", err);
+    } finally {
+      setFeedbackSubmitting(false);
     }
   };
 
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={handleBack}>
+        <button className={styles.backBtn} onClick={handleBack} aria-label="뒤로 가기">
           ←
         </button>
         <div className={styles.topActions}>
-          <button className={styles.iconBtn} onClick={handleDownload}>
+          <button className={styles.iconBtn} onClick={handleDownload} aria-label="이미지 다운로드">
             <DownloadIcon />
           </button>
           <button className={styles.saveBtn} onClick={handleSave}>
@@ -167,7 +177,9 @@ const ReferencePage = () => {
                 userFeedback === "LIKE" ? styles.active : ""
               }`}
               onClick={handleLike}
-              disabled={feedbackLoading}
+              disabled={feedbackLoading || feedbackSubmitting}
+              aria-label="좋아요"
+              aria-pressed={userFeedback === "LIKE"}
             >
               <ThumbsUpIcon />
             </button>
@@ -176,7 +188,9 @@ const ReferencePage = () => {
                 userFeedback === "DISLIKE" ? styles.active : ""
               }`}
               onClick={handleDislike}
-              disabled={feedbackLoading}
+              disabled={feedbackLoading || feedbackSubmitting}
+              aria-label="싫어요"
+              aria-pressed={userFeedback === "DISLIKE"}
             >
               <ThumbsDownIcon />
             </button>

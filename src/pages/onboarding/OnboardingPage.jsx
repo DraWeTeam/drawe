@@ -27,6 +27,7 @@ const OnboardingPage = () => {
   }, []);
 
   const toggleSelect = (imageId) => {
+    setError("");
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(imageId)) {
@@ -39,6 +40,7 @@ const OnboardingPage = () => {
   };
 
   const handleSubmit = async () => {
+    setError("");
     if (selectedIds.size === 0) {
       setError("최소 1개 이상 선택해주세요.");
       return;

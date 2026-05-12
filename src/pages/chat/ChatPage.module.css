@@ -208,7 +208,7 @@
 }
 
 .input::-webkit-scrollbar {
-  width: none;
+  display: none;
 }
 
 .input::-webkit-scrollbar-thumb {

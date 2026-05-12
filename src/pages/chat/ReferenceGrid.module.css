@@ -62,6 +62,7 @@
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
+  cursor: pointer;
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
@@ -236,13 +237,13 @@
   border-radius: 999px;
   font-weight: 600;
   animation:
-    slideInBadge 0.3s ease,
-    fadeOutBadge 0.3s ease 2.2s forwards;
+    slide-in-badge 0.3s ease,
+    fade-out-badge 0.3s ease 2.2s forwards;
   box-shadow: 0 2px 6px rgba(255, 133, 52, 0.3);
   white-space: nowrap;
 }
 
-@keyframes slideInBadge {
+@keyframes slide-in-badge {
   from {
     opacity: 0;
     transform: translateY(-6px);
@@ -253,7 +254,7 @@
   }
 }
 
-@keyframes fadeOutBadge {
+@keyframes fade-out-badge {
   from {
     opacity: 1;
     transform: translateY(0);
@@ -262,15 +263,4 @@
     opacity: 0;
     transform: translateY(-6px);
   }
-}
-
-.card {
-  width: 100%;
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer; /* ← 추가 */
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
 }

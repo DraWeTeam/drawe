@@ -72,7 +72,6 @@ const ReferenceCard = ({ reference, index, onClick }) => {
     <div
       className={styles.card}
       onClick={onClick}
-      style={{ cursor: "pointer" }}
     >
       <div className={styles.imageWrapper}>
         <img
@@ -109,6 +108,7 @@ const ReferenceCard = ({ reference, index, onClick }) => {
               target="_blank"
               rel="noopener noreferrer"
               className={styles.photographer}
+              onClick={(e) => e.stopPropagation()}
             >
               {reference.photographerName}
             </a>

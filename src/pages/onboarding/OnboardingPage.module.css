@@ -122,10 +122,10 @@
   justify-content: center;
   color: white;
   box-shadow: 0 2px 8px rgba(255, 133, 52, 0.4);
-  animation: popIn 0.2s ease;
+  animation: pop-in 0.2s ease;
 }
 
-@keyframes popIn {
+@keyframes pop-in {
   from {
     transform: scale(0);
   }
