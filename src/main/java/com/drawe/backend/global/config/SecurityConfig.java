@@ -43,7 +43,7 @@ public class SecurityConfig {
         .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .sessionManagement(
-            session -> session.sessionCreationPolicy((SessionCreationPolicy.STATELESS)))
+            session -> session.sessionCreationPolicy((SessionCreationPolicy.IF_REQUIRED)))
         .exceptionHandling(
             ex ->
                 ex.authenticationEntryPoint(jwtAuthenticationEntryPoint)
