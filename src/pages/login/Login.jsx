@@ -125,7 +125,9 @@ const Login = () => {
           </button>
           <div className={styles.signin}>
             <p style={{ margin: "0", fontWeight: "350" }}>계정이 없으신가요?</p>
-            <Link style={{ margin: "0", fontWeight: "500" }}>회원가입하기</Link>
+            <Link to="/signup" style={{ margin: "0", fontWeight: "500" }}>
+              회원가입하기
+            </Link>
           </div>
         </form>
       </div>
