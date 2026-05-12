@@ -17,6 +17,7 @@ const OnboardingPage = () => {
         const data = await getOnboardingImages();
         setImages(data || []);
       } catch (err) {
+        console.log(err);
         setError("이미지를 불러오지 못했어요.");
       } finally {
         setLoading(false);
@@ -48,6 +49,7 @@ const OnboardingPage = () => {
       await submitOnboarding(Array.from(selectedIds));
       navigate("/projects");
     } catch (err) {
+      console.log(err);
       setError("저장에 실패했어요. 다시 시도해주세요.");
       setSubmitting(false);
     }

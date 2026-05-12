@@ -8,7 +8,7 @@ const ReferencePage = () => {
   const { projectId } = useParams();
   const location = useLocation();
 
-  const [reference, setReference] = useState(location.state?.reference || null);
+  const reference = location.state?.reference || null;
   const [userFeedback, setUserFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
   const [feedbackLoading, setFeedbackLoading] = useState(true); // 추가
 
