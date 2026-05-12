@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getProject } from "../projects/api";
 import { getHistory, resetSession, sendMessage } from "./api";
 import ReferenceGrid from "./ReferenceGrid";
+import AttachmentPicker from "./AttachmentPicker";
+import AuthedImage from "./AuthedImage";
 import styles from "./ChatPage.module.css";
 
 const sessionKey = (projectId) => `chat_session_${projectId}`;
+const MAX_INPUT_HEIGHT = 160;
 
 const ChatPage = () => {
   const { projectId } = useParams();
@@ -20,10 +23,12 @@ const ChatPage = () => {
   const [followUp, setFollowUp] = useState(null);
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [attachment, setAttachment] = useState(null);
 
   const [references, setReferences] = useState([]);
 
   const listRef = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -49,10 +54,10 @@ const ChatPage = () => {
           role: m.role,
           content: m.content,
           references: m.references,
+          imageUrl: m.imageUrl ?? null,
         }));
         setMessages(restored);
 
-        // references가 "있는" 가장 최근 메시지를 찾음
         const lastWithReferences = [...restored]
           .reverse()
           .find((m) => m.references && m.references.length > 0);
@@ -76,19 +81,41 @@ const ChatPage = () => {
     }
   }, [messages]);
 
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const next = Math.min(el.scrollHeight, MAX_INPUT_HEIGHT);
+    el.style.height = `${next}px`;
+  }, [input]);
+
   const handleSend = async (e) => {
     e?.preventDefault?.();
     const text = input.trim();
-    if (!text || sending) return;
+    if ((!text && !attachment) || sending) return;
 
+    const sentAttachment = attachment;
     setErrorMessage("");
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: text,
+        imageUrl: sentAttachment?.url ?? null,
+        localPreviewUrl: sentAttachment?.previewUrl ?? null,
+      },
+    ]);
     setInput("");
+    setAttachment(null);
     setFollowUp(null);
     setSending(true);
 
     try {
-      const res = await sendMessage(projectId, { message: text, sessionId });
+      const res = await sendMessage(projectId, {
+        message: text,
+        sessionId,
+        imageUrl: sentAttachment?.url,
+      });
       if (res?.sessionId && res.sessionId !== sessionId) {
         setSessionId(res.sessionId);
         localStorage.setItem(sessionKey(projectId), res.sessionId);
@@ -107,11 +134,15 @@ const ChatPage = () => {
         setReferences(res.references);
       }
     } catch (err) {
-      const message =
-        err.response?.data?.error?.message || "메시지 전송에 실패했어요.";
-      setErrorMessage(message);
+      const status = err.response?.status;
+      let message = err.response?.data?.error?.message;
+      if (status === 503) {
+        message = "잠깐 드로가 바빠요. 다시 한 번 보내볼까요?";
+      }
+      setErrorMessage(message || "메시지 전송에 실패했어요.");
       setMessages((prev) => prev.slice(0, -1));
       setInput(text);
+      if (sentAttachment) setAttachment(sentAttachment);
     } finally {
       setSending(false);
     }
@@ -134,6 +165,13 @@ const ChatPage = () => {
 
   const handleFollowUpClick = (text) => {
     setInput(text);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   return (
@@ -190,7 +228,14 @@ const ChatPage = () => {
                       : styles.assistantBubble
                   }
                 >
-                  {m.content}
+                  {(m.localPreviewUrl || m.imageUrl) && (
+                    <AuthedImage
+                      src={m.localPreviewUrl || m.imageUrl}
+                      alt="첨부 이미지"
+                      className={styles.bubbleImage}
+                    />
+                  )}
+                  {m.content && <div>{m.content}</div>}
                 </div>
               ))
             )}
@@ -213,18 +258,27 @@ const ChatPage = () => {
           {errorMessage && <p className={styles.error}>{errorMessage}</p>}
 
           <form className={styles.inputBar} onSubmit={handleSend}>
-            <input
-              type="text"
+            <AttachmentPicker
+              attachment={attachment}
+              onAttach={setAttachment}
+              onClear={() => setAttachment(null)}
+              onError={setErrorMessage}
+              disabled={sending}
+            />
+            <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="메시지를 입력하세요"
+              onKeyDown={handleKeyDown}
+              placeholder="메시지를 입력하세요 (Shift+Enter 줄바꿈)"
               className={styles.input}
               disabled={sending}
+              rows={1}
             />
             <button
               type="submit"
               className={styles.sendBtn}
-              disabled={sending || !input.trim()}
+              disabled={sending || (!input.trim() && !attachment)}
             >
               전송
             </button>

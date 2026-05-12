@@ -1,5 +1,12 @@
 import api from "../login/api";
 
+export const uploadImage = async (file) => {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post("/images/upload", form);
+  return res.data.data;
+};
+
 export const sendMessage = async (
   projectId,
   { message, sessionId, imageUrl },
