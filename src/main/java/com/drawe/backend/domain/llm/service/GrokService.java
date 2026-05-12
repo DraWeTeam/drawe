@@ -36,6 +36,7 @@ public class GrokService implements LlmService {
   public LlmCallResult generate(LlmCallContext context) {
     LlmProperties.Provider cfg = properties.getGrok();
     if (cfg.getApiKey() == null || cfg.getApiKey().isBlank()) {
+      log.error("Grok API key missing. model={}, baseUrl={}", cfg.getModel(), cfg.getBaseUrl());
       throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
     }
 
@@ -43,15 +44,27 @@ public class GrokService implements LlmService {
     String url = cfg.getBaseUrl() + "/chat/completions";
 
     long start = System.currentTimeMillis();
-    Map<?, ?> response =
-        restClient
-            .post()
-            .uri(url)
-            .header(HttpHeaders.AUTHORIZATION, "Bearer " + cfg.getApiKey())
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(body)
-            .retrieve()
-            .body(Map.class);
+    Map<?, ?> response;
+    try {
+      response =
+          restClient
+              .post()
+              .uri(url)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + cfg.getApiKey())
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(body)
+              .retrieve()
+              .body(Map.class);
+    } catch (org.springframework.web.client.RestClientResponseException e) {
+      log.error(
+          "Grok HTTP error: status={}, body={}",
+          e.getStatusCode(),
+          e.getResponseBodyAsString());
+      throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
+    } catch (Exception e) {
+      log.error("Grok call failed: url={}, model={}", url, cfg.getModel(), e);
+      throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
+    }
     int latency = (int) (System.currentTimeMillis() - start);
 
     String content = extractText(response);

@@ -6,6 +6,7 @@ import com.drawe.backend.domain.User;
 import com.drawe.backend.domain.enums.ProjectStatus;
 import com.drawe.backend.domain.llm.repository.ChatSessionRepository;
 import com.drawe.backend.domain.llm.repository.LlmMessageRepository;
+import com.drawe.backend.domain.log.SearchLogRepository;
 import com.drawe.backend.domain.project.dto.CreateProjectRequest;
 import com.drawe.backend.domain.project.dto.ProjectDetailResponse;
 import com.drawe.backend.domain.project.dto.ProjectListItem;
@@ -29,6 +30,7 @@ public class ProjectService {
   private final ProjectReferenceRepository projectReferenceRepository;
   private final ChatSessionRepository chatSessionRepository;
   private final LlmMessageRepository llmMessageRepository;
+  private final SearchLogRepository searchLogRepository;
 
   @Transactional
   public ProjectDetailResponse create(User user, CreateProjectRequest request) {
@@ -104,6 +106,7 @@ public class ProjectService {
     }
     chatSessionRepository.deleteAll(sessions);
     projectReferenceRepository.deleteByProject(project);
+    searchLogRepository.deleteByProject(project);
     projectRepository.delete(project);
   }
 

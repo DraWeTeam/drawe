@@ -52,7 +52,7 @@ public class ChatLlmService {
     Project project = loadProjectAuthorized(user, projectId);
     ChatSession session = resolveOrCreateSession(user, project, request.sessionId());
 
-    ImageInputResolver.Resolved image = imageInputResolver.resolve(request.imageUrl());
+    ImageInputResolver.Resolved image = imageInputResolver.resolve(user, request.imageUrl());
 
     // 히스토리 먼저 로드 (검색 결정에 사용)
     List<LlmMessage> all = llmMessageRepository.findByChatSessionOrderByCreatedAtAsc(session);
@@ -90,7 +90,7 @@ public class ChatLlmService {
     userMsg.setRole(MessageRole.USER);
     userMsg.setContent(request.message());
     userMsg.setHasImage(image.hasImage());
-    userMsg.setImageUrl(image.hasImage() ? "(base64-data)" : null);
+    userMsg.setImageUrl(image.storedUrl());
     llmMessageRepository.save(userMsg);
 
     LlmMessage assistantMsg = new LlmMessage();

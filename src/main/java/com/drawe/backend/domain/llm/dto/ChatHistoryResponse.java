@@ -8,10 +8,18 @@ import java.util.List;
 public record ChatHistoryResponse(String sessionId, List<HistoryItem> messages) {
 
   public record HistoryItem(
-      String role, String content, List<ChatResponse.ReferenceItem> references, Instant createdAt) {
+      String role,
+      String content,
+      List<ChatResponse.ReferenceItem> references,
+      String imageUrl,
+      Instant createdAt) {
     public static HistoryItem from(LlmMessage m) {
       return new HistoryItem(
-          roleName(m.getRole()), m.getContent(), m.getReferences(), m.getCreatedAt());
+          roleName(m.getRole()),
+          m.getContent(),
+          m.getReferences(),
+          m.getImageUrl(),
+          m.getCreatedAt());
     }
 
     private static String roleName(MessageRole role) {

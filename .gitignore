@@ -44,3 +44,11 @@ out/
 
 ### 환경 변수 ###
 .env
+
+### Local artifacts (DB dumps, scratch images, side build dirs) ###
+*.sql
+*.png
+*.jpg
+*.jpeg
+build-check/
+!src/main/resources/db/migration/*.sql
