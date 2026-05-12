@@ -110,11 +110,19 @@ const ReferencePage = () => {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={handleBack} aria-label="뒤로 가기">
+        <button
+          className={styles.backBtn}
+          onClick={handleBack}
+          aria-label="뒤로 가기"
+        >
           ←
         </button>
         <div className={styles.topActions}>
-          <button className={styles.iconBtn} onClick={handleDownload} aria-label="이미지 다운로드">
+          <button
+            className={styles.iconBtn}
+            onClick={handleDownload}
+            aria-label="이미지 다운로드"
+          >
             <DownloadIcon />
           </button>
           <button className={styles.saveBtn} onClick={handleSave}>

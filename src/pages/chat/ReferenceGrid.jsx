@@ -69,10 +69,7 @@ const ReferenceCard = ({ reference, index, onClick }) => {
     : null;
 
   return (
-    <div
-      className={styles.card}
-      onClick={onClick}
-    >
+    <div className={styles.card} onClick={onClick}>
       <div className={styles.imageWrapper}>
         <img
           src={reference.url}
