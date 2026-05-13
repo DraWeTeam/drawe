@@ -1,4 +1,9 @@
-export const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+export const ALLOWED_MIME = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
 export const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.85;
