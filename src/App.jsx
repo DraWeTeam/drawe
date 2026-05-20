@@ -10,6 +10,12 @@ import ChatPage from "./pages/chat/ChatPage";
 import OnboardingPage from "./pages/onboarding/OnboardingPage";
 
 function App() {
+  const user = useAuthStore((s) => s.user);
+  
+  useEffect(() => {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ user_id: user?.id ?? undefined });
+  }, [user]);
   return (
     <BrowserRouter>
       <Template>
