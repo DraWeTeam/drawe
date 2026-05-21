@@ -6,6 +6,14 @@ import api from "./api";
 import { getOnboardingStatus } from "../onboarding/api"; // ← 추가
 import { setUserId } from "../../analytics"; // ← 추가
 import { track } from '../../analytics';
+import { useEffect, useRef } from 'react';
+
+function getDeviceType() {
+  const ua = navigator.userAgent;
+  if (/iPad|Tablet/i.test(ua)) return 'tablet';
+  if (/Mobile|Android|iPhone/i.test(ua)) return 'mobile';
+  return 'desktop';
+}
 
 function getUserIdFromToken(token) {
   try {
@@ -19,6 +27,7 @@ function getUserIdFromToken(token) {
 }
 
 const Login = () => {
+  
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -27,7 +36,14 @@ const Login = () => {
   });
   const [errorMessage, setErrorMessage] = useState("");
 
+  const attemptCount = useRef(0);        // 시도 횟수
+  const mountTime = useRef(Date.now());  // 페이지 진입 시각
+
   const handleGoogleLogin = () => {
+     track('login_attempt', {
+      login_method: 'google',
+      device_type: getDeviceType(),
+    });
     window.location.href = `${import.meta.env.VITE_API_URL}/oauth2/authorization/google`;
   };
 
@@ -58,6 +74,13 @@ const Login = () => {
     e.preventDefault();
     setErrorMessage("");
 
+    attemptCount.current += 1;
+  
+    track('login_attempt', {
+      login_method: 'email',
+      device_type: getDeviceType(),
+    });
+
     try {
       const response = await api.post("/auth/login", {
         email: form.email,
@@ -71,11 +94,22 @@ const Login = () => {
 
       setUserId(getUserIdFromToken(accessToken));
 
+      track('login_success', {
+        login_method: 'email',
+        attempt_count: attemptCount.current,
+        time_taken: Date.now() - mountTime.current,
+      });
+
       // 변경: navigate("/") → redirectAfterLogin()
       await redirectAfterLogin();
     } catch (error) {
       const message =
         error.response?.data?.error?.message || "로그인에 실패했습니다.";
+        track('login_failed', {
+          login_method: 'email',
+          attempt_number: attemptCount.current,
+          error_type: error.response?.data?.error?.code || 'unknown',
+        });
       setErrorMessage(message);
       console.log(error);
     }
