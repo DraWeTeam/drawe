@@ -4,6 +4,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api from "./api";
 import { getOnboardingStatus } from "../onboarding/api"; // ← 추가
+import { setUserId } from "../../analytics"; // ← 추가
+import { track } from '../../analytics';
+
+function getUserIdFromToken(token) {
+  try {
+    // JWT는 .으로 구분된 3부분 — 가운데가 payload
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub;  // Spring Boot JWT 기본은 sub에 user_id
+  } catch (e) {
+    console.error('JWT decode failed', e);
+    return undefined;
+  }
+}
 
 const Login = () => {
   const navigate = useNavigate();
@@ -55,6 +68,8 @@ const Login = () => {
 
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
+
+      setUserId(getUserIdFromToken(accessToken));
 
       // 변경: navigate("/") → redirectAfterLogin()
       await redirectAfterLogin();
@@ -125,7 +140,18 @@ const Login = () => {
           </button>
           <div className={styles.signin}>
             <p style={{ margin: "0", fontWeight: "350" }}>계정이 없으신가요?</p>
-            <Link to="/signup" style={{ margin: "0", fontWeight: "500" }}>
+            <Link 
+              to="/signup" 
+              style={{ margin: "0", fontWeight: "500" }}
+              onClick={() => {
+                track('signup_started', {
+                  source: getUrlParam('utm_source') || 'organic',
+                  medium: getUrlParam('utm_medium') || 'direct',
+                  campaign: getUrlParam('utm_campaign'),
+                  page_location: window.location.href,
+                });
+              }}
+            >
               회원가입하기
             </Link>
           </div>
@@ -134,5 +160,9 @@ const Login = () => {
     </>
   );
 };
+
+function getUrlParam(key) {
+  return new URLSearchParams(window.location.search).get(key);
+}
 
 export default Login;

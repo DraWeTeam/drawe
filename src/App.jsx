@@ -8,14 +8,14 @@ import ReferencePage from "./pages/chat/ReferencePage";
 import ProjectList from "./pages/projects/ProjectList";
 import ChatPage from "./pages/chat/ChatPage";
 import OnboardingPage from "./pages/onboarding/OnboardingPage";
+import { useEffect } from 'react';
+import { track } from './analytics';
 
-function App() {
-  const user = useAuthStore((s) => s.user);
-  
+
+function App() {  
   useEffect(() => {
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({ user_id: user?.id ?? undefined });
-  }, [user]);
+    track('test_ping', { hello: 'world' });
+  }, []);
   return (
     <BrowserRouter>
       <Template>
