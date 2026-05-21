@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getProject } from "../projects/api";
-import { getHistory, resetSession, sendMessage } from "./api";
+import { generateImage, getHistory, resetSession, sendMessage } from "./api";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import AuthedImage from "./AuthedImage";
@@ -9,6 +9,21 @@ import styles from "./ChatPage.module.css";
 
 const sessionKey = (projectId) => `chat_session_${projectId}`;
 const MAX_INPUT_HEIGHT = 160;
+
+const GENERATING_MESSAGES = [
+  "완전 어울리는 이미지를 만들고있어요! 조금만 기다려주세요!",
+  "붓을 들고 열심히 그리는 중이에요 🎨",
+  "상상 속 장면을 픽셀로 옮기고 있어요...",
+  "조금만요! 멋진 그림이 나오고 있어요 ✨",
+  "색감을 고르는 중이에요. 두근두근...",
+  "거의 다 됐어요! 마지막 터치 중이에요!",
+];
+const pickGeneratingMsg = () =>
+  GENERATING_MESSAGES[Math.floor(Math.random() * GENERATING_MESSAGES.length)];
+
+const GENERATE_INTENT_PATTERN = /만들|그려|생성|AI|이미지/i;
+const looksLikeGenerateRequest = (text) =>
+  !!text && GENERATE_INTENT_PATTERN.test(text);
 
 const ChatPage = () => {
   const { projectId } = useParams();
@@ -56,6 +71,9 @@ const ChatPage = () => {
           content: m.content,
           references: m.references,
           imageUrl: m.imageUrl ?? null,
+          // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
+          // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
+          isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
         }));
         setMessages(restored);
 
@@ -97,19 +115,46 @@ const ChatPage = () => {
 
     const sentAttachment = attachment;
     setErrorMessage("");
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: text,
-        imageUrl: sentAttachment?.url ?? null,
-        localPreviewUrl: sentAttachment?.previewUrl ?? null,
-      },
-    ]);
+
+    const showGeneratingHint = looksLikeGenerateRequest(text);
+    const placeholderId = showGeneratingHint ? `gen-${Date.now()}` : null;
+
+    setMessages((prev) => {
+      const next = [
+        ...prev,
+        {
+          role: "user",
+          content: text,
+          imageUrl: sentAttachment?.url ?? null,
+          localPreviewUrl: sentAttachment?.previewUrl ?? null,
+        },
+      ];
+      if (placeholderId) {
+        next.push({
+          role: "assistant",
+          content: "이미지 만들고 있어요... (보통 15~25초 정도 걸려요)",
+          _placeholderId: placeholderId,
+          _generating: true,
+        });
+      }
+      return next;
+    });
     setInput("");
     setAttachment(null);
     setFollowUp(null);
     setSending(true);
+
+    const rotator = placeholderId
+      ? setInterval(() => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m._placeholderId === placeholderId
+                ? { ...m, content: pickGeneratingMsg() }
+                : m,
+            ),
+          );
+        }, 3500)
+      : null;
 
     try {
       const res = await sendMessage(projectId, {
@@ -124,18 +169,31 @@ const ChatPage = () => {
 
       const action = res.referencesAction;
       const newRefs = res.references || [];
+      const generated = res.generatedImage;
 
-      // 메시지에 references 저장 (히스토리 복원용)
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: res.message,
-          references: action === "NEW_SEARCH" ? newRefs : [],
-          referencesAction: action,
-        },
-      ]);
-      setFollowUp(res.followUp || null);
+      setMessages((prev) => {
+        const next = prev.filter((m) => !m._generating);
+        return [
+          ...next,
+          {
+            role: "assistant",
+            content: res.message,
+            references: action === "NEW_SEARCH" ? newRefs : [],
+            referencesAction: action,
+            imageUrl: generated?.url ?? null,
+            isAi: !!generated,
+          },
+        ];
+      });
+      setFollowUp(
+        generated
+          ? null
+          : res.offerGenerate
+            ? { type: "OFFER_GENERATE" }
+            : res.suggestedPrompt
+              ? { type: "PROMPT", text: res.suggestedPrompt }
+              : null,
+      );
 
       // references 갱신 — NEW_SEARCH이고 결과 있을 때만
       if (action === "NEW_SEARCH" && newRefs.length > 0) {
@@ -143,7 +201,7 @@ const ChatPage = () => {
         setJustUpdated(true);
         setTimeout(() => setJustUpdated(false), 2500);
       }
-      // KEEP, SKIP, 또는 NEW_SEARCH인데 빈 배열: 이전 references 유지 (아무것도 안 함)
+      // KEEP, SKIP, GENERATE_NOW, 또는 NEW_SEARCH인데 빈 배열: 이전 references 유지
     } catch (err) {
       const status = err.response?.status;
       let message = err.response?.data?.error?.message;
@@ -151,10 +209,16 @@ const ChatPage = () => {
         message = "잠깐 드로가 바빠요. 다시 한 번 보내볼까요?";
       }
       setErrorMessage(message || "메시지 전송에 실패했어요.");
-      setMessages((prev) => prev.slice(0, -1));
+      setMessages((prev) => {
+        const withoutPlaceholder = placeholderId
+          ? prev.filter((m) => m._placeholderId !== placeholderId)
+          : prev;
+        return withoutPlaceholder.slice(0, -1);
+      });
       setInput(text);
       if (sentAttachment) setAttachment(sentAttachment);
     } finally {
+      if (rotator) clearInterval(rotator);
       setSending(false);
     }
   };
@@ -177,6 +241,72 @@ const ChatPage = () => {
 
   const handleFollowUpClick = (text) => {
     setInput(text);
+  };
+
+  const handleGenerateImage = async () => {
+    if (sending) return;
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    if (!lastUser?.content) {
+      setErrorMessage("이미지를 만들 메시지를 찾지 못했어요.");
+      return;
+    }
+    const placeholderId = `gen-${Date.now()}`;
+    setErrorMessage("");
+    setFollowUp(null);
+    setSending(true);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: pickGeneratingMsg(),
+        _placeholderId: placeholderId,
+        _generating: true,
+      },
+    ]);
+
+    const rotator = setInterval(() => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._placeholderId === placeholderId
+            ? { ...m, content: pickGeneratingMsg() }
+            : m,
+        ),
+      );
+    }, 3500);
+
+    try {
+      const res = await generateImage(projectId, sessionId, lastUser.content);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._placeholderId === placeholderId
+            ? {
+                role: "assistant",
+                content: "여기 만들어봤어요! 어떠세요?",
+                imageUrl: res.imageUrl,
+                isAi: true,
+              }
+            : m,
+        ),
+      );
+    } catch (err) {
+      const status = err.response?.status;
+      const msg =
+        status === 503
+          ? "이미지 생성에 실패했어요. 다시 시도해주세요."
+          : err.response?.data?.error?.message ||
+            "이미지 생성에 실패했어요.";
+      setErrorMessage(msg);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._placeholderId === placeholderId
+            ? { role: "assistant", content: "앗, 그림을 못 그렸어요 😢" }
+            : m,
+        ),
+      );
+    } finally {
+      clearInterval(rotator);
+      setSending(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -252,29 +382,48 @@ const ChatPage = () => {
                   }
                 >
                   {(m.localPreviewUrl || m.imageUrl) && (
-                    <AuthedImage
-                      src={m.localPreviewUrl || m.imageUrl}
-                      alt="첨부 이미지"
-                      className={styles.bubbleImage}
-                    />
+                    <div className={styles.imageWrap}>
+                      <AuthedImage
+                        src={m.localPreviewUrl || m.imageUrl}
+                        alt={m.isAi ? "AI로 생성된 이미지" : "첨부 이미지"}
+                        className={styles.bubbleImage}
+                      />
+                      {m.isAi && (
+                        <span
+                          className={styles.aiBadge}
+                          aria-label="AI로 생성된 이미지"
+                        >
+                          ✨ AI Generated
+                        </span>
+                      )}
+                    </div>
                   )}
                   {m.content && <div>{m.content}</div>}
                 </div>
               ))
             )}
-            {sending && (
+            {sending && !messages.some((m) => m._generating) && (
               <div className={styles.assistantBubble}>응답을 작성 중...</div>
             )}
           </div>
 
           {followUp && !sending && (
             <div className={styles.followUp}>
-              <button
-                className={styles.followUpBtn}
-                onClick={() => handleFollowUpClick(followUp)}
-              >
-                💬 {followUp}
-              </button>
+              {followUp.type === "OFFER_GENERATE" ? (
+                <button
+                  className={styles.generateBtn}
+                  onClick={handleGenerateImage}
+                >
+                  ✨ AI 이미지 만들기
+                </button>
+              ) : (
+                <button
+                  className={styles.followUpBtn}
+                  onClick={() => handleFollowUpClick(followUp.text)}
+                >
+                  💬 {followUp.text}
+                </button>
+              )}
             </div>
           )}
 

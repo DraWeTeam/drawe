@@ -27,3 +27,11 @@ export const resetSession = async (projectId, sessionId) => {
   const res = await api.post(`/projects/${projectId}/chat/${sessionId}/reset`);
   return res.data.data;
 };
+
+export const generateImage = async (projectId, sessionId, prompt) => {
+  const res = await api.post(
+    `/projects/${projectId}/chat/${sessionId}/generate`,
+    { prompt },
+  );
+  return res.data.data;
+};
