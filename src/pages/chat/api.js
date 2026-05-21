@@ -27,3 +27,26 @@ export const resetSession = async (projectId, sessionId) => {
   const res = await api.post(`/projects/${projectId}/chat/${sessionId}/reset`);
   return res.data.data;
 };
+
+export const generateImage = async (projectId, sessionId, prompt) => {
+  const res = await api.post(
+    `/projects/${projectId}/chat/${sessionId}/generate`,
+    { prompt },
+  );
+  return res.data.data;
+};
+
+export const addPin = async (projectId, imageId) => {
+  const res = await api.post(`/projects/${projectId}/pins`, { imageId });
+  return res.data.data;
+};
+
+export const removePin = async (projectId, imageId) => {
+  const res = await api.delete(`/projects/${projectId}/pins/${imageId}`);
+  return res.data.data;
+};
+
+export const getPins = async (projectId) => {
+  const res = await api.get(`/projects/${projectId}/pins`);
+  return res.data.data;
+};

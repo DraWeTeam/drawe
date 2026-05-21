@@ -194,11 +194,6 @@ const OnboardingPage = () => {
                     {img.label || "카테고리 키워드"}
                   </span>
                 </div>
-                {selectedIds.has(img.id) && (
-                  <div className={styles.checkBadge}>
-                    <CheckIcon />
-                  </div>
-                )}
               </div>
             </button>
           ))}

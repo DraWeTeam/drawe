@@ -1,13 +1,13 @@
 .page {
   min-height: 100vh;
   background: #fff;
-  padding: 60px;
+  padding: 96px 60px 40px;
   display: flex;
   justify-content: center;
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 820px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -15,19 +15,21 @@
 }
 
 .title {
-  font-size: 28px;
+  font-size: 36px;
   font-weight: 700;
-  color: #202124;
-  text-align: center;
+  color: #0f0f0f;
+  text-align: left;
   margin: 0 0 12px;
   line-height: 1.4;
+  width: 100%;
 }
 
 .subtitle {
   font-size: 14px;
-  color: #888;
-  text-align: center;
-  margin: 0 0 48px;
+  color: #4a4846;
+  text-align: left;
+  margin: 0 0 60px;
+  width: 100%;
 }
 
 .error {
@@ -39,7 +41,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  gap: 16px;
   width: 100%;
   margin-bottom: 48px;
 }
@@ -62,17 +64,31 @@
   overflow: hidden;
   background: #f0f0f0;
   border: 3px solid transparent;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* 선택 시 깔리는 단색 오버레이 — opacity로 부드럽게 */
+.cardImageWrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #0f0f0f;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.card.selected .cardImageWrapper::before {
+  opacity: 0.6;
 }
 
 .card:hover .cardImageWrapper {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-}
-
-.card.selected .cardImageWrapper {
-  border-color: #ff8534;
-  box-shadow: 0 8px 24px rgba(255, 133, 52, 0.3);
 }
 
 .cardImage {
@@ -90,15 +106,7 @@
   align-items: flex-end;
   justify-content: center;
   padding: 16px;
-  transition: background 0.2s ease;
-}
-
-.card.selected .cardOverlay {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 133, 52, 0.3) 0%,
-    rgba(255, 133, 52, 0.6) 100%
-  );
+  z-index: 2; /* ::before 위에 와서 라벨이 안 가려지도록 */
 }
 
 .cardLabel {
@@ -109,35 +117,10 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-.checkBadge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 28px;
-  height: 28px;
-  background: #ff8534;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(255, 133, 52, 0.4);
-  animation: pop-in 0.2s ease;
-}
-
-@keyframes pop-in {
-  from {
-    transform: scale(0);
-  }
-  to {
-    transform: scale(1);
-  }
-}
-
 .submitBtn {
   width: 100%;
-  max-width: 600px;
-  padding: 16px;
+  max-width: 820px;
+  height: 44px;
   background: #ff8534;
   color: white;
   border: none;
@@ -146,7 +129,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .submitBtn:hover:not(:disabled) {
@@ -160,12 +143,13 @@
 }
 
 .skipBtn {
+  width: 100%;
+  max-width: 820px;
   background: none;
   border: none;
   color: #888;
   font-size: 14px;
   cursor: pointer;
-  padding: 8px;
 }
 
 .skipBtn:hover {

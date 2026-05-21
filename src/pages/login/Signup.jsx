@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { checkEmail, checkNickname, signup } from "./authApi";
 import styles from "./Signup.module.css";
+import AuthHeader from "./AuthHeader";
 import { useEffect } from 'react';
 import { track } from '../../analytics';
 
@@ -171,125 +172,133 @@ const Signup = () => {
   };
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.section}>
-        <div className={styles.heroTitle}>회원가입</div>
-        <p className={styles.heroSub}>DraWe와 함께 그림 여정을 시작해보세요.</p>
-      </div>
-      <form className={styles.signupBox} onSubmit={handleSubmit}>
-        <div className={styles.field}>
-          <p className={styles.label}>이메일</p>
-          <div className={styles.row}>
-            <input
-              type="text"
-              name="email"
-              className={styles.input}
-              placeholder="예) Drawe@Drawe.com"
-              value={form.email}
-              onChange={handleChange}
-              onFocus={handleFieldFocus}
-            />
-            <button
-              type="button"
-              className={styles.checkBtn}
-              onClick={handleCheckEmail}
-            >
-              중복 확인
-            </button>
-          </div>
-          {emailCheck.message && (
-            <p
-              className={
-                emailCheck.status === "ok"
-                  ? styles.helperOk
-                  : styles.helperError
-              }
-            >
-              {emailCheck.message}
+    <div className={styles.page}>
+      <AuthHeader />
+      <div className={styles.content}>
+        <div className={styles.wrapper}>
+          <div className={styles.section}>
+            <div className={styles.heroTitle}>회원가입</div>
+            <p className={styles.heroSub}>
+              DraWe와 함께 그림 여정을 시작해보세요.
             </p>
-          )}
-        </div>
+          </div>
+          <form className={styles.signupBox} onSubmit={handleSubmit}>
+            <div className={styles.field}>
+              <p className={styles.label}>이메일</p>
+              <div className={styles.row}>
+                <input
+                  type="text"
+                  name="email"
+                  className={styles.input}
+                  placeholder="예) Drawe@Drawe.com"
+                  value={form.email}
+                  onChange={handleChange}
+                />
+                <button
+                  type="button"
+                  className={styles.checkBtn}
+                  onClick={handleCheckEmail}
+                >
+                  중복 확인
+                </button>
+              </div>
+              {emailCheck.message && (
+                <p
+                  className={
+                    emailCheck.status === "ok"
+                      ? styles.helperOk
+                      : styles.helperError
+                  }
+                >
+                  {emailCheck.message}
+                </p>
+              )}
+            </div>
 
-        <div className={styles.field}>
-          <p className={styles.label}>닉네임</p>
-          <div className={styles.row}>
-            <input
-              type="text"
-              name="nickname"
-              className={styles.input}
-              placeholder="2~20자"
-              value={form.nickname}
-              onChange={handleChange}
-              onFocus={handleFieldFocus}
+            <div className={styles.field}>
+              <p className={styles.label}>닉네임</p>
+              <div className={styles.row}>
+                <input
+                  type="text"
+                  name="nickname"
+                  className={styles.input}
+                  placeholder="2~20자"
+                  value={form.nickname}
+                  onChange={handleChange}
+                  onFocus={handleFieldFocus}
               maxLength={20}
-            />
+                />
+                <button
+                  type="button"
+                  className={styles.checkBtn}
+                  onClick={handleCheckNickname}
+                >
+                  중복 확인
+                </button>
+              </div>
+              {nicknameCheck.message && (
+                <p
+                  className={
+                    nicknameCheck.status === "ok"
+                      ? styles.helperOk
+                      : styles.helperError
+                  }
+                >
+                  {nicknameCheck.message}
+                </p>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <p className={styles.label}>비밀번호</p>
+              <input
+                type="password"
+                name="password"
+                className={styles.input}
+                placeholder="8자 이상"
+                value={form.password}
+                onChange={handleChange}
+                onFocus={handleFieldFocus}
+          />
+            </div>
+
+            <div className={styles.fieldLast}>
+              <p className={styles.label}>비밀번호 확인</p>
+              <input
+                type="password"
+                name="passwordConfirm"
+                className={styles.input}
+                placeholder="비밀번호 다시 입력"
+                value={form.passwordConfirm}
+                onChange={handleChange}
+            onFocus={handleFieldFocus}
+              />
+            </div>
+
+            {errorMessage && <p className={styles.error}>{errorMessage}</p>}
+
             <button
-              type="button"
-              className={styles.checkBtn}
-              onClick={handleCheckNickname}
+              type="submit"
+              className={styles.submitBtn}
+              disabled={submitting}
             >
-              중복 확인
+              {submitting ? "가입 중..." : "가입하기"}
             </button>
-          </div>
-          {nicknameCheck.message && (
-            <p
-              className={
-                nicknameCheck.status === "ok"
-                  ? styles.helperOk
-                  : styles.helperError
-              }
-            >
-              {nicknameCheck.message}
-            </p>
-          )}
+
+            <div className={styles.bottomNote}>
+              <p style={{ margin: 0, fontWeight: 350 }}>
+                이미 계정이 있으신가요?
+              </p>
+              <Link
+                to="/login"
+                style={{ margin: 0, fontWeight: 500, color: "#ff8534" }}
+              >
+                로그인하기
+              </Link>
+            </div>
+          </form>
         </div>
-
-        <div className={styles.field}>
-          <p className={styles.label}>비밀번호</p>
-          <input
-            type="password"
-            name="password"
-            className={styles.input}
-            placeholder="8자 이상"
-            value={form.password}
-            onChange={handleChange}
-            onFocus={handleFieldFocus}
-          />
-        </div>
-
-        <div className={styles.fieldLast}>
-          <p className={styles.label}>비밀번호 확인</p>
-          <input
-            type="password"
-            name="passwordConfirm"
-            className={styles.input}
-            placeholder="비밀번호 다시 입력"
-            value={form.passwordConfirm}
-            onChange={handleChange}
-            onFocus={handleFieldFocus}
-          />
-        </div>
-
-        {errorMessage && <p className={styles.error}>{errorMessage}</p>}
-
-        <button
-          type="submit"
-          className={styles.submitBtn}
-          disabled={submitting}
-        >
-          {submitting ? "가입 중..." : "가입하기"}
-        </button>
-
-        <div className={styles.bottomNote}>
-          <p style={{ margin: 0, fontWeight: 350 }}>이미 계정이 있으신가요?</p>
-          <Link
-            to="/login"
-            style={{ margin: 0, fontWeight: 500, color: "#ff8534" }}
-          >
-            로그인하기
-          </Link>
-        </div>
-      </form>
+      </div>
     </div>
   );
 };

@@ -1,134 +1,187 @@
-/* ===== 신규: 좌우 분할 레이아웃 ===== */
+/* ===== 전체 레이아웃 — column ===== */
 .layout {
-  display: grid;
-  grid-template-columns: 4fr 6fr;
-  height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ===== 페이지 헤더 — 상단 전체 ===== */
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 32px 16px 48px;
+  flex-shrink: 0;
+  height: 96px;
   box-sizing: border-box;
+  background: #fefeff;
+}
+
+.pageTitle {
+  flex: 1;
+  margin: 0 0 2px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f0f0f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ===== 본문 — 좌/우 분할 ===== */
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
   overflow: hidden;
 }
 
 .leftPanel {
+  flex: 1 1 50%; /* 기본 50% */
+  min-width: 0;
   height: 100%;
-  min-height: 0;
   overflow: hidden;
-  background: #fafafa;
+  background: #fefeff;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #edebea;
+  transition:
+    flex-basis 0.35s ease,
+    flex-grow 0.35s ease,
+    opacity 0.25s ease,
+    border-right-color 0.25s ease;
 }
 
 .rightPanel {
+  flex: 1 1 50%;
+  min-width: 0;
   height: 100%;
-  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  background: #fefeff;
+  transition:
+    flex-basis 0.35s ease,
+    flex-grow 0.35s ease,
+    opacity 0.25s ease;
 }
 
-/* 모바일/태블릿 — 좁은 화면에선 그리드를 위로 */
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: 280px 1fr;
-  }
+/* 숨김 상태 — 너비 0으로 축소 + 페이드 */
+.panelHidden {
+  flex-basis: 0;
+  flex-grow: 0;
+  opacity: 0;
+  border-right-color: transparent;
+  pointer-events: none;
+  visibility: hidden;
 }
 
-.wrapper {
-  width: 100%;
-  margin: 0 auto;
-  max-width: 1200px;
-  padding: 16px 24px 0;
+/* ===== 채팅 컨테이너 (가운데 정렬, max-width) ===== */
+.chatContainer {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  padding: 0 32px 0 16px;
   box-sizing: border-box;
   min-height: 0;
 }
 
-.header {
+/* ===== 채팅 상단 컨트롤 (⛶ ↔ ≫) ===== */
+.chatTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 4px;
+  flex-shrink: 0;
+}
+
+/* ===== 공통 아이콘 버튼 ===== */
+.iconBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  padding: 8px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
-  flex-shrink: 0;
+  justify-content: center;
+  transition: background 0.15s ease;
 }
 
-.backBtn {
-  background: none;
-  border: 1px solid #e0e0e0;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  flex-shrink: 0;
+.iconBtn:hover:not(:disabled) {
+  background: #f5f5f5;
 }
 
-.headerInfo {
-  flex: 1;
-  min-width: 0;
-}
-
-.title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.subtitle {
-  margin: 4px 0 0 0;
-  font-size: 13px;
-  color: #888;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.resetBtn {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.resetBtn:disabled {
-  opacity: 0.5;
+.iconBtn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.messages {
+.messagesScroll {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  overflow-x: hidden;
+  width: 100%;
   min-height: 0;
 }
 
-.empty {
-  margin: auto;
-  text-align: center;
-  color: #999;
+/* ===== 메시지 영역 ===== */
+.messages {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px 12px;
+  box-sizing: border-box;
 }
 
-.empty p {
-  margin: 4px 0;
+/* 빈 상태 */
+.empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 0 20px 40px 20px;
+}
+
+.emptyLogo {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #24221f;
 }
 
 .emptyHint {
-  font-size: 13px;
-  color: #bbb;
+  margin: 0;
+  font-size: 14px;
+  color: #4a4846;
+  line-height: 1.5;
 }
 
+/* 메시지 버블 */
 .userBubble,
 .assistantBubble {
-  max-width: 75%;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 14px;
   font-size: 14px;
   line-height: 1.5;
@@ -137,22 +190,83 @@
 }
 
 .userBubble {
-  align-self: flex-end;
   background: #ff8534;
-  color: #fff;
+  color: #f2f2ff;
   border-bottom-right-radius: 4px;
 }
 
 .assistantBubble {
-  align-self: flex-start;
-  background: #f4f4f4;
-  color: #222;
+  display: flex;
+  color: #24221f;
   border-bottom-left-radius: 4px;
+  gap: 16px;
+  padding-left: 0;
 }
 
+.assistantLogo {
+  width: 32px;
+  height: 32px;
+  border-radius: 9.6px;
+}
+
+/* 메시지 단위 wrapper — 이미지와 텍스트를 묶는 컨테이너 */
+.userMessage {
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* 안쪽 자식들 오른쪽 정렬 */
+  gap: 12px;
+  max-width: 75%;
+}
+
+.assistantMessage {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* 안쪽 자식들 왼쪽 정렬 */
+  gap: 12px;
+  max-width: 75%;
+}
+
+/* 이미지 묶음 — 배경 없이 80x80 이미지들 가로 배치 */
+.messageImages {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bubbleImage {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+/* AI 생성 이미지 — 메인 결과물이므로 크게 보여줌 + 클릭으로 확대 */
+.aiImage {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  max-height: 480px;
+  object-fit: contain;
+  border-radius: 12px;
+  cursor: zoom-in;
+  background: #f4f4f4;
+}
+
+.imageWrapAi {
+  width: 100%;
+  max-width: 360px;
+}
+
+/* ===== followUp 칩 ===== */
 .followUp {
-  padding: 4px 0 8px 0;
+  padding: 4px 0 8px;
   flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .followUpBtn {
@@ -163,40 +277,127 @@
   border-radius: 999px;
   font-size: 13px;
   cursor: pointer;
+  font-family: inherit;
 }
 
 .followUpBtn:hover {
   background: #ffe8d4;
 }
 
+.generateBtn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #a78bfa 0%, #ec4899 50%, #f59e0b 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(168, 139, 250, 0.35);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.generateBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(236, 72, 153, 0.4);
+}
+
+/* ===== 에러 ===== */
 .error {
   color: #d83a3a;
   font-size: 13px;
   margin: 4px 0;
 }
 
+/* ===== 입력바 ===== */
 .inputBar {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 12px 0 16px 0;
-  border-top: 1px solid #eee;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 20px;
+  box-sizing: border-box;
   background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 24px;
   flex-shrink: 0;
+  transition: border-color 0.15s ease;
+}
+
+.inputBar:focus-within {
+  border-color: #ff8534;
+}
+
+/* 미리보기 영역 — 위쪽 */
+.attachmentPreviews {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 12px 4px 12px;
+}
+
+.previewItem {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.previewRemove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #fcfbfa;
+  border: 1px solid #edebea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4a4846;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.previewRemove:hover {
+  background: #f6fbf6;
+  color: #000;
+}
+
+/* 입력 줄 — 클립 + textarea + 전송 */
+.inputRow {
+  display: flex;
+  gap: 8px;
   align-items: flex-end;
 }
 
 .input {
   flex: 1;
-  padding: 10px 14px;
-  border: 1px solid #ddd;
-  border-radius: 18px;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
   font-size: 14px;
   outline: none;
   font-family: inherit;
   resize: none;
-  min-height: 40px;
-  max-height: 150px;
+  min-height: 36px;
+  max-height: 160px;
   line-height: 1.4;
   overflow-y: auto;
   box-sizing: border-box;
@@ -204,43 +405,185 @@
   -ms-overflow-style: none;
 }
 
-.input:focus {
-  border-color: #ff8534;
-}
-
 .input::-webkit-scrollbar {
   display: none;
 }
 
-.input::-webkit-scrollbar-thumb {
+.input:focus {
+  background: transparent;
+}
+
+.sendBtn {
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #ff8534;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.sendBtn:hover:not(:disabled) {
+  background: #ff7a25;
+}
+
+.sendBtn:disabled {
+  background: #d8d7d5;
+  cursor: not-allowed;
+}
+
+/* ===== FAB (채팅 최소화 상태) ===== */
+.fab {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 80px;
+  height: 80px;
+  background: transparent;
+  padding: 0;
+  border-radius: 25px;
+  border: none;
+  cursor: pointer;
+  z-index: 100;
+
+  /* 기본은 숨김 상태 */
+  opacity: 0;
+  transform: translateY(20px) scale(0.9);
+  pointer-events: none;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.25s ease,
+    box-shadow 0.15s ease;
+}
+
+.fabVisible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.fab:hover {
+  box-shadow: 0 5px 24px rgba(250, 154, 90, 0.4);
+}
+
+.fabIcon {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+/* ===== 좁은 화면 (선택) ===== */
+@media (max-width: 900px) {
+  .body {
+    flex-direction: column;
+  }
+  .leftPanel {
+    min-height: 280px;
+    max-height: 50vh;
+  }
+}
+
+.messagesScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messagesScroll::-webkit-scrollbar-thumb {
   background: #ddd;
   border-radius: 3px;
 }
 
-.sendBtn {
-  background: #ff8534;
-  color: #fff;
-  border: none;
-  padding: 0 20px;
-  border-radius: 18px;
-  font-size: 14px;
+.messagesScroll::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+.messagesScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.imageWrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.aiBadge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  padding: 3px 6px;
+  font-size: 10px;
   font-weight: 500;
-  cursor: pointer;
-  height: 40px;
-  flex-shrink: 0;
-  align-self: flex-end;
+  line-height: 1.2;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 9999px;
+  pointer-events: none;
+  user-select: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  letter-spacing: 0.02em;
 }
 
-.bubbleImage {
-  display: block;
+.imageWrapAi .aiBadge {
+  bottom: 10px;
+  right: 10px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* ===== 이미지 확대 라이트박스 ===== */
+.lightboxBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 32px;
+  cursor: zoom-out;
+  animation: lightboxFadeIn 0.15s ease;
+}
+
+@keyframes lightboxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lightboxImage {
   max-width: 100%;
-  max-height: 280px;
+  max-height: 100%;
+  object-fit: contain;
   border-radius: 8px;
-  margin-bottom: 6px;
-  cursor: zoom-in;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+  cursor: default;
 }
 
-.sendBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.lightboxClose {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #24221f;
+  transition: background 0.15s ease;
+}
+
+.lightboxClose:hover {
+  background: #fff;
 }
