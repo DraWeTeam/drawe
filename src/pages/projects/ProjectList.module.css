@@ -1,33 +1,135 @@
 .wrapper {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 32px 24px;
+  width: 100%;
+  padding: 32px 56px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
+/* ===== 헤더 ===== */
 .header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  flex-direction: column;
+  margin: 8px 0 24px 0;
 }
 
 .title {
-  margin: 0;
-  font-size: 26px;
+  margin: 0 0 32px 8px;
+  font-size: 24px;
   font-weight: 700;
+  color: #0f0f0f;
+  letter-spacing: -0.3px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.headerActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+  margin: 0 8px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .createBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #ff8534;
-  color: #fff;
+  color: #f6f7f9;
   border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  width: 146px;
+  height: 44px;
+  padding: 10px 16px;
+  gap: 8px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
+  transition: back-ground 0.15s ease;
 }
 
+.createBtn:hover {
+  background: #ff7a25;
+}
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #edebea;
+  width: 88px;
+  height: 44px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 16px;
+  color: #4a4846;
+  cursor: not-allowed;
+  font-family: inherit;
+}
+
+.sortBtn:disabled {
+  opacity: 0.7;
+}
+
+/* ⑤ 뷰 토글 — 120×48, gap 0, 버튼 flex:1로 동일 폭 */
+.viewToggle {
+  display: flex;
+  gap: 0;
+  background: #f6f6f6;
+  border-radius: 10px;
+  padding: 4px;
+  width: 120px;
+  height: 48px;
+  box-sizing: border-box;
+}
+
+.viewBtn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.viewBtn:hover:not(:disabled):not(.viewBtnActive) {
+  color: #555;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.viewBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.viewBtnActive {
+  background: #fff;
+  color: #ff8534;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== 에러 / 로딩 ===== */
 .error {
   color: #d83a3a;
   font-size: 14px;
@@ -41,98 +143,213 @@
   padding: 60px 0;
 }
 
-.grid {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.card {
-  border: 1px solid #e8e8e8;
-  border-radius: 12px;
-  padding: 16px;
-  background: #fff;
+/* ===== 빈 상태 ===== */
+.empty {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.15s ease;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px 60px 20px;
+}
+
+.emptyTitle {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #24221f;
+}
+
+.emptyHint {
+  margin: 0;
+  font-size: 13px;
+  color: #4a4846;
+}
+
+/* ===== 그리드 ===== */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+@media (max-width: 1024px) {
+  .wrapper {
+    padding: 24px 32px;
+  }
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .wrapper {
+    padding: 20px 20px;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 카드 ===== */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* 메뉴 열린 카드만 z-index 위로 */
+.cardActive {
+  z-index: 10;
 }
 
 .card:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
-.cardBody {
-  cursor: pointer;
-  flex: 1;
+.card:hover .thumb {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
-.cardTop {
+/* ① 이미지 섹션 */
+.thumb {
+  position: relative;
+  width: 100%;
+  height: 213px;
+  background: #fff1dc;
+  border-radius: 24px;
+  overflow: hidden;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  transition: box-shadow 0.15s ease;
+  box-shadow: 0 2px 15px 0 rgba(15, 15, 15, 0.05);
+}
+
+/* 진행중 뱃지 */
+.statusBadge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ff8534;
+  background: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ② 이름 섹션 */
+.info {
+  display: flex;
+  flex-direction: column;
+  height: 62px;
+  gap: 4px;
+  margin: 0 6px 0 16px;
+}
+
+.infoTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .cardName {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
+  color: #24221f;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
-.cardStatus {
-  font-size: 12px;
-  color: #ff8534;
-  background: #fff3ea;
-  padding: 2px 8px;
-  border-radius: 999px;
+.cardDate {
+  margin: 0;
+  font-size: 14px;
+  color: #888685;
+}
+
+.menuWrap {
+  position: relative;
   flex-shrink: 0;
 }
 
-.cardMeta {
-  margin: 0 0 4px 0;
-  font-size: 13px;
+.menuBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.menuBtn:hover {
+  background: #f5f5f5;
   color: #555;
 }
 
-.cardSub {
-  margin: 0;
-  font-size: 12px;
-  color: #999;
-}
-
-.cardActions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  border-top: 1px solid #f0f0f0;
-  padding-top: 12px;
-}
-
-.editBtn,
-.deleteBtn {
-  flex: 1;
-  padding: 6px 0;
-  font-size: 13px;
-  border: 1px solid #e0e0e0;
+.menuPopup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
   background: #fff;
-  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  min-width: 160px;
+  z-index: 50;
+  animation: pop-in 0.15s ease;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
   cursor: pointer;
+  font-size: 14px;
+  color: #4a4846;
+  font-family: inherit;
+  border-radius: 8px;
+  text-align: left;
 }
 
-.editBtn:hover {
-  background: #fff7f0;
-  border-color: #ff8534;
-  color: #ff8534;
+.menuItem:hover {
+  background: #f5f5f5;
 }
 
-.deleteBtn:hover {
+.menuItemDanger {
+  color: #dd3a2e;
+}
+
+.menuItemDanger:hover {
   background: #fff0f0;
-  border-color: #d83a3a;
-  color: #d83a3a;
 }
