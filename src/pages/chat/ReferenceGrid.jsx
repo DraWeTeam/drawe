@@ -44,7 +44,7 @@ const ReferenceGrid = ({ references, loading, justUpdated, onCardClick }) => {
                   key={item.ref.id}
                   reference={item.ref}
                   index={item.index}
-                  onClick={() => onCardClick(item.ref)}
+                  onClick={() => onCardClick(item.ref, item.index)}
                 />
               ))}
             </div>

@@ -6,6 +6,7 @@ import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import AuthedImage from "./AuthedImage";
 import styles from "./ChatPage.module.css";
+import { track } from "../../analytics"; 
 
 const sessionKey = (projectId) => `chat_session_${projectId}`;
 const MAX_INPUT_HEIGHT = 160;
@@ -30,6 +31,7 @@ const ChatPage = () => {
 
   const listRef = useRef(null);
   const textareaRef = useRef(null);
+  const lastResponseTime = useRef(null); 
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -111,6 +113,51 @@ const ChatPage = () => {
     setFollowUp(null);
     setSending(true);
 
+    const userMessageCount = messages.filter((m) => m.role === "user").length;
+    const currentIteration = userMessageCount + 1;
+    const isFirstSubmission = userMessageCount === 0;
+    const inputMode = sentAttachment ? "text_image" : "text";
+
+    if (isFirstSubmission) {
+      // 첫 제출
+      if (sentAttachment) {
+        track("prompt_image_uploaded_submitted", {
+          project_id: projectId,
+          image_format: sentAttachment.format || "unknown",
+          image_size_kb: sentAttachment.sizeKb || 0,
+          prompt_length: text.length,
+          iteration_count: currentIteration,
+        });
+      } else {
+        track("prompt_submitted", {
+          project_id: projectId,
+          prompt_length: text.length,
+          iteration_count: currentIteration,
+        });
+      }
+    } else {
+      // 추가 제출
+      const lastAssistant = [...messages]
+        .reverse()
+        .find((m) => m.role === "assistant");
+      const previousResponseType =
+        lastAssistant?.references?.length > 0 ? "reference" : "guide";
+
+      track("prompt_additional_submitted", {
+        project_id: projectId,
+        input_mode: inputMode,
+        prompt_length: text.length,
+        iteration_count: currentIteration,
+        previous_response_type: previousResponseType,
+        time_since_previous_response_sec: lastResponseTime.current
+          ? Math.floor((Date.now() - lastResponseTime.current) / 1000)
+          : 0,
+      });
+    }
+
+    // 응답 시간 측정용 시작 시각
+    const responseStartTime = Date.now();
+
     try {
       const res = await sendMessage(projectId, {
         message: text,
@@ -143,6 +190,20 @@ const ChatPage = () => {
         setJustUpdated(true);
         setTimeout(() => setJustUpdated(false), 2500);
       }
+
+      track("prompt_response_loaded", {
+      project_id: projectId,
+      input_mode: inputMode,
+      response_type: responseType,
+      reference_count: responseType === "reference" ? newRefs.length : 0,
+      generation_time_ms: Date.now() - responseStartTime,
+      iteration_count: currentIteration,
+    });
+
+    lastResponseTime.current = Date.now();
+    // ↑↑↑ 응답 도착 트래킹 끝 ↑↑↑
+
+  
       // KEEP, SKIP, 또는 NEW_SEARCH인데 빈 배열: 이전 references 유지 (아무것도 안 함)
     } catch (err) {
       const status = err.response?.status;
@@ -187,8 +248,17 @@ const ChatPage = () => {
   };
 
   const handleCardClick = (reference) => {
+    // 현재 iteration / input_mode 캡처
+  const userMessageCount = messages.filter((m) => m.role === "user").length;
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const lastInputMode = lastUserMessage?.imageUrl ? "text_image" : "text";
     navigate(`/projects/${projectId}/reference/${reference.id}`, {
-      state: { reference },
+      state: {
+        reference,
+        position,                       // ← 추가
+        iterationCount: userMessageCount, // ← 추가
+        inputMode: lastInputMode,         // ← 추가
+    },
     });
   };
 
