@@ -8,6 +8,8 @@ import com.drawe.backend.domain.enums.LlmCallStatus;
 import com.drawe.backend.domain.enums.LlmProvider;
 import com.drawe.backend.domain.enums.MessageRole;
 import com.drawe.backend.domain.enums.UserPlan;
+import com.drawe.backend.domain.Image;
+import com.drawe.backend.domain.image.service.ImageGenerationService;
 import com.drawe.backend.domain.llm.dto.*;
 import com.drawe.backend.domain.llm.repository.ChatSessionRepository;
 import com.drawe.backend.domain.llm.repository.LlmMessageRepository;
@@ -46,6 +48,7 @@ public class ChatLlmService {
   private final KeywordExtractor keywordExtractor;
   private final SearchService searchService;
   private final SearchLogService searchLogService;
+  private final ImageGenerationService imageGenerationService;
 
   @Transactional
   public ChatResponse chat(User user, Long projectId, ChatRequest request) {
@@ -58,23 +61,49 @@ public class ChatLlmService {
     List<LlmMessage> all = llmMessageRepository.findByChatSessionOrderByCreatedAtAsc(session);
     List<LlmCallContext.Turn> history = trimHistory(all, llmProperties.getMaxHistory());
 
-    // 검색 결정 + references 처리
+    // 검색 결정
     ExtractionResult decision = keywordExtractor.extract(request.message(), history);
+
+    // 사용자가 명시적으로 이미지 생성을 요청한 경우 — 검색·LLM 답변 모두 건너뛰고
+    // 바로 Bria 호출해서 응답에 생성된 이미지 url 을 담아 돌려준다.
+    if (decision.action() == ExtractionResult.Action.GENERATE_NOW) {
+      return handleGenerateNow(user, project, session, request, decision);
+    }
+
     List<ImageResult> references = handleSearchDecision(user, project, request.message(), decision);
+
+    // 검색은 시도했지만 적합한 레퍼런스가 없을 때 AI 이미지 생성을 제안한다.
+    boolean offerGenerate =
+        decision.action() == ExtractionResult.Action.NEW_SEARCH && references.isEmpty();
 
     // references context 추가
     if (!references.isEmpty()) {
       String referenceContext = buildReferenceContext(references);
       history.add(new LlmCallContext.Turn(MessageRole.SYSTEM, referenceContext));
     } else {
-      // 추가 — references 없을 때 명시
+      // 레퍼런스가 없을 때(검색했지만 결과가 부적합한 경우 포함):
+      // LLM에게는 "이미지에 관해 어떤 약속도 하지 말 것"을 명시적으로 금지한다.
+      // 생성 제안 카피·버튼은 프론트에서 offerGenerate 플래그로 고정 렌더하므로
+      // LLM이 "만들어드릴까요" / "만들어왔어요" 같은 언급을 하면 할루시네이션이 된다.
       history.add(
           new LlmCallContext.Turn(
               MessageRole.SYSTEM,
               "[참고 이미지 안내]\n"
                   + "이번 답변에는 새로 검색된 참고 이미지가 없습니다.\n"
                   + "사용자의 질문에 직접 답변하세요.\n"
-                  + "[1], [2] 같은 이미지 인용 표현을 사용하지 마세요.\n"
+                  + "\n"
+                  + "금지사항 (가짜 결과 제공 금지):\n"
+                  + "- [1], [2] 같은 인용 표현 사용 금지 (지금 참고 이미지가 없음).\n"
+                  + "- 네가 만들지 않은 이미지를 만든 척하지 말 것:\n"
+                  + "  \"만들어왔어요\", \"만들어드렸어요\", \"준비해봤어요\", \"여기 이미지요\" 등 금지.\n"
+                  + "- 이미지가 화면에 있는 것처럼 묘사하지 말 것.\n"
+                  + "\n"
+                  + "허용 — 사용자가 이미지/레퍼런스를 원했다면 안내해줘도 됨:\n"
+                  + "- \"괜찮으시면 아래 'AI 이미지 생성' 버튼으로 만들어드릴게요.\"\n"
+                  + "- \"어떤 분위기·구도로 만들면 좋을까요?\"\n"
+                  + "(시스템이 이 답변에 생성 버튼을 함께 노출합니다. "
+                  + "다만 네가 직접 만들어왔다고 말하면 안 됩니다 — 만든 건 시스템·사용자임.)\n"
+                  + "\n"
                   + "이전 대화에서 언급된 이미지가 있다면 그것만 참고 가능하지만, "
                   + "새 인용을 만들지 마세요."));
     }
@@ -121,6 +150,8 @@ public class ChatLlmService {
           result.content(),
           convertToReferenceItems(references),
           decision.action().name(), // "NEW_SEARCH" | "KEEP" | "SKIP"
+          offerGenerate,
+          offerGenerate ? request.message() : null,
           null);
     } catch (CustomException e) {
       persistFailure(assistantMsg, e);
@@ -225,6 +256,84 @@ public class ChatLlmService {
             .map(ChatHistoryResponse.HistoryItem::from)
             .toList();
     return new ChatHistoryResponse(session.getId(), items);
+  }
+
+  /**
+   * GENERATE_NOW 분기 — 사용자가 명시적으로 "만들어줘"라고 했을 때 검색·LLM 답변을 건너뛰고 즉시 Bria 호출.
+   *
+   * <p>일반 chat 경로와 다른 점:
+   * <ul>
+   *   <li>검색하지 않음 (사용자가 새 이미지를 원했음이 분명함)
+   *   <li>LLM 답변 호출하지 않음 — 답변은 고정 문구로 대체 ("만들어왔어요" 할루시네이션 원천 차단)
+   *   <li>ChatResponse.generatedImage 필드에 새 이미지 정보 포함
+   * </ul>
+   */
+  private ChatResponse handleGenerateNow(
+      User user, Project project, ChatSession session, ChatRequest request, ExtractionResult decision) {
+    // 사용자 메시지 저장
+    LlmMessage userMsg = new LlmMessage();
+    userMsg.setChatSession(session);
+    userMsg.setRole(MessageRole.USER);
+    userMsg.setContent(request.message());
+    userMsg.setHasImage(false);
+    llmMessageRepository.save(userMsg);
+
+    // KeywordExtractor가 추출한 영문 프롬프트로 즉시 생성.
+    // ImageGenerationService 가 내부에서 또 한 번 번역하지만, 영문 입력이면 그대로 통과.
+    Image image = imageGenerationService.generate(user, decision.keywords(), project);
+
+    String assistantText = "요청하신 이미지를 만들어드렸어요. 마음에 드시면 이어서 작업해보시고, 다른 분위기로 바꿔드릴까요?";
+    LlmMessage assistantMsg = new LlmMessage();
+    assistantMsg.setChatSession(session);
+    assistantMsg.setRole(MessageRole.ASSISTANT);
+    assistantMsg.setContent(assistantText);
+    assistantMsg.setHasImage(true);
+    assistantMsg.setImageUrl(image.getUrl());
+    assistantMsg.setStatus(LlmCallStatus.SUCCESS);
+    llmMessageRepository.save(assistantMsg);
+
+    session.setLastActive(Instant.now());
+
+    log.info(
+        "GENERATE_NOW 처리 완료: user={}, imageId={}, prompt='{}'",
+        user.getId(),
+        image.getId(),
+        decision.keywords());
+
+    return new ChatResponse(
+        session.getId(),
+        "guide",
+        assistantText,
+        List.of(),
+        decision.action().name(), // "GENERATE_NOW"
+        false,
+        null,
+        new ChatResponse.GeneratedImage(image.getId(), image.getUrl(), decision.keywords()));
+  }
+
+  /**
+   * 사용자가 "AI 이미지 만들어주세요" 버튼을 누른 경우 호출. Bria 로 이미지 생성 후 세션에 ASSISTANT 메시지로 기록.
+   */
+  @Transactional
+  public GenerateImageResponse generateImage(
+      User user, Long projectId, String sessionId, GenerateImageRequest request) {
+    Project project = loadProjectAuthorized(user, projectId);
+    ChatSession session = loadSessionAuthorized(user, sessionId, projectId);
+
+    Image image = imageGenerationService.generate(user, request.prompt(), project);
+
+    LlmMessage assistantMsg = new LlmMessage();
+    assistantMsg.setChatSession(session);
+    assistantMsg.setRole(MessageRole.ASSISTANT);
+    assistantMsg.setContent("AI 이미지를 생성했어요. 원하시면 추가 수정 방향을 알려주세요.");
+    assistantMsg.setHasImage(true);
+    assistantMsg.setImageUrl(image.getUrl());
+    assistantMsg.setStatus(LlmCallStatus.SUCCESS);
+    llmMessageRepository.save(assistantMsg);
+
+    session.setLastActive(Instant.now());
+
+    return new GenerateImageResponse(session.getId(), image.getId(), image.getUrl(), request.prompt());
   }
 
   @Transactional
@@ -421,6 +530,10 @@ public class ChatLlmService {
     sb.append("- 예: \"[1]번 이미지처럼 부드러운 색감을 표현하려면...\"\n");
     sb.append("- 모든 이미지를 다 언급할 필요는 없습니다. 관련 있는 것만 인용하세요.\n");
     sb.append("- 태그 정보를 활용해 구체적인 조언을 해주세요.\n");
+    sb.append(
+        "- 네가 직접 추가 이미지를 만들어왔다고 말하지 마세요 "
+            + "(\"더 그려왔어요\", \"만들어둔 게 있어요\" 같은 가짜 결과 금지). "
+            + "필요하면 \"원하시면 비슷한 분위기로 새로 만들어드릴까요?\" 처럼 안내·제안은 OK.\n");
 
     return sb.toString();
   }
