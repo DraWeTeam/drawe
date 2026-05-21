@@ -12,12 +12,12 @@ import com.drawe.backend.domain.llm.dto.*;
 import com.drawe.backend.domain.llm.repository.ChatSessionRepository;
 import com.drawe.backend.domain.llm.repository.LlmMessageRepository;
 import com.drawe.backend.domain.log.SearchLogService;
+import com.drawe.backend.domain.onboarding.UserPrefSummaryService;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.domain.search.dto.ImageResult;
 import com.drawe.backend.domain.search.dto.SearchRequest;
 import com.drawe.backend.domain.search.dto.SearchResponse;
 import com.drawe.backend.domain.search.service.SearchService;
-import com.drawe.backend.domain.onboarding.UserPrefSummaryService;
 import com.drawe.backend.global.config.LlmProperties;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
@@ -285,8 +285,8 @@ public class ChatLlmService {
     persona.setHasImage(false);
     llmMessageRepository.save(persona);
 
-  String userPrefs = userPrefSummaryService.buildSummary(user);
-  if (!userPrefs.isBlank()) {
+    String userPrefs = userPrefSummaryService.buildSummary(user);
+    if (!userPrefs.isBlank()) {
       LlmMessage prefsMsg = new LlmMessage();
       prefsMsg.setChatSession(session);
       prefsMsg.setRole(MessageRole.SYSTEM);
@@ -294,11 +294,11 @@ public class ChatLlmService {
       prefsMsg.setHasImage(false);
       llmMessageRepository.save(prefsMsg);
       log.info(
-              "세션 생성 시 사용자 선호 인젝션: userId={}, sessionId={}, prefsLength={}",
-              user.getId(),
-              session.getId(),
-              userPrefs.length());
-  }
+          "세션 생성 시 사용자 선호 인젝션: userId={}, sessionId={}, prefsLength={}",
+          user.getId(),
+          session.getId(),
+          userPrefs.length());
+    }
 
     String projectContext = buildProjectContext(project);
     if (projectContext != null) {
