@@ -87,6 +87,8 @@ const ChatPage = () => {
     }
   }, [projectId]);
 
+  const buttonViewedFired = useRef(false);
+
   useEffect(() => {
     const fetchProject = async () => {
       try {
@@ -159,6 +161,22 @@ const ChatPage = () => {
     const t = setTimeout(() => setPinError(""), 4000);
     return () => clearTimeout(t);
   }, [pinError]);
+
+  useEffect(() => {
+  const isVisible = followUp?.type === "OFFER_GENERATE" && !sending;
+  
+  if (isVisible && !buttonViewedFired.current) {
+    buttonViewedFired.current = true;
+    track("prompt_image_generation_button_viewed", {
+      iteration_count: messages.filter((m) => m.role === "user").length,
+      project_id: projectId,
+    });
+  }
+  
+  if (!isVisible) {
+    buttonViewedFired.current = false;  // 다음 노출 위해 리셋
+  }
+  }, [followUp, sending, messages, projectId]);
 
   useEffect(() => {
     if (!lightboxSrc) return;
@@ -299,12 +317,30 @@ const ChatPage = () => {
               : null,
       );
 
+      // ↓ 추가 — 이미지 생성 조건 충족 시
+      if (res.offerGenerate) {
+        const previousAssistant = [...messages]
+          .reverse()
+          .find((m) => m.role === "assistant");
+        const firstType =
+          previousAssistant?.references?.length > 0 ? "reference" : "guide";
+        
+        track("prompt_image_generation_button_eligible", {
+          first_response_type: firstType,
+          second_response_type: "guide",  // offerGenerate면 현재 응답은 guide
+          button_shown: true,
+          project_id: projectId,
+        });
+      }
+
       if (action === "NEW_SEARCH" && newRefs.length > 0) {
         setReferences(newRefs);
         setJustUpdated(true);
         setTimeout(() => setJustUpdated(false), 2500);
       }
-
+// 응답 타입 계산
+      const responseType =
+      action === "NEW_SEARCH" && newRefs.length > 0 ? "reference" : "guide";
       track("prompt_response_loaded", {
       project_id: projectId,
       input_mode: inputMode,
@@ -367,6 +403,11 @@ const ChatPage = () => {
       setErrorMessage("이미지를 만들 메시지를 찾지 못했어요.");
       return;
     }
+    // ↓ 추가 — 생성 요청 트래킹
+    track("prompt_image_generation_clicked", {
+      prompt_length: lastUser.content.length,
+      project_id: projectId,
+    });
     const placeholderId = `gen-${Date.now()}`;
     setErrorMessage("");
     setFollowUp(null);
@@ -393,6 +434,11 @@ const ChatPage = () => {
 
     try {
       const res = await generateImage(projectId, sessionId, lastUser.content);
+      // ↓ 추가 — 생성 완료 트래킹
+      track("prompt_image_generated", {
+        generation_time_ms: Date.now() - generateStartTime,
+        project_id: projectId,
+      });
       setMessages((prev) =>
         prev.map((m) =>
           m._placeholderId === placeholderId
@@ -433,7 +479,7 @@ const ChatPage = () => {
     }
   };
 
-  const handleCardClick = (reference) => {
+  const handleCardClick = (reference, position) => {
     // 현재 iteration / input_mode 캡처
   const userMessageCount = messages.filter((m) => m.role === "user").length;
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
@@ -451,6 +497,8 @@ const ChatPage = () => {
   const handlePinToggle = async (imageId) => {
     const wasPinned = pinnedIds.has(imageId);
     const snapshot = [...pinnedRefs];
+    // 트래킹용 — 핀 시작 시각 기록 (localStorage)
+    const pinKey = `pin_time_${imageId}`;
 
     if (wasPinned) {
       setPinnedRefs((prev) => prev.filter((r) => r.id !== imageId));
@@ -462,8 +510,37 @@ const ChatPage = () => {
     try {
       if (wasPinned) {
         await removePin(projectId, imageId);
+        // ↓ 핀 해제 트래킹
+        const pinStartTime = parseInt(localStorage.getItem(pinKey) || "0");
+        track("prompt_reference_unpinned", {
+          reference_id: imageId,
+          time_pinned_sec: pinStartTime 
+            ? Math.floor((Date.now() - pinStartTime) / 1000) 
+            : 0,
+          project_id: projectId,
+        });
+        localStorage.removeItem(pinKey);
       } else {
         await addPin(projectId, imageId);
+
+        // ↓ 핀 적용 트래킹
+        const refIdx = references.findIndex((r) => r.id === imageId);
+        const userMessageCount = messages.filter((m) => m.role === "user").length;
+        const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+        const lastInputMode = lastUserMessage?.imageUrl ? "text_image" : "text";
+        
+        // 현재 피드백 상태는 카드 컴포넌트에 있어서 여기선 모름 → 'none'으로 처리
+        track("prompt_reference_pinned", {
+          reference_id: imageId,
+          reference_position: refIdx >= 0 ? refIdx + 1 : 0,
+          feedback_type: "none",  // 카드 안에서 안 보임 — 일단 none
+          iteration_count: userMessageCount,
+          input_mode: lastInputMode,
+          project_id: projectId,
+        });
+        
+        localStorage.setItem(pinKey, Date.now().toString());
+      
       }
       await refreshPins();
     } catch (err) {

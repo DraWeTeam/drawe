@@ -107,7 +107,7 @@ const ReferenceGrid = ({
                   index={index}
                   isPinned={pinnedIds?.has(ref.id) ?? false}
                   onPinToggle={onPinToggle}
-                  onClick={() => onCardClick(ref, item.index)}
+                  onClick={() => onCardClick(ref, index)}
                 />
               ))}
             </div>
@@ -177,21 +177,54 @@ const ReferenceCard = ({
   };
 
   const handleFeedback = async (e, type) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    try {
-      if (feedback === type) {
-        // 같은 피드백 다시 누르면 취소
-        await api.delete(`/images/${reference.id}/feedback`);
-        setFeedback(null);
-      } else {
-        await api.post(`/images/${reference.id}/feedback`, { type });
-        setFeedback(type);
-      }
-    } catch (err) {
-      console.error("피드백 실패", err);
+  e.stopPropagation();
+  setMenuOpen(false);
+  
+  const previous = feedback;
+  const lastFeedbackTime = parseInt(
+    localStorage.getItem(`feedback_time_${reference.id}`) || "0"
+  );
+  
+  try {
+    let actionType;
+    let feedbackType;
+    
+    if (feedback === type) {
+      await api.delete(`/images/${reference.id}/feedback`);
+      setFeedback(null);
+      actionType = "removed";
+      feedbackType = "none";
+    } else {
+      await api.post(`/images/${reference.id}/feedback`, { type });
+      setFeedback(type);
+      actionType = previous === null ? "applied" : "changed";
+      feedbackType = type.toLowerCase();
     }
-  };
+    
+    const props = {
+      reference_id: reference.id,
+      action_type: actionType,
+      feedback_type: feedbackType,
+      previous_feedback_type: previous ? previous.toLowerCase() : "none",
+      reference_position: index || 0,
+      // iteration_count, input_mode는 카드 컴포넌트에선 모름 → 부모에서 prop으로 받거나 0
+      iteration_count: 0,
+      input_mode: "text",
+    };
+    
+    if (actionType === "changed" || actionType === "removed") {
+      props.time_since_previous_sec = lastFeedbackTime
+        ? Math.floor((Date.now() - lastFeedbackTime) / 1000)
+        : 0;
+    }
+    
+    track("prompt_reference_feedback", props);
+    localStorage.setItem(`feedback_time_${reference.id}`, Date.now().toString());
+    
+  } catch (err) {
+    console.error("피드백 실패", err);
+  }
+};
 
   const label =
     reference.photographerName ||
