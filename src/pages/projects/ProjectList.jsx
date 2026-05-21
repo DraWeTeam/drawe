@@ -10,6 +10,7 @@ import {
 import ProjectFormModal from "./ProjectFormModal";
 import ConfirmModal from "./ConfirmModal";
 import styles from "./ProjectList.module.css";
+import { track } from '../../analytics'; 
 
 const STATUS_LABEL = {
   in_progress: "진행 중",
@@ -86,7 +87,10 @@ const ProjectList = () => {
         <h1 className={styles.title}>내 프로젝트</h1>
         <button
           className={styles.createBtn}
-          onClick={() => setCreateOpen(true)}
+          onClick={() => {
+            setCreateOpen(true);
+            track('project_create_clicked');
+          }}
         >
           + 새 프로젝트
         </button>
