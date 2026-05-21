@@ -76,6 +76,8 @@
   flex-grow: 0;
   opacity: 0;
   border-right-color: transparent;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 /* ===== 채팅 컨테이너 (가운데 정렬, max-width) ===== */
@@ -331,9 +333,9 @@
   justify-content: center;
   cursor: pointer;
   color: #4a4846;
-  padding: 0;
-  transition: background 0.15s ease;
-  transition: color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .previewRemove:hover {

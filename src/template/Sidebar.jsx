@@ -37,7 +37,7 @@ const Sidebar = () => {
       }
     };
     fetchMe();
-  }, [hidden, location.pathname]);
+  }, [hidden]);
 
   // 바깥 클릭으로 유저 메뉴 닫기
   useEffect(() => {

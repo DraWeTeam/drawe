@@ -48,7 +48,6 @@
 .createBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   background: #ff8534;
   color: #f6f7f9;
   border: none;
@@ -61,7 +60,7 @@
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: back-ground 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .createBtn:hover {

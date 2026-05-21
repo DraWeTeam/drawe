@@ -237,7 +237,7 @@ const ChatPage = () => {
 
   const handlePinToggle = async (imageId) => {
     const wasPinned = pinnedIds.has(imageId);
-    const snapshot = pinnedRefs;
+    const snapshot = [...pinnedRefs];
 
     if (wasPinned) {
       setPinnedRefs((prev) => prev.filter((r) => r.id !== imageId));
@@ -358,10 +358,10 @@ const ChatPage = () => {
 
             {/* 메시지 / 빈 상태 */}
             <div className={styles.messagesScroll} ref={listRef}>
-              <div className={styles.messages} ref={listRef}>
+              <div className={styles.messages}>
                 {messages.length === 0 ? (
                   <div className={styles.empty}>
-                    <img className={styles.emptyLogo} src={logo} />
+                    <img className={styles.emptyLogo} src={logo} alt="" />
                     <h2 className={styles.emptyTitle}>
                       오늘은 어떤 도움이 필요하신가요?
                     </h2>
@@ -415,7 +415,7 @@ const ChatPage = () => {
                 )}
                 {sending && (
                   <div className={styles.assistantBubble}>
-                    <img className={styles.assistantLogo} src={logo} />
+                    <img className={styles.assistantLogo} src={logo} alt="" />
                     응답을 작성 중...
                   </div>
                 )}

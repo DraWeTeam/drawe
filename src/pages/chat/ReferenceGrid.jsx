@@ -141,13 +141,18 @@ const ReferenceCard = ({
 
   useEffect(() => {
     if (!menuOpen) return;
+    const controller = new AbortController();
+
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      controller.abort();
+    };
   }, [menuOpen]);
 
   const handlePinClick = (e) => {
@@ -188,7 +193,9 @@ const ReferenceCard = ({
     }
   };
 
-  const label = reference.photographerName || `이미지 ${index}`;
+  const label =
+    reference.photographerName ||
+    (index !== null ? `이미지 ${index}` : "핀된 이미지");
 
   return (
     <div
@@ -198,7 +205,11 @@ const ReferenceCard = ({
       <div className={styles.cardImage}>
         <img
           src={reference.url}
-          alt={`참고 이미지 ${index}`}
+          alt={
+            index !== null
+              ? `참고 이미지 ${index}`
+              : reference.photographerName || "핀된 참고 이미지"
+          }
           className={styles.image}
           loading="lazy"
         />
