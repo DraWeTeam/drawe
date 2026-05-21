@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api from "./api";
 import { getOnboardingStatus } from "../onboarding/api"; // ← 추가
+import AuthHeader from "./AuthHeader";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -67,71 +68,80 @@ const Login = () => {
   };
 
   return (
-    <>
-      <div className={styles.wrapper}>
-        <div className={styles.section}>
-          <div style={{ fontWeight: "bold", fontSize: "48px" }}>
-            만나서 반가워요!
-          </div>
-          <p style={{ fontSize: "14px", opacity: "70%", margin: "12px 0 0 0" }}>
-            DraWe와 함께하기 위해 로그인 또는 회원가입을 진행해주세요.
-          </p>
-        </div>
-        <form className={styles.loginBox} onSubmit={handleLogin}>
-          <div style={{ marginBottom: "18px" }}>
-            <p className={styles.loginValue}>이메일</p>
-            <input
-              type="text"
-              name="email"
-              className={styles.infoItem}
-              placeholder="예) Drawe@Drawe.com"
-              value={form.email}
-              onChange={handleChange}
-            />
-          </div>
-          <div style={{ marginBottom: "52px" }}>
-            <p className={styles.loginValue}>비밀번호</p>
-            <input
-              type="password"
-              name="password"
-              className={styles.infoItem}
-              placeholder="Password"
-              value={form.password}
-              onChange={handleChange}
-            />
-          </div>
-
-          {errorMessage && (
-            <p style={{ color: "red", fontSize: "14px", margin: "0 0 16px 0" }}>
-              {errorMessage}
+    <div className={styles.page}>
+      <AuthHeader />
+      <div className={styles.content}>
+        <div className={styles.wrapper}>
+          <div className={styles.section}>
+            <div style={{ fontWeight: "bold", fontSize: "48px" }}>
+              만나서 반가워요!
+            </div>
+            <p
+              style={{ fontSize: "14px", opacity: "70%", margin: "12px 0 0 0" }}
+            >
+              DraWe와 함께하기 위해 로그인 또는 회원가입을 진행해주세요.
             </p>
-          )}
+          </div>
+          <form className={styles.loginBox} onSubmit={handleLogin}>
+            <div style={{ marginBottom: "18px" }}>
+              <p className={styles.loginValue}>이메일</p>
+              <input
+                type="text"
+                name="email"
+                className={styles.infoItem}
+                placeholder="예) Drawe@Drawe.com"
+                value={form.email}
+                onChange={handleChange}
+              />
+            </div>
+            <div style={{ marginBottom: "52px" }}>
+              <p className={styles.loginValue}>비밀번호</p>
+              <input
+                type="password"
+                name="password"
+                className={styles.infoItem}
+                placeholder="Password"
+                value={form.password}
+                onChange={handleChange}
+              />
+            </div>
 
-          <button type="submit" className={styles.loginBtn}>
-            로그인
-          </button>
-          <div className={styles.divider}>
-            <span className={styles.line}></span>
-            <span className={styles.text}>or</span>
-            <span className={styles.line}></span>
-          </div>
-          <button
-            type="button"
-            className={styles.googleBtn}
-            onClick={handleGoogleLogin}
-          >
-            <img src={Google} className={styles.googleLogo}></img>
-            <p style={{ fontWeight: "500" }}>Sign in with Google</p>
-          </button>
-          <div className={styles.signin}>
-            <p style={{ margin: "0", fontWeight: "350" }}>계정이 없으신가요?</p>
-            <Link to="/signup" style={{ margin: "0", fontWeight: "500" }}>
-              회원가입하기
-            </Link>
-          </div>
-        </form>
+            {errorMessage && (
+              <p
+                style={{ color: "red", fontSize: "14px", margin: "0 0 16px 0" }}
+              >
+                {errorMessage}
+              </p>
+            )}
+
+            <button type="submit" className={styles.loginBtn}>
+              로그인
+            </button>
+            <div className={styles.divider}>
+              <span className={styles.line}></span>
+              <span className={styles.text}>or</span>
+              <span className={styles.line}></span>
+            </div>
+            <button
+              type="button"
+              className={styles.googleBtn}
+              onClick={handleGoogleLogin}
+            >
+              <img src={Google} className={styles.googleLogo}></img>
+              <p style={{ fontWeight: "500" }}>Sign in with Google</p>
+            </button>
+            <div className={styles.signin}>
+              <p style={{ margin: "0", fontWeight: "350" }}>
+                계정이 없으신가요?
+              </p>
+              <Link to="/signup" style={{ margin: "0", fontWeight: "500" }}>
+                회원가입하기
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 

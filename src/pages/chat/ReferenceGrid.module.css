@@ -3,170 +3,362 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: #fafafa;
-  border-right: 1px solid #eee;
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
 }
 
-.header {
+/* ===== 필터 탭 ===== */
+.filterTabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
+  gap: 8px;
+  padding: 8px 40px 24px 64px;
   flex-shrink: 0;
-  background: #fff;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #202124;
+.filterTab {
+  background: #fbfcfa;
+  border: 1px solid #d8d7d5;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #888685;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.filterTab:hover:not(:disabled):not(.filterTabActive) {
+  border-color: #ff8534;
+  color: #ff8534;
+}
+
+.filterTabActive {
+  background: #ff8534;
+  border-color: #ff8534;
+  color: #fff;
+}
+
+.filterTab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .count {
-  font-size: 13px;
+  margin-left: auto;
+  font-size: 12px;
   color: #888;
   background: #f0f0f0;
-  padding: 2px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 
-.masonry {
+/* ===== 핀 에러 배너 ===== */
+.pinErrorBanner {
+  background: #fef2f2;
+  color: #d83a3a;
+  padding: 10px 16px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #fcc;
+  flex-shrink: 0;
+  margin: 0 16px 8px;
+  border-radius: 8px;
+  animation: slide-down 0.2s ease;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pinErrorClose {
+  background: none;
+  border: none;
+  color: #d83a3a;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.pinErrorClose:hover {
+  opacity: 0.7;
+}
+
+/* ===== 업데이트 뱃지 ===== */
+.updateBadge {
+  align-self: center;
+  background: linear-gradient(135deg, #ff8534 0%, #ff6b1a 100%);
+  color: white;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  margin: 4px 0 0;
+  animation:
+    badge-in 0.3s ease,
+    badge-out 0.3s ease 2.2s forwards;
+  box-shadow: 0 2px 6px rgba(255, 133, 52, 0.3);
+  white-space: nowrap;
+}
+
+@keyframes badge-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes badge-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* ===== 그리드 ===== */
+.grid {
   flex: 1;
-  width: 100%;
+  display: flex;
+  padding: 0 32px 0 64px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px;
-  display: flex;
-  gap: 10px;
   align-items: flex-start;
-  box-sizing: border-box;
   min-height: 0;
 }
 
-/* 각 컬럼 */
 .column {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-width: 0;
 }
 
+/* ===== 카드 ===== */
 .card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
+  padding: 8px;
+  box-sizing: border-box;
   cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+  border-radius: 10px;
+  transition: transform 0.15s ease;
 }
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
-.imageWrapper {
+.cardActive {
+  z-index: 10;
+}
+
+.cardImage {
   position: relative;
   width: 100%;
-  background: #f0f0f0;
+  border-radius: 10px;
   overflow: hidden;
+  background: #f0f0f0;
 }
 
 .image {
-  display: block;
   width: 100%;
   height: auto;
-  object-fit: cover;
+  display: block;
 }
 
-.index {
+/* ===== 핀 버튼 (항상 보임) ===== */
+.pinBtn {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.65);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  backdrop-filter: blur(4px);
-  z-index: 2;
-}
-
-.overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 12px 10px 10px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.card:hover .overlay {
-  opacity: 1;
-}
-
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tag {
-  font-size: 10px;
-  color: #fff;
-  background: rgba(255, 133, 52, 0.9);
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-weight: 500;
-}
-
-.attribution {
-  padding: 8px 10px;
-  font-size: 11px;
-  color: #999;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: #fcfbfa;
+  opacity: 80%;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  justify-content: center;
+  color: #4a4846;
+  backdrop-filter: blur(4px);
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-.byText {
-  color: #bbb;
-  flex-shrink: 0;
-}
-
-.photographer {
+.pinBtn:hover {
+  background: #fcfbfa;
+  transform: scale(1.08);
   color: #555;
-  text-decoration: none;
+}
+
+.pinBtnActive {
+  background: none;
+  opacity: 1;
+  color: #fff;
+}
+
+.pinBtnActive:hover {
+  background: none;
+  transform: scale(1.08);
+  color: #fff;
+}
+
+/* ===== 카드 footer ===== */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 2px;
+}
+
+.cardLabel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.indexBadge {
+  color: #aaa;
+  font-size: 11px;
+  flex-shrink: 0;
   font-weight: 500;
+}
+
+.labelText {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
 
-.photographer:hover {
-  color: #ff8534;
-  text-decoration: underline;
-}
-
-.source {
-  color: #bbb;
+/* ===== 카드 메뉴 ===== */
+.menuWrap {
+  position: relative;
   flex-shrink: 0;
 }
 
+.menuBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.menuBtn:hover {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.menuPopup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 140px;
+  z-index: 30;
+  animation: pop-in 0.15s ease;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #444;
+  font-family: inherit;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.menuItem:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.menuItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 메뉴 아이템 활성 상태 (현재 피드백) */
+.menuItemActive {
+  color: #ff8534;
+  background: #fff7f0;
+  font-weight: 600;
+}
+
+.menuItemActive:hover:not(:disabled) {
+  background: #ffe8d4;
+}
+
+/* 아이콘도 색상 따라가도록 — ThumbsUpIcon/ThumbsDownIcon이 currentColor면 자동 적용 */
+.menuItemActive svg {
+  color: #ff8534;
+}
+
+/* ===== 로딩 / 빈 상태 ===== */
 .loading,
 .empty {
   flex: 1;
@@ -176,7 +368,7 @@
   justify-content: center;
   color: #999;
   text-align: center;
-  padding: 40px 20px;
+  padding: 0 20px 40px 20px;
 }
 
 .empty p {
@@ -188,86 +380,25 @@
   color: #bbb;
 }
 
-.searchingBadge {
-  position: absolute;
-  top: 70px;
-  right: 16px;
-  background: rgba(255, 133, 52, 0.95);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.searchingDot {
-  width: 6px;
-  height: 6px;
-  background: #fff;
-  border-radius: 50%;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.headerRight {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.updateBadge {
-  background: linear-gradient(135deg, #ff8534 0%, #ff6b1a 100%);
-  color: white;
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  animation:
-    slide-in-badge 0.3s ease,
-    fade-out-badge 0.3s ease 2.2s forwards;
-  box-shadow: 0 2px 6px rgba(255, 133, 52, 0.3);
-  white-space: nowrap;
-}
-
-@keyframes slide-in-badge {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fade-out-badge {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-
 .scopeText {
   font-size: 12px;
   color: #cccccc;
-  margin: 8px 0 0;
-  text-align: center;
+  margin-top: 8px;
+}
+
+.grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.grid::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.grid::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+.grid::-webkit-scrollbar-track {
+  background: transparent;
 }
