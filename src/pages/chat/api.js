@@ -35,3 +35,18 @@ export const generateImage = async (projectId, sessionId, prompt) => {
   );
   return res.data.data;
 };
+
+export const addPin = async (projectId, imageId) => {
+  const res = await api.post(`/projects/${projectId}/pins`, { imageId });
+  return res.data.data;
+};
+
+export const removePin = async (projectId, imageId) => {
+  const res = await api.delete(`/projects/${projectId}/pins/${imageId}`);
+  return res.data.data;
+};
+
+export const getPins = async (projectId) => {
+  const res = await api.get(`/projects/${projectId}/pins`);
+  return res.data.data;
+};
