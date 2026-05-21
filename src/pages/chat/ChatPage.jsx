@@ -1,11 +1,26 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getProject } from "../projects/api";
-import { getHistory, resetSession, sendMessage } from "./api";
+import {
+  getHistory,
+  resetSession,
+  sendMessage,
+  addPin,
+  removePin,
+  getPins,
+} from "./api";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import AuthedImage from "./AuthedImage";
 import styles from "./ChatPage.module.css";
+import logo from "../../assets/drawe_logo.png";
 
 const sessionKey = (projectId) => `chat_session_${projectId}`;
 const MAX_INPUT_HEIGHT = 160;
@@ -28,8 +43,28 @@ const ChatPage = () => {
   const [references, setReferences] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
 
+  const [pinnedRefs, setPinnedRefs] = useState([]);
+  const [pinError, setPinError] = useState("");
+
+  // 모드: "split" | "refFull" | "chatFull"
+  const [mode, setMode] = useState("split");
+
   const listRef = useRef(null);
   const textareaRef = useRef(null);
+
+  const pinnedIds = useMemo(
+    () => new Set(pinnedRefs.map((r) => r.id)),
+    [pinnedRefs],
+  );
+
+  const refreshPins = useCallback(async () => {
+    try {
+      const data = await getPins(projectId);
+      setPinnedRefs(data?.pins ?? []);
+    } catch (err) {
+      console.error("핀 조회 실패", err);
+    }
+  }, [projectId]);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -82,6 +117,11 @@ const ChatPage = () => {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (!projectId) return;
+    refreshPins();
+  }, [projectId, refreshPins]);
+
   useLayoutEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -89,6 +129,12 @@ const ChatPage = () => {
     const next = Math.min(el.scrollHeight, MAX_INPUT_HEIGHT);
     el.style.height = `${next}px`;
   }, [input]);
+
+  useEffect(() => {
+    if (!pinError) return;
+    const t = setTimeout(() => setPinError(""), 4000);
+    return () => clearTimeout(t);
+  }, [pinError]);
 
   const handleSend = async (e) => {
     e?.preventDefault?.();
@@ -125,7 +171,6 @@ const ChatPage = () => {
       const action = res.referencesAction;
       const newRefs = res.references || [];
 
-      // 메시지에 references 저장 (히스토리 복원용)
       setMessages((prev) => [
         ...prev,
         {
@@ -137,18 +182,16 @@ const ChatPage = () => {
       ]);
       setFollowUp(res.followUp || null);
 
-      // references 갱신 — NEW_SEARCH이고 결과 있을 때만
       if (action === "NEW_SEARCH" && newRefs.length > 0) {
         setReferences(newRefs);
         setJustUpdated(true);
         setTimeout(() => setJustUpdated(false), 2500);
       }
-      // KEEP, SKIP, 또는 NEW_SEARCH인데 빈 배열: 이전 references 유지 (아무것도 안 함)
     } catch (err) {
       const status = err.response?.status;
       let message = err.response?.data?.error?.message;
       if (status === 503) {
-        message = "잠깐 드로가 바빠요. 다시 한 번 보내볼까요?";
+        message = "잠깐 DRAWE가 바빠요. 다시 한 번 보내볼까요?";
       }
       setErrorMessage(message || "메시지 전송에 실패했어요.");
       setMessages((prev) => prev.slice(0, -1));
@@ -167,7 +210,7 @@ const ChatPage = () => {
       setMessages([]);
       setFollowUp(null);
       setReferences([]);
-      setJustUpdated(false); // ← 추가
+      setJustUpdated(false);
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "초기화에 실패했어요.";
@@ -192,124 +235,382 @@ const ChatPage = () => {
     });
   };
 
+  const handlePinToggle = async (imageId) => {
+    const wasPinned = pinnedIds.has(imageId);
+    const snapshot = pinnedRefs;
+
+    if (wasPinned) {
+      setPinnedRefs((prev) => prev.filter((r) => r.id !== imageId));
+    } else {
+      const ref = references.find((r) => r.id === imageId);
+      if (ref) setPinnedRefs((prev) => [...prev, ref]);
+    }
+
+    try {
+      if (wasPinned) {
+        await removePin(projectId, imageId);
+      } else {
+        await addPin(projectId, imageId);
+      }
+      await refreshPins();
+    } catch (err) {
+      setPinnedRefs(snapshot);
+      if (err.response?.status === 409) {
+        setPinError("(3/3) 핀 슬롯이 가득 찼어요. 다른 핀을 먼저 풀어주세요.");
+      } else {
+        setPinError(err.response?.data?.error?.message || "핀 처리 실패");
+      }
+    }
+  };
+
+  const goToChatFull = () => setMode("chatFull");
+  const goToRefFull = () => setMode("refFull");
+  const goToSplit = () => setMode("split");
+
   return (
     <div className={styles.layout}>
-      {/* 좌측: 참고 이미지 그리드 */}
-      <aside className={styles.leftPanel}>
-        <ReferenceGrid
-          references={references}
-          loading={sending}
-          justUpdated={justUpdated}
-          onCardClick={handleCardClick}
-        />
-      </aside>
+      {/* 페이지 헤더 — 상단 전체 */}
+      <header className={styles.pageHeader}>
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={() => navigate("/projects")}
+          aria-label="목록"
+          title="목록"
+        >
+          <BackIcon />
+        </button>
+        <h1 className={styles.pageTitle}>{project?.name ?? "..."}</h1>
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={handleReset}
+          disabled={!sessionId}
+          aria-label="대화 초기화"
+          title="대화 초기화"
+        >
+          <DotsIcon />
+        </button>
+      </header>
 
-      {/* 우측: 챗 */}
-      <section className={styles.rightPanel}>
-        <div className={styles.wrapper}>
-          <header className={styles.header}>
-            <button
-              className={styles.backBtn}
-              onClick={() => navigate("/projects")}
-            >
-              ← 목록
-            </button>
-            <div className={styles.headerInfo}>
-              <h1 className={styles.title}>{project?.name ?? "..."}</h1>
-              {project && (
-                <p className={styles.subtitle}>
-                  {[project.subject, project.technique, project.mood]
-                    .filter(Boolean)
-                    .join(" · ") || "프로젝트 정보 없음"}
-                </p>
+      {/* 본문 — 좌/우 분할 */}
+      <div className={styles.body}>
+        {/* 좌측: 레퍼런스 — 항상 mount, hidden 클래스로 숨김 처리 */}
+        <aside
+          className={`${styles.leftPanel} ${
+            mode === "chatFull" ? styles.panelHidden : ""
+          }`}
+        >
+          <ReferenceGrid
+            references={references}
+            loading={sending}
+            justUpdated={justUpdated}
+            pinnedRefs={pinnedRefs}
+            pinnedIds={pinnedIds}
+            pinError={pinError}
+            onClearPinError={() => setPinError("")}
+            onPinToggle={handlePinToggle}
+            onCardClick={handleCardClick}
+            expanded={mode === "refFull"}
+          />
+        </aside>
+
+        {/* 우측: 채팅 */}
+        <section
+          className={`${styles.rightPanel} ${
+            mode === "refFull" ? styles.panelHidden : ""
+          }`}
+        >
+          <div className={styles.chatContainer}>
+            {/* 채팅 상단 컨트롤 */}
+            <div className={styles.chatTop}>
+              {mode === "split" && (
+                <>
+                  <button
+                    className={styles.iconBtn}
+                    onClick={goToChatFull}
+                    title="전체화면"
+                  >
+                    <ExpandIcon />
+                  </button>
+                  <button
+                    className={styles.iconBtn}
+                    onClick={goToRefFull}
+                    title="채팅 최소화"
+                  >
+                    <MinimizeIcon />
+                  </button>
+                </>
+              )}
+              {mode === "chatFull" && (
+                <>
+                  <span />
+                  <button
+                    className={styles.iconBtn}
+                    onClick={goToSplit}
+                    title="분할 보기"
+                  >
+                    <CollapseIcon />
+                  </button>
+                </>
               )}
             </div>
-            <button
-              className={styles.resetBtn}
-              onClick={handleReset}
-              disabled={!sessionId}
-            >
-              대화 초기화
-            </button>
-          </header>
 
-          <div className={styles.messages} ref={listRef}>
-            {messages.length === 0 ? (
-              <div className={styles.empty}>
-                <p>그림에 대해 무엇이든 물어보세요.</p>
-                <p className={styles.emptyHint}>
-                  예) "벚꽃을 그릴 때 어떤 색을 쓰면 좋을까?"
-                </p>
+            {/* 메시지 / 빈 상태 */}
+            <div className={styles.messagesScroll} ref={listRef}>
+              <div className={styles.messages} ref={listRef}>
+                {messages.length === 0 ? (
+                  <div className={styles.empty}>
+                    <img className={styles.emptyLogo} src={logo} />
+                    <h2 className={styles.emptyTitle}>
+                      오늘은 어떤 도움이 필요하신가요?
+                    </h2>
+                    <p className={styles.emptyHint}>
+                      작성하신 프로젝트 주제를 바탕으로 이런 가이드를 해드릴 수
+                      있어요.
+                    </p>
+                  </div>
+                ) : (
+                  messages.map((m, idx) => (
+                    <div
+                      key={idx}
+                      className={
+                        m.role === "user"
+                          ? styles.userMessage
+                          : styles.assistantMessage
+                      }
+                    >
+                      {/* 이미지 묶음 — 배경 없이 */}
+                      {(m.localPreviewUrl || m.imageUrl) && (
+                        <div className={styles.messageImages}>
+                          <AuthedImage
+                            src={m.localPreviewUrl || m.imageUrl}
+                            alt="첨부 이미지"
+                            className={styles.bubbleImage}
+                          />
+                        </div>
+                      )}
+
+                      {/* 텍스트 버블 */}
+                      {m.content && (
+                        <div
+                          className={
+                            m.role === "user"
+                              ? styles.userBubble
+                              : styles.assistantBubble
+                          }
+                        >
+                          {m.role !== "user" && (
+                            <img
+                              className={styles.assistantLogo}
+                              src={logo}
+                              alt=""
+                            />
+                          )}
+                          <div>{m.content}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+                {sending && (
+                  <div className={styles.assistantBubble}>
+                    <img className={styles.assistantLogo} src={logo} />
+                    응답을 작성 중...
+                  </div>
+                )}
               </div>
-            ) : (
-              messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={
-                    m.role === "user"
-                      ? styles.userBubble
-                      : styles.assistantBubble
-                  }
-                >
-                  {(m.localPreviewUrl || m.imageUrl) && (
-                    <AuthedImage
-                      src={m.localPreviewUrl || m.imageUrl}
-                      alt="첨부 이미지"
-                      className={styles.bubbleImage}
-                    />
-                  )}
-                  {m.content && <div>{m.content}</div>}
-                </div>
-              ))
-            )}
-            {sending && (
-              <div className={styles.assistantBubble}>응답을 작성 중...</div>
-            )}
-          </div>
-
-          {followUp && !sending && (
-            <div className={styles.followUp}>
-              <button
-                className={styles.followUpBtn}
-                onClick={() => handleFollowUpClick(followUp)}
-              >
-                💬 {followUp}
-              </button>
             </div>
-          )}
 
-          {errorMessage && <p className={styles.error}>{errorMessage}</p>}
+            {followUp && !sending && (
+              <div className={styles.followUp}>
+                <button
+                  type="button"
+                  className={styles.followUpBtn}
+                  onClick={() => handleFollowUpClick(followUp)}
+                >
+                  💬 {followUp}
+                </button>
+              </div>
+            )}
 
-          <form className={styles.inputBar} onSubmit={handleSend}>
-            <AttachmentPicker
-              attachment={attachment}
-              onAttach={setAttachment}
-              onClear={() => setAttachment(null)}
-              onError={setErrorMessage}
-              disabled={sending}
-            />
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="메시지를 입력하세요 (Shift+Enter 줄바꿈)"
-              className={styles.input}
-              disabled={sending}
-              rows={1}
-            />
-            <button
-              type="submit"
-              className={styles.sendBtn}
-              disabled={sending || (!input.trim() && !attachment)}
-            >
-              전송
-            </button>
-          </form>
-        </div>
-      </section>
+            {errorMessage && <p className={styles.error}>{errorMessage}</p>}
+
+            <form className={styles.inputBar} onSubmit={handleSend}>
+              {/* 첨부 미리보기 — 있을 때만 위쪽에 표시 */}
+              {attachment && (
+                <div className={styles.attachmentPreviews}>
+                  <div className={styles.previewItem}>
+                    <img
+                      src={attachment.previewUrl}
+                      alt="첨부"
+                      className={styles.previewImage}
+                    />
+                    <button
+                      type="button"
+                      className={styles.previewRemove}
+                      onClick={() => setAttachment(null)}
+                      aria-label="첨부 제거"
+                    >
+                      <CloseIcon />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 입력 줄 — 클립 + textarea + 전송 */}
+              <div className={styles.inputRow}>
+                <AttachmentPicker
+                  attachment={attachment}
+                  onAttach={setAttachment}
+                  onClear={() => setAttachment(null)}
+                  onError={setErrorMessage}
+                  disabled={sending}
+                />
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="어떻게 도와드릴까요?"
+                  className={styles.input}
+                  disabled={sending}
+                  rows={1}
+                />
+                <button
+                  type="submit"
+                  className={styles.sendBtn}
+                  disabled={sending || (!input.trim() && !attachment)}
+                  aria-label="전송"
+                >
+                  <SendIcon />
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      {/* FAB — 항상 mount, 클래스로 토글 */}
+      <button
+        type="button"
+        className={`${styles.fab} ${
+          mode === "refFull" ? styles.fabVisible : ""
+        }`}
+        onClick={goToSplit}
+        aria-label="채팅 열기"
+        title="채팅 열기"
+      >
+        <img className={styles.fabIcon} src={logo} alt="" />
+      </button>
     </div>
   );
 };
+
+/* ===== 아이콘 ===== */
+const BackIcon = () => (
+  <svg
+    width="12"
+    height="20"
+    viewBox="0 0 12 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M10 20L0 10L10 0L11.775 1.775L3.55 10L11.775 18.225L10 20Z"
+      fill="#4A4846"
+    />
+  </svg>
+);
+
+const ExpandIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M0 18V13H2V16H5V18H0ZM13 18V16H16V13H18V18H13ZM0 5V0H5V2H2V5H0ZM16 5V2H13V0H18V5H16Z"
+      fill="#4A4846"
+    />
+  </svg>
+);
+
+const CollapseIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M3 0H5V5H0V3H3V0ZM13 0H15V3H18V5H13V0ZM0 13H5V18H3V15H0V13ZM15 18V15H18V13H13V18H15Z"
+      fill="#4A4846"
+    />
+  </svg>
+);
+
+const MinimizeIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 14 14"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M0 14L5 7L0 0H2.45L7.45 7L2.45 14H0ZM5.95 14L10.95 7L5.95 0H8.4L13.4 7L8.4 14H5.95Z"
+      fill="#4A4846"
+    />
+  </svg>
+);
+
+const DotsIcon = () => (
+  <svg
+    width="4"
+    height="16"
+    viewBox="0 0 4 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M2 16C1.45 16 0.979167 15.8042 0.5875 15.4125C0.195833 15.0208 0 14.55 0 14C0 13.45 0.195833 12.9792 0.5875 12.5875C0.979167 12.1958 1.45 12 2 12C2.55 12 3.02083 12.1958 3.4125 12.5875C3.80417 12.9792 4 13.45 4 14C4 14.55 3.80417 15.0208 3.4125 15.4125C3.02083 15.8042 2.55 16 2 16ZM2 10C1.45 10 0.979167 9.80417 0.5875 9.4125C0.195833 9.02083 0 8.55 0 8C0 7.45 0.195833 6.97917 0.5875 6.5875C0.979167 6.19583 1.45 6 2 6C2.55 6 3.02083 6.19583 3.4125 6.5875C3.80417 6.97917 4 7.45 4 8C4 8.55 3.80417 9.02083 3.4125 9.4125C3.02083 9.80417 2.55 10 2 10ZM2 4C1.45 4 0.979167 3.80417 0.5875 3.4125C0.195833 3.02083 0 2.55 0 2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0C2.55 0 3.02083 0.195833 3.4125 0.5875C3.80417 0.979167 4 1.45 4 2C4 2.55 3.80417 3.02083 3.4125 3.4125C3.02083 3.80417 2.55 4 2 4Z"
+      fill="#1C1B1F"
+    />
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M7 16V3.825L1.4 9.425L0 8L8 0L16 8L14.6 9.425L9 3.825V16H7Z"
+      fill="#FCFBFA"
+    />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 14 14"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M1.4 14L0 12.6L5.6 7L0 1.4L1.4 0L7 5.6L12.6 0L14 1.4L8.4 7L14 12.6L12.6 14L7 8.4L1.4 14Z"
+      fill="currentColor"
+    />
+  </svg>
+);
 
 export default ChatPage;
