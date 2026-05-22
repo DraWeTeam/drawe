@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOnboardingImages, submitOnboarding } from "./api";
 import { track } from "../../analytics";
@@ -18,6 +18,8 @@ const OnboardingPage = () => {
   const lastSelectionTime = useRef(Date.now());
   const thresholdReached = useRef(false);
   const viewedIds = useRef(new Set());
+  const completedOrSkipped = useRef(false);   // ← 추가
+  const selectedCountRef = useRef(0);          // ← 추가 (4번용)
 
   useEffect(() => {
     track('onboarding_style_started', {
@@ -37,6 +39,45 @@ const OnboardingPage = () => {
     fetchImages();
   }, []);
 
+  useEffect(() => {
+    selectedCountRef.current = selectedIds.size;
+  }, [selectedIds]);
+
+  useEffect(() => {
+    if (images.length === 0) return;  // 이미지 로드 전엔 스킵
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+
+          const imageId = entry.target.dataset.imageId;
+          if (viewedIds.current.has(imageId)) return;  // 이미 본 거면 무시
+
+          viewedIds.current.add(imageId);
+
+          // dataset은 문자열이라 String()으로 비교 (id가 숫자여도 안전)
+          const image = images.find((img) => String(img.id) === imageId);
+          const position = images.findIndex((img) => String(img.id) === imageId);
+
+          track('onboarding_style_image_viewed', {
+            image_id: imageId,
+            image_tags: image?.tags?.join(',') || '',
+            image_position: position,
+            onboarding_version: ONBOARDING_VERSION,
+          });
+
+          observer.unobserve(entry.target);  // 본 건 관찰 해제 (성능)
+        });
+      },
+      { threshold: 0.5 }  // 50% 이상 보이면 "봤다" 판정
+    );
+
+  const elements = document.querySelectorAll('[data-image-id]');
+  elements.forEach((el) => observer.observe(el));
+
+  return () => observer.disconnect();
+}, [images]);
   useEffect(() => {
     const fireSessionDropped = () => {
       if (completedOrSkipped.current) return;  // 정상 종료면 발화 안 함
@@ -98,14 +139,6 @@ const OnboardingPage = () => {
       lastSelectionTime.current = Date.now();
       
       // 기준 도달 (1회만 발화)
-      if (!thresholdReached.current && newCount >= SELECTION_THRESHOLD) {
-        thresholdReached.current = true;
-        track('onboarding_style_threshold_reached', {
-          threshold_count: SELECTION_THRESHOLD,
-          total_viewed_count: images.length,
-          time_to_threshold_sec: Math.floor((Date.now() - sessionStartTime.current) / 1000),
-          onboarding_version: ONBOARDING_VERSION,
-        });
       }
     }
   };
@@ -176,6 +209,7 @@ const OnboardingPage = () => {
           {images.map((img) => (
             <button
               key={img.id}
+              data-image-id={img.id} 
               className={`${styles.card} ${
                 selectedIds.has(img.id) ? styles.selected : ""
               }`}
@@ -213,7 +247,7 @@ const OnboardingPage = () => {
       </div>
     </div>
   );
-};
+
 
 const CheckIcon = () => (
   <svg
