@@ -8,8 +8,9 @@ const OnboardingCompletePage = () => {
 
   useEffect(() => {
     // 유저 정보 호출
-    api.get("/user/profile")
-      .then(res => setNickname(res.data.data.nickname))
+    api
+      .get("/user/profile")
+      .then((res) => setNickname(res.data.data.nickname))
       .catch(() => setNickname(""));
   }, []);
 
@@ -21,16 +22,18 @@ const OnboardingCompletePage = () => {
   }, []);
 
   return (
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "#fff",
-      zIndex: 9999
-    }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#fff",
+        zIndex: 9999,
+      }}
+    >
       <p style={{ color: "#888", marginBottom: "12px", fontSize: "14px" }}>
         DraWe를 이용하기 위한 모든 준비가 완료되었습니다!
       </p>

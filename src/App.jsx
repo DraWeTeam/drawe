@@ -33,7 +33,10 @@ function App() {
           <Route path="/projects/:projectId/chat" element={<ChatPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/signup/complete" element={<SignupCompletePage />} />
-          <Route path="/onboarding/complete" element={<OnboardingCompletePage />} />
+          <Route
+            path="/onboarding/complete"
+            element={<OnboardingCompletePage />}
+          />
         </Routes>
       </Template>
     </BrowserRouter>

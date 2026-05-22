@@ -212,7 +212,7 @@ const Signup = () => {
         user_type: "free",
       });
 
-      navigate("/signup/complete");  // 완료 화면으로
+      navigate("/signup/complete"); // 완료 화면으로
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "회원가입에 실패했어요.";
