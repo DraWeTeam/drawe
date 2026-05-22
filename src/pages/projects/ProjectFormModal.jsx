@@ -1,25 +1,24 @@
-import { track } from "../../analytics"; 
+import { track } from "../../analytics";
 import styles from "./ProjectFormModal.module.css";
 import { useEffect, useState, useRef } from "react";
-
 
 const TECHNIQUE_OPTIONS = ["수채화", "유화", "연필", "색연필", "디지털"];
 const MOOD_OPTIONS = ["밝은", "차분한", "따뜻한", "어두운", "몽환적인"];
 
 // ↓ 한글 → 영문 매핑 (텍사노미 기준)
 const TECHNIQUE_MAP = {
-  "수채화": "watercolor",
-  "유화": "oil",
-  "연필": "pencil",
-  "색연필": "colored_pencil",
-  "디지털": "digital",
+  수채화: "watercolor",
+  유화: "oil",
+  연필: "pencil",
+  색연필: "colored_pencil",
+  디지털: "digital",
 };
 const MOOD_MAP = {
-  "밝은": "bright",
-  "차분한": "calm",
-  "따뜻한": "warm",
-  "어두운": "dark",
-  "몽환적인": "dreamy",
+  밝은: "bright",
+  차분한: "calm",
+  따뜻한: "warm",
+  어두운: "dark",
+  몽환적인: "dreamy",
 };
 
 const STATUS_OPTIONS = [
@@ -43,8 +42,8 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
   const [submitting, setSubmitting] = useState(false);
 
   const mountTime = useRef(Date.now());
-  const finalized = useRef(false);     // 정상 종료(생성/취소) 플래그
-  const formRef = useRef(form);         // form 최신값 mirror (unmount 시 사용)
+  const finalized = useRef(false); // 정상 종료(생성/취소) 플래그
+  const formRef = useRef(form); // form 최신값 mirror (unmount 시 사용)
 
   useEffect(() => {
     formRef.current = form;
@@ -68,11 +67,11 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
   useEffect(() => {
     return () => {
       if (isEdit) return;
-      if (finalized.current) return;  // 정상 종료면 패스
-      
+      if (finalized.current) return; // 정상 종료면 패스
+
       const filled = getFilledFields(formRef.current);
-      track('project_create_abandoned', {
-        filled_fields: filled.join(','),
+      track("project_create_abandoned", {
+        filled_fields: filled.join(","),
         filled_fields_count: filled.length,
         time_spent_sec: Math.floor((Date.now() - mountTime.current) / 1000),
       });
@@ -84,15 +83,15 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
     if (isEdit) return;
     track(eventName, properties);
   };
-  
+
   // ↓ 헬퍼: 현재 채워진 필드 목록
   const getFilledFields = (f = form) => {
     const filled = [];
-    if (f.name.trim()) filled.push('name');
-    if (f.subject.trim()) filled.push('subject');
-    if (f.technique) filled.push('technique');
-    if (f.mood) filled.push('mood');
-    if (f.description.trim()) filled.push('description');
+    if (f.name.trim()) filled.push("name");
+    if (f.subject.trim()) filled.push("subject");
+    if (f.technique) filled.push("technique");
+    if (f.mood) filled.push("mood");
+    if (f.description.trim()) filled.push("description");
     return filled;
   };
 
@@ -101,58 +100,57 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
     setForm((prev) => ({ ...prev, [name]: value }));
 
     // ↓ 선택 필드는 변경 즉시 발화
-    if ((name === 'technique' || name === 'mood') && value) {
-      const mapped = name === 'technique' 
-        ? TECHNIQUE_MAP[value] 
-        : MOOD_MAP[value];
-      
-      trackIfCreate('project_field_input', {
+    if ((name === "technique" || name === "mood") && value) {
+      const mapped =
+        name === "technique" ? TECHNIQUE_MAP[value] : MOOD_MAP[value];
+
+      trackIfCreate("project_field_input", {
         field_name: name,
-        input_type: 'selected',
+        input_type: "selected",
         selected_value: mapped || value,
       });
     }
   };
 
   const handleTextBlur = (e) => {
-  const { name, value } = e.target;
-  const trimmed = value.trim();
-  if (!trimmed) return;  // 빈 필드는 발화 안 함
-  
-  trackIfCreate('project_field_input', {
-    field_name: name,
-    input_type: 'typed',
-    input_length: trimmed.length,
-  });
-};
+    const { name, value } = e.target;
+    const trimmed = value.trim();
+    if (!trimmed) return; // 빈 필드는 발화 안 함
 
-// 취소 버튼 클릭 → cancelled
-const handleCancelClick = () => {
-  if (!isEdit) {
-    const filled = getFilledFields();
-    trackIfCreate('project_create_cancelled', {
-      filled_fields: filled.join(','),
-      filled_fields_count: filled.length,
-      time_spent_sec: Math.floor((Date.now() - mountTime.current) / 1000),
+    trackIfCreate("project_field_input", {
+      field_name: name,
+      input_type: "typed",
+      input_length: trimmed.length,
     });
-    finalized.current = true;
-  }
-  onClose();
-};
+  };
 
-// 백드롭 클릭 → abandoned
-const handleBackdropClick = () => {
-  if (!isEdit) {
-    const filled = getFilledFields();
-    trackIfCreate('project_create_abandoned', {
-      filled_fields: filled.join(','),
-      filled_fields_count: filled.length,
-      time_spent_sec: Math.floor((Date.now() - mountTime.current) / 1000),
-    });
-    finalized.current = true;
-  }
-  onClose();
-};
+  // 취소 버튼 클릭 → cancelled
+  const handleCancelClick = () => {
+    if (!isEdit) {
+      const filled = getFilledFields();
+      trackIfCreate("project_create_cancelled", {
+        filled_fields: filled.join(","),
+        filled_fields_count: filled.length,
+        time_spent_sec: Math.floor((Date.now() - mountTime.current) / 1000),
+      });
+      finalized.current = true;
+    }
+    onClose();
+  };
+
+  // 백드롭 클릭 → abandoned
+  const handleBackdropClick = () => {
+    if (!isEdit) {
+      const filled = getFilledFields();
+      trackIfCreate("project_create_abandoned", {
+        filled_fields: filled.join(","),
+        filled_fields_count: filled.length,
+        time_spent_sec: Math.floor((Date.now() - mountTime.current) / 1000),
+      });
+      finalized.current = true;
+    }
+    onClose();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -160,11 +158,11 @@ const handleBackdropClick = () => {
 
     if (!form.name.trim() || !form.subject.trim()) {
       const missing = [];
-      if (!form.name.trim()) missing.push('name');
-      if (!form.subject.trim()) missing.push('subject');
-      
-      trackIfCreate('project_field_validation_error', {
-        missing_fields: missing.join(','),
+      if (!form.name.trim()) missing.push("name");
+      if (!form.subject.trim()) missing.push("subject");
+
+      trackIfCreate("project_field_validation_error", {
+        missing_fields: missing.join(","),
       });
 
       setErrorMessage("이름과 주제는 필수입니다.");
@@ -184,15 +182,17 @@ const handleBackdropClick = () => {
     try {
       await onSubmit(payload);
 
-       // ↓ 생성 성공 (create 모드만)
-    if (!isEdit) {
-      finalized.current = true;
-      
-      trackIfCreate('project_created', {
+      // ↓ 생성 성공 (create 모드만)
+      if (!isEdit) {
+        finalized.current = true;
+
+        trackIfCreate("project_created", {
           has_technique: !!form.technique,
           has_mood: !!form.mood,
           has_description: !!form.description.trim(),
-          selected_technique: form.technique ? TECHNIQUE_MAP[form.technique] : null,
+          selected_technique: form.technique
+            ? TECHNIQUE_MAP[form.technique]
+            : null,
           selected_mood: form.mood ? MOOD_MAP[form.mood] : null,
           description_length: form.description.trim().length,
           total_time_sec: Math.floor((Date.now() - mountTime.current) / 1000),
@@ -283,7 +283,7 @@ const handleBackdropClick = () => {
               name="description"
               value={form.description}
               onChange={handleChange}
-              onBlur={handleTextBlur} 
+              onBlur={handleTextBlur}
               className={styles.textarea}
               rows={3}
               placeholder="프로젝트에 대한 설명을 자유롭게 적어주세요"
@@ -313,7 +313,7 @@ const handleBackdropClick = () => {
           <div className={styles.actions}>
             <button
               type="button"
-              onClick={handleCancelClick} 
+              onClick={handleCancelClick}
               className={styles.cancelBtn}
               disabled={submitting}
             >

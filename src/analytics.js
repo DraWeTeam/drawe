@@ -9,20 +9,20 @@ export function setUserId(userId) {
 
 // 익명 ID (브라우저별 영구)
 function getAnonymousId() {
-  let id = localStorage.getItem('anonymous_id');
+  let id = localStorage.getItem("anonymous_id");
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem('anonymous_id', id);
+    localStorage.setItem("anonymous_id", id);
   }
   return id;
 }
 
 // 세션 ID (탭 단위)
 function getSessionId() {
-  let id = sessionStorage.getItem('session_id');
+  let id = sessionStorage.getItem("session_id");
   if (!id) {
     id = crypto.randomUUID();
-    sessionStorage.setItem('session_id', id);
+    sessionStorage.setItem("session_id", id);
   }
   return id;
 }
@@ -30,19 +30,19 @@ function getSessionId() {
 // 메인 트래킹 함수
 export function track(eventName, properties = {}) {
   window.dataLayer = window.dataLayer || [];
-  
+
   window.dataLayer.push({
     event: eventName,
     user_id: _userId,
     anonymous_id: getAnonymousId(),
     session_id: getSessionId(),
-    platform: 'web',
+    platform: "web",
     timestamp: new Date().toISOString(),
     ...properties,
   });
-  
+
   // 개발용 콘솔 로그
   if (import.meta.env.DEV) {
-    console.log('[Analytics]', eventName, properties);
+    console.log("[Analytics]", eventName, properties);
   }
 }

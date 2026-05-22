@@ -8,13 +8,12 @@ import ReferencePage from "./pages/chat/ReferencePage";
 import ProjectList from "./pages/projects/ProjectList";
 import ChatPage from "./pages/chat/ChatPage";
 import OnboardingPage from "./pages/onboarding/OnboardingPage";
-import { useEffect } from 'react';
-import { track } from './analytics';
+import { useEffect } from "react";
+import { track } from "./analytics";
 
-
-function App() {  
+function App() {
   useEffect(() => {
-    track('test_ping', { hello: 'world' });
+    track("test_ping", { hello: "world" });
   }, []);
   return (
     <BrowserRouter>

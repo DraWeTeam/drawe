@@ -3,25 +3,25 @@ import { Link, useNavigate } from "react-router-dom";
 import { checkEmail, checkNickname, signup } from "./authApi";
 import styles from "./Signup.module.css";
 import AuthHeader from "./AuthHeader";
-import { useEffect } from 'react';
-import { track } from '../../analytics';
+import { useEffect } from "react";
+import { track } from "../../analytics";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Signup = () => {
   useEffect(() => {
-    track('signup_form_viewed', {
-      form_type: 'basic',  // 이메일 가입 폼이면 'basic'
+    track("signup_form_viewed", {
+      form_type: "basic", // 이메일 가입 폼이면 'basic'
       step_number: 1,
     });
   }, []);
   const navigate = useNavigate();
   const handleFieldFocus = (e) => {
     if (e.target.dataset.tracked) return;
-    e.target.dataset.tracked = 'true';
-    track('signup_form_interaction', {
+    e.target.dataset.tracked = "true";
+    track("signup_form_interaction", {
       field_name: e.target.name,
-      interaction_type: 'focus',
+      interaction_type: "focus",
     });
   };
   const [form, setForm] = useState({
@@ -46,16 +46,20 @@ const Signup = () => {
   };
 
   const trackValidationError = (errorType, fieldName, message) => {
-  track('signup_validation_error', {
-    error_type: errorType,
-    field_name: fieldName,
-    error_message: message,
-  });
-};
+    track("signup_validation_error", {
+      error_type: errorType,
+      field_name: fieldName,
+      error_message: message,
+    });
+  };
 
   const handleCheckEmail = async () => {
     if (!emailRegex.test(form.email)) {
-      trackValidationError('invalid_email_format', 'email', "이메일 형식이 올바르지 않아요.");  // ← 추가
+      trackValidationError(
+        "invalid_email_format",
+        "email",
+        "이메일 형식이 올바르지 않아요.",
+      ); // ← 추가
       setEmailCheck({
         status: "error",
         message: "이메일 형식이 올바르지 않아요.",
@@ -67,7 +71,11 @@ const Signup = () => {
       if (data?.available) {
         setEmailCheck({ status: "ok", message: "사용 가능한 이메일이에요." });
       } else {
-        trackValidationError('duplicate_email', 'email', "이미 사용 중인 이메일이에요.");
+        trackValidationError(
+          "duplicate_email",
+          "email",
+          "이미 사용 중인 이메일이에요.",
+        );
         setEmailCheck({
           status: "error",
           message: "이미 사용 중인 이메일이에요.",
@@ -76,7 +84,7 @@ const Signup = () => {
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "확인 중 문제가 생겼어요.";
-      trackValidationError('email_check_failed', 'email', message);
+      trackValidationError("email_check_failed", "email", message);
       setEmailCheck({ status: "error", message });
     }
   };
@@ -84,7 +92,11 @@ const Signup = () => {
   const handleCheckNickname = async () => {
     const trimmed = form.nickname.trim();
     if (trimmed.length < 2 || trimmed.length > 20) {
-      trackValidationError('invalid_nickname_length', 'nickname', "닉네임은 2~20자여야 해요."); 
+      trackValidationError(
+        "invalid_nickname_length",
+        "nickname",
+        "닉네임은 2~20자여야 해요.",
+      );
       setNicknameCheck({
         status: "error",
         message: "닉네임은 2~20자여야 해요.",
@@ -99,7 +111,11 @@ const Signup = () => {
           message: "사용 가능한 닉네임이에요.",
         });
       } else {
-        trackValidationError('duplicate_nickname', 'nickname', "이미 사용 중인 닉네임이에요.");
+        trackValidationError(
+          "duplicate_nickname",
+          "nickname",
+          "이미 사용 중인 닉네임이에요.",
+        );
         setNicknameCheck({
           status: "error",
           message: "이미 사용 중인 닉네임이에요.",
@@ -108,8 +124,8 @@ const Signup = () => {
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "확인 중 문제가 생겼어요.";
-      trackValidationError('nickname_check_failed', 'nickname', message);
-        setNicknameCheck({ status: "error", message });
+      trackValidationError("nickname_check_failed", "nickname", message);
+      setNicknameCheck({ status: "error", message });
     }
   };
 
@@ -118,33 +134,57 @@ const Signup = () => {
     setErrorMessage("");
 
     if (!emailRegex.test(form.email)) {
-      trackValidationError('invalid_email_format', 'email', "이메일 형식이 올바르지 않아요.");
+      trackValidationError(
+        "invalid_email_format",
+        "email",
+        "이메일 형식이 올바르지 않아요.",
+      );
       setErrorMessage("이메일 형식이 올바르지 않아요.");
       return;
     }
     if (form.password.length < 8) {
-      trackValidationError('weak_password', 'password', "비밀번호는 8자 이상이어야 해요.");
+      trackValidationError(
+        "weak_password",
+        "password",
+        "비밀번호는 8자 이상이어야 해요.",
+      );
       setErrorMessage("비밀번호는 8자 이상이어야 해요.");
       return;
     }
     if (form.password !== form.passwordConfirm) {
-      trackValidationError('password_mismatch', 'passwordConfirm', "비밀번호가 일치하지 않아요.");
+      trackValidationError(
+        "password_mismatch",
+        "passwordConfirm",
+        "비밀번호가 일치하지 않아요.",
+      );
       setErrorMessage("비밀번호가 일치하지 않아요.");
       return;
     }
     const trimmedNickname = form.nickname.trim();
     if (trimmedNickname.length < 2 || trimmedNickname.length > 20) {
-      trackValidationError('invalid_nickname_length', 'nickname', "닉네임은 2~20자여야 해요.");
+      trackValidationError(
+        "invalid_nickname_length",
+        "nickname",
+        "닉네임은 2~20자여야 해요.",
+      );
       setErrorMessage("닉네임은 2~20자여야 해요.");
       return;
     }
     if (emailCheck.status !== "ok") {
-      trackValidationError('email_check_required', 'email', "이메일 중복 확인을 진행해주세요.");
+      trackValidationError(
+        "email_check_required",
+        "email",
+        "이메일 중복 확인을 진행해주세요.",
+      );
       setErrorMessage("이메일 중복 확인을 진행해주세요.");
       return;
     }
     if (nicknameCheck.status !== "ok") {
-      trackValidationError('nickname_check_required', 'nickname', "닉네임 중복 확인을 진행해주세요.");
+      trackValidationError(
+        "nickname_check_required",
+        "nickname",
+        "닉네임 중복 확인을 진행해주세요.",
+      );
       setErrorMessage("닉네임 중복 확인을 진행해주세요.");
       return;
     }
@@ -156,9 +196,9 @@ const Signup = () => {
         password: form.password,
         nickname: trimmedNickname,
       });
-      track('signup_completed', {
-      signup_method: 'email',
-      user_type: 'free',
+      track("signup_completed", {
+        signup_method: "email",
+        user_type: "free",
       });
       alert("회원가입이 완료되었어요. 로그인 페이지로 이동할게요.");
       navigate("/login");
@@ -226,7 +266,7 @@ const Signup = () => {
                   value={form.nickname}
                   onChange={handleChange}
                   onFocus={handleFieldFocus}
-              maxLength={20}
+                  maxLength={20}
                 />
                 <button
                   type="button"
@@ -259,7 +299,7 @@ const Signup = () => {
                 value={form.password}
                 onChange={handleChange}
                 onFocus={handleFieldFocus}
-          />
+              />
             </div>
 
             <div className={styles.fieldLast}>
@@ -271,7 +311,7 @@ const Signup = () => {
                 placeholder="비밀번호 다시 입력"
                 value={form.passwordConfirm}
                 onChange={handleChange}
-            onFocus={handleFieldFocus}
+                onFocus={handleFieldFocus}
               />
             </div>
 

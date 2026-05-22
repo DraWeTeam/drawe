@@ -6,29 +6,28 @@ import api from "./api";
 import { getOnboardingStatus } from "../onboarding/api"; // ← 추가
 import AuthHeader from "./AuthHeader";
 import { setUserId } from "../../analytics"; // ← 추가
-import { track } from '../../analytics';
-import { useEffect, useRef } from 'react';
+import { track } from "../../analytics";
+import { useEffect, useRef } from "react";
 
 function getDeviceType() {
   const ua = navigator.userAgent;
-  if (/iPad|Tablet/i.test(ua)) return 'tablet';
-  if (/Mobile|Android|iPhone/i.test(ua)) return 'mobile';
-  return 'desktop';
+  if (/iPad|Tablet/i.test(ua)) return "tablet";
+  if (/Mobile|Android|iPhone/i.test(ua)) return "mobile";
+  return "desktop";
 }
 
 function getUserIdFromToken(token) {
   try {
     // JWT는 .으로 구분된 3부분 — 가운데가 payload
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub;  // Spring Boot JWT 기본은 sub에 user_id
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.sub; // Spring Boot JWT 기본은 sub에 user_id
   } catch (e) {
-    console.error('JWT decode failed', e);
+    console.error("JWT decode failed", e);
     return undefined;
   }
 }
 
 const Login = () => {
-  
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -37,12 +36,12 @@ const Login = () => {
   });
   const [errorMessage, setErrorMessage] = useState("");
 
-  const attemptCount = useRef(0);        // 시도 횟수
-  const mountTime = useRef(Date.now());  // 페이지 진입 시각
+  const attemptCount = useRef(0); // 시도 횟수
+  const mountTime = useRef(Date.now()); // 페이지 진입 시각
 
   const handleGoogleLogin = () => {
-     track('login_attempt', {
-      login_method: 'google',
+    track("login_attempt", {
+      login_method: "google",
       device_type: getDeviceType(),
     });
     window.location.href = `${import.meta.env.VITE_API_URL}/oauth2/authorization/google`;
@@ -76,9 +75,9 @@ const Login = () => {
     setErrorMessage("");
 
     attemptCount.current += 1;
-  
-    track('login_attempt', {
-      login_method: 'email',
+
+    track("login_attempt", {
+      login_method: "email",
       device_type: getDeviceType(),
     });
 
@@ -95,8 +94,8 @@ const Login = () => {
 
       setUserId(getUserIdFromToken(accessToken));
 
-      track('login_success', {
-        login_method: 'email',
+      track("login_success", {
+        login_method: "email",
         attempt_count: attemptCount.current,
         time_taken: Date.now() - mountTime.current,
       });
@@ -106,11 +105,11 @@ const Login = () => {
     } catch (error) {
       const message =
         error.response?.data?.error?.message || "로그인에 실패했습니다.";
-        track('login_failed', {
-          login_method: 'email',
-          attempt_number: attemptCount.current,
-          error_type: error.response?.data?.error?.code || 'unknown',
-        });
+      track("login_failed", {
+        login_method: "email",
+        attempt_number: attemptCount.current,
+        error_type: error.response?.data?.error?.code || "unknown",
+      });
       setErrorMessage(message);
       console.log(error);
     }
@@ -163,42 +162,44 @@ const Login = () => {
               </p>
             )}
 
-          <button type="submit" className={styles.loginBtn}>
-            로그인
-          </button>
-          <div className={styles.divider}>
-            <span className={styles.line}></span>
-            <span className={styles.text}>or</span>
-            <span className={styles.line}></span>
-          </div>
-          <button
-            type="button"
-            className={styles.googleBtn}
-            onClick={handleGoogleLogin}
-          >
-            <img src={Google} className={styles.googleLogo}></img>
-            <p style={{ fontWeight: "500" }}>Sign in with Google</p>
-          </button>
-          <div className={styles.signin}>
-            <p style={{ margin: "0", fontWeight: "350" }}>계정이 없으신가요?</p>
-            <Link 
-              to="/signup" 
-              style={{ margin: "0", fontWeight: "500" }}
-              onClick={() => {
-                track('signup_started', {
-                  source: getUrlParam('utm_source') || 'organic',
-                  medium: getUrlParam('utm_medium') || 'direct',
-                  campaign: getUrlParam('utm_campaign'),
-                  page_location: window.location.href,
-                });
-              }}
+            <button type="submit" className={styles.loginBtn}>
+              로그인
+            </button>
+            <div className={styles.divider}>
+              <span className={styles.line}></span>
+              <span className={styles.text}>or</span>
+              <span className={styles.line}></span>
+            </div>
+            <button
+              type="button"
+              className={styles.googleBtn}
+              onClick={handleGoogleLogin}
             >
-              회원가입하기
-            </Link>
-          </div>
-        </form>
+              <img src={Google} className={styles.googleLogo}></img>
+              <p style={{ fontWeight: "500" }}>Sign in with Google</p>
+            </button>
+            <div className={styles.signin}>
+              <p style={{ margin: "0", fontWeight: "350" }}>
+                계정이 없으신가요?
+              </p>
+              <Link
+                to="/signup"
+                style={{ margin: "0", fontWeight: "500" }}
+                onClick={() => {
+                  track("signup_started", {
+                    source: getUrlParam("utm_source") || "organic",
+                    medium: getUrlParam("utm_medium") || "direct",
+                    campaign: getUrlParam("utm_campaign"),
+                    page_location: window.location.href,
+                  });
+                }}
+              >
+                회원가입하기
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
     </div>
   );
 };
