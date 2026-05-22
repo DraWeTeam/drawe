@@ -199,31 +199,7 @@ const Login = () => {
         </form>
       </div>
     </div>
-            <button type="submit" className={styles.loginBtn}>
-              로그인
-            </button>
-            <div className={styles.divider}>
-              <span className={styles.line}></span>
-              <span className={styles.text}>or</span>
-              <span className={styles.line}></span>
-            </div>
-            <button
-              type="button"
-              className={styles.googleBtn}
-              onClick={handleGoogleLogin}
-            >
-              <img src={Google} className={styles.googleLogo}></img>
-              <p style={{ fontWeight: "500" }}>Sign in with Google</p>
-            </button>
-            <div className={styles.signin}>
-              <p style={{ margin: "0", fontWeight: "350" }}>
-                계정이 없으신가요?
-              </p>
-              <Link to="/signup" style={{ margin: "0", fontWeight: "500" }}>
-                회원가입하기
-              </Link>
-            </div>
-        </div>
+    </div>
   );
 };
 
