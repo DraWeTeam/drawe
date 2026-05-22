@@ -5,6 +5,7 @@ import { track } from "../../analytics";
 import styles from "./OnboardingPage.module.css";
 
 const ONBOARDING_VERSION = "v1";
+const SELECTION_THRESHOLD = 5;
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
@@ -18,8 +19,8 @@ const OnboardingPage = () => {
   const lastSelectionTime = useRef(Date.now());
   const thresholdReached = useRef(false);
   const viewedIds = useRef(new Set());
-  const completedOrSkipped = useRef(false);   // ← 추가
-  const selectedCountRef = useRef(0);          // ← 추가 (4번용)
+  const completedOrSkipped = useRef(false); // ← 추가
+  const selectedCountRef = useRef(0); // ← 추가 (4번용)
 
   useEffect(() => {
     track("onboarding_style_started", {
@@ -44,7 +45,7 @@ const OnboardingPage = () => {
   }, [selectedIds]);
 
   useEffect(() => {
-    if (images.length === 0) return;  // 이미지 로드 전엔 스킵
+    if (images.length === 0) return; // 이미지 로드 전엔 스킵
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -52,32 +53,35 @@ const OnboardingPage = () => {
           if (!entry.isIntersecting) return;
 
           const imageId = entry.target.dataset.imageId;
-          if (viewedIds.current.has(imageId)) return;  // 이미 본 거면 무시
+          if (viewedIds.current.has(imageId)) return; // 이미 본 거면 무시
 
           viewedIds.current.add(imageId);
 
           // dataset은 문자열이라 String()으로 비교 (id가 숫자여도 안전)
           const image = images.find((img) => String(img.id) === imageId);
-          const position = images.findIndex((img) => String(img.id) === imageId);
+          const position = images.findIndex(
+            (img) => String(img.id) === imageId,
+          );
 
-          track('onboarding_style_image_viewed', {
+          track("onboarding_style_image_viewed", {
             image_id: imageId,
-            image_tags: image?.tags?.join(',') || '',
+            image_tags: image?.tags?.join(",") || "",
             image_position: position,
             onboarding_version: ONBOARDING_VERSION,
           });
 
-          observer.unobserve(entry.target);  // 본 건 관찰 해제 (성능)
+          observer.unobserve(entry.target); // 본 건 관찰 해제 (성능)
         });
       },
-      { threshold: 0.5 }  // 50% 이상 보이면 "봤다" 판정
+      { threshold: 0.5 }, // 50% 이상 보이면 "봤다" 판정
     );
 
-  const elements = document.querySelectorAll('[data-image-id]');
-  elements.forEach((el) => observer.observe(el));
+    const elements = document.querySelectorAll("[data-image-id]");
+    elements.forEach((el) => observer.observe(el));
 
-  return () => observer.disconnect();
-}, [images]);
+    return () => observer.disconnect();
+  }, [images]);
+
   useEffect(() => {
     const fireSessionDropped = () => {
       if (completedOrSkipped.current) return; // 정상 종료면 발화 안 함
@@ -99,7 +103,7 @@ const OnboardingPage = () => {
       // React 네비게이션 (컴포넌트 unmount)
       fireSessionDropped();
     };
-  }, []);};
+  }, []);
 
   const toggleSelect = (imageId) => {
     setError("");
@@ -225,7 +229,7 @@ const OnboardingPage = () => {
           {images.map((img) => (
             <button
               key={img.id}
-              data-image-id={img.id} 
+              data-image-id={img.id}
               className={`${styles.card} ${
                 selectedIds.has(img.id) ? styles.selected : ""
               }`}
@@ -234,7 +238,7 @@ const OnboardingPage = () => {
             >
               <div className={styles.cardImageWrapper}>
                 <img
-                  src={img.url}
+                  src={`${img.url}?w=400&q=80&fm=webp`}
                   alt={img.label || "이미지"}
                   className={styles.cardImage}
                   loading="lazy"
@@ -263,7 +267,7 @@ const OnboardingPage = () => {
       </div>
     </div>
   );
-
+};
 
 const CheckIcon = () => (
   <svg
