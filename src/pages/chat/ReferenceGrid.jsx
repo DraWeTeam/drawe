@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../login/api";
 import styles from "./ReferenceGrid.module.css";
+import { track } from "../../analytics";
 
 const ReferenceGrid = ({
   references,
