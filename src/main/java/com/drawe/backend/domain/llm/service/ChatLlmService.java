@@ -445,6 +445,13 @@ public class ChatLlmService {
     llmMessageRepository.deleteAll(nonSystem);
     session.setLastActive(Instant.now());
   }
+  @Transactional(readOnly = true)
+  public String getLatestSessionId(User user, Long projectId) {
+      return chatSessionRepository
+              .findTopByUserAndProjectIdOrderByLastActiveDesc(user, projectId)
+              .map(ChatSession::getId)
+              .orElse(null);
+  }
 
   private Project loadProjectAuthorized(User user, Long projectId) {
     Project project =
