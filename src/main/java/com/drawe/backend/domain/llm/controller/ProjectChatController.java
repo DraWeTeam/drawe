@@ -62,15 +62,10 @@ public class ProjectChatController {
         chatLlmService.generateImage(principal.getUser(), projectId, sessionId, request));
   }
 
-    @GetMapping("/latest-session")
-    public ApiResponse<Map<String, String>> getLatestSession(
-            @AuthenticationPrincipal PrincipalDetails principal,
-            @PathVariable Long projectId) {
-        String sessionId = chatLlmService.getLatestSessionId(
-                principal.getUser(), projectId);
-        return ApiResponse.success(
-                sessionId != null
-                        ? Map.of("sessionId", sessionId)
-                        : Map.of());
-    }
+  @GetMapping("/latest-session")
+  public ApiResponse<Map<String, String>> getLatestSession(
+      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long projectId) {
+    String sessionId = chatLlmService.getLatestSessionId(principal.getUser(), projectId);
+    return ApiResponse.success(sessionId != null ? Map.of("sessionId", sessionId) : Map.of());
+  }
 }

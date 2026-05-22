@@ -10,6 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ChatSessionRepository extends JpaRepository<ChatSession, String> {
 
   List<ChatSession> findByProject(Project project);
-  Optional<ChatSession> findTopByUserAndProjectIdOrderByLastActiveDesc(
-           User user, Long projectId);
+
+  Optional<ChatSession> findTopByUserAndProjectIdOrderByLastActiveDesc(User user, Long projectId);
 }
