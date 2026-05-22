@@ -99,7 +99,7 @@ const OnboardingPage = () => {
       // React 네비게이션 (컴포넌트 unmount)
       fireSessionDropped();
     };
-  }, []);
+  }, []);};
 
   const toggleSelect = (imageId) => {
     setError("");
