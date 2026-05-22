@@ -180,7 +180,7 @@ const OnboardingPage = () => {
         ),
         onboarding_version: ONBOARDING_VERSION,
       });
-      navigate("/projects");
+      navigate("/onboarding/complete");
     } catch (err) {
       console.log(err);
       setError("저장에 실패했어요. 다시 시도해주세요.");
@@ -201,7 +201,7 @@ const OnboardingPage = () => {
         skip_trigger: "button",
         onboarding_version: ONBOARDING_VERSION,
       });
-      navigate("/projects");
+      navigate("/onboarding/complete");
     }
   };
 
