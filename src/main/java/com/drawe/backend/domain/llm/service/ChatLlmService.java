@@ -272,9 +272,9 @@ public class ChatLlmService {
                   .toList();
           searchPayload.put("scores", scores);
 
-          if (avgScore < 0.2 || maxScore < 0.22) {
+          if (avgScore < 0.2 || maxScore < 0.21) {
             log.warn(
-                "❌ 무관 결과 판단: 검색 결과 차단 (avg={} < 0.2 || max={} < 0.22)",
+                "❌ 무관 결과 판단: 검색 결과 차단 (avg={} < 0.2 || max={} < 0.21)",
                 String.format("%.3f", avgScore),
                 String.format("%.3f", maxScore));
             log.info("================================");
