@@ -12,6 +12,7 @@ import {
   addPin,
   generateImage,
   getHistory,
+  getLatestSession,
   getPins,
   removePin,
   resetSession,
@@ -48,9 +49,8 @@ const ChatPage = () => {
 
   const [project, setProject] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [sessionId, setSessionId] = useState(
-    () => localStorage.getItem(sessionKey(projectId)) || null,
-  );
+  const [sessionId, setSessionId] = useState(null);
+
   const [input, setInput] = useState("");
   const [followUp, setFollowUp] = useState(null);
   const [sending, setSending] = useState(false);
@@ -102,6 +102,29 @@ const ChatPage = () => {
       }
     };
     fetchProject();
+  }, [projectId]);
+
+  useEffect(() => {
+    const initSession = async () => {
+      // localStorage에 이미 있으면 그대로 사용
+      const stored = localStorage.getItem(sessionKey(projectId));
+      if (stored) {
+        setSessionId(stored);
+        return;
+      }
+
+      // 없으면 서버에서 최신 세션 조회
+      try {
+        const data = await getLatestSession(projectId);
+        if (data?.sessionId) {
+          localStorage.setItem(sessionKey(projectId), data.sessionId);
+          setSessionId(data.sessionId);
+        }
+      } catch {
+        // 세션 없으면 새로 시작 (무시)
+      }
+    };
+    initSession();
   }, [projectId]);
 
   useEffect(() => {

@@ -23,6 +23,11 @@ export const getHistory = async (projectId, sessionId) => {
   return res.data.data;
 };
 
+export const getLatestSession = async (projectId) => {
+  const res = await api.get(`/projects/${projectId}/chat/latest-session`);
+  return res.data.data;
+};
+
 export const resetSession = async (projectId, sessionId) => {
   const res = await api.post(`/projects/${projectId}/chat/${sessionId}/reset`);
   return res.data.data;

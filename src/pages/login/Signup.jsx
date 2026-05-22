@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { checkEmail, checkNickname, signup } from "./authApi";
+import { checkEmail, checkNickname, signup, login } from "./authApi";
 import styles from "./Signup.module.css";
 import AuthHeader from "./AuthHeader";
 import { useEffect } from "react";
@@ -196,12 +196,23 @@ const Signup = () => {
         password: form.password,
         nickname: trimmedNickname,
       });
+
+      // 자동 로그인
+      const loginRes = await login({
+        email: form.email,
+        password: form.password,
+      });
+      localStorage.setItem("accessToken", loginRes.accessToken);
+      if (loginRes.refreshToken) {
+        localStorage.setItem("refreshToken", loginRes.refreshToken);
+      }
+
       track("signup_completed", {
         signup_method: "email",
         user_type: "free",
       });
-      alert("회원가입이 완료되었어요. 로그인 페이지로 이동할게요.");
-      navigate("/login");
+
+      navigate("/signup/complete"); // 완료 화면으로
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "회원가입에 실패했어요.";
