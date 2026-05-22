@@ -4,16 +4,15 @@ import api from "../login/api";
 import styles from "./ReferencePage.module.css";
 import { track } from "../../analytics";
 
-
 const ReferencePage = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
   const location = useLocation();
 
   const reference = location.state?.reference || null;
-  const position = location.state?.position || 0;                   // ← 추가
-  const iterationCount = location.state?.iterationCount || 0;       // ← 추가
-  const inputMode = location.state?.inputMode || "text";            // ← 추가
+  const position = location.state?.position || 0; // ← 추가
+  const iterationCount = location.state?.iterationCount || 0; // ← 추가
+  const inputMode = location.state?.inputMode || "text"; // ← 추가
   const [userFeedback, setUserFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
   const [feedbackLoading, setFeedbackLoading] = useState(true); // 추가
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
@@ -82,7 +81,7 @@ const ReferencePage = () => {
     // 트래킹용 — 변경 전 상태 캡처
     const previous = userFeedback;
     const lastFeedbackTime = parseInt(
-      localStorage.getItem(`feedback_time_${reference.id}`) || "0"
+      localStorage.getItem(`feedback_time_${reference.id}`) || "0",
     );
 
     try {
@@ -111,16 +110,19 @@ const ReferencePage = () => {
         input_mode: inputMode,
         project_id: projectId,
       };
-      
+
       // changed/removed일 때만 이전 피드백 후 경과 시간 추가
       if (actionType === "changed" || actionType === "removed") {
         props.time_since_previous_sec = lastFeedbackTime
           ? Math.floor((Date.now() - lastFeedbackTime) / 1000)
           : 0;
       }
-      
+
       track("prompt_reference_feedback", props);
-      localStorage.setItem(`feedback_time_${reference.id}`, Date.now().toString());
+      localStorage.setItem(
+        `feedback_time_${reference.id}`,
+        Date.now().toString(),
+      );
     } catch (err) {
       console.error("피드백 저장 실패", err);
     } finally {
@@ -134,7 +136,7 @@ const ReferencePage = () => {
 
     const previous = userFeedback;
     const lastFeedbackTime = parseInt(
-      localStorage.getItem(`feedback_time_${reference.id}`) || "0"
+      localStorage.getItem(`feedback_time_${reference.id}`) || "0",
     );
 
     try {
@@ -152,24 +154,27 @@ const ReferencePage = () => {
         feedbackType = "dislike";
       }
       const props = {
-      reference_id: reference.id,
-      action_type: actionType,
-      feedback_type: feedbackType,
-      previous_feedback_type: previous ? previous.toLowerCase() : "none",
-      reference_position: position,
-      iteration_count: iterationCount,
-      input_mode: inputMode,
-      project_id: projectId,
-    };
-    
-    if (actionType === "changed" || actionType === "removed") {
-      props.time_since_previous_sec = lastFeedbackTime
-        ? Math.floor((Date.now() - lastFeedbackTime) / 1000)
-        : 0;
-    }
-    
-    track("prompt_reference_feedback", props);
-    localStorage.setItem(`feedback_time_${reference.id}`, Date.now().toString());
+        reference_id: reference.id,
+        action_type: actionType,
+        feedback_type: feedbackType,
+        previous_feedback_type: previous ? previous.toLowerCase() : "none",
+        reference_position: position,
+        iteration_count: iterationCount,
+        input_mode: inputMode,
+        project_id: projectId,
+      };
+
+      if (actionType === "changed" || actionType === "removed") {
+        props.time_since_previous_sec = lastFeedbackTime
+          ? Math.floor((Date.now() - lastFeedbackTime) / 1000)
+          : 0;
+      }
+
+      track("prompt_reference_feedback", props);
+      localStorage.setItem(
+        `feedback_time_${reference.id}`,
+        Date.now().toString(),
+      );
     } catch (err) {
       console.error("피드백 저장 실패", err);
     } finally {

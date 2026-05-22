@@ -31,8 +31,13 @@ const AttachmentPicker = ({ attachment, onAttach, onError, disabled }) => {
     try {
       const resized = await resizeImage(file);
       const { imageId, url } = await uploadImage(resized);
-      onAttach({ imageId, url, previewUrl, format: file.type?.split('/')[1] || 'unknown',  // 'jpeg', 'png', 'webp' 등
-      sizeKb: Math.round((resized?.size || file.size) / 1024), });
+      onAttach({
+        imageId,
+        url,
+        previewUrl,
+        format: file.type?.split("/")[1] || "unknown", // 'jpeg', 'png', 'webp' 등
+        sizeKb: Math.round((resized?.size || file.size) / 1024),
+      });
     } catch (e) {
       onError?.(
         e.response?.data?.error?.message || "이미지 업로드에 실패했어요.",

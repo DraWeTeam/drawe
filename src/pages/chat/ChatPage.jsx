@@ -22,7 +22,7 @@ import AttachmentPicker from "./AttachmentPicker";
 import AuthedImage from "./AuthedImage";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
-import { track } from "../../analytics"; 
+import { track } from "../../analytics";
 
 const sessionKey = (projectId) => `chat_session_${projectId}`;
 const MAX_INPUT_HEIGHT = 160;
@@ -71,7 +71,7 @@ const ChatPage = () => {
 
   const listRef = useRef(null);
   const textareaRef = useRef(null);
-  const lastResponseTime = useRef(null); 
+  const lastResponseTime = useRef(null);
 
   const pinnedIds = useMemo(
     () => new Set(pinnedRefs.map((r) => r.id)),
@@ -163,19 +163,19 @@ const ChatPage = () => {
   }, [pinError]);
 
   useEffect(() => {
-  const isVisible = followUp?.type === "OFFER_GENERATE" && !sending;
-  
-  if (isVisible && !buttonViewedFired.current) {
-    buttonViewedFired.current = true;
-    track("prompt_image_generation_button_viewed", {
-      iteration_count: messages.filter((m) => m.role === "user").length,
-      project_id: projectId,
-    });
-  }
-  
-  if (!isVisible) {
-    buttonViewedFired.current = false;  // 다음 노출 위해 리셋
-  }
+    const isVisible = followUp?.type === "OFFER_GENERATE" && !sending;
+
+    if (isVisible && !buttonViewedFired.current) {
+      buttonViewedFired.current = true;
+      track("prompt_image_generation_button_viewed", {
+        iteration_count: messages.filter((m) => m.role === "user").length,
+        project_id: projectId,
+      });
+    }
+
+    if (!isVisible) {
+      buttonViewedFired.current = false; // 다음 노출 위해 리셋
+    }
   }, [followUp, sending, messages, projectId]);
 
   useEffect(() => {
@@ -268,16 +268,16 @@ const ChatPage = () => {
     // 응답 시간 측정용 시작 시각
     const responseStartTime = Date.now();
     const rotator = placeholderId
-          ? setInterval(() => {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m._placeholderId === placeholderId
-                    ? { ...m, content: pickGeneratingMsg() }
-                    : m,
-                ),
-              );
-            }, 3500)
-          : null;
+      ? setInterval(() => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m._placeholderId === placeholderId
+                ? { ...m, content: pickGeneratingMsg() }
+                : m,
+            ),
+          );
+        }, 3500)
+      : null;
     try {
       const res = await sendMessage(projectId, {
         message: text,
@@ -324,10 +324,10 @@ const ChatPage = () => {
           .find((m) => m.role === "assistant");
         const firstType =
           previousAssistant?.references?.length > 0 ? "reference" : "guide";
-        
+
         track("prompt_image_generation_button_eligible", {
           first_response_type: firstType,
-          second_response_type: "guide",  // offerGenerate면 현재 응답은 guide
+          second_response_type: "guide", // offerGenerate면 현재 응답은 guide
           button_shown: true,
           project_id: projectId,
         });
@@ -338,22 +338,21 @@ const ChatPage = () => {
         setJustUpdated(true);
         setTimeout(() => setJustUpdated(false), 2500);
       }
-// 응답 타입 계산
+      // 응답 타입 계산
       const responseType =
-      action === "NEW_SEARCH" && newRefs.length > 0 ? "reference" : "guide";
+        action === "NEW_SEARCH" && newRefs.length > 0 ? "reference" : "guide";
       track("prompt_response_loaded", {
-      project_id: projectId,
-      input_mode: inputMode,
-      response_type: responseType,
-      reference_count: responseType === "reference" ? newRefs.length : 0,
-      generation_time_ms: Date.now() - responseStartTime,
-      iteration_count: currentIteration,
-    });
+        project_id: projectId,
+        input_mode: inputMode,
+        response_type: responseType,
+        reference_count: responseType === "reference" ? newRefs.length : 0,
+        generation_time_ms: Date.now() - responseStartTime,
+        iteration_count: currentIteration,
+      });
 
-    lastResponseTime.current = Date.now();
-    // ↑↑↑ 응답 도착 트래킹 끝 ↑↑↑
+      lastResponseTime.current = Date.now();
+      // ↑↑↑ 응답 도착 트래킹 끝 ↑↑↑
 
-  
       // KEEP, SKIP, 또는 NEW_SEARCH인데 빈 배열: 이전 references 유지 (아무것도 안 함)
     } catch (err) {
       const status = err.response?.status;
@@ -456,8 +455,7 @@ const ChatPage = () => {
       const msg =
         status === 503
           ? "이미지 생성에 실패했어요. 다시 시도해주세요."
-          : err.response?.data?.error?.message ||
-            "이미지 생성에 실패했어요.";
+          : err.response?.data?.error?.message || "이미지 생성에 실패했어요.";
       setErrorMessage(msg);
       setMessages((prev) =>
         prev.map((m) =>
@@ -481,16 +479,18 @@ const ChatPage = () => {
 
   const handleCardClick = (reference, position) => {
     // 현재 iteration / input_mode 캡처
-  const userMessageCount = messages.filter((m) => m.role === "user").length;
-  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
-  const lastInputMode = lastUserMessage?.imageUrl ? "text_image" : "text";
+    const userMessageCount = messages.filter((m) => m.role === "user").length;
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((m) => m.role === "user");
+    const lastInputMode = lastUserMessage?.imageUrl ? "text_image" : "text";
     navigate(`/projects/${projectId}/reference/${reference.id}`, {
       state: {
         reference,
-        position,                       // ← 추가
+        position, // ← 추가
         iterationCount: userMessageCount, // ← 추가
-        inputMode: lastInputMode,         // ← 추가
-    },
+        inputMode: lastInputMode, // ← 추가
+      },
     });
   };
 
@@ -514,8 +514,8 @@ const ChatPage = () => {
         const pinStartTime = parseInt(localStorage.getItem(pinKey) || "0");
         track("prompt_reference_unpinned", {
           reference_id: imageId,
-          time_pinned_sec: pinStartTime 
-            ? Math.floor((Date.now() - pinStartTime) / 1000) 
+          time_pinned_sec: pinStartTime
+            ? Math.floor((Date.now() - pinStartTime) / 1000)
             : 0,
           project_id: projectId,
         });
@@ -525,22 +525,25 @@ const ChatPage = () => {
 
         // ↓ 핀 적용 트래킹
         const refIdx = references.findIndex((r) => r.id === imageId);
-        const userMessageCount = messages.filter((m) => m.role === "user").length;
-        const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+        const userMessageCount = messages.filter(
+          (m) => m.role === "user",
+        ).length;
+        const lastUserMessage = [...messages]
+          .reverse()
+          .find((m) => m.role === "user");
         const lastInputMode = lastUserMessage?.imageUrl ? "text_image" : "text";
-        
+
         // 현재 피드백 상태는 카드 컴포넌트에 있어서 여기선 모름 → 'none'으로 처리
         track("prompt_reference_pinned", {
           reference_id: imageId,
           reference_position: refIdx >= 0 ? refIdx + 1 : 0,
-          feedback_type: "none",  // 카드 안에서 안 보임 — 일단 none
+          feedback_type: "none", // 카드 안에서 안 보임 — 일단 none
           iteration_count: userMessageCount,
           input_mode: lastInputMode,
           project_id: projectId,
         });
-        
+
         localStorage.setItem(pinKey, Date.now().toString());
-      
       }
       await refreshPins();
     } catch (err) {
