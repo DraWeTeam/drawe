@@ -1,9 +1,9 @@
 name: FastAPI CD
 
 on:
-  #push:
-  #  branches: [develop, main]
-  #  paths: ["fastapi/**"]
+  push:
+    branches: [develop, main]
+    paths: ["fastapi/**"]
   workflow_dispatch:
     inputs:
       environment:

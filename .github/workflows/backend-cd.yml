@@ -14,9 +14,9 @@ name: Backend CD
 #   4. ECS service 를 새 TD 로 업데이트
 #   5. services-stable 대기 — Circuit Breaker 가 헬스체크 실패 감지 시 자동 롤백
 on:
-  #push:
-  #  branches: [develop, main]
-  #  paths: ["backend/**"]
+  push:
+    branches: [develop, main]
+    paths: ["backend/**"]
   workflow_dispatch:
     inputs:
       environment:
