@@ -1,0 +1,195 @@
+// ─────────────────────────────────────────────────────────
+// Grafana Alloy Sidecar Config — prod (self-host LGT + AMP)
+//
+// 데이터 흐름:
+//   앱 → localhost:4317 (OTLP gRPC) → Alloy →
+//     metrics → AMP (SigV4)
+//     logs    → Loki (loki.${prefix}.local:3100)
+//     traces  → Tempo (tempo.${prefix}.local:4317)
+//
+// 환경변수:
+//   ALLOY_SERVICE_NAME           — "backend" | "ai-server"
+//   ALLOY_DEPLOY_ENV             — "prod"
+//   ALLOY_SAMPLING_RATE          — "100" 또는 동적
+//   AMP_REMOTE_WRITE_URL         — https://aps-workspaces.<region>.amazonaws.com/.../api/v1/remote_write
+//   AWS_REGION                   — ap-northeast-2
+//   LOKI_URL                     — http://loki.drawe-prod.local:3100
+//   TEMPO_OTLP_ENDPOINT          — tempo.drawe-prod.local:4317
+//
+// PII redaction 은 alloy-sidecar.alloy(dev) 와 동일 — 같은 redaction 룰 적용
+// ─────────────────────────────────────────────────────────
+
+// ── OTLP Receiver ─────────────────────────────────────────
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces  = [otelcol.processor.resourcedetection.default.input]
+    metrics = [otelcol.processor.resourcedetection.default.input]
+    logs    = [otelcol.processor.resourcedetection.default.input]
+  }
+}
+
+// ── Resource Detection (ECS 메타데이터) ─────────────────
+otelcol.processor.resourcedetection "default" {
+  detectors = ["env", "ecs"]
+
+  output {
+    traces  = [otelcol.processor.attributes.default.input]
+    metrics = [otelcol.processor.attributes.default.input]
+    logs    = [otelcol.processor.attributes.default.input]
+  }
+}
+
+// ── Resource Attributes 표준화 ───────────────────────────
+otelcol.processor.attributes "default" {
+  action {
+    key    = "service.name"
+    value  = env("ALLOY_SERVICE_NAME")
+    action = "upsert"
+  }
+  action {
+    key    = "service.namespace"
+    value  = "drawe"
+    action = "upsert"
+  }
+  action {
+    key    = "deployment.environment"
+    value  = env("ALLOY_DEPLOY_ENV")
+    action = "upsert"
+  }
+
+  output {
+    traces  = [otelcol.processor.attributes.redact.input]
+    metrics = [otelcol.processor.batch.metrics.input]
+    logs    = [otelcol.processor.attributes.redact.input]
+  }
+}
+
+// ── PII Redaction (trace + log) ──────────────────────────
+otelcol.processor.attributes "redact" {
+  action { key = "user.email";           action = "delete" }
+  action { key = "user.name";            action = "delete" }
+  action { key = "user.phone";           action = "delete" }
+  action { key = "end_user.id";          action = "delete" }
+  action { key = "enduser.id";           action = "delete" }
+  action { key = "client_address";       action = "delete" }
+  action { key = "net.peer.ip";          action = "delete" }
+  action { key = "client.address";       action = "delete" }
+
+  action { key = "user.id";              action = "hash" }
+  action { key = "session.id";           action = "hash" }
+
+  action { key = "http.request.body";    action = "delete" }
+  action { key = "http.response.body";   action = "delete" }
+
+  action {
+    pattern = "^http\\.(request|response)\\.header\\..*$"
+    action  = "delete"
+  }
+
+  action { key = "db.statement";         action = "delete" }
+  action { key = "exception.message";    action = "delete" }
+
+  action { key = "http.url";             action = "hash" }
+  action { key = "url.full";             action = "hash" }
+  action { key = "url.query";            action = "delete" }
+
+  action { key = "gen_ai.prompt";        action = "delete" }
+  action { key = "gen_ai.completion";    action = "delete" }
+  action { key = "llm.prompts";          action = "delete" }
+  action { key = "llm.completions";      action = "delete" }
+
+  action { key = "auth.token";           action = "delete" }
+  action { key = "api.key";              action = "delete" }
+  action { key = "authorization";        action = "delete" }
+
+  output {
+    traces = [otelcol.processor.probabilistic_sampler.default.input]
+    logs   = [otelcol.processor.batch.logs.input]
+  }
+}
+
+// ── Trace Sampling ──────────────────────────────────────
+otelcol.processor.probabilistic_sampler "default" {
+  sampling_percentage = env("ALLOY_SAMPLING_RATE")
+
+  output {
+    traces = [otelcol.processor.batch.traces.input]
+  }
+}
+
+// ── Batch (per signal) ──────────────────────────────────
+otelcol.processor.batch "traces" {
+  timeout         = "5s"
+  send_batch_size = 512
+  output { traces = [otelcol.exporter.otlp.tempo.input] }
+}
+
+otelcol.processor.batch "logs" {
+  timeout         = "5s"
+  send_batch_size = 512
+  output { logs = [otelcol.exporter.loki.default.input] }
+}
+
+otelcol.processor.batch "metrics" {
+  timeout         = "10s"
+  send_batch_size = 1024
+  output { metrics = [otelcol.exporter.prometheus.amp.input] }
+}
+
+// ── Logs → self-host Loki ────────────────────────────────
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = format("%s/loki/api/v1/push", env("LOKI_URL"))
+  }
+  external_labels = {
+    cluster = "drawe-prod",
+    env     = env("ALLOY_DEPLOY_ENV"),
+  }
+}
+
+// ── Traces → self-host Tempo (OTLP) ──────────────────────
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = env("TEMPO_OTLP_ENDPOINT")
+    tls {
+      insecure = true   // VPC 내부 통신, TLS 불필요
+    }
+  }
+}
+
+// ── Metrics → AMP (SigV4 signed RemoteWrite) ─────────────
+otelcol.exporter.prometheus "amp" {
+  forward_to = [prometheus.remote_write.amp.receiver]
+}
+
+prometheus.remote_write "amp" {
+  endpoint {
+    url = env("AMP_REMOTE_WRITE_URL")
+
+    sigv4 {
+      region = env("AWS_REGION")
+      // service: aps (Amazon Managed Service for Prometheus)
+    }
+
+    queue_config {
+      capacity           = 10000
+      max_shards         = 50
+      max_samples_per_send = 1500
+    }
+  }
+
+  external_labels = {
+    cluster = "drawe-prod",
+  }
+}

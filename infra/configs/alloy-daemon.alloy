@@ -1,0 +1,102 @@
+// ─────────────────────────────────────────────────────────
+// Grafana Alloy DAEMON Config (Layer 1 — 인프라 baseline)
+//
+// EC2 인스턴스당 1개 실행 (schedulingStrategy: DAEMON)
+// 노드 메트릭, 컨테이너 stdout 로그, Docker 이벤트 수집
+// → Grafana Cloud 로 직접 전송
+// ─────────────────────────────────────────────────────────
+
+// ── 노드 메트릭 (CPU, Memory, Disk, Network, Filesystem) ─
+prometheus.exporter.unix "node" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+  rootfs_path = "/host"
+}
+
+prometheus.scrape "node" {
+  targets         = prometheus.exporter.unix.node.targets
+  forward_to      = [otelcol.receiver.prometheus.default.receiver]
+  scrape_interval = "30s"
+
+  job_name = "node-exporter"
+}
+
+// ── Docker 컨테이너 stdout 로그 ──────────────────────────
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+  forward_to = [otelcol.receiver.loki.default.receiver]
+
+  stage.docker {}
+}
+
+// ── Loki → OTLP 변환 ────────────────────────────────────
+otelcol.receiver.loki "default" {
+  output {
+    logs = [otelcol.processor.attributes.default.input]
+  }
+}
+
+// ── Prometheus → OTLP 변환 ──────────────────────────────
+otelcol.receiver.prometheus "default" {
+  output {
+    metrics = [otelcol.processor.attributes.default.input]
+  }
+}
+
+// ── Resource Attributes 표준화 ───────────────────────────
+otelcol.processor.attributes "default" {
+  action {
+    key    = "service.name"
+    value  = "infra-daemon"
+    action = "upsert"
+  }
+  action {
+    key    = "service.namespace"
+    value  = "drawe"
+    action = "upsert"
+  }
+  action {
+    key    = "deployment.environment"
+    value  = env("ALLOY_DEPLOY_ENV")
+    action = "upsert"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ── Batch ────────────────────────────────────────────────
+otelcol.processor.batch "default" {
+  timeout         = "10s"
+  send_batch_size = 256
+
+  output {
+    metrics = [otelcol.exporter.otlphttp.grafana_cloud.input]
+    logs    = [otelcol.exporter.otlphttp.grafana_cloud.input]
+  }
+}
+
+// ── Grafana Cloud 인증 + Export ──────────────────────────
+otelcol.auth.basic "grafana_cloud" {
+  username = env("GRAFANA_CLOUD_INSTANCE_ID")
+  password = env("GRAFANA_CLOUD_TOKEN")
+}
+
+otelcol.exporter.otlphttp "grafana_cloud" {
+  client {
+    endpoint = env("GRAFANA_OTLP_ENDPOINT")
+    auth     = otelcol.auth.basic.grafana_cloud.handler
+  }
+}

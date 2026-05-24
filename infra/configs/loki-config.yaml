@@ -1,0 +1,60 @@
+# ────────────────────────────────────────────────────────
+# Loki monolithic mode config (prod)
+#
+# 단일 바이너리, S3 backend, 다중 tenancy 비활성
+# 환경변수 expansion: ${VAR}
+# ────────────────────────────────────────────────────────
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+  log_level: info
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /tmp/loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    s3:
+      bucketnames: ${LOKI_S3_BUCKET}
+      region: ${AWS_REGION}
+      # IAM role 사용 — access_key 불필요
+      s3forcepathstyle: false
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: 720h     # 30일 — S3 lifecycle 와 정합
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h   # 7일 이전 샘플 거부
+
+compactor:
+  working_directory: /tmp/loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: s3
+
+ruler:
+  storage:
+    type: s3
+    s3:
+      bucketnames: ${LOKI_S3_BUCKET}
+      region: ${AWS_REGION}
+
+frontend:
+  max_outstanding_per_tenant: 2048
