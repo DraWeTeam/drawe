@@ -1,8 +1,9 @@
 name: FastAPI CD
 
 on:
-  push:
-    branches: [develop, main]
+  #push:
+  #  branches: [develop, main]
+  #  paths: ["fastapi/**"]
   workflow_dispatch:
     inputs:
       environment:
@@ -65,6 +66,7 @@ jobs:
 
       - name: Build & push Docker image (linux/arm64)
         id: build
+        working-directory: fastapi
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           REPO: drawe-${{ env.ENV_NAME }}-fastapi
