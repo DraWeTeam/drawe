@@ -1,0 +1,55 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### OAuth ###
+/src/main/resources/application-oauth.properties
+
+### LLM ###
+/src/main/resources/application-llm.properties
+
+### 환경 변수 ###
+.env
+
+### Local artifacts (DB dumps, scratch images, side build dirs) ###
+*.sql
+*.png
+*.jpg
+*.jpeg
+build-check/
+!src/main/resources/db/migration/*.sql
+!src/main/resources/db/seeds/*.sql
