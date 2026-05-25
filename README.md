@@ -2,6 +2,11 @@
 
 > **AI 기반 레퍼런스 추천 서비스** — 그리고 그 서비스를 구성하는 네 개의 축(backend · fastapi · frontend · infra)을 담은 모노레포.
 
+## 핵심 기능
+- AI 레퍼런스 검색 (CLIP + Pinecone)
+- 프로젝트 기반 레퍼런스 관리
+- LLM 기반 추천/대화
+
 Drawe 는 사용자의 텍스트/이미지를 **CLIP 임베딩**으로 벡터화하고, **Pinecone** 벡터 검색으로 유사한 레퍼런스를 찾아 추천합니다. 여기에 **LLM**(Grok · Claude · Gemini) 기반 대화/생성 기능이 결합되어, 프로젝트 단위로 레퍼런스를 모으고 태깅·피드백하며 발전시킬 수 있습니다.
 
 이 레포는 원래 `drawe-backend` · `drawe-fastapi` · `drawe-frontend` · `drawe-deploy` 네 개의 폴리레포로 흩어져 있던 것을, **git subtree 로 커밋 히스토리·기여자 그래프를 보존한 채** 하나로 합친 모노레포입니다.
@@ -24,6 +29,7 @@ docker compose -f docker-compose.local.yml up -d
 
 # 2. 프론트엔드 개발 서버
 cd ../frontend
+cp .env.example .env      # VITE_API_URL=http://localhost:8080
 npm install && npm run dev      # http://localhost:5173
 ```
 
@@ -144,6 +150,20 @@ npm run dev        # http://localhost:5173
 ```
 
 > 환경변수(LLM·OAuth·Pinecone 키 등)는 각 서비스의 `.env.example` 을 참고해 채워주세요.
+
+### 로컬 데이터 시드 (선택)
+
+   레퍼런스 이미지/온보딩 데이터가 필요하면:
+
+   1. 공유 스토리지에서 `reference_data.sql` 을 받아 `infra/` 에 둡니다.
+      (18MB 라 git 에는 없습니다 — PII 없는 images/image_drawe_tags 만 포함)
+   2. 스택을 띄운 뒤 시드 스크립트 실행:
+```bash
+      cd infra
+      bash scripts/seed-local.sh
+```
+   스키마는 백엔드 Flyway 가 만들고, 이 스크립트가 reference 데이터 + 온보딩 시드를 적재합니다.
+   onboarding 이 12 면 정상.
 
 ---
 
