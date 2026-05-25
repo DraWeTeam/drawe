@@ -21,6 +21,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
   auto_scaling_group_provider {
     auto_scaling_group_arn         = aws_autoscaling_group.ecs.arn
     managed_termination_protection = "DISABLED"
+    managed_draining               = "ENABLED" # Spot 교체/회수 시 태스크 graceful 드레이닝
 
     managed_scaling {
       status                    = "ENABLED"
@@ -100,9 +101,32 @@ resource "aws_autoscaling_group" "ecs" {
   max_size            = 3
   desired_capacity    = var.ecs_desired_instances
 
-  launch_template {
-    id      = aws_launch_template.ecs.id
-    version = "$Latest"
+  # Spot 회수 전 'rebalance recommendation' 시점에 대체 인스턴스를 먼저 띄움
+  # (대체가 healthy 해지면 기존 인스턴스를 종료 = launch-before-terminate)
+  capacity_rebalance = true
+
+  mixed_instances_policy {
+    instances_distribution {
+      # dev: 전부 Spot (base=0, 초과분 온디맨드 비율=0%)
+      on_demand_base_capacity                  = var.ecs_on_demand_base
+      on_demand_percentage_above_base_capacity = var.ecs_on_demand_percentage
+      spot_allocation_strategy                 = "price-capacity-optimized"
+    }
+
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.ecs.id
+        version            = "$Latest"
+      }
+
+      # 비슷한 사양(2 vCPU / 8GB) ARM64 타입을 여러 개 둬 Spot 풀을 넓힘
+      dynamic "override" {
+        for_each = var.ecs_instance_types
+        content {
+          instance_type = override.value
+        }
+      }
+    }
   }
 
   protect_from_scale_in = false

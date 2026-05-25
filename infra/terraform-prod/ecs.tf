@@ -21,6 +21,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
   auto_scaling_group_provider {
     auto_scaling_group_arn         = aws_autoscaling_group.ecs.arn
     managed_termination_protection = "DISABLED"
+    managed_draining               = "ENABLED"
 
     managed_scaling {
       status                    = "ENABLED"
@@ -93,9 +94,29 @@ resource "aws_autoscaling_group" "ecs" {
   max_size            = 6
   desired_capacity    = var.ecs_desired_instances
 
-  launch_template {
-    id      = aws_launch_template.ecs.id
-    version = "$Latest"
+  capacity_rebalance = true
+
+  mixed_instances_policy {
+    instances_distribution {
+      on_demand_base_capacity                  = var.ecs_on_demand_base       # = 1
+      on_demand_percentage_above_base_capacity = var.ecs_on_demand_percentage # = 0
+      on_demand_allocation_strategy            = "lowest-price"
+      spot_allocation_strategy                 = "price-capacity-optimized"
+    }
+
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.ecs.id
+        version            = "$Latest"
+      }
+
+      dynamic "override" {
+        for_each = var.ecs_instance_types
+        content {
+          instance_type = override.value
+        }
+      }
+    }
   }
 
   protect_from_scale_in = false

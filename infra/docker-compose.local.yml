@@ -46,7 +46,7 @@ services:
 
   backend:
     build:
-      context: ../drawe-backend
+      context: ../backend
     container_name: drawe-backend
     ports:
       - "${BACKEND_PORT:-8080}:8080"
@@ -87,7 +87,7 @@ services:
 
   fastapi:
     build:
-      context: ../drawe-fastapi
+      context: ../fastapi
     container_name: drawe-fastapi
     ports:
       - "${FASTAPI_PORT:-8000}:8000"

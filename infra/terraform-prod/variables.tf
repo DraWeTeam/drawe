@@ -33,7 +33,27 @@ variable "az_c" {
 ############################################################
 variable "ecs_instance_type" {
   description = "prod ECS 인스턴스 - observability stack 까지 올리므로 t4g.xlarge"
-  default     = "t4g.xlarge"   # 4 vCPU / 16 GB
+  default     = "t4g.large"   # 2 vCPU / 8 GB
+}
+
+# Spot 분산용 인스턴스 타입 목록 (모두 ARM64 · 2 vCPU / 8GB 동급)
+variable "ecs_instance_types" {
+  description = "ECS ASG Spot 분산용 인스턴스 타입 목록 (베이스 t4g.large=8GB 에 맞춤)"
+  type        = list(string)
+  default     = ["t4g.large", "m6g.large", "m7g.large"]   # 모두 8GB
+}
+
+# prod: 항상 On-Demand 로 유지할 base 인스턴스 수 (기준선 1대)
+variable "ecs_on_demand_base" {
+  description = "ASG 에서 항상 On-Demand 로 유지할 base 인스턴스 수"
+  type        = number
+  default     = 1
+}
+
+variable "ecs_on_demand_percentage" {
+  description = "base 초과분 중 On-Demand 비율(%). 0 이면 base 위는 전부 Spot"
+  type        = number
+  default     = 0
 }
 
 variable "ecs_desired_instances" {

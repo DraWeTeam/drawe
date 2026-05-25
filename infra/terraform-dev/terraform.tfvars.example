@@ -37,7 +37,7 @@ enable_cost_schedule = true
 # CI/CD 자동 배포용. 비워두면 OIDC role 미생성 (수동 배포만 가능).
 # prod terraform-prod 는 dev 가 만든 OIDC provider 를 data source 로 참조.
 github_owner = "hyegyeongseo"
-# github_repos default: ["drawe-backend", "drawe-fastapi"] — variables.tf 참고
+# github_repos default: ["drawe-backend", "drawe-fastapi", "drawe"] — variables.tf 참고
 
 # ── 비밀번호 직접 지정 (선택) ─────────────────────────────
 # 비워두면 32자 random 자동 생성 (권장).

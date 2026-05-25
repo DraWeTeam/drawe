@@ -39,6 +39,27 @@ variable "ecs_instance_type" {
   default     = "t4g.large"
 }
 
+# Spot 분산용 인스턴스 타입 목록 (모두 ARM64 · 2 vCPU / 8GB 동급)
+variable "ecs_instance_types" {
+  description = "ECS ASG Spot 분산용 인스턴스 타입 목록"
+  type        = list(string)
+  default     = ["t4g.large", "m6g.large"]
+}
+
+# 항상 On-Demand 로 유지할 최소 인스턴스 수 (dev=0 → 전부 Spot)
+variable "ecs_on_demand_base" {
+  description = "ASG 에서 항상 On-Demand 로 유지할 base 인스턴스 수"
+  type        = number
+  default     = 0
+}
+
+# base 초과분 중 On-Demand 비율 % (dev=0 → 초과분도 전부 Spot)
+variable "ecs_on_demand_percentage" {
+  description = "base 초과분 중 On-Demand 비율(%). 0 이면 전부 Spot"
+  type        = number
+  default     = 0
+}
+
 variable "ecs_desired_instances" {
   description = "ASG desired capacity (dev=1, stop 시 0)"
   default     = 1
