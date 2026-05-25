@@ -1,19 +1,22 @@
 # ── 로컬 개발 환경 (전체 스택) ────────────────────────────
 # docker compose -f docker-compose.local.yml up -d
 #
-# 사용 포트:
-#   3306 — MySQL
-#   6379 — Valkey
-#   8080 — Backend (Spring Boot)
-#   8000 — FastAPI (CLIP Embedding)
+# 호스트 포트 (기본값 — 충돌 시 env 로 override 가능):
+#   3306 — MySQL    (MYSQL_PORT)
+#   6379 — Valkey   (REDIS_PORT)
+#   8080 — Backend  (BACKEND_PORT)    ← Spring Boot
+#   8000 — FastAPI  (FASTAPI_PORT)    ← CLIP Embedding
 #   5173 — Frontend (Vite dev server — 별도 실행)
+#
+# 포트 충돌 시 .env 또는 셸에서:  export BACKEND_PORT=28080  (등)
+# 컨테이너 내부 포트와 compose 내부 통신(mysql:3306 등)은 불변 — 호스트 바인딩만 가변.
 
 services:
   mysql:
     image: mysql:8.4
     container_name: drawe-mysql
     ports:
-      - "127.0.0.1:3306:3306"
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
       MYSQL_DATABASE: drawe_db
@@ -32,7 +35,7 @@ services:
     image: valkey/valkey:8.1.6-alpine
     container_name: drawe-valkey
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     command: ["valkey-server", "--requirepass", "${REDIS_PASSWORD:-valkey_pass}", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
     healthcheck:
       test: ["CMD", "valkey-cli", "-a", "${REDIS_PASSWORD:-valkey_pass}", "PING"]
@@ -46,7 +49,7 @@ services:
       context: ../backend
     container_name: drawe-backend
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
       SERVER_PORT: 8080
       DB_HOST: mysql
@@ -63,10 +66,14 @@ services:
       JPA_SHOW_SQL: "true"
       LOG_LEVEL_SQL: debug
       APP_CORS_ALLOWED_ORIGINS: http://localhost:5173
-      FASTAPI_BASE_URL: http://fastapi:8000
+      FASTAPI_URL: http://fastapi:8000          # ← 앱은 fastapi.url=${FASTAPI_URL} 을 읽음 (BASE_URL 아님)
       GROK_API_KEY: ${GROK_API_KEY:-}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      BRIA_API_KEY: ${BRIA_API_KEY:-}           # ← application.properties 의 bria.api-key (기본값 없음 → 비어도 set)
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}   # ← 백엔드도 Pinecone 직접 사용 (fastapi 와 별개)
+      PINECONE_HOST: ${PINECONE_HOST:-}
+      PINECONE_INDEX: ${PINECONE_INDEX:-drawe-images}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       APP_OAUTH2_REDIRECT_URI: http://localhost:5173/oauth/callback
@@ -83,7 +90,7 @@ services:
       context: ../fastapi
     container_name: drawe-fastapi
     ports:
-      - "8000:8000"
+      - "${FASTAPI_PORT:-8000}:8000"
     environment:
       PORT: 8000
       WORKERS: 1
