@@ -430,6 +430,7 @@ const ChatPage = () => {
       prompt_length: lastUser.content.length,
       project_id: projectId,
     });
+    const generateStartTime = Date.now();
     const placeholderId = `gen-${Date.now()}`;
     setErrorMessage("");
     setFollowUp(null);
