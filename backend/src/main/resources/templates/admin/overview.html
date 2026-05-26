@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · Overview')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('overview')}"></header>
+
+<main class="wrap">
+  <div class="pagehead">
+    <div>
+      <h1>Overview</h1>
+      <div class="meta">
+        최근 <span th:text="${hours}">24</span>시간 ·
+        기준 <span th:text="${kpi.generatedAtText()}">-</span>
+      </div>
+    </div>
+    <div class="ranges">
+      <a th:href="@{/admin/overview(hours=24)}" th:classappend="${kpi.windowHours() == 24} ? 'active'">24h</a>
+      <a th:href="@{/admin/overview(hours=168)}" th:classappend="${kpi.windowHours() == 168} ? 'active'">7d</a>
+      <a th:href="@{/admin/overview(hours=720)}" th:classappend="${kpi.windowHours() == 720} ? 'active'">30d</a>
+    </div>
+  </div>
+
+  <section class="grid">
+    <div class="card">
+      <div class="label">활성 사용자</div>
+      <div class="value mono" th:text="${kpi.activeUsers()}">0</div>
+      <div class="foot">고유 user_id</div>
+    </div>
+    <div class="card">
+      <div class="label">채팅 성공률</div>
+      <div class="value mono good"
+           th:text="${kpi.chatSuccessRate() != null ? #numbers.formatPercent(kpi.chatSuccessRate(),1,1) : '—'}">—</div>
+      <div class="foot">
+        성공 <span th:text="${kpi.chatSuccess()}">0</span> / 실패 <span th:text="${kpi.chatError()}">0</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">응답 지연 P95</div>
+      <div class="value mono"
+           th:classappend="${kpi.latencyP95Ms() == null ? 'muted' : ''}"
+           th:text="${kpi.latencyP95Ms() != null ? kpi.latencyP95Ms() + ' ms' : '—'}">—</div>
+      <div class="foot">표본 <span th:text="${kpi.latencySampleCount()}">0</span>건</div>
+    </div>
+    <div class="card">
+      <div class="label">에러</div>
+      <div class="value mono"
+           th:classappend="${kpi.chatError() > 0 ? 'bad' : ''}"
+           th:text="${kpi.chatError()}">0</div>
+      <div class="foot">chat_error</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>응답 지연 분포 (chat_success)</h2>
+    <div class="statline" th:if="${kpi.latencySampleCount() > 0}">
+      <div><span class="k">평균</span><span class="v" th:text="${kpi.latencyAvgMs()} + ' ms'">-</span></div>
+      <div><span class="k">P50</span><span class="v" th:text="${kpi.latencyP50Ms()} + ' ms'">-</span></div>
+      <div><span class="k">P95</span><span class="v" th:text="${kpi.latencyP95Ms()} + ' ms'">-</span></div>
+      <div><span class="k">최대</span><span class="v" th:text="${kpi.latencyMaxMs()} + ' ms'">-</span></div>
+    </div>
+    <div class="empty" th:unless="${kpi.latencySampleCount() > 0}">이 구간에 chat_success 표본이 없어요.</div>
+  </section>
+
+  <section class="cols">
+    <div class="panel">
+      <h2>검색 차단율</h2>
+      <div class="statline">
+        <div>
+          <span class="k">차단율</span>
+          <span class="v" th:text="${kpi.searchBlockRate() != null ? #numbers.formatPercent(kpi.searchBlockRate(),1,1) : '—'}">—</span>
+        </div>
+        <div><span class="k">실행</span><span class="v" th:text="${kpi.searchExecuted()}">0</span></div>
+        <div><span class="k">차단</span><span class="v" th:text="${kpi.searchBlocked()}">0</span></div>
+      </div>
+      <div class="foot meta" style="margin-top:10px">차단율이 평소보다 높으면 시드 데이터 부족 신호.</div>
+    </div>
+
+    <div class="panel">
+      <h2>최근 에러 Top</h2>
+      <table th:if="${!kpi.topErrors().isEmpty()}">
+        <thead><tr><th>error_class</th><th class="num">건수</th></tr></thead>
+        <tbody>
+          <tr th:each="e : ${kpi.topErrors()}">
+            <td th:text="${e.errorClass()}">-</td>
+            <td class="num" th:text="${e.count()}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${kpi.topErrors().isEmpty()}">에러 없음 👍</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>이벤트 분포 <span class="tag">전체 event_type</span></h2>
+    <table th:if="${!kpi.eventDistribution().isEmpty()}">
+      <thead><tr><th>event_type</th><th class="num">건수</th></tr></thead>
+      <tbody>
+        <tr th:each="d : ${kpi.eventDistribution()}">
+          <td class="mono" th:text="${d.eventType()}">-</td>
+          <td class="num" th:text="${d.count()}">0</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="empty" th:if="${kpi.eventDistribution().isEmpty()}">이 구간에 이벤트가 없어요.</div>
+  </section>
+</main>
+</body>
+</html>

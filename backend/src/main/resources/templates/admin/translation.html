@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · 번역 실패')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('translation')}"></header>
+
+<main class="wrap" th:with="kpi=${view.kpi()}">
+  <div class="pagehead">
+    <div>
+      <h1>Translation</h1>
+      <div class="meta">
+        한→영 프롬프트 번역 상태 · 최근 <span th:text="${hours}">168</span>시간 · 기준 <span th:text="${kpi.generatedAtText()}">-</span>
+        · 원문(ko_prompt)은 표시하지 않음
+      </div>
+    </div>
+    <div class="ranges">
+      <a th:href="@{/admin/translation(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
+      <a th:href="@{/admin/translation(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
+      <a th:href="@{/admin/translation(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
+    </div>
+  </div>
+
+  <section class="grid">
+    <div class="card">
+      <div class="label">총 번역</div>
+      <div class="value mono" th:text="${kpi.total()}">0</div>
+      <div class="foot">prompt_translation_logs</div>
+    </div>
+    <div class="card">
+      <div class="label">성공률</div>
+      <div class="value mono good"
+           th:text="${kpi.successRate() != null ? #numbers.formatPercent(kpi.successRate(),1,1) : '—'}">—</div>
+      <div class="foot">성공 <span th:text="${kpi.success()}">0</span></div>
+    </div>
+    <div class="card">
+      <div class="label">폴백 (FALLBACK_RAW)</div>
+      <div class="value mono" th:text="${kpi.fallback()}">0</div>
+      <div class="foot" th:text="${kpi.fallbackRate() != null ? #numbers.formatPercent(kpi.fallbackRate(),1,1) : '—'}">—</div>
+    </div>
+    <div class="card">
+      <div class="label">실패 (FAILED)</div>
+      <div class="value mono"
+           th:classappend="${kpi.failed() > 0} ? 'bad'"
+           th:text="${kpi.failed()}">0</div>
+      <div class="foot" th:text="${kpi.failedRate() != null ? #numbers.formatPercent(kpi.failedRate(),1,1) : '—'}">—</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>실패·폴백 사유 <span class="tag">status ≠ SUCCESS</span></h2>
+    <div class="meta" style="margin:-4px 0 12px;">번역이 실패/폴백된 건을 사유(error_message)·상태별로 — Bria/번역 호출이 어디서 깨지는지.</div>
+    <table th:if="${!view.failures().isEmpty()}">
+      <thead>
+        <tr><th>사유</th><th style="width:130px;">상태</th><th class="num">건수</th><th class="num">최근</th></tr>
+      </thead>
+      <tbody>
+        <tr th:each="r : ${view.failures()}">
+          <td style="word-break:break-word;" th:text="${r.reason()}">-</td>
+          <td>
+            <span th:if="${r.status() == 'FAILED'}"
+                  style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--danger-soft); color:var(--danger);">FAILED</span>
+            <span th:if="${r.status() == 'FALLBACK_RAW'}"
+                  style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--warn-soft); color:var(--warn);">FALLBACK_RAW</span>
+          </td>
+          <td class="num" th:text="${r.count()}">0</td>
+          <td class="num meta" th:text="${r.lastAtText()}">-</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="empty" th:if="${view.failures().isEmpty()}">이 기간엔 번역 실패·폴백이 없어요 👍</div>
+  </section>
+</main>
+</body>
+</html>
