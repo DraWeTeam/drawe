@@ -28,8 +28,8 @@
           <span style="font-weight:600;" th:text="${st.label()}">채팅 시작</span>
           <span class="mono" style="font-size:13.5px;">
             <b style="font-size:16px;" th:text="${st.sessions()}">0</b> 세션
-            <span class="meta" th:if="${st.convFromStart() != null}"
-                  th:text="' · ' + ${#numbers.formatPercent(st.convFromStart(),1,0)}"> · 100%</span>
+            <span class="meta" th:if="${st.reachRate() != null}"
+                  th:text="' · ' + ${#numbers.formatPercent(st.reachRate(),1,0)}"> · 100%</span>
           </span>
         </div>
         <div style="height:10px; background:var(--line-soft); border-radius:999px; overflow:hidden; margin-top:6px;">
@@ -37,8 +37,8 @@
         </div>
       </div>
       <div class="meta" style="margin-top:4px; line-height:1.6;">
-        막대·%는 <b>채팅 시작</b> 대비예요. 엄밀한 순차 경로가 아니라 "그 단계 이벤트를 한 번이라도 일으킨 세션" 기준이라,
-        해석은 도달률로 보세요.
+        막대·%는 <b>전체 세션</b> 대비 도달률이에요. 엄밀한 순차 경로가 아니라 "그 단계 이벤트를 한 번이라도 일으킨 세션" 기준이라,
+        윈도우 경계를 걸친 세션 때문에 시작·성공 모수가 달라 단계가 살짝 역전돼 보일 수 있어요. 도달률로 보세요.
       </div>
     </div>
   </section>

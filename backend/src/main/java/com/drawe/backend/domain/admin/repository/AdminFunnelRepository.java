@@ -10,8 +10,13 @@ import org.springframework.data.repository.query.Param;
 /**
  * Engagement Funnel 집계. (읽기 전용)
  *
- * <p>노출(shown)은 {@code llm_messages.reference_ids}(JSON 배열)을 {@code JSON_TABLE}로 풀어 image_id별로 센다.
- * 좋아요/싫어요는 {@code image_feedback}, 저장은 {@code project_references}. 노출 기준 anchor(LEFT JOIN).
+ * <p>노출(shown)은 {@code llm_messages.references_json}(ReferenceItem 배열)의 각
+ * {@code id}를 {@code JSON_TABLE}로 풀어 image_id별로 센다. 좋아요/싫어요는
+ * {@code image_feedback}, 저장은 {@code project_references}. 노출 기준 anchor(LEFT JOIN).
+ *
+ * <p>write 경로(ChatLlmService)가 {@code references_json}만 채우고
+ * {@code reference_ids}는 비워두므로(NULL), 노출 소스를 references_json 으로 둔다.
+ * 덕분에 기존 데이터까지 즉시 집계된다. reference_ids 는 미사용.
  */
 public interface AdminFunnelRepository extends JpaRepository<LlmMessage, Long> {
 
@@ -31,9 +36,9 @@ public interface AdminFunnelRepository extends JpaRepository<LlmMessage, Long> {
               + "FROM ( "
               + "   SELECT jt.image_id AS image_id, COUNT(*) AS shown "
               + "   FROM llm_messages m, "
-              + "        JSON_TABLE(m.reference_ids, '$[*]' "
-              + "                   COLUMNS (image_id BIGINT PATH '$')) jt "
-              + "   WHERE m.reference_ids IS NOT NULL "
+              + "        JSON_TABLE(m.references_json, '$[*]' "
+              + "                   COLUMNS (image_id BIGINT PATH '$.id')) jt "
+              + "   WHERE m.references_json IS NOT NULL "
               + "     AND m.role = 'ASSISTANT' "
               + "     AND m.created_at >= :since "
               + "   GROUP BY jt.image_id "
@@ -57,13 +62,14 @@ public interface AdminFunnelRepository extends JpaRepository<LlmMessage, Long> {
       nativeQuery = true)
   List<FunnelProjection> funnel(@Param("since") Instant since);
 
-  /** 윈도우 내 ref 노출 총합 (모든 reference_ids 항목 수). */
+  /** 윈도우 내 ref 노출 총합 (모든 references_json 항목 수). */
   @Query(
       value =
           "SELECT COUNT(*) "
               + "FROM llm_messages m, "
-              + "     JSON_TABLE(m.reference_ids, '$[*]' COLUMNS (image_id BIGINT PATH '$')) jt "
-              + "WHERE m.reference_ids IS NOT NULL AND m.role = 'ASSISTANT' "
+              + "     JSON_TABLE(m.references_json, '$[*]' "
+              + "                COLUMNS (image_id BIGINT PATH '$.id')) jt "
+              + "WHERE m.references_json IS NOT NULL AND m.role = 'ASSISTANT' "
               + "AND m.created_at >= :since",
       nativeQuery = true)
   long countShown(@Param("since") Instant since);

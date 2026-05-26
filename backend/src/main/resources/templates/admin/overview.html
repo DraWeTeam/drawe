@@ -63,7 +63,7 @@
 
   <section class="cols">
     <div class="panel">
-      <h2>검색 차단율</h2>
+      <h2>검색 실행 차단율 <span class="tag">analytics_events</span></h2>
       <div class="statline">
         <div>
           <span class="k">차단율</span>
@@ -71,8 +71,9 @@
         </div>
         <div><span class="k">실행</span><span class="v" th:text="${kpi.searchExecuted()}">0</span></div>
         <div><span class="k">차단</span><span class="v" th:text="${kpi.searchBlocked()}">0</span></div>
+        <div><span class="k">전체 시도</span><span class="v" th:text="${kpi.searchExecuted() + kpi.searchBlocked()}">0</span></div>
       </div>
-      <div class="foot meta" style="margin-top:10px">차단율이 평소보다 높으면 시드 데이터 부족 신호.</div>
+      <div class="foot meta" style="margin-top:10px">차단 / (실행+차단). 시스템이 무관 판정으로 <b>검색 실행 자체를 막은</b> 비율이에요 — 검색 품질 탭의 "저품질"(결과는 떴는데 점수 낮음)과는 다른 지표. 평소보다 높으면 시드 데이터 부족 신호.</div>
     </div>
 
     <div class="panel">

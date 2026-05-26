@@ -29,30 +29,35 @@ public class AdminFlowService {
     Instant since = Instant.now().minus(Duration.ofHours(windowHours));
     FlowRow r = repo.flow(since);
 
+    long sessions = num(r.getSessions());
     long started = num(r.getStarted());
     long searched = num(r.getSearched());
     long succeeded = num(r.getSucceeded());
 
+    // 도달률 기준선은 '채팅 시작'이 아니라 '전체 세션'이다.
+    // chat_start는 세션 신규 생성 시 1회만 적재되는데 chat_success는 매 메시지마다 적재되어,
+    // 윈도우 경계를 걸친 세션 때문에 succeeded > started (=100% 초과)가 발생하기 때문.
+    // 전체 세션을 분모로 쓰면 모든 단계가 항상 100% 이하가 된다.
     List<Stage> stages =
         List.of(
-            stage("채팅 시작", started, started),
-            stage("검색 실행", searched, started),
-            stage("응답 성공", succeeded, started));
+            stage("채팅 시작", started, sessions),
+            stage("검색 실행", searched, sessions),
+            stage("응답 성공", succeeded, sessions));
 
     return new View(
         windowHours,
         TS.format(Instant.now()),
-        num(r.getSessions()),
+        sessions,
         stages,
         num(r.getBlocked()),
         num(r.getErrored()),
         num(r.getOnboarded()));
   }
 
-  private static Stage stage(String label, long sessions, long start) {
-    Double conv = start > 0 ? (double) sessions / start : null;
-    int barPct = start > 0 ? (int) Math.round(Math.min(1.0, (double) sessions / start) * 100) : 0;
-    return new Stage(label, sessions, conv, barPct);
+  private static Stage stage(String label, long sessions, long base) {
+    Double reach = base > 0 ? (double) sessions / base : null;
+    int barPct = base > 0 ? (int) Math.round(Math.min(1.0, (double) sessions / base) * 100) : 0;
+    return new Stage(label, sessions, reach, barPct);
   }
 
   private static long num(Number n) {

@@ -27,11 +27,11 @@
       <div class="foot">search_logs</div>
     </div>
     <div class="card">
-      <div class="label">차단·저품질율</div>
+      <div class="label">저품질·결과부족율 <span class="tag">search_logs</span></div>
       <div class="value mono"
            th:classappend="${kpi.blockRate() != null and kpi.blockRate() >= 0.5} ? 'bad'"
            th:text="${kpi.blockRate() != null ? #numbers.formatPercent(kpi.blockRate(),1,1) : '—'}">—</div>
-      <div class="foot">차단 <span th:text="${kpi.blockedSearches()}">0</span> / 전체 <span th:text="${kpi.totalSearches()}">0</span></div>
+      <div class="foot">저품질 <span th:text="${kpi.blockedSearches()}">0</span> / 전체 <span th:text="${kpi.totalSearches()}">0</span> · result=0 또는 점수&lt;0.2</div>
     </div>
     <div class="card">
       <div class="label">평균 결과 수</div>
