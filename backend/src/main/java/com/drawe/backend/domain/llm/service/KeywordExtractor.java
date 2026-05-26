@@ -204,7 +204,8 @@ public class KeywordExtractor {
           User: "RGB와 CMYK 차이가 뭐야?"
           → SKIP
 
-          History (assistant said): "[1]번 이미지처럼 수채화로 부드러운 색감을 표현하시면 좋습니다. [2]번은 잉크 풍 강한 대비가 특징이고, [3]번은 정물화 따뜻한 분위기예요."
+          History (assistant said): "[1]번 이미지처럼 수채화로 부드러운 색감을 표현하시면 좋습니다.
+          [2]번은 잉크 풍 강한 대비가 특징이고, [3]번은 정물화 따뜻한 분위기예요."
           User: "1번 같은 거 더 보여줘"
           → NEW_SEARCH: watercolor soft pastel portrait
 
