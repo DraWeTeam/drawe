@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · Cost')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('cost')}"></header>
+
+<main class="wrap" th:with="v=${view}, k=${view.kpi()}">
+  <div class="pagehead">
+    <div>
+      <h1>비용 · 사용량</h1>
+      <div class="meta">LLM 토큰·호출 수, 추정 비용, AI 이미지 생성량 · 최근 <span th:text="${hours}">168</span>시간
+        · <span th:text="${v.generatedAtText()}">—</span></div>
+    </div>
+    <div class="ranges">
+      <a th:href="@{/admin/cost(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
+      <a th:href="@{/admin/cost(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
+      <a th:href="@{/admin/cost(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <section class="grid">
+    <div class="card">
+      <div class="label">채팅 호출</div>
+      <div class="value mono" th:text="${k.chatCalls()}">0</div>
+      <div class="foot">chat_success (윈도우)</div>
+    </div>
+    <div class="card">
+      <div class="label">토큰 합계</div>
+      <div class="value mono"
+           th:text="${#numbers.formatInteger(k.promptTokens() + k.completionTokens(), 1, 'COMMA')}">0</div>
+      <div class="foot">
+        입력 <span class="mono" th:text="${#numbers.formatInteger(k.promptTokens(),1,'COMMA')}">0</span>
+        · 출력 <span class="mono" th:text="${#numbers.formatInteger(k.completionTokens(),1,'COMMA')}">0</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">추정 비용 (USD)</div>
+      <div class="value mono" th:classappend="${k.estCostUsd() == null} ? 'muted' : 'good'"
+           th:text="${k.estCostUsd() != null ? '$' + #numbers.formatDecimal(k.estCostUsd(),1,2) : '—'}">—</div>
+      <div class="foot" th:text="${k.estCostUsd() != null ? '설정 단가 기준 추정' : '단가 미설정'}">—</div>
+    </div>
+    <div class="card">
+      <div class="label">AI 이미지 생성</div>
+      <div class="value mono" th:text="${k.imageGenWindow()}">0</div>
+      <div class="foot">Bria 호출 (윈도우)</div>
+    </div>
+  </section>
+
+  <!-- 데이터 가용성 안내 -->
+  <div class="meta" style="margin:-8px 0 16px; line-height:1.6;">
+    토큰·비용은 <b>토큰 로깅 배포 이후</b> 발생한 호출에만 집계돼요 — 배포 직후 윈도우에선 호출 수보다
+    "토큰 기록된 호출"이 적을 수 있어요
+    (<span class="mono" th:text="${k.callsWithTokens()}">0</span> / <span class="mono" th:text="${k.chatCalls()}">0</span> 건 기록).
+    그 이전 구간은 <code>scripts/token_estimate.py</code> 사후 추정으로 보강하세요.
+    <span th:if="${!v.pricingConfigured()}" style="color:var(--warn);">
+      · 비용 표시는 <code>admin.cost.pricing.*</code> 단가 설정 후 나타나요.</span>
+  </div>
+
+  <!-- provider/model 별 -->
+  <section class="panel">
+    <h2>Provider · Model 별</h2>
+    <table th:if="${!v.providers().isEmpty()}">
+      <thead>
+        <tr>
+          <th>provider</th>
+          <th>model</th>
+          <th class="num">호출</th>
+          <th class="num">입력 토큰</th>
+          <th class="num">출력 토큰</th>
+          <th class="num">추정 $</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="p : ${v.providers()}">
+          <td><span class="tag" th:text="${p.provider()}">CLAUDE</span></td>
+          <td class="mono" th:text="${p.model()}">—</td>
+          <td class="num" th:text="${p.calls()}">0</td>
+          <td class="num" th:text="${#numbers.formatInteger(p.promptTokens(),1,'COMMA')}">0</td>
+          <td class="num" th:text="${#numbers.formatInteger(p.completionTokens(),1,'COMMA')}">0</td>
+          <td class="num"
+              th:text="${p.estCostUsd() != null ? '$' + #numbers.formatDecimal(p.estCostUsd(),1,3) : '—'}">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="empty" th:if="${v.providers().isEmpty()}">
+      이 기간에 chat_success 호출이 없어요. (윈도우를 7d/30d로 넓혀보세요.)
+    </div>
+  </section>
+
+  <!-- AI 이미지 생성 -->
+  <section class="panel">
+    <h2>AI 이미지 생성</h2>
+    <div class="statline" style="margin-bottom:16px;">
+      <div>
+        <span class="k">윈도우 생성 수</span>
+        <span class="v mono" th:text="${k.imageGenWindow()}">0</span>
+      </div>
+      <div>
+        <span class="k">누적 AI 이미지 (전체)</span>
+        <span class="v mono" th:text="${k.imageAiTotal()}">0</span>
+      </div>
+      <div>
+        <span class="k">그중 Pinecone 적재</span>
+        <span class="v mono" th:classappend="${k.imageAiIndexed() < k.imageAiTotal()} ? 'muted'"
+              th:text="${k.imageAiIndexed()}">0</span>
+      </div>
+    </div>
+    <table th:if="${!v.dailyImageGen().isEmpty()}">
+      <thead><tr><th>날짜 (KST)</th><th class="num">생성 수</th></tr></thead>
+      <tbody>
+        <tr th:each="d : ${v.dailyImageGen()}">
+          <td class="mono" th:text="${d.day()}">2026-05-27</td>
+          <td class="num" th:text="${d.count()}">0</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="empty" th:if="${v.dailyImageGen().isEmpty()}">
+      이 기간에 <code>image_generated</code> 이벤트가 없어요.
+      (이 이벤트는 로깅 추가 배포 이후 생성분부터 쌓여요. 과거 누적은 위 "누적 AI 이미지"로 확인.)
+    </div>
+  </section>
+</main>
+</body>
+</html>

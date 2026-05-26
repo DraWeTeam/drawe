@@ -56,6 +56,13 @@
     <b>노출 적은데 저장률 높음</b> = 더 자주 추천할 ref. (베타 표본이 작으니 절대 수치보다 상대 비교로.)
   </div>
 
+  <div class="meta" style="margin:0 0 16px; line-height:1.6; color:var(--warn); background:var(--warn-soft); border-radius:10px; padding:10px 14px;">
+    ⚠️ 비율 해석 주의 — 노출(shown)은 이 윈도우 안의 추천만 세지만, 좋아요·저장은 각자의 발생 시각으로
+    따로 집계돼요. 그래서 윈도우 경계에 걸친 ref는 <b>좋아요%·저장%가 100%를 넘거나 어긋나 보일 수</b> 있어요
+    (윈도우 직전에 노출 → 윈도우 안에서 저장 등). <b>절대값이 아니라 ref 간 상대 비교</b>로 읽고,
+    정밀 비교가 필요하면 윈도우를 넓혀 경계 효과를 희석하세요.
+  </div>
+
   <section class="panel">
     <table th:if="${!rows.isEmpty()}">
       <thead>

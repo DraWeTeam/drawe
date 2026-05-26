@@ -3,6 +3,8 @@ package com.drawe.backend.domain.image.service;
 import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.analytics.AnalyticsEventType;
+import com.drawe.backend.domain.analytics.service.AnalyticsEventService;
 import com.drawe.backend.domain.enums.ImageSource;
 import com.drawe.backend.domain.image.event.AiImageCreatedEvent;
 import com.drawe.backend.domain.image.repository.ImageRepository;
@@ -12,6 +14,8 @@ import com.drawe.backend.global.client.dto.BriaGenerateResponse;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,6 +41,7 @@ public class ImageGenerationService {
   private final ImageRepository imageRepository;
   private final PromptTranslator promptTranslator;
   private final ApplicationEventPublisher eventPublisher;
+  private final AnalyticsEventService analyticsEventService;
   private final RestClient downloader = RestClient.create();
 
   @Transactional
@@ -86,6 +91,13 @@ public class ImageGenerationService {
 
     log.info(
         "AI 이미지 저장 완료: imageId={}, blobId={}, url={}", saved.getId(), stored.id(), stored.url());
+
+    // 일별 Bria 호출 수 집계용 이벤트 (images 테이블엔 created_at이 없음). 원문 프롬프트는 PII라 길이만 기록.
+    // track()은 REQUIRES_NEW + fail-safe라 여기서 실패해도 이미지 생성 트랜잭션엔 영향 없음.
+    Map<String, Object> genPayload = new HashMap<>();
+    genPayload.put("image_id", saved.getId());
+    genPayload.put("prompt_length", prompt.length());
+    analyticsEventService.track(AnalyticsEventType.IMAGE_GENERATED, user, null, genPayload);
 
     // 트랜잭션 commit 후 비동기로 CLIP 임베딩 → Pinecone 적재.
     // 직접 호출하지 않고 이벤트로 띄우는 이유: @Async 비동기 스레드는 자기만의 TX 를 새로 시작하므로

@@ -54,7 +54,21 @@ public class GeminiService implements LlmService {
     int latency = (int) (System.currentTimeMillis() - start);
 
     String content = extractText(response);
-    return new LlmCallResult(content, cfg.getModel(), latency);
+    return new LlmCallResult(
+        content,
+        cfg.getModel(),
+        latency,
+        usageInt(response, "promptTokenCount"),
+        usageInt(response, "candidatesTokenCount"));
+  }
+
+  /** Gemini usageMetadata 에서 토큰 값을 null-safe 하게. 없으면 null. */
+  private static Integer usageInt(Map<?, ?> response, String key) {
+    Object usage = response.get("usageMetadata");
+    if (usage instanceof Map<?, ?> u && u.get(key) instanceof Number n) {
+      return n.intValue();
+    }
+    return null;
   }
 
   private Map<String, Object> buildBody(LlmCallContext context) {

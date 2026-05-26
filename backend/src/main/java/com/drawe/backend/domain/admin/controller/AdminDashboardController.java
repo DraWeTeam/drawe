@@ -1,6 +1,7 @@
 package com.drawe.backend.domain.admin.controller;
 
 import com.drawe.backend.domain.admin.service.AdminAnalyticsService;
+import com.drawe.backend.domain.admin.service.AdminCostService;
 import com.drawe.backend.domain.admin.service.AdminFlowService;
 import com.drawe.backend.domain.admin.service.AdminFunnelService;
 import com.drawe.backend.domain.admin.service.AdminSearchService;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * 어드민 대시보드 (서버 렌더링 Thymeleaf).
  *
- * <p>탭: Overview / 흐름 / Funnel / Search Quality / Translation. 인증은 {@code AdminSecurityConfig}.
+ * <p>탭: Overview / 흐름 / Funnel / Search Quality / Translation / Cost. 인증은 {@code AdminSecurityConfig}.
  */
 @Controller
 @RequestMapping("/admin")
@@ -29,6 +30,7 @@ public class AdminDashboardController {
   private final AdminSearchService searchService;
   private final AdminTranslationService translationService;
   private final AdminFlowService flowService;
+  private final AdminCostService costService;
 
   @GetMapping("/login")
   public String login() {
@@ -84,6 +86,15 @@ public class AdminDashboardController {
     model.addAttribute("view", translationService.build(safeHours));
     model.addAttribute("hours", safeHours);
     return "admin/translation";
+  }
+
+  /** 비용·사용량 — 토큰/호출 수·추정 비용·AI 이미지 생성량. */
+  @GetMapping("/cost")
+  public String cost(@RequestParam(name = "hours", defaultValue = "168") int hours, Model model) {
+    int safeHours = clampHours(hours);
+    model.addAttribute("view", costService.build(safeHours));
+    model.addAttribute("hours", safeHours);
+    return "admin/cost";
   }
 
   private static int clampHours(int hours) {

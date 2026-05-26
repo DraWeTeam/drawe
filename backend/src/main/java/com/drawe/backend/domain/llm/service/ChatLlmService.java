@@ -166,6 +166,16 @@ public class ChatLlmService {
       successPayload.put("reference_count", refItems.size());
       successPayload.put("has_image_input", image.hasImage());
       successPayload.put("offer_generate", offerGenerate);
+      // 실제 청구 토큰 (provider usage). null이면 키 자체를 넣지 않아 어드민 SUM에서 자연히 제외된다.
+      if (result.promptTokens() != null) {
+        successPayload.put("prompt_tokens", result.promptTokens());
+      }
+      if (result.completionTokens() != null) {
+        successPayload.put("completion_tokens", result.completionTokens());
+      }
+      if (result.promptTokens() != null && result.completionTokens() != null) {
+        successPayload.put("total_tokens", result.promptTokens() + result.completionTokens());
+      }
       analyticsEventService.track(
           AnalyticsEventType.CHAT_SUCCESS, user, session.getId(), successPayload);
 

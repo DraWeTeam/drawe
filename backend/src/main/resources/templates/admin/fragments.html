@@ -128,6 +128,7 @@
     <a href="/admin/funnel" th:classappend="${active == 'funnel'} ? 'active'">Funnel</a>
     <a href="/admin/search-quality" th:classappend="${active == 'search'} ? 'active'">검색 품질</a>
     <a href="/admin/translation" th:classappend="${active == 'translation'} ? 'active'">번역 실패</a>
+    <a href="/admin/cost" th:classappend="${active == 'cost'} ? 'active'">비용</a>
   </nav>
   <form class="logout" th:action="@{/admin/logout}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
