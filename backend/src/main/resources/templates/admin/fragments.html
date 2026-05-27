@@ -114,7 +114,92 @@
     .statline .k { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
     .statline .v { font-size: 22px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
     .statline .v.muted { color: var(--line-strong); }
+
+    /* ---------- charts ---------- */
+    .chartbox { position: relative; width: 100%; height: 240px; }
+    .chartbox.sm { height: 150px; }
+    .chartbox.lg { height: 300px; }
+    .panel h2 .tag { margin-left: 2px; }
+    .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+    .chart-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+    /* htmx 전환 중 살짝 흐려지는 피드백 (선택) */
+    #admin-content.htmx-swapping { opacity: .55; transition: opacity .12s ease; }
   </style>
+
+  <!-- 차트 + 부분 갱신: 둘 다 기존에 쓰는 jsDelivr에서 로드 (백엔드 변경 0) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js"></script>
+  <script>
+    /* 공용 차트 헬퍼 — head 프래그먼트는 htmx 스왑 대상이 아니라 한 번만 정의된다.
+       색은 위 :root 토큰에서 읽어와 화면과 항상 일치. 각 탭은 window.__adminCharts 만 정의하면 됨. */
+    (function () {
+      var css = getComputedStyle(document.documentElement);
+      function tok(n, fb) { var v = css.getPropertyValue(n); return v ? v.trim() : fb; }
+      var T = {
+        accent: tok('--accent', '#db6418'), accentBright: tok('--accent-bright', '#ff8434'),
+        danger: tok('--danger', '#cf3b2e'), warn: tok('--warn', '#9a6b08'),
+        muted: tok('--muted', '#8c8a83'), line: tok('--line', '#efeae1'),
+        ink: tok('--ink', '#1f2825'), surface: tok('--surface', '#ffffff'),
+      };
+
+      if (window.Chart) {
+        Chart.defaults.font.family = '"Pretendard","Pretendard Variable",-apple-system,system-ui,"Malgun Gothic",sans-serif';
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = T.muted;
+        Chart.defaults.maintainAspectRatio = false;
+        Chart.defaults.plugins.legend.display = false;
+        Chart.defaults.animation.duration = 350;
+      }
+
+      var tip = { backgroundColor: T.ink, titleColor: '#e9e3d8', bodyColor: '#fff',
+        cornerRadius: 10, padding: 11, displayColors: true, boxWidth: 9, boxHeight: 9, boxPadding: 4 };
+      var grid = { color: T.line, drawTicks: false };
+      var noGrid = { display: false };
+
+      function fresh(id) {
+        var el = document.getElementById(id);
+        if (!el || !window.Chart) return null;
+        var prev = Chart.getChart(el); if (prev) prev.destroy();
+        return el;
+      }
+
+      window.DraweTokens = T;
+      window.Drawe = {
+        tokens: T,
+        // 세로 막대 (일별/시계열)
+        bars: function (id, labels, data, o) { o = o || {}; var el = fresh(id); if (!el) return;
+          new Chart(el, { type: 'bar',
+            data: { labels: labels, datasets: [{ label: o.label || '', data: data, backgroundColor: o.color || T.accent, borderRadius: 4, maxBarThickness: 40 }] },
+            options: { scales: { x: { grid: noGrid, border: { color: T.line }, ticks: { maxRotation: 0, autoSkip: true } },
+              y: { beginAtZero: true, grid: grid, border: { display: false }, ticks: { precision: 0 } } }, plugins: { tooltip: tip } } });
+        },
+        // 가로 막대 (분포/랭킹)
+        hbars: function (id, labels, data, o) { o = o || {}; var el = fresh(id); if (!el) return;
+          new Chart(el, { type: 'bar',
+            data: { labels: labels, datasets: [{ label: o.label || '', data: data, backgroundColor: o.color || T.accent, borderRadius: 4, maxBarThickness: 26 }] },
+            options: { indexAxis: 'y', scales: { x: { beginAtZero: true, grid: grid, border: { display: false }, ticks: { precision: 0 } },
+              y: { grid: noGrid, border: { color: T.line } } }, plugins: { tooltip: tip } } });
+        },
+        // 누적 가로 막대 (입력/출력 토큰 등)
+        stackedH: function (id, labels, series) { var el = fresh(id); if (!el) return;
+          new Chart(el, { type: 'bar',
+            data: { labels: labels, datasets: series.map(function (s) { return { label: s.label, data: s.data, backgroundColor: s.color, borderRadius: 3, maxBarThickness: 26, stack: 's' }; }) },
+            options: { indexAxis: 'y', scales: { x: { beginAtZero: true, stacked: true, grid: grid, border: { display: false } },
+              y: { stacked: true, grid: noGrid, border: { color: T.line } } }, plugins: { tooltip: tip } } });
+        },
+        // 도넛 (상태 비율)
+        doughnut: function (id, labels, data, colors) { var el = fresh(id); if (!el) return;
+          new Chart(el, { type: 'doughnut',
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderColor: T.surface, borderWidth: 2 }] },
+            options: { cutout: '64%', plugins: { tooltip: tip } } });
+        },
+      };
+
+      function run() { if (typeof window.__adminCharts === 'function') { try { window.__adminCharts(); } catch (e) { console.error('admin chart init', e); } } }
+      if (document.readyState !== 'loading') run(); else document.addEventListener('DOMContentLoaded', run);
+      document.addEventListener('htmx:afterSwap', run);   // 기간 전환(부분 갱신) 후 재그리기
+    })();
+  </script>
 </head>
 <body>
 <header th:fragment="topbar(active)" class="topbar">

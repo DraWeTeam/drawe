@@ -4,7 +4,7 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('search')}"></header>
 
-<main class="wrap" th:with="kpi=${view.kpi()}, fr=${view.friction()}">
+<main class="wrap" id="admin-content" th:with="kpi=${view.kpi()}, fr=${view.friction()}">
   <div class="pagehead">
     <div>
       <h1>Search Quality</h1>
@@ -13,7 +13,7 @@
         · 원문(original_message)은 표시하지 않음 — 키워드 집계만
       </div>
     </div>
-    <div class="ranges">
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/search-quality(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
       <a th:href="@{/admin/search-quality(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
       <a th:href="@{/admin/search-quality(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
@@ -87,6 +87,7 @@
   <section class="panel">
     <h2>시드 보강 백로그 <span class="tag">result_count=0 또는 점수&lt;0.2</span></h2>
     <div class="meta" style="margin:-4px 0 12px;">결과가 부족했던 검색을 키워드별 빈도순으로 — 상위가 곧 데이터셋 보강 우선순위예요.</div>
+    <div class="chartbox" th:if="${!view.backlog().isEmpty()}" style="margin-bottom:14px;"><canvas id="sq-backlog"></canvas></div>
     <table th:if="${!view.backlog().isEmpty()}">
       <thead>
         <tr><th>키워드</th><th class="num">검색 수</th><th class="num">평균 점수</th><th class="num">최근</th></tr>
@@ -127,6 +128,19 @@
     </table>
     <div class="empty" th:if="${view.demand().isEmpty()}">이 기간에 검색 기록이 없어요.</div>
   </section>
+
+  <script th:inline="javascript">
+    (function () {
+      var bl = /*[[${view.backlog()}]]*/ [];
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        var top = bl.slice(0, 12);
+        if (top.length) D.hbars('sq-backlog',
+          top.map(function (x) { return x.keyword; }), top.map(function (x) { return x.count; }),
+          { color: D.tokens.warn });
+      };
+    })();
+  </script>
 </main>
 </body>
 </html>

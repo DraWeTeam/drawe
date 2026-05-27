@@ -4,7 +4,7 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('overview')}"></header>
 
-<main class="wrap">
+<main class="wrap" id="admin-content">
   <div class="pagehead">
     <div>
       <h1>Overview</h1>
@@ -13,7 +13,7 @@
         기준 <span th:text="${kpi.generatedAtText()}">-</span>
       </div>
     </div>
-    <div class="ranges">
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/overview(hours=24)}" th:classappend="${kpi.windowHours() == 24} ? 'active'">24h</a>
       <a th:href="@{/admin/overview(hours=168)}" th:classappend="${kpi.windowHours() == 168} ? 'active'">7d</a>
       <a th:href="@{/admin/overview(hours=720)}" th:classappend="${kpi.windowHours() == 720} ? 'active'">30d</a>
@@ -58,6 +58,9 @@
       <div><span class="k">P95</span><span class="v" th:text="${kpi.latencyP95Ms()} + ' ms'">-</span></div>
       <div><span class="k">최대</span><span class="v" th:text="${kpi.latencyMaxMs()} + ' ms'">-</span></div>
     </div>
+    <div class="chartbox sm" th:if="${kpi.latencySampleCount() > 0}" style="margin-top:14px;">
+      <canvas id="ov-latency"></canvas>
+    </div>
     <div class="empty" th:unless="${kpi.latencySampleCount() > 0}">이 구간에 chat_success 표본이 없어요.</div>
   </section>
 
@@ -78,6 +81,7 @@
 
     <div class="panel">
       <h2>최근 에러 Top</h2>
+      <div class="chartbox sm" th:if="${!kpi.topErrors().isEmpty()}"><canvas id="ov-errors"></canvas></div>
       <table th:if="${!kpi.topErrors().isEmpty()}">
         <thead><tr><th>error_class</th><th class="num">건수</th></tr></thead>
         <tbody>
@@ -93,6 +97,7 @@
 
   <section class="panel">
     <h2>이벤트 분포 <span class="tag">전체 event_type</span></h2>
+    <div class="chartbox" th:if="${!kpi.eventDistribution().isEmpty()}"><canvas id="ov-events"></canvas></div>
     <table th:if="${!kpi.eventDistribution().isEmpty()}">
       <thead><tr><th>event_type</th><th class="num">건수</th></tr></thead>
       <tbody>
@@ -104,6 +109,24 @@
     </table>
     <div class="empty" th:if="${kpi.eventDistribution().isEmpty()}">이 구간에 이벤트가 없어요.</div>
   </section>
+
+  <script th:inline="javascript">
+    (function () {
+      var ev  = /*[[${kpi.eventDistribution()}]]*/ [];
+      var er  = /*[[${kpi.topErrors()}]]*/ [];
+      var lat = {
+        avg: /*[[${kpi.latencyAvgMs()}]]*/ 0, p50: /*[[${kpi.latencyP50Ms()}]]*/ 0,
+        p95: /*[[${kpi.latencyP95Ms()}]]*/ 0, max: /*[[${kpi.latencyMaxMs()}]]*/ 0,
+        n:   /*[[${kpi.latencySampleCount()}]]*/ 0
+      };
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        if (ev.length) D.hbars('ov-events', ev.map(function (x) { return x.eventType; }), ev.map(function (x) { return x.count; }));
+        if (er.length) D.hbars('ov-errors', er.map(function (x) { return x.errorClass; }), er.map(function (x) { return x.count; }), { color: D.tokens.danger });
+        if (lat.n > 0)  D.bars('ov-latency', ['평균', 'P50', 'P95', '최대'], [lat.avg, lat.p50, lat.p95, lat.max], { label: 'ms' });
+      };
+    })();
+  </script>
 </main>
 </body>
 </html>

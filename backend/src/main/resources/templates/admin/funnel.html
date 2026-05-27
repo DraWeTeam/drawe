@@ -4,13 +4,13 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('funnel')}"></header>
 
-<main class="wrap">
+<main class="wrap" id="admin-content">
   <div class="pagehead">
     <div>
       <h1>Engagement Funnel</h1>
       <div class="meta">노출(shown) → 좋아요/싫어요 → 저장(save) · 최근 <span th:text="${hours}">168</span>시간</div>
     </div>
-    <div class="ranges">
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/funnel(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
       <a th:href="@{/admin/funnel(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
       <a th:href="@{/admin/funnel(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
@@ -63,6 +63,11 @@
     정밀 비교가 필요하면 윈도우를 넓혀 경계 효과를 희석하세요.
   </div>
 
+  <section class="panel" th:if="${summary.shown() > 0}">
+    <h2>참여 요약 <span class="tag">윈도우 합계</span></h2>
+    <div class="chartbox sm"><canvas id="fn-summary"></canvas></div>
+  </section>
+
   <section class="panel">
     <table th:if="${!rows.isEmpty()}">
       <thead>
@@ -113,6 +118,23 @@
       이 기간에 노출된 ref가 없어요. (채팅에서 ref가 추천되면 여기 쌓여요. 윈도우를 7d/30d로 넓혀보세요.)
     </div>
   </section>
+
+  <script th:inline="javascript">
+    (function () {
+      var s = {
+        shown:    /*[[${summary.shown()}]]*/ 0,
+        likes:    /*[[${summary.likes()}]]*/ 0,
+        saves:    /*[[${summary.saves()}]]*/ 0,
+        dislikes: /*[[${summary.dislikes()}]]*/ 0
+      };
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        if (s.shown > 0) D.hbars('fn-summary',
+          ['노출', '좋아요', '저장', '싫어요'], [s.shown, s.likes, s.saves, s.dislikes],
+          { color: [D.tokens.accent, D.tokens.accentBright, D.tokens.accent, D.tokens.danger] });
+      };
+    })();
+  </script>
 </main>
 </body>
 </html>

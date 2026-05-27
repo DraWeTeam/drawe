@@ -4,14 +4,14 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('cost')}"></header>
 
-<main class="wrap" th:with="v=${view}, k=${view.kpi()}">
+<main class="wrap" id="admin-content" th:with="v=${view}, k=${view.kpi()}">
   <div class="pagehead">
     <div>
       <h1>비용 · 사용량</h1>
       <div class="meta">LLM 토큰·호출 수, 추정 비용, AI 이미지 생성량 · 최근 <span th:text="${hours}">168</span>시간
         · <span th:text="${v.generatedAtText()}">—</span></div>
     </div>
-    <div class="ranges">
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/cost(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
       <a th:href="@{/admin/cost(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
       <a th:href="@{/admin/cost(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
@@ -60,7 +60,12 @@
   <!-- provider/model 별 -->
   <section class="panel">
     <h2>Provider · Model 별</h2>
-    <table th:if="${!v.providers().isEmpty()}">
+    <div class="chartbox" th:if="${!v.providers().isEmpty()}"><canvas id="cost-tokens"></canvas></div>
+    <div class="chart-legend" th:if="${!v.providers().isEmpty()}">
+      <span><i style="background:var(--accent)"></i>입력 토큰</span>
+      <span><i style="background:var(--accent-bright)"></i>출력 토큰</span>
+    </div>
+    <table th:if="${!v.providers().isEmpty()}" style="margin-top:16px;">
       <thead>
         <tr>
           <th>provider</th>
@@ -106,6 +111,7 @@
               th:text="${k.imageAiIndexed()}">0</span>
       </div>
     </div>
+    <div class="chartbox" th:if="${!v.dailyImageGen().isEmpty()}" style="margin-bottom:16px;"><canvas id="cost-daily"></canvas></div>
     <table th:if="${!v.dailyImageGen().isEmpty()}">
       <thead><tr><th>날짜 (KST)</th><th class="num">생성 수</th></tr></thead>
       <tbody>
@@ -120,6 +126,23 @@
       (이 이벤트는 로깅 추가 배포 이후 생성분부터 쌓여요. 과거 누적은 위 "누적 AI 이미지"로 확인.)
     </div>
   </section>
+
+  <script th:inline="javascript">
+    (function () {
+      var prov  = /*[[${view.providers()}]]*/ [];
+      var daily = /*[[${view.dailyImageGen()}]]*/ [];
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        if (daily.length) D.bars('cost-daily',
+          daily.map(function (x) { return x.day; }), daily.map(function (x) { return x.count; }),
+          { label: '생성', color: D.tokens.accentBright });
+        if (prov.length) D.stackedH('cost-tokens',
+          prov.map(function (x) { return x.model || x.provider; }),
+          [ { label: '입력 토큰', data: prov.map(function (x) { return x.promptTokens; }),     color: D.tokens.accent },
+            { label: '출력 토큰', data: prov.map(function (x) { return x.completionTokens; }), color: D.tokens.accentBright } ]);
+      };
+    })();
+  </script>
 </main>
 </body>
 </html>

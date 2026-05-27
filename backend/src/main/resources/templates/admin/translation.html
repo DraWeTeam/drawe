@@ -4,7 +4,7 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('translation')}"></header>
 
-<main class="wrap" th:with="kpi=${view.kpi()}">
+<main class="wrap" id="admin-content" th:with="kpi=${view.kpi()}">
   <div class="pagehead">
     <div>
       <h1>Translation</h1>
@@ -13,7 +13,7 @@
         · 원문(ko_prompt)은 표시하지 않음
       </div>
     </div>
-    <div class="ranges">
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/translation(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
       <a th:href="@{/admin/translation(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
       <a th:href="@{/admin/translation(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
@@ -46,6 +46,16 @@
     </div>
   </section>
 
+  <section class="panel" th:if="${kpi.total() > 0}">
+    <h2>상태 분포 <span class="tag">SUCCESS / FALLBACK_RAW / FAILED</span></h2>
+    <div class="chartbox" style="max-width:360px; margin:0 auto;"><canvas id="tr-status"></canvas></div>
+    <div class="chart-legend" style="justify-content:center;">
+      <span><i style="background:var(--accent)"></i>성공</span>
+      <span><i style="background:var(--warn)"></i>폴백</span>
+      <span><i style="background:var(--danger)"></i>실패</span>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>실패·폴백 사유 <span class="tag">status ≠ SUCCESS</span></h2>
     <div class="meta" style="margin:-4px 0 12px;">번역이 실패/폴백된 건을 사유(error_message)·상태별로 — Bria/번역 호출이 어디서 깨지는지.</div>
@@ -69,6 +79,22 @@
     </table>
     <div class="empty" th:if="${view.failures().isEmpty()}">이 기간엔 번역 실패·폴백이 없어요 👍</div>
   </section>
+
+  <script th:inline="javascript">
+    (function () {
+      var s = {
+        success:  /*[[${view.kpi().success()}]]*/ 0,
+        fallback: /*[[${view.kpi().fallback()}]]*/ 0,
+        failed:   /*[[${view.kpi().failed()}]]*/ 0
+      };
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        if (s.success + s.fallback + s.failed > 0)
+          D.doughnut('tr-status', ['성공', '폴백', '실패'], [s.success, s.fallback, s.failed],
+            [D.tokens.accent, D.tokens.warn, D.tokens.danger]);
+      };
+    })();
+  </script>
 </main>
 </body>
 </html>

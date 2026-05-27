@@ -4,7 +4,7 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('flow')}"></header>
 
-<main class="wrap" th:with="v=${view}">
+<main class="wrap" id="admin-content" th:with="v=${view}">
   <div class="pagehead">
     <div>
       <h1>이용 흐름</h1>
@@ -12,7 +12,7 @@
         세션 단위 단계 도달 · 최근 <span th:text="${hours}">168</span>시간 · 기준 <span th:text="${v.generatedAtText()}">-</span>
       </div>
     </div>
-    <div class="ranges">
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/flow(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
       <a th:href="@{/admin/flow(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
       <a th:href="@{/admin/flow(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
