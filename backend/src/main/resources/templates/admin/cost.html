@@ -141,6 +141,7 @@
           [ { label: '입력 토큰', data: prov.map(function (x) { return x.promptTokens; }),     color: D.tokens.accent },
             { label: '출력 토큰', data: prov.map(function (x) { return x.completionTokens; }), color: D.tokens.accentBright } ]);
       };
+      window.__adminRun && window.__adminRun();
     })();
   </script>
 </main>

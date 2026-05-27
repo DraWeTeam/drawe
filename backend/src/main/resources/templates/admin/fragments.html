@@ -195,9 +195,20 @@
         },
       };
 
-      function run() { if (typeof window.__adminCharts === 'function') { try { window.__adminCharts(); } catch (e) { console.error('admin chart init', e); } } }
+      // htmx 스왑 직후엔 레이아웃이 아직 안 끝나 컨테이너 크기가 0 → 차트가 0×0으로 그려진다.
+      // rAF 두 번으로 레이아웃 확정 뒤에 그린다(전체 로드/부분 갱신 모두 안전).
+      function run() {
+        if (typeof window.__adminCharts !== 'function') return;
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            try { window.__adminCharts(); } catch (e) { console.error('admin chart init', e); }
+          });
+        });
+      }
+      window.__adminRun = run;   // 각 탭 스크립트가 직접 호출해도 됨(이벤트 타이밍 의존 제거)
       if (document.readyState !== 'loading') run(); else document.addEventListener('DOMContentLoaded', run);
-      document.addEventListener('htmx:afterSwap', run);   // 기간 전환(부분 갱신) 후 재그리기
+      document.addEventListener('htmx:afterSettle', run);   // 기간 전환(부분 갱신) 후 — settle 완료 시점
+      document.addEventListener('htmx:afterSwap', run);     // 백업
     })();
   </script>
 </head>

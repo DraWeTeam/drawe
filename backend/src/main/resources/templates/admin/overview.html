@@ -125,6 +125,7 @@
         if (er.length) D.hbars('ov-errors', er.map(function (x) { return x.errorClass; }), er.map(function (x) { return x.count; }), { color: D.tokens.danger });
         if (lat.n > 0)  D.bars('ov-latency', ['평균', 'P50', 'P95', '최대'], [lat.avg, lat.p50, lat.p95, lat.max], { label: 'ms' });
       };
+      window.__adminRun && window.__adminRun();
     })();
   </script>
 </main>
