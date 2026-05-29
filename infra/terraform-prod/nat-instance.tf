@@ -131,7 +131,7 @@ resource "aws_launch_template" "nat_a" {
     delete_on_termination       = true
   }
 
-  user_data = base64encode(<<-USERDATA
+  user_data = base64encode(replace(<<-USERDATA
     #!/bin/bash
     cat > /etc/fck-nat.conf <<EOF
     eip_id=${aws_eip.nat_a.id}
@@ -139,7 +139,7 @@ resource "aws_launch_template" "nat_a" {
     EOF
     systemctl restart fck-nat.service
   USERDATA
-  )
+  , "\r\n", "\n"))
 
   monitoring { enabled = true }
 
@@ -173,7 +173,7 @@ resource "aws_launch_template" "nat_c" {
     delete_on_termination       = true
   }
 
-  user_data = base64encode(<<-USERDATA
+  user_data = base64encode(replace(<<-USERDATA
     #!/bin/bash
     cat > /etc/fck-nat.conf <<EOF
     eip_id=${aws_eip.nat_c.id}
@@ -181,7 +181,7 @@ resource "aws_launch_template" "nat_c" {
     EOF
     systemctl restart fck-nat.service
   USERDATA
-  )
+  , "\r\n", "\n"))
 
   monitoring { enabled = true }
 

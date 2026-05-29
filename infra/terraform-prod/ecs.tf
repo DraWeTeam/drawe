@@ -57,14 +57,14 @@ resource "aws_launch_template" "ecs" {
 
   vpc_security_group_ids = [aws_security_group.ecs_instance.id]
 
-  user_data = base64encode(<<-USERDATA
+  user_data = base64encode(replace(<<-USERDATA
     #!/bin/bash
     echo "ECS_CLUSTER=${aws_ecs_cluster.main.name}" >> /etc/ecs/ecs.config
     echo "ECS_ENABLE_TASK_ENI=true" >> /etc/ecs/ecs.config
     echo "ECS_AWSVPC_BLOCK_IMDS=true" >> /etc/ecs/ecs.config
     echo "ECS_ENABLE_CONTAINER_METADATA=true" >> /etc/ecs/ecs.config
   USERDATA
-  )
+  , "\r\n", "\n"))
 
   monitoring { enabled = true }
 
