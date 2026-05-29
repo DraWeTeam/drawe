@@ -105,15 +105,8 @@ otelcol.processor.attributes "redact" {
   action = "delete"
 }
 
-  // 2) 사용자 ID 는 해시 (디버깅용 상관관계 유지)
-  action {
-  key    = "user.id"
-  action = "hash"
-}
-  action {
-  key    = "session.id"
-  action = "hash"
-}
+// user.id 는 앱(OtelCorrelationFilter)에서 이미 해시 → 그대로 통과
+// session.id 는 opaque(비PII) → 비해시(admin 딥링크가 변환 없이 동작)
 
   // 3) 요청/응답 본문 통째로 → 삭제
   action {

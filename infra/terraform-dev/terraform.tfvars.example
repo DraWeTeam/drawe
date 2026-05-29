@@ -33,6 +33,12 @@ cloudflare_zone_id = "your-zone-id-from-cloudflare-overview"
 # 평일 13~18 KST 만 운영. 그 외 시간 NAT/RDS/Valkey/ECS 모두 stop.
 enable_cost_schedule = true
 
+# ── Grafana(:3000) 접근 허용 IP (팀/사무실 공인 IP) ───────
+# 평문 HTTP 대시보드라 절대 0.0.0.0/0 으로 열지 말 것.
+# 비워두면(기본값 []) ALB SG 에 3000 인그레스가 생성되지 않아 외부 접근이 전면 차단됨.
+# 본인 공인 IP 확인:  curl -s https://checkip.amazonaws.com
+# grafana_allowed_cidrs = ["203.0.113.10/32", "198.51.100.0/24"]
+
 # ── GitHub Actions OIDC ───────────────────────────────────
 # CI/CD 자동 배포용. 비워두면 OIDC role 미생성 (수동 배포만 가능).
 # prod terraform-prod 는 dev 가 만든 OIDC provider 를 data source 로 참조.

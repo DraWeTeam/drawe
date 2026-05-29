@@ -122,6 +122,17 @@ variable "otel_sampling_rate" {
   default     = "10"
 }
 
+# Grafana(:3000) 인바운드를 허용할 CIDR 목록 (팀/사무실 공인 IP).
+# - 빈 리스트(기본값)면 ALB SG 에 3000 인그레스를 생성하지 않음 → 외부에서 Grafana 접근 불가(가장 안전).
+# - 운영 대시보드는 평문 HTTP 이므로 절대 0.0.0.0/0 으로 열지 말 것.
+# - 예: ["203.0.113.10/32", "198.51.100.0/24"]  (집/사무실 고정 IP, /32 권장)
+# - 본인 공인 IP 확인:  curl -s https://checkip.amazonaws.com
+variable "grafana_allowed_cidrs" {
+  description = "Grafana(:3000) 인바운드를 허용할 CIDR 목록. 비우면 외부 접근 전면 차단."
+  type        = list(string)
+  default     = []
+}
+
 # RDS
 variable "db_instance_class" {
   default = "db.t4g.micro"

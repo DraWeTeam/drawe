@@ -19,12 +19,19 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    description = "Grafana UI (dev)"
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  # Grafana UI (:3000) — 팀/사무실 IP 화이트리스트만 허용.
+  # var.grafana_allowed_cidrs 가 비어있으면 이 인그레스 자체가 생성되지 않아
+  # 외부에서 Grafana 에 접근할 수 없음(가장 안전한 기본값).
+  # 평문 HTTP 대시보드이므로 절대 0.0.0.0/0 으로 열지 말 것.
+  dynamic "ingress" {
+    for_each = length(var.grafana_allowed_cidrs) > 0 ? [1] : []
+    content {
+      description = "Grafana UI (dev) - team IP allowlist only"
+      from_port   = 3000
+      to_port     = 3000
+      protocol    = "tcp"
+      cidr_blocks = var.grafana_allowed_cidrs
+    }
   }
 
   egress {

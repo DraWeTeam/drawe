@@ -64,7 +64,7 @@ resource "aws_ssm_parameter" "alloy_config" {
 resource "aws_ssm_parameter" "alloy_daemon_config" {
   name  = "/${var.project}/${var.env}/alloy-daemon-config-b64"
   type  = "SecureString"
-  value = base64gzip(file("${path.module}/../configs/alloy-daemon.alloy"))
+  value = base64gzip(file("${path.module}/../configs/alloy-daemon-prod.alloy"))
   tier  = "Standard"
 }
 
