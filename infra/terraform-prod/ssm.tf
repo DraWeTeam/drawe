@@ -149,3 +149,12 @@ resource "aws_ssm_parameter" "bria_base_url" {
   tags  = { Name = "${local.name_prefix}-bria-base-url" }
   lifecycle { ignore_changes = [value] }
 }
+
+# ── Admin 콘솔 ───────────────────────────────────────────
+resource "aws_ssm_parameter" "admin_password" {
+  name  = "/${var.project}/${var.env}/admin-password"
+  type  = "SecureString"
+  value = "CHANGE_ME_admin_password"
+  tags  = { Name = "${local.name_prefix}-admin-password" }
+  lifecycle { ignore_changes = [value] }
+}
