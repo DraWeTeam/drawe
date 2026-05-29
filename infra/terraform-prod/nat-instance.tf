@@ -202,9 +202,9 @@ resource "aws_launch_template" "nat_c" {
 resource "aws_autoscaling_group" "nat_a" {
   name_prefix         = "${local.name_prefix}-nat-a-"
   vpc_zone_identifier = [aws_subnet.public_a.id]
-  min_size            = 1
-  max_size            = 1
-  desired_capacity    = 1
+  min_size            = var.prod_enabled ? 1 : 0
+  max_size            = var.prod_enabled ? 1 : 0
+  desired_capacity    = var.prod_enabled ? 1 : 0
 
   health_check_type         = "EC2"
   health_check_grace_period = 60
@@ -226,9 +226,9 @@ resource "aws_autoscaling_group" "nat_a" {
 resource "aws_autoscaling_group" "nat_c" {
   name_prefix         = "${local.name_prefix}-nat-c-"
   vpc_zone_identifier = [aws_subnet.public_c.id]
-  min_size            = 1
-  max_size            = 1
-  desired_capacity    = 1
+  min_size            = var.prod_enabled ? 1 : 0
+  max_size            = var.prod_enabled ? 1 : 0
+  desired_capacity    = var.prod_enabled ? 1 : 0
 
   health_check_type         = "EC2"
   health_check_grace_period = 60

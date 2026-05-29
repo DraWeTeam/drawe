@@ -61,6 +61,18 @@ variable "ecs_desired_instances" {
   default     = 2
 }
 
+# ════════════════════════════════════════════════════════
+# prod 스택 on/off 토글
+#   false = ECS/NAT 인스턴스 + 서비스 태스크를 0 으로 내려 비용 절감
+#   true  = 정상 가동
+#   (RDS stop/start, ElastiCache 는 Terraform 으로 토글 불가 - 별도 수동)
+# ════════════════════════════════════════════════════════
+variable "prod_enabled" {
+  description = "prod 스택 가동 토글. false 면 ECS/NAT 0, 서비스 0 태스크"
+  type        = bool
+  default     = true
+}
+
 # ── Backend ──
 variable "backend_cpu"           { default = 1024 }
 variable "backend_memory"        { default = 2048 }

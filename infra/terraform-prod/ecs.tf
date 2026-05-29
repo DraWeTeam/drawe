@@ -90,8 +90,8 @@ resource "aws_launch_template" "ecs" {
 resource "aws_autoscaling_group" "ecs" {
   name_prefix         = "${local.name_prefix}-ecs-"
   vpc_zone_identifier = [aws_subnet.private_a.id, aws_subnet.private_c.id]
-  min_size            = var.ecs_desired_instances
-  max_size            = 6
+  min_size            = var.prod_enabled ? var.ecs_desired_instances : 0
+  max_size            = var.prod_enabled ? 6 : 0
   desired_capacity    = var.ecs_desired_instances
 
   capacity_rebalance = true
