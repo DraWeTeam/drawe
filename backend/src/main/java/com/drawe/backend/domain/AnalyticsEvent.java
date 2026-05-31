@@ -51,6 +51,14 @@ public class AnalyticsEvent {
   @Column(name = "session_id", length = 64)
   private String sessionId;
 
+  /**
+   * 분산 추적 ID (W3C trace context, 32 hex). OTel Agent가 요청 경계에서 MDC에 주입한 값을 적재 시 함께 저장한다 —
+   * admin(analytics) ↔ Tempo/Loki 조인 키. 요청 컨텍스트 밖(스케줄러 · {@code @Async} AFTER_COMMIT)이나 Agent 미적용
+   * 구간에서는 null.
+   */
+  @Column(name = "trace_id", length = 32)
+  private String traceId;
+
   /** 이벤트 타입. 예: chat_start, search_executed, guide_completed. */
   @Column(name = "event_type", nullable = false, length = 50)
   private String eventType;
