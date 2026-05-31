@@ -15,6 +15,9 @@ import org.springframework.data.repository.query.Param;
  *
  * <p>마찰(friction) 쿼리는 {@code search_logs}가 아니라 <b>{@code analytics_events}</b>를 본다 — 세션 시퀀스가 필요하기
  * 때문(search_logs엔 session_id가 없음). 네이티브 쿼리는 엔티티 테이블에 묶이지 않으므로 같은 리포지토리에서 다른 테이블을 조회해도 된다.
+ *
+ * <p>{@code backlog}/{@code demand}는 페이지네이션 + 검색({@code q}) 지원 — {@code extracted_keywords} 부분일치.
+ * 빈 q는 모두 통과({@code :q = ''} 분기).
  */
 public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
 
@@ -31,15 +34,6 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
       nativeQuery = true)
   KpiRow kpi(@Param("since") Instant since);
 
-  /**
-   * 검색 마찰 코어 — 세션별 검색 횟수/성공 횟수를 한 번 집계한 뒤, 검색세션·재검색세션·루프세션을 센다.
-   *
-   * <ul>
-   *   <li>검색 = {@code search_executed} 또는 {@code search_blocked}
-   *   <li>재검색 세션 = 검색 2회 이상
-   *   <li>루프 세션 = 검색 3회 이상 그리고 성공 0
-   * </ul>
-   */
   @Query(
       value =
           "SELECT "
@@ -59,12 +53,6 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
       nativeQuery = true)
   FrictionCoreRow frictionCore(@Param("since") Instant since);
 
-  /**
-   * 차단 세션 + 차단 후 멈춤(근사 이탈) — 세션별로 (차단을 겪었나) + (마지막 이벤트가 무엇인가)를 구한 뒤 집계.
-   *
-   * <p>마지막 이벤트는 {@code GROUP_CONCAT(... ORDER BY created_at DESC)}의 첫 토큰으로 구한다(윈도우 함수 없이). 한 세션 이벤트
-   * 수는 적어 {@code group_concat_max_len} 한도에 닿지 않는다.
-   */
   @Query(
       value =
           "SELECT "
@@ -83,7 +71,9 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
       nativeQuery = true)
   BlockAbandonRow blockAbandon(@Param("since") Instant since);
 
-  /** 시드 보강 백로그 — 차단/저품질 검색을 키워드별 빈도순. */
+  // ── 시드 보강 백로그 ──
+
+  /** 차단/저품질 검색을 키워드별 빈도순 + 검색(q) + 페이지네이션. */
   @Query(
       value =
           "SELECT COALESCE(extracted_keywords, '(없음)') AS keyword, "
@@ -92,12 +82,33 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
               + "       DATE_FORMAT(MAX(created_at), '%Y-%m-%d %H:%i') AS lastAt "
               + "FROM search_logs "
               + "WHERE created_at >= :since AND (result_count = 0 OR avg_score < 0.2) "
+              + "  AND (:q = '' OR extracted_keywords LIKE CONCAT('%', :q, '%')) "
               + "GROUP BY extracted_keywords "
-              + "ORDER BY cnt DESC LIMIT 30",
+              + "ORDER BY cnt DESC "
+              + "LIMIT :size OFFSET :offset",
       nativeQuery = true)
-  List<BacklogProj> backlog(@Param("since") Instant since);
+  List<BacklogProj> backlog(
+      @Param("since") Instant since,
+      @Param("q") String q,
+      @Param("size") int size,
+      @Param("offset") int offset);
 
-  /** 검색 수요 TOP — 전체 키워드 빈도 + 품질. */
+  /** 백로그 총 키워드 수(필터 적용 후) — 페이지네이션용. */
+  @Query(
+      value =
+          "SELECT COUNT(*) FROM ( "
+              + "  SELECT extracted_keywords "
+              + "  FROM search_logs "
+              + "  WHERE created_at >= :since AND (result_count = 0 OR avg_score < 0.2) "
+              + "    AND (:q = '' OR extracted_keywords LIKE CONCAT('%', :q, '%')) "
+              + "  GROUP BY extracted_keywords "
+              + ") c",
+      nativeQuery = true)
+  long backlogCount(@Param("since") Instant since, @Param("q") String q);
+
+  // ── 검색 수요 TOP ──
+
+  /** 전체 키워드 빈도 + 품질 + 검색(q) + 페이지네이션. */
   @Query(
       value =
           "SELECT COALESCE(extracted_keywords, '(없음)') AS keyword, "
@@ -108,10 +119,29 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
               + "           AS blockedCnt "
               + "FROM search_logs "
               + "WHERE created_at >= :since "
+              + "  AND (:q = '' OR extracted_keywords LIKE CONCAT('%', :q, '%')) "
               + "GROUP BY extracted_keywords "
-              + "ORDER BY cnt DESC LIMIT 30",
+              + "ORDER BY cnt DESC "
+              + "LIMIT :size OFFSET :offset",
       nativeQuery = true)
-  List<DemandProj> demand(@Param("since") Instant since);
+  List<DemandProj> demand(
+      @Param("since") Instant since,
+      @Param("q") String q,
+      @Param("size") int size,
+      @Param("offset") int offset);
+
+  /** 수요 총 키워드 수(필터 적용 후). */
+  @Query(
+      value =
+          "SELECT COUNT(*) FROM ( "
+              + "  SELECT extracted_keywords "
+              + "  FROM search_logs "
+              + "  WHERE created_at >= :since "
+              + "    AND (:q = '' OR extracted_keywords LIKE CONCAT('%', :q, '%')) "
+              + "  GROUP BY extracted_keywords "
+              + ") c",
+      nativeQuery = true)
+  long demandCount(@Param("since") Instant since, @Param("q") String q);
 
   /** SUM/COUNT은 드라이버가 BigDecimal/Long 등으로 줄 수 있어 Number로 받는다. */
   interface KpiRow {

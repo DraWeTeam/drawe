@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · 태그 관심도')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('tag')}"></header>
+
+<main class="wrap" id="admin-content">
+  <div class="pagehead">
+    <div>
+      <h1>태그별 레퍼런스 관심도</h1>
+      <div class="meta">
+        기법·주제·분위기 태그별 노출·클릭·좋아요·핀 ·
+        최근 <span th:text="${hours}">2160</span>시간 ·
+        기준 <span th:text="${view.generatedAtText()}">-</span>
+      </div>
+      <div class="meta"
+           th:if="${!view.clicksAvailable()}"
+           style="margin-top:6px; color:var(--warn);">
+        ※ GA4 클릭 미연동 — 클릭/CTR 컬럼은 0입니다 (admin.ga4.property-id 설정 시 채워짐)
+      </div>
+    </div>
+    <div class="ranges"
+         hx-boost="true"
+         hx-target="#admin-content"
+         hx-select="#admin-content"
+         hx-swap="outerHTML">
+      <a th:href="@{/admin/tag-engagement(hours=168)}"  th:classappend="${hours == 168}  ? 'active'">7d</a>
+      <a th:href="@{/admin/tag-engagement(hours=720)}"  th:classappend="${hours == 720}  ? 'active'">30d</a>
+      <a th:href="@{/admin/tag-engagement(hours=2160)}" th:classappend="${hours == 2160} ? 'active'">90d</a>
+    </div>
+  </div>
+
+  <section class="panel" th:each="axis : ${view.axes()}">
+    <h2 th:switch="${axis.axis()}">
+      <span th:case="'technique'">기법 <span class="tag">technique</span></span>
+      <span th:case="'subject'">주제 <span class="tag">subject</span></span>
+      <span th:case="'mood'">분위기 <span class="tag">mood</span></span>
+      <span th:case="*" th:text="${axis.axis()}"></span>
+    </h2>
+    <div class="meta" style="margin:-4px 0 12px;">
+      이 태그 값을 가진 이미지들의 engagement 합계 (관심도 점수 내림차순)
+    </div>
+
+    <table th:if="${!axis.rows().isEmpty()}">
+      <thead>
+        <tr>
+          <th>태그</th>
+          <th class="num">이미지</th>
+          <th class="num">노출</th>
+          <th class="num">클릭</th>
+          <th class="num">좋아요</th>
+          <th class="num">핀</th>
+          <th class="num">CTR</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="r : ${axis.rows()}">
+          <td th:text="${r.value()}">-</td>
+          <td class="num" th:text="${r.images()}">0</td>
+          <td class="num" th:text="${r.shown()}">0</td>
+          <td class="num" th:text="${r.clicks()}">0</td>
+          <td class="num" th:text="${r.likes()}">0</td>
+          <td class="num" th:text="${r.pins()}">0</td>
+          <td class="num meta"
+              th:text="${r.ctr() == null ? '—' : #numbers.formatPercent(r.ctr(),1,1)}">—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="empty" th:if="${axis.rows().isEmpty()}">
+      이 축엔 집계된 태그가 없어요
+    </div>
+  </section>
+
+  <div class="empty" th:if="${view.axes().isEmpty()}">
+    이 기간엔 집계할 태그 데이터가 없어요
+  </div>
+</main>
+</body>
+</html>

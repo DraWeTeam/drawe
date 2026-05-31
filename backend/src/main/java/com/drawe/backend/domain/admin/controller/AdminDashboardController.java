@@ -6,6 +6,7 @@ import com.drawe.backend.domain.admin.service.AdminFlowService;
 import com.drawe.backend.domain.admin.service.AdminFunnelService;
 import com.drawe.backend.domain.admin.service.AdminSearchService;
 import com.drawe.backend.domain.admin.service.AdminTranslationService;
+import com.drawe.backend.domain.admin.service.AdminTagEngagementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -31,7 +32,7 @@ public class AdminDashboardController {
   private final AdminTranslationService translationService;
   private final AdminFlowService flowService;
   private final AdminCostService costService;
-
+  private final AdminTagEngagementService tagEngagementService;
   @GetMapping("/login")
   public String login() {
     return "admin/login";
@@ -62,19 +63,31 @@ public class AdminDashboardController {
 
   /** Engagement Funnel + 추천 적합도 요약 (②). */
   @GetMapping("/funnel")
-  public String funnel(@RequestParam(name = "hours", defaultValue = "168") int hours, Model model) {
+  public String funnel(
+      @RequestParam(name = "hours", defaultValue = "168") int hours,
+      @RequestParam(name = "page",  defaultValue = "1")   int page,
+      @RequestParam(name = "size",  defaultValue = "15")  int size,
+      @RequestParam(name = "q",     required = false)     String q,
+      Model model) {
     int safeHours = clampHours(hours);
     model.addAttribute("summary", funnelService.buildSummary(safeHours));
-    model.addAttribute("rows", funnelService.buildFunnel(safeHours));
-    model.addAttribute("hours", safeHours);
+    model.addAttribute("funnel",  funnelService.buildFunnel(safeHours, page, size, q));
+    model.addAttribute("hours",   safeHours);
     return "admin/funnel";
   }
 
   @GetMapping("/search-quality")
   public String searchQuality(
-      @RequestParam(name = "hours", defaultValue = "168") int hours, Model model) {
+      @RequestParam(name = "hours", defaultValue = "168") int hours,
+      @RequestParam(name = "bpage", defaultValue = "1")   int bp,
+      @RequestParam(name = "bsize", defaultValue = "30")  int bs,
+      @RequestParam(name = "bq",    required = false)     String bq,
+      @RequestParam(name = "dpage", defaultValue = "1")   int dp,
+      @RequestParam(name = "dsize", defaultValue = "30")  int ds,
+      @RequestParam(name = "dq",    required = false)     String dq,
+      Model model) {
     int safeHours = clampHours(hours);
-    model.addAttribute("view", searchService.build(safeHours));
+    model.addAttribute("view", searchService.build(safeHours, bp, bs, bq, dp, ds, dq));
     model.addAttribute("hours", safeHours);
     return "admin/search-quality";
   }
@@ -95,6 +108,15 @@ public class AdminDashboardController {
     model.addAttribute("view", costService.build(safeHours));
     model.addAttribute("hours", safeHours);
     return "admin/cost";
+  }
+
+  @GetMapping("/tag-engagement")
+  public String tagEngagement(
+      @RequestParam(name = "hours", defaultValue = "2160") int hours, Model model) {
+    int safeHours = clampHours(hours);
+    model.addAttribute("view", tagEngagementService.build(safeHours));
+    model.addAttribute("hours", safeHours);
+    return "admin/tag-engagement";
   }
 
   private static int clampHours(int hours) {

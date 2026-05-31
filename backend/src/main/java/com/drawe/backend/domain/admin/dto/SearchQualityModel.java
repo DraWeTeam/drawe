@@ -9,6 +9,8 @@ import java.util.List;
  * analytics_events} 세션 시퀀스 집계 — "검색이 *쉽게 끝났나*"를 본다(재검색/루프/차단 후 멈춤).
  *
  * <p>PII 원칙: {@code original_message}는 어디서도 조회/표시하지 않는다 — 키워드 그룹 집계만.
+ *
+ * <p>Backlog/Demand는 {@link AdminPage}로 감싸 페이지네이션·검색 상태를 같이 들고 다닌다.
  */
 public final class SearchQualityModel {
 
@@ -53,7 +55,10 @@ public final class SearchQualityModel {
   public record DemandRow(
       String keyword, long count, Double avgResultCount, Double avgScore, long blockedCount) {}
 
-  /** 화면에 한 번에 넘기는 묶음. */
+  /** 화면에 한 번에 넘기는 묶음. backlog/demand 는 페이지 객체. */
   public record View(
-      Kpi kpi, Friction friction, List<BacklogRow> backlog, List<DemandRow> demand) {}
+      Kpi kpi,
+      Friction friction,
+      AdminPage<BacklogRow> backlog,
+      AdminPage<DemandRow> demand) {}
 }

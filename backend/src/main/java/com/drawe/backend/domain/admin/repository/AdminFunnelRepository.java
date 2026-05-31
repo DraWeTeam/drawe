@@ -10,13 +10,12 @@ import org.springframework.data.repository.query.Param;
 /**
  * Engagement Funnel 집계. (읽기 전용)
  *
- * <p>노출(shown)은 {@code llm_messages.references_json}(ReferenceItem 배열)의 각
- * {@code id}를 {@code JSON_TABLE}로 풀어 image_id별로 센다. 좋아요/싫어요는
- * {@code image_feedback}, 저장은 {@code project_references}. 노출 기준 anchor(LEFT JOIN).
+ * <p>노출(shown)은 {@code llm_messages.references_json}(ReferenceItem 배열)의 각 {@code id}를 {@code
+ * JSON_TABLE}로 풀어 image_id별로 센다. 좋아요/싫어요는 {@code image_feedback}, 저장은 {@code project_references}.
+ * 노출 기준 anchor(LEFT JOIN).
  *
- * <p>write 경로(ChatLlmService)가 {@code references_json}만 채우고
- * {@code reference_ids}는 비워두므로(NULL), 노출 소스를 references_json 으로 둔다.
- * 덕분에 기존 데이터까지 즉시 집계된다. reference_ids 는 미사용.
+ * <p>검색({@code q})은 image_id 정확일치, 작가명/태그(technique/subject/mood) LIKE 부분일치 OR. 빈 문자열이면 모두 통과.
+ * 페이지네이션: {@code LIMIT :size OFFSET :offset} (page는 1-based, 서비스에서 변환).
  */
 public interface AdminFunnelRepository extends JpaRepository<LlmMessage, Long> {
 
@@ -57,12 +56,49 @@ public interface AdminFunnelRepository extends JpaRepository<LlmMessage, Long> {
               + ") v ON v.image_id = s.image_id "
               + "LEFT JOIN images i           ON i.id = s.image_id "
               + "LEFT JOIN image_drawe_tags t ON t.image_id = s.image_id "
+              + "WHERE (:q = '' "
+              + "       OR CAST(s.image_id AS CHAR) = :q "
+              + "       OR i.photographer_name LIKE CONCAT('%', :q, '%') "
+              + "       OR t.technique         LIKE CONCAT('%', :q, '%') "
+              + "       OR t.subject           LIKE CONCAT('%', :q, '%') "
+              + "       OR t.mood              LIKE CONCAT('%', :q, '%')) "
               + "ORDER BY s.shown DESC, saves DESC "
-              + "LIMIT 100",
+              + "LIMIT :size OFFSET :offset",
       nativeQuery = true)
-  List<FunnelProjection> funnel(@Param("since") Instant since);
+  List<FunnelProjection> funnel(
+      @Param("since") Instant since,
+      @Param("q") String q,
+      @Param("size") int size,
+      @Param("offset") int offset);
 
-  /** 윈도우 내 ref 노출 총합 (모든 references_json 항목 수). */
+  /** 필터(q) 적용 후 총 row 수 (distinct image_id 기준). 페이지네이션용. */
+  @Query(
+      value =
+          "SELECT COUNT(*) FROM ( "
+              + "   SELECT s.image_id "
+              + "   FROM ( "
+              + "      SELECT jt.image_id AS image_id "
+              + "      FROM llm_messages m, "
+              + "           JSON_TABLE(m.references_json, '$[*]' "
+              + "                      COLUMNS (image_id BIGINT PATH '$.id')) jt "
+              + "      WHERE m.references_json IS NOT NULL "
+              + "        AND m.role = 'ASSISTANT' "
+              + "        AND m.created_at >= :since "
+              + "      GROUP BY jt.image_id "
+              + "   ) s "
+              + "   LEFT JOIN images i           ON i.id = s.image_id "
+              + "   LEFT JOIN image_drawe_tags t ON t.image_id = s.image_id "
+              + "   WHERE (:q = '' "
+              + "          OR CAST(s.image_id AS CHAR) = :q "
+              + "          OR i.photographer_name LIKE CONCAT('%', :q, '%') "
+              + "          OR t.technique         LIKE CONCAT('%', :q, '%') "
+              + "          OR t.subject           LIKE CONCAT('%', :q, '%') "
+              + "          OR t.mood              LIKE CONCAT('%', :q, '%')) "
+              + ") c",
+      nativeQuery = true)
+  long funnelCount(@Param("since") Instant since, @Param("q") String q);
+
+  /** 윈도우 내 ref 노출 총합 (모든 references_json 항목 수). 요약 카드용. */
   @Query(
       value =
           "SELECT COUNT(*) "

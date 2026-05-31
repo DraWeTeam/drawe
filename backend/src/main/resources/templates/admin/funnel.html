@@ -17,7 +17,7 @@
     </div>
   </div>
 
-  <!-- 추천 적합도 요약 (②) -->
+  <!-- 추천 적합도 요약 (윈도우 전체 기준 — 검색/페이지 영향 없음) -->
   <section class="grid" th:with="s=${summary}">
     <div class="card">
       <div class="label">ref 노출</div>
@@ -69,7 +69,32 @@
   </section>
 
   <section class="panel">
-    <table th:if="${!rows.isEmpty()}">
+    <!-- 검색 + 총건수 -->
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+      <form action="/admin/funnel" method="get"
+            hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML"
+            style="display:flex; gap:8px; flex:1; min-width:260px;">
+        <input type="hidden" name="hours" th:value="${hours}"/>
+        <input type="hidden" name="size"  th:value="${funnel.size()}"/>
+        <input type="text" name="q" th:value="${funnel.q()}"
+               placeholder="이미지 ID / 작가명 / 태그 (예: 22092, watercolor, person)"
+               style="flex:1; padding:8px 12px; border:1px solid var(--line); border-radius:8px;
+                      background:var(--bg); color:var(--ink); font-size:14px;"/>
+        <button type="submit"
+                style="padding:8px 16px; border:none; border-radius:8px;
+                       background:var(--accent); color:white; cursor:pointer; font-weight:600;">검색</button>
+        <a th:if="${!#strings.isEmpty(funnel.q())}"
+           th:href="@{/admin/funnel(hours=${hours}, size=${funnel.size()})}"
+           style="padding:8px 12px; color:var(--muted); align-self:center; text-decoration:none;">지우기</a>
+      </form>
+      <div class="meta" style="white-space:nowrap;">
+        총 <b th:text="${funnel.total()}">0</b>건
+        <span th:if="${!#strings.isEmpty(funnel.q())}" style="color:var(--accent);"
+              th:text="' · 검색: ' + ${funnel.q()}"></span>
+      </div>
+    </div>
+
+    <table th:if="${!funnel.rows().isEmpty()}">
       <thead>
         <tr>
           <th style="width:52px;"></th>
@@ -83,17 +108,24 @@
         </tr>
       </thead>
       <tbody>
-        <tr th:each="row : ${rows}">
+        <tr th:each="row : ${funnel.rows()}">
           <td>
-            <img th:if="${row.url() != null}" th:src="${row.url()}" alt="" loading="lazy"
+            <!-- AI 이미지는 /images/{id} 가 소유자 본인만 접근 가능해서 어드민에선 못 봄 → 플레이스홀더 -->
+            <img th:if="${row.url() != null and !#strings.equalsIgnoreCase(row.source(), 'AI')}"
+                 th:src="${row.url()}" alt="" loading="lazy"
                  style="width:44px; height:44px; object-fit:cover; border-radius:6px; display:block;"/>
+            <div th:if="${#strings.equalsIgnoreCase(row.source(), 'AI')}"
+                 style="width:44px; height:44px; border-radius:6px; background:var(--accent-soft);
+                        color:var(--accent); display:flex; align-items:center; justify-content:center;
+                        font-size:11px; font-weight:700; letter-spacing:0.5px;">AI</div>
           </td>
           <td>
             <span class="mono" th:text="'#' + ${row.imageId()}">#0</span>
             <span class="tag" th:if="${row.source() != null}" th:text="${row.source()}" style="margin-left:6px;">AI</span>
             <div class="meta" style="font-size:12.5px;">
-              <span th:text="${row.photographer() != null ? row.photographer() : ''}"></span>
-              <span th:if="${!#strings.isEmpty(row.tagSummary())}" th:text="' · ' + ${row.tagSummary()}"></span>
+              <span th:if="${row.photographer() != null}" th:text="${row.photographer()}"></span>
+              <span th:if="${row.photographer() != null and !#strings.isEmpty(row.tagSummary())}"> · </span>
+              <span th:if="${!#strings.isEmpty(row.tagSummary())}" th:text="${row.tagSummary()}"></span>
             </div>
           </td>
           <td class="num" th:text="${row.shown()}">0</td>
@@ -114,9 +146,41 @@
         </tr>
       </tbody>
     </table>
-    <div class="empty" th:if="${rows.isEmpty()}">
-      이 기간에 노출된 ref가 없어요. (채팅에서 ref가 추천되면 여기 쌓여요. 윈도우를 7d/30d로 넓혀보세요.)
+
+    <div class="empty" th:if="${funnel.rows().isEmpty()}">
+      <span th:if="${#strings.isEmpty(funnel.q())}">
+        이 기간에 노출된 ref가 없어요. (채팅에서 ref가 추천되면 여기 쌓여요. 윈도우를 7d/30d로 넓혀보세요.)
+      </span>
+      <span th:if="${!#strings.isEmpty(funnel.q())}">
+        '<b th:text="${funnel.q()}">-</b>' 검색 결과가 없어요. 다른 키워드를 시도해 보세요.
+      </span>
     </div>
+
+    <!-- 페이지네이션 -->
+    <nav th:if="${funnel.totalPages() > 1}"
+         hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML"
+         style="display:flex; justify-content:center; gap:16px; align-items:center;
+                margin-top:18px; padding-top:14px; border-top:1px solid var(--line-soft);">
+      <a th:if="${funnel.hasPrev()}"
+         th:href="@{/admin/funnel(hours=${hours}, q=${funnel.q()}, page=${funnel.prevPage()}, size=${funnel.size()})}"
+         style="padding:6px 14px; border:1px solid var(--line); border-radius:8px;
+                color:var(--ink); text-decoration:none;">‹ 이전</a>
+      <span th:unless="${funnel.hasPrev()}"
+            style="padding:6px 14px; border:1px solid var(--line-soft); border-radius:8px;
+                   color:var(--line-strong);">‹ 이전</span>
+
+      <span class="meta">
+        <b th:text="${funnel.page()}">1</b> / <span th:text="${funnel.totalPages()}">1</span>
+      </span>
+
+      <a th:if="${funnel.hasNext()}"
+         th:href="@{/admin/funnel(hours=${hours}, q=${funnel.q()}, page=${funnel.nextPage()}, size=${funnel.size()})}"
+         style="padding:6px 14px; border:1px solid var(--line); border-radius:8px;
+                color:var(--ink); text-decoration:none;">다음 ›</a>
+      <span th:unless="${funnel.hasNext()}"
+            style="padding:6px 14px; border:1px solid var(--line-soft); border-radius:8px;
+                   color:var(--line-strong);">다음 ›</span>
+    </nav>
   </section>
 
   <script th:inline="javascript">

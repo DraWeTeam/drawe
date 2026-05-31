@@ -1,5 +1,6 @@
 package com.drawe.backend.domain.admin.service;
 
+import com.drawe.backend.domain.admin.dto.FunnelPage;
 import com.drawe.backend.domain.admin.dto.FunnelRow;
 import com.drawe.backend.domain.admin.dto.RelevanceSummary;
 import com.drawe.backend.domain.admin.repository.AdminAnalyticsRepository;
@@ -19,14 +20,24 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminFunnelService {
 
+  private static final int MIN_SIZE = 10;
+  private static final int MAX_SIZE = 200;
+
   private final AdminFunnelRepository repo;
   private final AdminAnalyticsRepository analyticsRepo; // decision_keep/skip 카운트 재사용
 
+  /** 페이지네이션 + 검색 지원. page는 1-based. q null/blank → 빈 문자열로 정규화. */
   @Transactional(readOnly = true)
-  public List<FunnelRow> buildFunnel(int windowHours) {
+  public FunnelPage buildFunnel(int windowHours, int page, int size, String q) {
     Instant since = Instant.now().minus(Duration.ofHours(windowHours));
+    int safePage = Math.max(1, page);
+    int safeSize = Math.min(Math.max(size, MIN_SIZE), MAX_SIZE);
+    String safeQ = q == null ? "" : q.trim();
+    int offset = (safePage - 1) * safeSize;
+
+    long total = repo.funnelCount(since, safeQ);
     List<FunnelRow> rows = new ArrayList<>();
-    for (FunnelProjection p : repo.funnel(since)) {
+    for (FunnelProjection p : repo.funnel(since, safeQ, safeSize, offset)) {
       long shown = p.getShown();
       rows.add(
           new FunnelRow(
@@ -43,7 +54,7 @@ public class AdminFunnelService {
               p.getPhotographer(),
               tagSummary(p)));
     }
-    return rows;
+    return new FunnelPage(rows, total, safePage, safeSize, safeQ);
   }
 
   @Transactional(readOnly = true)
