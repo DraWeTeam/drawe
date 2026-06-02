@@ -22,8 +22,8 @@ npm run dev               # http://localhost:5173
 
 ## 환경변수
 
-| 변수 | 설명 | 로컬 값 |
-| --- | --- | --- |
+| 변수           | 설명                  | 로컬 값                 |
+| -------------- | --------------------- | ----------------------- |
 | `VITE_API_URL` | 백엔드 API 베이스 URL | `http://localhost:8080` |
 
 그 외 키는 `.env.example` 참고.
@@ -32,10 +32,10 @@ npm run dev               # http://localhost:5173
 
 `build:cf` 스크립트가 **브랜치별 API 엔드포인트를 자동 선택**합니다.
 
-| 브랜치 | API 엔드포인트 |
-| --- | --- |
-| `main` | `https://api.drawe.xyz` (prod) |
-| 그 외 | `https://api-dev.drawe.xyz` (dev) |
+| 브랜치 | API 엔드포인트                    |
+| ------ | --------------------------------- |
+| `main` | `https://api.drawe.xyz` (prod)    |
+| 그 외  | `https://api-dev.drawe.xyz` (dev) |
 
 ```bash
 npm run build:cf          # → dist/

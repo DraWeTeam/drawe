@@ -502,7 +502,7 @@ const ChatPage = () => {
   };
 
   const handleCardClick = (reference, position) => {
-     track("prompt_reference_viewed", {
+    track("prompt_reference_viewed", {
       reference_id: reference.id,
       reference_tags: reference?.tags?.join(",") || "",
       reference_position: position,
@@ -555,7 +555,7 @@ const ChatPage = () => {
 
         // ↓ 핀 적용 트래킹
         const refIdx = references.findIndex((r) => r.id === imageId);
-        const ref = references.find((r) => r.id === imageId);   // ← 추가 (태그 꺼내려고)
+        const ref = references.find((r) => r.id === imageId); // ← 추가 (태그 꺼내려고)
         const userMessageCount = messages.filter(
           (m) => m.role === "user",
         ).length;
@@ -568,7 +568,7 @@ const ChatPage = () => {
         track("prompt_reference_pinned", {
           reference_id: imageId,
           reference_position: refIdx >= 0 ? refIdx + 1 : 0,
-          reference_tags: ref?.tags?.join(",") || "",   // ← 추가
+          reference_tags: ref?.tags?.join(",") || "", // ← 추가
           feedback_type: "none", // 카드 안에서 안 보임 — 일단 none
           iteration_count: userMessageCount,
           input_mode: lastInputMode,
