@@ -15,8 +15,8 @@ import org.springframework.context.annotation.Configuration;
  * 어드민 Cost 탭의 비용 추정 단가. (USD, 1M 토큰당)
  *
  * <p><b>왜 코드에 단가를 박지 않나</b>: 모델 단가는 수시로 바뀌고, 잘못된 값을 자신 있게 박으면 오히려 해롭다. 그래서 단가는 전적으로 설정값(properties)
- * 으로만 주입받는다. 특정 provider 단가가 비어 있으면 그 provider의 비용은 {@code null} → 화면에 "—"로 표기하고 토큰 수만 보여준다. (호출 수·토큰은
- * 단가와 무관하게 항상 집계됨.)
+ * 으로만 주입받는다. 특정 provider 단가가 비어 있으면 그 provider의 비용은 {@code null} → 화면에 "—"로 표기하고 토큰 수만 보여준다. (호출
+ * 수·토큰은 단가와 무관하게 항상 집계됨.)
  *
  * <p>설정 예 (application.properties):
  *
@@ -38,8 +38,8 @@ import org.springframework.context.annotation.Configuration;
 public class CostPricingProperties {
 
   /**
-   * 비용 누적 시 BigDecimal 의 division scale (소수점 자리 수). USD per token 은 매우 작은 값이라 (예: $3/1M = $0.000003) 6 자리면
-   * 충분. 무한 소수가 나와도 ArithmeticException 안 던지도록 HALF_UP 으로 반올림.
+   * 비용 누적 시 BigDecimal 의 division scale (소수점 자리 수). USD per token 은 매우 작은 값이라 (예: $3/1M =
+   * $0.000003) 6 자리면 충분. 무한 소수가 나와도 ArithmeticException 안 던지도록 HALF_UP 으로 반올림.
    */
   private static final int COST_SCALE = 6;
 
