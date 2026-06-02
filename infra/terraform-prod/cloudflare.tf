@@ -27,7 +27,7 @@ locals {
 ############################################################
 resource "cloudflare_record" "api" {
   zone_id = var.cloudflare_zone_id
-  name    = var.domain_name        # FQDN - CF 가 알아서 zone 매칭
+  name    = var.api_domain        # FQDN - CF 가 알아서 zone 매칭
   type    = "CNAME"
   content = aws_lb.main.dns_name
   ttl     = 1                      # 1 = "Auto" (proxied 면 무시됨)
@@ -37,7 +37,7 @@ resource "cloudflare_record" "api" {
 
 resource "cloudflare_record" "grafana" {
   zone_id = var.cloudflare_zone_id
-  name    = "grafana.${var.domain_name}"
+  name    = "grafana.${var.root_domain}"
   type    = "CNAME"
   content = aws_lb.main.dns_name
   ttl     = 1

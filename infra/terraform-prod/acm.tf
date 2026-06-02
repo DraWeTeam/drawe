@@ -6,9 +6,9 @@
 # 등록한 CNAME 으로 자동 처리).
 ############################################################
 resource "aws_acm_certificate" "main" {
-  domain_name = var.domain_name
+  domain_name = var.api_domain
   subject_alternative_names = [
-    "grafana.${var.domain_name}",
+    "grafana.${var.root_domain}",
   ]
   validation_method = "DNS"
 

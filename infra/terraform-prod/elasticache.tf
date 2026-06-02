@@ -23,13 +23,15 @@ locals {
 }
 
 resource "aws_elasticache_replication_group" "main" {
+  count = var.prod_enabled ? 1 : 0
+
   replication_group_id = "${local.name_prefix}-valkey"
   description          = "Valkey for ${local.name_prefix}"
 
-  engine          = "valkey"
-  engine_version  = "8.0"
-  node_type       = var.elasticache_node_type
-  port            = 6379
+  engine               = "valkey"
+  engine_version       = "8.0"
+  node_type            = var.elasticache_node_type
+  port                 = 6379
   parameter_group_name = "default.valkey8"
 
   num_cache_clusters         = 1 + var.elasticache_replicas   # primary + replicas
