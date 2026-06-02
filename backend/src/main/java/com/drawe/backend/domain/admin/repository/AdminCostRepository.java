@@ -11,8 +11,8 @@ import org.springframework.data.repository.query.Param;
  * 비용·사용량 집계. (읽기 전용)
  *
  * <p>토큰은 {@code chat_success} payload의 {@code prompt_tokens}/{@code completion_tokens}를 JSON에서 뽑아
- * 합산한다(토큰 로깅 배포 후 발생분만 존재). AI 이미지 생성 수는 {@code image_generated} 이벤트로 윈도우 집계하고,
- * 누적 보강용으로 {@code images.source='AI'}도 본다. 네이티브 쿼리라 한 리포지토리에서 여러 테이블을 조회해도 무방.
+ * 합산한다(토큰 로깅 배포 후 발생분만 존재). AI 이미지 생성 수는 {@code image_generated} 이벤트로 윈도우 집계하고, 누적 보강용으로 {@code
+ * images.source='AI'}도 본다. 네이티브 쿼리라 한 리포지토리에서 여러 테이블을 조회해도 무방.
  *
  * <p>일자 그룹핑은 KST 기준 — created_at(UTC)에 {@code +09:00} offset을 적용한다(tz 테이블 불필요).
  */
@@ -62,9 +62,9 @@ public interface AdminCostRepository extends JpaRepository<AnalyticsEvent, Long>
   /**
    * 일별 AI 이미지 생성 수 (KST 기준).
    *
-   * <p>created_at은 UTC로 저장되므로 {@code DATE_ADD(..., INTERVAL 9 HOUR)} 로 KST 시각으로 보정한 뒤 일자 추출.
-   * {@code CONVERT_TZ}는 MySQL의 tz 테이블이 적재돼 있어야 동작하므로, 운영 환경 독립적인 단순 offset을 사용한다.
-   * (서머타임이 없는 KST에서만 안전한 단순화 — 다른 타임존으로 바꿀 땐 재검토 필요.)
+   * <p>created_at은 UTC로 저장되므로 {@code DATE_ADD(..., INTERVAL 9 HOUR)} 로 KST 시각으로 보정한 뒤 일자 추출. {@code
+   * CONVERT_TZ}는 MySQL의 tz 테이블이 적재돼 있어야 동작하므로, 운영 환경 독립적인 단순 offset을 사용한다. (서머타임이 없는 KST에서만 안전한 단순화
+   * — 다른 타임존으로 바꿀 땐 재검토 필요.)
    */
   @Query(
       value =

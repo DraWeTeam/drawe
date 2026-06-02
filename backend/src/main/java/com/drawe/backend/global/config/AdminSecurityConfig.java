@@ -22,11 +22,11 @@ import org.springframework.security.web.context.SecurityContextRepository;
  * 내부 도구라 form login + 세션 + csrf 가 자연스럽다. 두 성격을 한 체인에 섞지 않으려고 {@code @Order(1)} 로 먼저 매칭되는 어드민 전용 체인을
  * 둔다. {@code /admin/**} 외 요청은 전부 기존 체인으로 흘러간다.
  *
- * <p><b>세션 컨텍스트 분리 (403 버그 수정)</b>: 두 체인 모두 기본값이면 같은 HttpSession 의 같은 키(
- * {@code SPRING_SECURITY_CONTEXT})에 SecurityContext 를 읽고 쓴다. 같은 도메인(api-dev.drawe.xyz)에서 OAuth/앱 로그인이
- * 세션에 <b>일반 유저</b> 컨텍스트를 저장하면, 그 뒤 {@code /admin/**} 이 같은 세션을 읽어 "인증됐지만 ROLE_ADMIN 아님" →
- * <b>403</b> 이 된다(미인증이면 로그인으로 리다이렉트됐을 것). 그래서 어드민 체인은 <b>별도 키</b>(
- * {@code ADMIN_SPRING_SECURITY_CONTEXT})를 쓰는 전용 {@link SecurityContextRepository} 로 격리한다.
+ * <p><b>세션 컨텍스트 분리 (403 버그 수정)</b>: 두 체인 모두 기본값이면 같은 HttpSession 의 같은 키( {@code
+ * SPRING_SECURITY_CONTEXT})에 SecurityContext 를 읽고 쓴다. 같은 도메인(api-dev.drawe.xyz)에서 OAuth/앱 로그인이 세션에
+ * <b>일반 유저</b> 컨텍스트를 저장하면, 그 뒤 {@code /admin/**} 이 같은 세션을 읽어 "인증됐지만 ROLE_ADMIN 아님" → <b>403</b> 이
+ * 된다(미인증이면 로그인으로 리다이렉트됐을 것). 그래서 어드민 체인은 <b>별도 키</b>( {@code ADMIN_SPRING_SECURITY_CONTEXT})를 쓰는 전용
+ * {@link SecurityContextRepository} 로 격리한다.
  *
  * <p><b>왜 user 테이블에 role 안 붙이나</b>: 베타 운영자 1명이면 충분. DB 스키마(=Flyway 마이그레이션) 건드리지 않고 설정값(env) 으로만 어드민
  * 계정을 만든다. 운영자가 늘면 그때 UserRole 도입을 Phase 후순위로.
@@ -57,8 +57,8 @@ public class AdminSecurityConfig {
   }
 
   /**
-   * 어드민 체인 전용 SecurityContext 저장소. 같은 HttpSession 을 쓰되, 기본 키가 아닌
-   * {@code ADMIN_SPRING_SECURITY_CONTEXT} 키에 읽고 써서 OAuth/앱 로그인 컨텍스트와 격리한다.
+   * 어드민 체인 전용 SecurityContext 저장소. 같은 HttpSession 을 쓰되, 기본 키가 아닌 {@code
+   * ADMIN_SPRING_SECURITY_CONTEXT} 키에 읽고 써서 OAuth/앱 로그인 컨텍스트와 격리한다.
    */
   @Bean
   public SecurityContextRepository adminSecurityContextRepository() {

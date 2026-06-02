@@ -10,8 +10,8 @@ import java.util.List;
  * 필드는 <b>토큰 로깅 배포 이후</b> 발생한 호출에만 있으므로, 배포 직후 윈도우에서는 토큰·비용이 0/부분일 수 있다(화면에 안내). 과거 구간은 별도 사후 추정
  * 스크립트(scripts/token_estimate.py)로 메운다.
  *
- * <p>AI 이미지 생성 수는 {@code image_generated} 이벤트(윈도우 집계)와, 과거치 보강용 {@code images.source='AI'} 누적
- * 카운트를 같이 보여준다.
+ * <p>AI 이미지 생성 수는 {@code image_generated} 이벤트(윈도우 집계)와, 과거치 보강용 {@code images.source='AI'} 누적 카운트를
+ * 같이 보여준다.
  */
 public record CostModel() {
 

@@ -36,8 +36,8 @@ import org.springframework.stereotype.Component;
  *   <li><b>로컬</b>: env 비우고 {@code GOOGLE_APPLICATION_CREDENTIALS=/path/key.json}(파일) 로 ADC 사용.
  * </ul>
  *
- * <p>커스텀 측정기준은 Data API 에서 {@code customEvent:reference_id}. 이벤트 필터 {@code
- * eventName == prompt_reference_viewed}.
+ * <p>커스텀 측정기준은 Data API 에서 {@code customEvent:reference_id}. 이벤트 필터 {@code eventName ==
+ * prompt_reference_viewed}.
  *
  * <p>회복력: property-id 미설정/호출 실패 시 빈 맵 + {@link #isAvailable()}=false. GA4 가 죽어도 DB 집계는 정상.
  */

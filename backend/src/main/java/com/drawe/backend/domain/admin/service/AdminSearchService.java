@@ -38,8 +38,8 @@ public class AdminSearchService {
   /**
    * 검색 품질 뷰 조립.
    *
-   * @param backlogPage/Size/Q  시드 보강 백로그 섹션 페이지·크기·검색어
-   * @param demandPage/Size/Q   검색 수요 TOP 섹션 페이지·크기·검색어
+   * @param backlogPage/Size/Q 시드 보강 백로그 섹션 페이지·크기·검색어
+   * @param demandPage/Size/Q 검색 수요 TOP 섹션 페이지·크기·검색어
    */
   @Transactional(readOnly = true)
   public View build(
@@ -99,9 +99,7 @@ public class AdminSearchService {
     int offset = (safePage - 1) * safeSize;
     long total = repo.backlogCount(since, safeQ);
     List<BacklogRow> rows =
-        repo.backlog(since, safeQ, safeSize, offset).stream()
-            .map(this::toBacklogRow)
-            .toList();
+        repo.backlog(since, safeQ, safeSize, offset).stream().map(this::toBacklogRow).toList();
     return new AdminPage<>(rows, total, safePage, safeSize, safeQ);
   }
 
@@ -112,9 +110,7 @@ public class AdminSearchService {
     int offset = (safePage - 1) * safeSize;
     long total = repo.demandCount(since, safeQ);
     List<DemandRow> rows =
-        repo.demand(since, safeQ, safeSize, offset).stream()
-            .map(this::toDemandRow)
-            .toList();
+        repo.demand(since, safeQ, safeSize, offset).stream().map(this::toDemandRow).toList();
     return new AdminPage<>(rows, total, safePage, safeSize, safeQ);
   }
 

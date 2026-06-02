@@ -6,8 +6,8 @@ import java.util.Map;
 /**
  * GA4 {@code prompt_reference_viewed} 클릭 수를 reference_id(=image_id)별로 가져오는 포트.
  *
- * <p>인터페이스로 분리한 이유: DB 쪽 집계(노출/좋아요/핀)는 이 소스 없이도 돌아가야 하기 때문. GA4 자격증명이 아직 없으면
- * 빈 맵을 돌려주는 구현({@code EmptyGa4ClickSource})을, 준비되면 {@link Ga4DataApiClickSource}를 쓰면 된다.
+ * <p>인터페이스로 분리한 이유: DB 쪽 집계(노출/좋아요/핀)는 이 소스 없이도 돌아가야 하기 때문. GA4 자격증명이 아직 없으면 빈 맵을 돌려주는 구현({@code
+ * EmptyGa4ClickSource})을, 준비되면 {@link Ga4DataApiClickSource}를 쓰면 된다.
  */
 public interface Ga4ClickSource {
 

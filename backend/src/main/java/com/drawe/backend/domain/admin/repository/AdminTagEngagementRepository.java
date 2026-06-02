@@ -8,11 +8,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * 태그별 관심도 집계용 — engagement 있는 이미지별로 shown/likes/pins + 태그(technique/subject/mood)를 한 번에 뽑는다.
- * (읽기 전용, 네이티브)
+ * 태그별 관심도 집계용 — engagement 있는 이미지별로 shown/likes/pins + 태그(technique/subject/mood)를 한 번에 뽑는다. (읽기
+ * 전용, 네이티브)
  *
- * <p>축별 롤업은 서비스(Java)에서 한다. 한 이미지가 3개 축 값을 동시에 갖기 때문에 SQL GROUP BY 한 번으론 깔끔히 안 나와서,
- * 이미지 단위로 받아 Java에서 (axis,value) 버킷으로 합산한다.
+ * <p>축별 롤업은 서비스(Java)에서 한다. 한 이미지가 3개 축 값을 동시에 갖기 때문에 SQL GROUP BY 한 번으론 깔끔히 안 나와서, 이미지 단위로 받아
+ * Java에서 (axis,value) 버킷으로 합산한다.
  *
  * <p>shown/likes/pins 모두 {@code :since} 윈도우 적용. shown=references_json, likes=image_feedback,
  * pins(프로젝트 저장)=project_references(added_at). clicks는 DB에 없으므로 여기서 안 다룬다 — GA4 Data API에서

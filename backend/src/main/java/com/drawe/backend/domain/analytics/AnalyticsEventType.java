@@ -36,8 +36,8 @@ public final class AnalyticsEventType {
   /**
    * AI 이미지 생성(Bria 호출) 1건 완료. payload: prompt_length, image_id.
    *
-   * <p>{@code images} 테이블엔 created_at 컬럼이 없어 일별/윈도우 집계가 불가능하므로, 생성 시점을
-   * analytics_events 로 남겨 어드민 Cost 탭에서 일별 Bria 호출 수를 센다. 원문 프롬프트는 PII라 길이만.
+   * <p>{@code images} 테이블엔 created_at 컬럼이 없어 일별/윈도우 집계가 불가능하므로, 생성 시점을 analytics_events 로 남겨 어드민
+   * Cost 탭에서 일별 Bria 호출 수를 센다. 원문 프롬프트는 PII라 길이만.
    */
   public static final String IMAGE_GENERATED = "image_generated";
 

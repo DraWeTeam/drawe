@@ -96,7 +96,9 @@ async def embed_image(image: UploadFile = File(...)):
             detail=f"Image too large: {len(raw)} bytes (max {MAX_IMAGE_BYTES}).",
         )
 
-    logger.info("embed_image: received %d bytes, content_type=%s", len(raw), content_type)
+    logger.info(
+        "embed_image: received %d bytes, content_type=%s", len(raw), content_type
+    )
 
     try:
         pil_image = Image.open(io.BytesIO(raw))

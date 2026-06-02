@@ -5,8 +5,8 @@ import java.util.List;
 /**
  * 이용 흐름 — {@code analytics_events}를 session_id로 묶어 단계별 *세션 도달*을 본다.
  *
- * <p>각 단계는 "해당 이벤트를 한 번이라도 일으킨 세션 수"(엄밀한 순차 경로가 아니라 도달 기준). reachRate는 전체 세션 대비. 저장/좋아요는 session_id가 없어
- * 이 퍼널엔 포함하지 않음(그건 Funnel 탭).
+ * <p>각 단계는 "해당 이벤트를 한 번이라도 일으킨 세션 수"(엄밀한 순차 경로가 아니라 도달 기준). reachRate는 전체 세션 대비. 저장/좋아요는
+ * session_id가 없어 이 퍼널엔 포함하지 않음(그건 Funnel 탭).
  */
 public final class FlowModel {
 

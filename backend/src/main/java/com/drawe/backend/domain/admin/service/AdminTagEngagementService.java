@@ -71,7 +71,8 @@ public class AdminTagEngagementService {
   }
 
   /** 태그 값 null/blank 는 무시(태그 안 달린 이미지). */
-  private void add(Map<String, Acc> bucket, String value, long shown, long click, long like, long pin) {
+  private void add(
+      Map<String, Acc> bucket, String value, long shown, long click, long like, long pin) {
     if (value == null || value.isBlank()) {
       return;
     }
@@ -92,7 +93,8 @@ public class AdminTagEngagementService {
       out.add(new TagRow(e.getKey(), a.images, a.shown, a.clicks, a.likes, a.pins, ctr));
     }
     out.sort(
-        Comparator.comparingDouble((TagRow t) -> engagementScore(t)).reversed()
+        Comparator.comparingDouble((TagRow t) -> engagementScore(t))
+            .reversed()
             .thenComparingLong(t -> -t.shown()));
     return out;
   }

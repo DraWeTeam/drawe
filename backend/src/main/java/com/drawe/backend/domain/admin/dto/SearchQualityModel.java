@@ -1,7 +1,5 @@
 package com.drawe.backend.domain.admin.dto;
 
-import java.util.List;
-
 /**
  * 검색 품질 탭 모델.
  *
@@ -57,8 +55,5 @@ public final class SearchQualityModel {
 
   /** 화면에 한 번에 넘기는 묶음. backlog/demand 는 페이지 객체. */
   public record View(
-      Kpi kpi,
-      Friction friction,
-      AdminPage<BacklogRow> backlog,
-      AdminPage<DemandRow> demand) {}
+      Kpi kpi, Friction friction, AdminPage<BacklogRow> backlog, AdminPage<DemandRow> demand) {}
 }

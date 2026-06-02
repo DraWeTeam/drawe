@@ -7,7 +7,6 @@ first run is slow. Subsequent runs reuse the Hugging Face cache.
 import io
 import math
 
-import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 

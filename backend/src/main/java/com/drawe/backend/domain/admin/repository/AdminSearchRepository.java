@@ -16,8 +16,8 @@ import org.springframework.data.repository.query.Param;
  * <p>마찰(friction) 쿼리는 {@code search_logs}가 아니라 <b>{@code analytics_events}</b>를 본다 — 세션 시퀀스가 필요하기
  * 때문(search_logs엔 session_id가 없음). 네이티브 쿼리는 엔티티 테이블에 묶이지 않으므로 같은 리포지토리에서 다른 테이블을 조회해도 된다.
  *
- * <p>{@code backlog}/{@code demand}는 페이지네이션 + 검색({@code q}) 지원 — {@code extracted_keywords} 부분일치.
- * 빈 q는 모두 통과({@code :q = ''} 분기).
+ * <p>{@code backlog}/{@code demand}는 페이지네이션 + 검색({@code q}) 지원 — {@code extracted_keywords} 부분일치. 빈
+ * q는 모두 통과({@code :q = ''} 분기).
  */
 public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
 

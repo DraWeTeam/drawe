@@ -16,7 +16,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * 어드민 대시보드 (서버 렌더링 Thymeleaf).
  *
- * <p>탭: Overview / 흐름 / Funnel / Search Quality / Translation / Cost. 인증은 {@code AdminSecurityConfig}.
+ * <p>탭: Overview / 흐름 / Funnel / Search Quality / Translation / Cost. 인증은 {@code
+ * AdminSecurityConfig}.
  */
 @Controller
 @RequestMapping("/admin")
@@ -31,6 +32,7 @@ public class AdminDashboardController {
   private final AdminFlowService flowService;
   private final AdminCostService costService;
   private final AdminTagEngagementService tagEngagementService;
+
   @GetMapping("/login")
   public String login() {
     return "admin/login";
@@ -63,26 +65,26 @@ public class AdminDashboardController {
   @GetMapping("/funnel")
   public String funnel(
       @RequestParam(name = "hours", defaultValue = "168") int hours,
-      @RequestParam(name = "page",  defaultValue = "1")   int page,
-      @RequestParam(name = "size",  defaultValue = "15")  int size,
-      @RequestParam(name = "q",     required = false)     String q,
+      @RequestParam(name = "page", defaultValue = "1") int page,
+      @RequestParam(name = "size", defaultValue = "15") int size,
+      @RequestParam(name = "q", required = false) String q,
       Model model) {
     int safeHours = clampHours(hours);
     model.addAttribute("summary", funnelService.buildSummary(safeHours));
-    model.addAttribute("funnel",  funnelService.buildFunnel(safeHours, page, size, q));
-    model.addAttribute("hours",   safeHours);
+    model.addAttribute("funnel", funnelService.buildFunnel(safeHours, page, size, q));
+    model.addAttribute("hours", safeHours);
     return "admin/funnel";
   }
 
   @GetMapping("/search-quality")
   public String searchQuality(
       @RequestParam(name = "hours", defaultValue = "168") int hours,
-      @RequestParam(name = "bpage", defaultValue = "1")   int bp,
-      @RequestParam(name = "bsize", defaultValue = "30")  int bs,
-      @RequestParam(name = "bq",    required = false)     String bq,
-      @RequestParam(name = "dpage", defaultValue = "1")   int dp,
-      @RequestParam(name = "dsize", defaultValue = "30")  int ds,
-      @RequestParam(name = "dq",    required = false)     String dq,
+      @RequestParam(name = "bpage", defaultValue = "1") int bp,
+      @RequestParam(name = "bsize", defaultValue = "30") int bs,
+      @RequestParam(name = "bq", required = false) String bq,
+      @RequestParam(name = "dpage", defaultValue = "1") int dp,
+      @RequestParam(name = "dsize", defaultValue = "30") int ds,
+      @RequestParam(name = "dq", required = false) String dq,
       Model model) {
     int safeHours = clampHours(hours);
     model.addAttribute("view", searchService.build(safeHours, bp, bs, bq, dp, ds, dq));
