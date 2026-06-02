@@ -31,6 +31,7 @@ storage:
     s3:
       bucket: ${TEMPO_S3_BUCKET}
       region: ${AWS_REGION}
+      endpoint: s3.${AWS_REGION}.amazonaws.com
     wal:
       path: /tmp/tempo/wal
     local:
@@ -43,15 +44,3 @@ querier:
   frontend_worker:
     frontend_address: 127.0.0.1:9096
 
-metrics_generator:
-  registry:
-    external_labels:
-      source: tempo
-      cluster: drawe-prod
-  storage:
-    path: /tmp/tempo/generator/wal
-
-overrides:
-  defaults:
-    metrics_generator:
-      processors: [service-graphs, span-metrics]

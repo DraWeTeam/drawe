@@ -7,7 +7,7 @@
 // 환경변수:
 //   ALLOY_SERVICE_NAME         — "backend" | "ai-server"
 //   ALLOY_DEPLOY_ENV           — "dev" | "prod"
-//   ALLOY_SAMPLING_RATE        — "10" (dev) | "100" (prod)
+//   ALLOY_SAMPLING_RATE        — "100" (dev: 100% trace 수집) | "10" (prod: 10% trace 샘플링, 저장 비용 절감)
 //   GRAFANA_OTLP_ENDPOINT      — https://otlp-gateway-...grafana.net/otlp
 //   GRAFANA_CLOUD_INSTANCE_ID  — Grafana Cloud stack instance id
 //   GRAFANA_CLOUD_TOKEN        — API token
@@ -16,6 +16,25 @@
 // 외부(Grafana Cloud) 로 데이터 보내기 전에 redaction processor 가
 // 알려진 PII 속성을 제거하거나 해싱합니다. 코드에서 실수로 PII 가
 // span attribute / log field 에 들어가도 외부로 안 새도록 하는 안전망.
+
+// ── 앱 메트릭 스크레이프 (backend /actuator/prometheus) ──
+// 같은 ECS task 라 localhost 로 앱을 긁는다. backend task(8080)에서만 유효.
+// fastapi task 엔 actuator 가 없어 up=0 (무해). 제거하려면 sidecar config 를 서비스별로 분리.
+prometheus.scrape "app" {
+  targets = [{
+    __address__      = "localhost:8080",
+    __metrics_path__ = "/actuator/prometheus",
+  }]
+  forward_to      = [otelcol.receiver.prometheus.app.receiver]
+  scrape_interval = "30s"
+  job_name        = "backend-actuator"
+}
+
+otelcol.receiver.prometheus "app" {
+  output {
+    metrics = [otelcol.processor.attributes.default.input]
+  }
+}
 
 // ── OTLP Receiver — 앱이 localhost:4317 로 전송 ──────────
 otelcol.receiver.otlp "default" {
@@ -63,7 +82,10 @@ otelcol.processor.attributes "default" {
   }
 
   output {
-    traces  = [otelcol.processor.attributes.redact.input]
+    traces  = [
+      otelcol.processor.attributes.redact.input,
+      otelcol.connector.spanmetrics.default.input,
+    ]
     metrics = [otelcol.processor.batch.default.input]
     logs    = [otelcol.processor.attributes.redact.input]
   }
@@ -198,6 +220,32 @@ otelcol.processor.probabilistic_sampler "default" {
 
   output {
     traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ── Spanmetrics Connector (traces → RED metrics) ────────
+// HTTP 서버 span 에서 calls_total / duration_milliseconds 메트릭 derive.
+// 샘플링 전 단계의 attributes.default 에서 traces 를 받아 100% 통계 보장.
+// (prod 가 10% sampling 이어도 메트릭은 100% 정확함)
+otelcol.connector.spanmetrics "default" {
+  histogram {
+    explicit {
+      buckets = ["5ms", "10ms", "25ms", "50ms", "100ms", "250ms", "500ms",
+                 "1s", "2.5s", "5s", "10s"]
+    }
+  }
+
+  // RED 차원 — http.route 는 path template (저카디널리티) 형태로 들어와야 함
+  dimension { name = "http.method" }
+  dimension { name = "http.status_code" }
+  dimension { name = "http.route" }
+
+  // 메트릭 prefix. grafana-datasources.yaml 의 tracesToMetrics 쿼리와 일치
+  namespace = "traces.spanmetrics"
+
+  output {
+    // dev sidecar 는 batch.default 가 metrics 도 처리
+    metrics = [otelcol.processor.batch.default.input]
   }
 }
 

@@ -14,6 +14,11 @@
 //   LOKI_URL              — http://loki.drawe-prod.local:3100
 //
 // dev 는 alloy-daemon.alloy (Grafana Cloud) 사용 — 이 파일은 prod 전용
+//
+// ─── 라벨 박는 방식 (trap 18 fix) ─────────────────────────
+// OTel resource processor 가 Alloy 에 없어서 otelcol.processor.resource 시도 시
+// "cannot find component" 에러. 대신 loki.write / prometheus.remote_write 의
+// external_labels 로 service_name 을 직접 박음. 결과 같음, 단순하고 작동 보장.
 // ─────────────────────────────────────────────────────────
 
 // ── 노드 메트릭 (CPU, Memory, Disk, Network, Filesystem) ─
@@ -52,38 +57,14 @@ loki.process "default" {
 // ── Loki → OTLP 변환 ────────────────────────────────────
 otelcol.receiver.loki "default" {
   output {
-    logs = [otelcol.processor.attributes.default.input]
+    logs = [otelcol.processor.batch.default.input]
   }
 }
 
 // ── Prometheus → OTLP 변환 ──────────────────────────────
 otelcol.receiver.prometheus "default" {
   output {
-    metrics = [otelcol.processor.attributes.default.input]
-  }
-}
-
-// ── Resource Attributes 표준화 ───────────────────────────
-otelcol.processor.attributes "default" {
-  action {
-    key    = "service.name"
-    value  = "infra-daemon"
-    action = "upsert"
-  }
-  action {
-    key    = "service.namespace"
-    value  = "drawe"
-    action = "upsert"
-  }
-  action {
-    key    = "deployment.environment"
-    value  = env("ALLOY_DEPLOY_ENV")
-    action = "upsert"
-  }
-
-  output {
     metrics = [otelcol.processor.batch.default.input]
-    logs    = [otelcol.processor.batch.default.input]
   }
 }
 
@@ -108,8 +89,9 @@ loki.write "default" {
     url = format("%s/loki/api/v1/push", env("LOKI_URL"))
   }
   external_labels = {
-    cluster = "drawe-prod",
-    env     = env("ALLOY_DEPLOY_ENV"),
+    cluster      = "drawe-prod",
+    env          = env("ALLOY_DEPLOY_ENV"),
+    service_name = "drawe/infra-daemon",
   }
 }
 
@@ -135,6 +117,7 @@ prometheus.remote_write "amp" {
   }
 
   external_labels = {
-    cluster = "drawe-prod",
+    cluster      = "drawe-prod",
+    service_name = "drawe/infra-daemon",
   }
 }
