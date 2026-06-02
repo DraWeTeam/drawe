@@ -20,12 +20,13 @@ resource "aws_ecs_capacity_provider" "ec2" {
 
   auto_scaling_group_provider {
     auto_scaling_group_arn         = aws_autoscaling_group.ecs.arn
-    managed_termination_protection = "DISABLED"
+    managed_termination_protection = "ENABLED"
     managed_draining               = "ENABLED"
 
     managed_scaling {
       status                    = "ENABLED"
-      target_capacity           = 100
+      target_capacity           = 90
+      instance_warmup_period    = 300
       minimum_scaling_step_size = 1
       maximum_scaling_step_size = 2
     }
@@ -56,14 +57,14 @@ resource "aws_launch_template" "ecs" {
 
   vpc_security_group_ids = [aws_security_group.ecs_instance.id]
 
-  user_data = base64encode(<<-USERDATA
+  user_data = base64encode(replace(<<-USERDATA
     #!/bin/bash
     echo "ECS_CLUSTER=${aws_ecs_cluster.main.name}" >> /etc/ecs/ecs.config
     echo "ECS_ENABLE_TASK_ENI=true" >> /etc/ecs/ecs.config
     echo "ECS_AWSVPC_BLOCK_IMDS=true" >> /etc/ecs/ecs.config
     echo "ECS_ENABLE_CONTAINER_METADATA=true" >> /etc/ecs/ecs.config
   USERDATA
-  )
+  , "\r\n", "\n"))
 
   monitoring { enabled = true }
 
@@ -90,9 +91,9 @@ resource "aws_launch_template" "ecs" {
 resource "aws_autoscaling_group" "ecs" {
   name_prefix         = "${local.name_prefix}-ecs-"
   vpc_zone_identifier = [aws_subnet.private_a.id, aws_subnet.private_c.id]
-  min_size            = var.ecs_desired_instances
-  max_size            = 6
-  desired_capacity    = var.ecs_desired_instances
+  min_size            = var.prod_enabled ? var.ecs_desired_instances : 0
+  max_size            = var.prod_enabled ? 6 : 0
+  desired_capacity    = var.prod_enabled ? var.ecs_desired_instances : 0
 
   capacity_rebalance = true
 
@@ -119,7 +120,7 @@ resource "aws_autoscaling_group" "ecs" {
     }
   }
 
-  protect_from_scale_in = false
+  protect_from_scale_in = true
 
   tag {
     key                 = "AmazonECSManaged"
@@ -325,7 +326,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "DB_NAME", value = var.db_name },
         { name = "DB_SSL_MODE", value = "VERIFY_IDENTITY" },
         # ⌁ prod: ElastiCache primary endpoint (single primary 또는 reader endpoint)
-        { name = "REDIS_HOST", value = aws_elasticache_replication_group.main.primary_endpoint_address },
+        { name = "REDIS_HOST", value = try(aws_elasticache_replication_group.main[0].primary_endpoint_address, "") },
         { name = "REDIS_PORT", value = "6379" },
         { name = "REDIS_TLS", value = "true" },              # ElastiCache transit encryption
         { name = "JPA_DDL_AUTO", value = "validate" },        # ⌁ prod: validate (Flyway 사용)
@@ -352,6 +353,8 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "PINECONE_INDEX",       valueFrom = aws_ssm_parameter.pinecone_index.arn },
         { name = "BRIA_API_KEY",     valueFrom = aws_ssm_parameter.bria_api_key.arn },
         { name = "BRIA_BASE_URL",    valueFrom = aws_ssm_parameter.bria_base_url.arn },
+        { name = "ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.admin_password.arn },
+        { name = "GA4_SA_KEY_JSON", valueFrom = aws_ssm_parameter.ga4_sa_key.arn },
       ]
 
       logConfiguration = {
@@ -406,7 +409,7 @@ resource "aws_ecs_task_definition" "fastapi" {
 
       environment = concat([
         { name = "PORT", value = "8000" },
-        { name = "WORKERS", value = "2" },   # ⌁ prod: 2 workers
+        { name = "WORKERS", value = "2" },   # unused — Dockerfile CMD 가 결정
         # ── CLIP 모델 설정 (main.py 의 env 변수와 매칭) ──
         { name = "CLIP_MODEL_NAME", value = "openai/clip-vit-large-patch14" },
         { name = "DEVICE", value = "cpu" },

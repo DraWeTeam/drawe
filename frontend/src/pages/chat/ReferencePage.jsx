@@ -102,7 +102,7 @@ const ReferencePage = () => {
       // 트래킹
       const props = {
         reference_id: reference.id,
-        reference_tags: reference?.tags?.join(",") || "",   // ← 추가
+        reference_tags: reference?.tags?.join(",") || "", // ← 추가
         action_type: actionType,
         feedback_type: feedbackType,
         previous_feedback_type: previous ? previous.toLowerCase() : "none",
@@ -156,7 +156,7 @@ const ReferencePage = () => {
       }
       const props = {
         reference_id: reference.id,
-        reference_tags: reference?.tags?.join(",") || "",   // ← 추가
+        reference_tags: reference?.tags?.join(",") || "", // ← 추가
         action_type: actionType,
         feedback_type: feedbackType,
         previous_feedback_type: previous ? previous.toLowerCase() : "none",

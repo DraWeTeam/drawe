@@ -4,10 +4,18 @@
 # fck-nat AMI 사용 (https://github.com/AndrewGuenther/fck-nat).
 # Marketplace 가입 필요 없음 - 공개 AMI 로 배포됨.
 # AMI 가 부팅 시 user_data 의 /etc/fck-nat.conf 를 읽어:
-#   1) 자기 자신의 source/dest check 끔
-#   2) 지정된 EIP 를 자기 instance 에 attach
-#   3) 지정된 route table 의 0.0.0.0/0 을 자기 ENI 로 갱신
-#   4) iptables MASQUERADE + ip_forward 설정
+#   1) 지정된 EIP 를 자기 instance 에 attach
+#   2) 지정된 route table 의 0.0.0.0/0 을 자기 ENI 로 갱신
+#   3) iptables MASQUERADE + ip_forward 설정
+#
+# ⚠️ 두 가지 belt & suspenders fix (2026.06.01 prod 검증 중 발견):
+#    [Fix 1] source_dest_check 끄기 — fck-nat 가 처리하기로 되어 있지만
+#            부팅 타이밍 이슈로 가끔 누락 → 명시적으로 한 번 더 보장.
+#            없으면 NAT 가 forwarded 패킷을 ENI 단계에서 drop → 인터넷 차단.
+#    [Fix 2] route table 의 0.0.0.0/0 을 새 NAT 의 ENI 로 갱신 — fck-nat 가
+#            처리하기로 되어 있지만, 옛 NAT destroy 후 새 NAT launch 될 때
+#            blackhole 라우트가 남는 케이스 관찰됨 → 명시적으로 한 번 더 보장.
+#            없으면 private subnet 의 모든 트래픽이 죽은 ENI 로 → 인터넷 차단.
 #
 # ASG (desired=1) 가 instance 헬스 모니터링.
 # 인스턴스가 죽으면 같은 AZ 에 새로 띄우고, 부팅 user_data 가 EIP/route 재셋업.
@@ -131,15 +139,56 @@ resource "aws_launch_template" "nat_a" {
     delete_on_termination       = true
   }
 
-  user_data = base64encode(<<-USERDATA
+  user_data = base64encode(replace(<<-USERDATA
     #!/bin/bash
+    set -x
+
+    # ── 1. fck-nat config 작성 + 서비스 재시작 ──────────────
     cat > /etc/fck-nat.conf <<EOF
     eip_id=${aws_eip.nat_a.id}
     route_tables_ids=${aws_route_table.private_a.id}
     EOF
+
     systemctl restart fck-nat.service
+
+    # ── 공통: IMDSv2 토큰 + 인스턴스 메타데이터 가져오기 ────
+    TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    INSTANCE_ID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/instance-id)
+    REGION=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/placement/region)
+    PRIMARY_MAC=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/mac)
+    ENI_ID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/network/interfaces/macs/$PRIMARY_MAC/interface-id)
+
+    # ── [Fix 1] source_dest_check 명시적으로 끄기 ─────────
+    #    fck-nat 가 부팅 타이밍 이슈로 가끔 놓침 → 직접 확실하게 끔.
+    #    이 한 줄이 빠지면 NAT 가 forwarded 패킷을 통과시키지 않아
+    #    private subnet 의 모든 인스턴스가 인터넷 접속 불가가 됨.
+    aws ec2 modify-instance-attribute \
+      --instance-id "$INSTANCE_ID" \
+      --source-dest-check "{\"Value\": false}" \
+      --region "$REGION"
+
+    # ── [Fix 2] route table 의 0.0.0.0/0 을 이 NAT 의 ENI 로 ──
+    #    fck-nat 가 시도하기는 하지만, 옛 NAT destroy 후 새로 launch 될 때
+    #    blackhole 라우트가 남아있는 케이스 관찰됨 → 명시적으로 한 번 더 보장.
+    #    replace-route 가 실패하면 (= route 가 아예 없으면) create-route 로 fallback.
+    ROUTE_TABLE_ID="${aws_route_table.private_a.id}"
+    aws ec2 replace-route \
+      --route-table-id "$ROUTE_TABLE_ID" \
+      --destination-cidr-block 0.0.0.0/0 \
+      --network-interface-id "$ENI_ID" \
+      --region "$REGION" || \
+    aws ec2 create-route \
+      --route-table-id "$ROUTE_TABLE_ID" \
+      --destination-cidr-block 0.0.0.0/0 \
+      --network-interface-id "$ENI_ID" \
+      --region "$REGION"
   USERDATA
-  )
+  , "\r\n", "\n"))
 
   monitoring { enabled = true }
 
@@ -173,15 +222,50 @@ resource "aws_launch_template" "nat_c" {
     delete_on_termination       = true
   }
 
-  user_data = base64encode(<<-USERDATA
+  user_data = base64encode(replace(<<-USERDATA
     #!/bin/bash
+    set -x
+
+    # ── 1. fck-nat config 작성 + 서비스 재시작 ──────────────
     cat > /etc/fck-nat.conf <<EOF
     eip_id=${aws_eip.nat_c.id}
     route_tables_ids=${aws_route_table.private_c.id}
     EOF
+
     systemctl restart fck-nat.service
+
+    # ── 공통: IMDSv2 토큰 + 인스턴스 메타데이터 가져오기 ────
+    TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
+      -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    INSTANCE_ID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/instance-id)
+    REGION=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/placement/region)
+    PRIMARY_MAC=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/mac)
+    ENI_ID=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" \
+      http://169.254.169.254/latest/meta-data/network/interfaces/macs/$PRIMARY_MAC/interface-id)
+
+    # ── [Fix 1] source_dest_check 명시적으로 끄기 ─────────
+    aws ec2 modify-instance-attribute \
+      --instance-id "$INSTANCE_ID" \
+      --source-dest-check "{\"Value\": false}" \
+      --region "$REGION"
+
+    # ── [Fix 2] route table 의 0.0.0.0/0 을 이 NAT 의 ENI 로 ──
+    ROUTE_TABLE_ID="${aws_route_table.private_c.id}"
+    aws ec2 replace-route \
+      --route-table-id "$ROUTE_TABLE_ID" \
+      --destination-cidr-block 0.0.0.0/0 \
+      --network-interface-id "$ENI_ID" \
+      --region "$REGION" || \
+    aws ec2 create-route \
+      --route-table-id "$ROUTE_TABLE_ID" \
+      --destination-cidr-block 0.0.0.0/0 \
+      --network-interface-id "$ENI_ID" \
+      --region "$REGION"
   USERDATA
-  )
+  , "\r\n", "\n"))
 
   monitoring { enabled = true }
 
@@ -202,9 +286,9 @@ resource "aws_launch_template" "nat_c" {
 resource "aws_autoscaling_group" "nat_a" {
   name_prefix         = "${local.name_prefix}-nat-a-"
   vpc_zone_identifier = [aws_subnet.public_a.id]
-  min_size            = 1
-  max_size            = 1
-  desired_capacity    = 1
+  min_size            = var.prod_enabled ? 1 : 0
+  max_size            = var.prod_enabled ? 1 : 0
+  desired_capacity    = var.prod_enabled ? 1 : 0
 
   health_check_type         = "EC2"
   health_check_grace_period = 60
@@ -226,9 +310,9 @@ resource "aws_autoscaling_group" "nat_a" {
 resource "aws_autoscaling_group" "nat_c" {
   name_prefix         = "${local.name_prefix}-nat-c-"
   vpc_zone_identifier = [aws_subnet.public_c.id]
-  min_size            = 1
-  max_size            = 1
-  desired_capacity    = 1
+  min_size            = var.prod_enabled ? 1 : 0
+  max_size            = var.prod_enabled ? 1 : 0
+  desired_capacity    = var.prod_enabled ? 1 : 0
 
   health_check_type         = "EC2"
   health_check_grace_period = 60

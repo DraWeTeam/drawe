@@ -4,6 +4,8 @@ import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.ImageDraweTag;
 import com.drawe.backend.domain.User;
 import com.drawe.backend.domain.UserPrefTag;
+import com.drawe.backend.domain.analytics.AnalyticsEventType;
+import com.drawe.backend.domain.analytics.service.AnalyticsEventService;
 import com.drawe.backend.domain.enums.Axis;
 import com.drawe.backend.domain.image.repository.ImageDraweTagRepository;
 import com.drawe.backend.domain.image.repository.ImageRepository;
@@ -23,6 +25,7 @@ public class OnboardingService {
   private final ImageRepository imageRepository;
   private final ImageDraweTagRepository imageDraweTagRepository;
   private final UserPrefTagRepository userPrefTagRepository;
+  private final AnalyticsEventService analyticsEventService;
 
   /** 사용자가 온보딩 완료했는지 여부. */
   @Transactional(readOnly = true)
@@ -75,15 +78,14 @@ public class OnboardingService {
     // 기존 user_pref_tags 삭제 (재온보딩 케이스)
     userPrefTagRepository.deleteByUser(user);
 
-    // 선택한 이미지들의 태그 가져오기
-    List<ImageDraweTag> selectedTags = imageDraweTagRepository.findByImageIdIn(selectedImageIds);
-
     // 태그별 빈도 카운트 (선택된 횟수가 곧 weight)
     Map<Axis, Map<String, Integer>> tagCounts = new HashMap<>();
     tagCounts.put(Axis.AXIS_TECHNIQUE, new HashMap<>());
     tagCounts.put(Axis.AXIS_SUBJECT, new HashMap<>());
     tagCounts.put(Axis.AXIS_MOOD, new HashMap<>());
 
+    // 선택한 이미지들의 태그 가져오기
+    List<ImageDraweTag> selectedTags = imageDraweTagRepository.findByImageIdIn(selectedImageIds);
     for (ImageDraweTag tag : selectedTags) {
       countTag(tagCounts.get(Axis.AXIS_TECHNIQUE), tag.getTechnique());
       countTag(tagCounts.get(Axis.AXIS_SUBJECT), tag.getSubject());
@@ -106,19 +108,36 @@ public class OnboardingService {
 
     log.info(
         "온보딩 완료: user={}, 선택 {}개, 저장된 선호 {}개", user.getId(), selectedImageIds.size(), prefs.size());
+
+    // 온보딩 완료 이벤트 — 이 이벤트가 없으면 어드민 '이용 흐름'의 온보딩 완료가 구조적으로 항상 0으로 뜬다.
+    analyticsEventService.track(
+        AnalyticsEventType.ONBOARDING_COMPLETED,
+        user,
+        null,
+        Map.of("selected_count", selectedImageIds.size(), "saved_pref_count", prefs.size()));
   }
 
   private void countTag(Map<String, Integer> counter, String value) {
-    if (value == null || value.isBlank()) return;
+    if (value == null || value.isBlank()) {
+      return;
+    }
     counter.merge(value, 1, Integer::sum);
   }
 
   private String buildLabel(ImageDraweTag tag) {
-    if (tag == null) return "이미지";
+    if (tag == null) {
+      return "이미지";
+    }
     List<String> parts = new ArrayList<>();
-    if (tag.getTechnique() != null) parts.add(tag.getTechnique());
-    if (tag.getSubject() != null) parts.add(tag.getSubject());
-    if (tag.getMood() != null) parts.add(tag.getMood());
+    if (tag.getTechnique() != null) {
+      parts.add(tag.getTechnique());
+    }
+    if (tag.getSubject() != null) {
+      parts.add(tag.getSubject());
+    }
+    if (tag.getMood() != null) {
+      parts.add(tag.getMood());
+    }
     return parts.isEmpty() ? "이미지" : String.join(" · ", parts);
   }
 }

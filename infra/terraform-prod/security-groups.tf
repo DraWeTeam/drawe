@@ -111,7 +111,11 @@ resource "aws_security_group" "ecs_observability" {
     from_port       = 3100
     to_port         = 3100
     protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_backend.id, aws_security_group.ecs_fastapi.id]
+    security_groups = [
+      aws_security_group.ecs_backend.id,
+      aws_security_group.ecs_fastapi.id,
+      aws_security_group.ecs_instance.id,
+    ]
   }
 
   # Tempo OTLP gRPC + HTTP - app Alloy sidecar 가 push
@@ -139,11 +143,20 @@ resource "aws_security_group" "ecs_observability" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # Grafana → Loki/Tempo (self ingress for observability stack)
+  # Grafana → Tempo query (self ingress for observability stack)
   ingress {
-    description = "Grafana to Loki query / Tempo query (self)"
+    description = "Grafana to Tempo query (self)"
     from_port   = 3200
     to_port     = 3200
+    protocol    = "tcp"
+    self        = true
+  }
+
+  # Grafana → Loki query (self ingress for observability stack)
+  ingress {
+    description = "Grafana to Loki query (self)"
+    from_port   = 3100
+    to_port     = 3100
     protocol    = "tcp"
     self        = true
   }

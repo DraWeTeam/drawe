@@ -1,13 +1,12 @@
 import styles from "./Login.module.css";
 import Google from "../../assets/google.png";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import api from "./api";
 import { getOnboardingStatus } from "../onboarding/api"; // ← 추가
 import AuthHeader from "./AuthHeader";
 import { setUserId } from "../../analytics"; // ← 추가
 import { track } from "../../analytics";
-import { useEffect, useRef } from "react";
 
 function getDeviceType() {
   const ua = navigator.userAgent;
@@ -37,7 +36,8 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState("");
 
   const attemptCount = useRef(0); // 시도 횟수
-  const mountTime = useRef(Date.now()); // 페이지 진입 시각
+  // 페이지 진입 시각 — useState lazy init 으로 첫 마운트에 한 번만 평가 (react-hooks/purity 규칙)
+  const [mountTime] = useState(() => Date.now());
 
   const handleGoogleLogin = () => {
     track("login_attempt", {
@@ -97,7 +97,7 @@ const Login = () => {
       track("login_success", {
         login_method: "email",
         attempt_count: attemptCount.current,
-        time_taken: Date.now() - mountTime.current,
+        time_taken: Date.now() - mountTime,
       });
 
       // 변경: navigate("/") → redirectAfterLogin()

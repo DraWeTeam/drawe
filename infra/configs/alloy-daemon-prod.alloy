@@ -1,0 +1,123 @@
+// ─────────────────────────────────────────────────────────
+// Grafana Alloy DAEMON Config — prod (self-host LGT + AMP)
+//
+// EC2 인스턴스당 1개 실행 (schedulingStrategy: DAEMON)
+// 노드 메트릭 + 컨테이너 stdout 로그 수집:
+//   metrics → AMP   (SigV4 RemoteWrite)
+//   logs    → Loki  (self-host, loki.${prefix}.local:3100)
+// (traces 는 앱 사이드카(alloy-sidecar-prod.alloy)가 담당 — 데몬엔 없음)
+//
+// 환경변수 (ecs.tf aws_ecs_task_definition.alloy_daemon 에서 주입):
+//   ALLOY_DEPLOY_ENV      — "prod"
+//   AMP_REMOTE_WRITE_URL  — https://aps-workspaces.<region>.amazonaws.com/workspaces/<id>/api/v1/remote_write
+//   AWS_REGION            — ap-northeast-2
+//   LOKI_URL              — http://loki.drawe-prod.local:3100
+//
+// dev 는 alloy-daemon.alloy (Grafana Cloud) 사용 — 이 파일은 prod 전용
+//
+// ─── 라벨 박는 방식 (trap 18 fix) ─────────────────────────
+// OTel resource processor 가 Alloy 에 없어서 otelcol.processor.resource 시도 시
+// "cannot find component" 에러. 대신 loki.write / prometheus.remote_write 의
+// external_labels 로 service_name 을 직접 박음. 결과 같음, 단순하고 작동 보장.
+// ─────────────────────────────────────────────────────────
+
+// ── 노드 메트릭 (CPU, Memory, Disk, Network, Filesystem) ─
+prometheus.exporter.unix "node" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+  rootfs_path = "/host"
+}
+
+prometheus.scrape "node" {
+  targets         = prometheus.exporter.unix.node.targets
+  forward_to      = [otelcol.receiver.prometheus.default.receiver]
+  scrape_interval = "30s"
+
+  job_name = "node-exporter"
+}
+
+// ── Docker 컨테이너 stdout 로그 ──────────────────────────
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+  forward_to = [otelcol.receiver.loki.default.receiver]
+
+  stage.docker {}
+}
+
+// ── Loki → OTLP 변환 ────────────────────────────────────
+otelcol.receiver.loki "default" {
+  output {
+    logs = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ── Prometheus → OTLP 변환 ──────────────────────────────
+otelcol.receiver.prometheus "default" {
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ── Batch ────────────────────────────────────────────────
+otelcol.processor.batch "default" {
+  timeout         = "10s"
+  send_batch_size = 256
+
+  output {
+    metrics = [otelcol.exporter.prometheus.amp.input]
+    logs    = [otelcol.exporter.loki.default.input]
+  }
+}
+
+// ── Logs → self-host Loki ────────────────────────────────
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = format("%s/loki/api/v1/push", env("LOKI_URL"))
+  }
+  external_labels = {
+    cluster      = "drawe-prod",
+    env          = env("ALLOY_DEPLOY_ENV"),
+    service_name = "drawe/infra-daemon",
+  }
+}
+
+// ── Metrics → AMP (SigV4 signed RemoteWrite) ─────────────
+otelcol.exporter.prometheus "amp" {
+  forward_to = [prometheus.remote_write.amp.receiver]
+}
+
+prometheus.remote_write "amp" {
+  endpoint {
+    url = env("AMP_REMOTE_WRITE_URL")
+
+    sigv4 {
+      region = env("AWS_REGION")
+      // service: aps (endpoint 호스트에서 자동 추론)
+    }
+
+    queue_config {
+      capacity             = 10000
+      max_shards           = 50
+      max_samples_per_send = 1500
+    }
+  }
+
+  external_labels = {
+    cluster      = "drawe-prod",
+    service_name = "drawe/infra-daemon",
+  }
+}

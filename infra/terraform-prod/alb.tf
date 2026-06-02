@@ -83,7 +83,7 @@ resource "aws_lb_listener_rule" "api_host" {
 
   condition {
     host_header {
-      values = [var.domain_name]
+      values = [var.api_domain]
     }
   }
 }
@@ -99,7 +99,7 @@ resource "aws_lb_listener_rule" "grafana_host" {
 
   condition {
     host_header {
-      values = ["grafana.${var.domain_name}"]
+      values = ["grafana.${var.root_domain}"]
     }
   }
 }

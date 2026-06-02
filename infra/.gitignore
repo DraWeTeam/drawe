@@ -28,3 +28,5 @@ Thumbs.db
 *.swp
 
 *.sql
+beta_snapshot
+extract_beta_snapshot.py

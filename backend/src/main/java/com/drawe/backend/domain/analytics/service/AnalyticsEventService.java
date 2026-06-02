@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,6 +91,8 @@ public class AnalyticsEventService {
       event.setEventType(eventType);
       event.setUserId(userId);
       event.setSessionId(sessionId);
+      // Tempo/Loki 조인 키. OTel Agent가 MDC에 주입한 trace_id (요청 밖이거나 Agent 미적용이면 null).
+      event.setTraceId(MDC.get("trace_id"));
       event.setPayloadJson(serializePayload(payload)); // DB: 원본 payload (분석용)
       eventRepository.save(event);
 

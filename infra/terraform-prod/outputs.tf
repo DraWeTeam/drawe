@@ -7,11 +7,11 @@ output "alb_dns_name" {
 }
 
 output "api_url" {
-  value = "https://${var.domain_name}"
+  value = "https://${var.api_domain}"
 }
 
 output "grafana_url" {
-  value = "https://grafana.${var.domain_name}"
+  value = "https://grafana.${var.root_domain}"
 }
 
 output "rds_endpoint" {
@@ -20,7 +20,7 @@ output "rds_endpoint" {
 }
 
 output "elasticache_primary_endpoint" {
-  value     = aws_elasticache_replication_group.main.primary_endpoint_address
+  value     = try(aws_elasticache_replication_group.main[0].primary_endpoint_address, "")
   sensitive = true
 }
 
@@ -82,9 +82,9 @@ output "next_steps" {
        모드를 "Full (strict)" 로 설정 (zone-level 설정 - 한 번만)
 
     2. Cloudflare DNS 레코드 확인
-       - ${var.domain_name}            CNAME → ALB (proxied ⚡)
-       - grafana.${var.domain_name}    CNAME → ALB (proxied ⚡)
-       - _xxx.${var.domain_name}       CNAME → ACM 검증용 (DNS only)
+       - ${var.api_domain}            CNAME → ALB (proxied ⚡)
+       - grafana.${var.root_domain}    CNAME → ALB (proxied ⚡)
+       - _xxx.${var.api_domain}       CNAME → ACM 검증용 (DNS only)
        (Terraform 이 자동 등록함 - 대시보드에서 확인만)
 
     3. SSM Parameter 시크릿 채우기
@@ -100,13 +100,13 @@ output "next_steps" {
            --service drawe-prod-fastapi --force-new-deployment
 
     5. Grafana 첫 로그인
-       URL : https://grafana.${var.domain_name}
+       URL : https://grafana.${var.root_domain}
        User: admin
        Pwd : aws ssm get-parameter --name /drawe/prod/grafana-admin-password \
                  --with-decryption --query Parameter.Value --output text
 
     6. Google OAuth Console 에 redirect URI 등록
-       https://${var.domain_name}/login/oauth2/code/google
+       https://${var.api_domain}/login/oauth2/code/google
 
     7. SNS 이메일 alert confirm (var.alert_email 설정 시 inbox 확인)
 

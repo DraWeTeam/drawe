@@ -1,0 +1,56 @@
+# ── 로컬 관측 스택 오버레이 ────────────────────────────
+# 사용:
+#   docker compose \
+#     -f docker-compose.local.yml \
+#     -f docker-compose.observability.yml \
+#     up -d
+#
+# Grafana UI: http://localhost:3000  (anonymous Admin)
+# OTLP gRPC:  otel-lgtm:4317 (컴포즈 네트워크 내부)
+#
+# 백엔드/FastAPI 컨테이너의 OTEL_EXPORTER_OTLP_ENDPOINT 를 otel-lgtm 으로 덮어쓴다.
+# 로컬엔 Alloy 사이드카가 없으므로 actuator scrape 는 작동 안 함 — Spring Boot
+# 커스텀 metric 은 prod/dev 에서만 보인다. 단, OTel Java Agent 의 micrometer
+# bridge 가 JVM/Hikari 등을 OTLP 로 같이 보내주므로 로컬 디버깅엔 충분.
+
+services:
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.8.1
+    container_name: drawe-otel-lgtm
+    ports:
+      - "127.0.0.1:3000:3000"   # Grafana
+      - "127.0.0.1:4317:4317"   # OTLP gRPC (호스트에서도 직접 push 가능)
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+    volumes:
+      - otel-lgtm-data:/data
+    networks:
+      - drawe-net
+
+  backend:
+    environment:
+      # OTel Java Agent 가 자동으로 잡음 — agent 는 항상 attach 되어 있음
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: backend
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=drawe
+      OTEL_TRACES_SAMPLER: always_on   # 로컬은 항상 100%
+    depends_on:
+      otel-lgtm:
+        condition: service_started
+
+  fastapi:
+    environment:
+      # §A 작업 (opentelemetry-distro 설치) 적용 후에만 효과
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: ai-server
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=drawe
+    depends_on:
+      otel-lgtm:
+        condition: service_started
+
+volumes:
+  otel-lgtm-data:

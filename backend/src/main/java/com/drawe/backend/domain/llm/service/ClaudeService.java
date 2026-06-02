@@ -59,7 +59,21 @@ public class ClaudeService implements LlmService {
 
     logCacheUsage(response);
     String content = extractText(response);
-    return new LlmCallResult(content, cfg.getModel(), latency);
+    return new LlmCallResult(
+        content,
+        cfg.getModel(),
+        latency,
+        usageInt(response, "input_tokens"),
+        usageInt(response, "output_tokens"));
+  }
+
+  /** Claude usage 블록에서 토큰 값을 null-safe 하게. 없거나 형 변환 실패 시 null (호출은 영향 없음). */
+  private static Integer usageInt(Map<?, ?> response, String key) {
+    Object usage = response.get("usage");
+    if (usage instanceof Map<?, ?> u && u.get(key) instanceof Number n) {
+      return n.intValue();
+    }
+    return null;
   }
 
   private Map<String, Object> buildBody(String model, LlmCallContext context) {

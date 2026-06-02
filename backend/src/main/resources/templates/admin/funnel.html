@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · Funnel')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('funnel')}"></header>
+
+<main class="wrap" id="admin-content">
+  <div class="pagehead">
+    <div>
+      <h1>Engagement Funnel</h1>
+      <div class="meta">노출(shown) → 좋아요/싫어요 → 저장(save) · 최근 <span th:text="${hours}">168</span>시간</div>
+    </div>
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
+      <a th:href="@{/admin/funnel(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
+      <a th:href="@{/admin/funnel(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
+      <a th:href="@{/admin/funnel(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
+    </div>
+  </div>
+
+  <!-- 추천 적합도 요약 (윈도우 전체 기준 — 검색/페이지 영향 없음) -->
+  <section class="grid" th:with="s=${summary}">
+    <div class="card">
+      <div class="label">ref 노출</div>
+      <div class="value mono" th:text="${s.shown()}">0</div>
+      <div class="foot">추천된 ref 총 노출</div>
+    </div>
+    <div class="card">
+      <div class="label">좋아요율</div>
+      <div class="value mono good"
+           th:text="${s.likeRate() != null ? #numbers.formatPercent(s.likeRate(),1,1) : '—'}">—</div>
+      <div class="foot">좋아요 <span th:text="${s.likes()}">0</span> / 노출</div>
+    </div>
+    <div class="card">
+      <div class="label">싫어요율</div>
+      <div class="value mono"
+           th:classappend="${s.dislikes() > 0} ? 'bad'"
+           th:text="${s.dislikeRate() != null ? #numbers.formatPercent(s.dislikeRate(),1,1) : '—'}">—</div>
+      <div class="foot">싫어요 <span th:text="${s.dislikes()}">0</span> / 노출</div>
+    </div>
+    <div class="card">
+      <div class="label">저장율</div>
+      <div class="value mono good"
+           th:text="${s.saveRate() != null ? #numbers.formatPercent(s.saveRate(),1,1) : '—'}">—</div>
+      <div class="foot">저장 <span th:text="${s.saves()}">0</span> / 노출</div>
+    </div>
+  </section>
+
+  <div class="meta" style="margin:-8px 0 18px; line-height:1.6;">
+    키워드 결정 — 재검색 안 함(유지) <b th:text="${summary.decisionKeep()}">0</b> ·
+    검색 불필요(스킵) <b th:text="${summary.decisionSkip()}">0</b>
+    <span style="color:var(--line-strong);"> (시스템의 재검색 여부 결정이라 "유저 거부"가 아님 — 참고용)</span>
+  </div>
+
+  <div class="meta" style="margin:0 0 16px; line-height:1.6;">
+    읽는 법 — <b>노출 많은데 좋아요·저장 0</b> = 추천 재검토 · <b>싫어요 발생</b> = 명시적 부적합 ·
+    <b>노출 적은데 저장률 높음</b> = 더 자주 추천할 ref. (베타 표본이 작으니 절대 수치보다 상대 비교로.)
+  </div>
+
+  <div class="meta" style="margin:0 0 16px; line-height:1.6; color:var(--warn); background:var(--warn-soft); border-radius:10px; padding:10px 14px;">
+    ⚠️ 비율 해석 주의 — 노출(shown)은 이 윈도우 안의 추천만 세지만, 좋아요·저장은 각자의 발생 시각으로
+    따로 집계돼요. 그래서 윈도우 경계에 걸친 ref는 <b>좋아요%·저장%가 100%를 넘거나 어긋나 보일 수</b> 있어요
+    (윈도우 직전에 노출 → 윈도우 안에서 저장 등). <b>절대값이 아니라 ref 간 상대 비교</b>로 읽고,
+    정밀 비교가 필요하면 윈도우를 넓혀 경계 효과를 희석하세요.
+  </div>
+
+  <section class="panel" th:if="${summary.shown() > 0}">
+    <h2>참여 요약 <span class="tag">윈도우 합계</span></h2>
+    <div class="chartbox sm"><canvas id="fn-summary"></canvas></div>
+  </section>
+
+  <section class="panel">
+    <!-- 검색 + 총건수 -->
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+      <form action="/admin/funnel" method="get"
+            hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML"
+            style="display:flex; gap:8px; flex:1; min-width:260px;">
+        <input type="hidden" name="hours" th:value="${hours}"/>
+        <input type="hidden" name="size"  th:value="${funnel.size()}"/>
+        <input type="text" name="q" th:value="${funnel.q()}"
+               placeholder="이미지 ID / 작가명 / 태그 (예: 22092, watercolor, person)"
+               style="flex:1; padding:8px 12px; border:1px solid var(--line); border-radius:8px;
+                      background:var(--bg); color:var(--ink); font-size:14px;"/>
+        <button type="submit"
+                style="padding:8px 16px; border:none; border-radius:8px;
+                       background:var(--accent); color:white; cursor:pointer; font-weight:600;">검색</button>
+        <a th:if="${!#strings.isEmpty(funnel.q())}"
+           th:href="@{/admin/funnel(hours=${hours}, size=${funnel.size()})}"
+           style="padding:8px 12px; color:var(--muted); align-self:center; text-decoration:none;">지우기</a>
+      </form>
+      <div class="meta" style="white-space:nowrap;">
+        총 <b th:text="${funnel.total()}">0</b>건
+        <span th:if="${!#strings.isEmpty(funnel.q())}" style="color:var(--accent);"
+              th:text="' · 검색: ' + ${funnel.q()}"></span>
+      </div>
+    </div>
+
+    <table th:if="${!funnel.rows().isEmpty()}">
+      <thead>
+        <tr>
+          <th style="width:52px;"></th>
+          <th>ref</th>
+          <th class="num">노출</th>
+          <th class="num">좋아요</th>
+          <th class="num">싫어요</th>
+          <th class="num">저장</th>
+          <th class="num">저장%</th>
+          <th style="width:96px;">신호</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="row : ${funnel.rows()}">
+          <td>
+            <!-- AI 이미지는 /images/{id} 가 소유자 본인만 접근 가능해서 어드민에선 못 봄 → 플레이스홀더 -->
+            <img th:if="${row.url() != null and !#strings.equalsIgnoreCase(row.source(), 'AI')}"
+                 th:src="${row.url()}" alt="" loading="lazy"
+                 style="width:44px; height:44px; object-fit:cover; border-radius:6px; display:block;"/>
+            <div th:if="${#strings.equalsIgnoreCase(row.source(), 'AI')}"
+                 style="width:44px; height:44px; border-radius:6px; background:var(--accent-soft);
+                        color:var(--accent); display:flex; align-items:center; justify-content:center;
+                        font-size:11px; font-weight:700; letter-spacing:0.5px;">AI</div>
+          </td>
+          <td>
+            <span class="mono" th:text="'#' + ${row.imageId()}">#0</span>
+            <span class="tag" th:if="${row.source() != null}" th:text="${row.source()}" style="margin-left:6px;">AI</span>
+            <div class="meta" style="font-size:12.5px;">
+              <span th:if="${row.photographer() != null}" th:text="${row.photographer()}"></span>
+              <span th:if="${row.photographer() != null and !#strings.isEmpty(row.tagSummary())}"> · </span>
+              <span th:if="${!#strings.isEmpty(row.tagSummary())}" th:text="${row.tagSummary()}"></span>
+            </div>
+          </td>
+          <td class="num" th:text="${row.shown()}">0</td>
+          <td class="num" th:text="${row.likes()}">0</td>
+          <td class="num" th:text="${row.dislikes()}">0</td>
+          <td class="num" th:text="${row.saves()}">0</td>
+          <td class="num" th:text="${row.saveRate() != null ? #numbers.formatPercent(row.saveRate(),1,0) : '—'}">—</td>
+          <td>
+            <span th:if="${row.saves() > 0}"
+                  style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--accent-soft); color:var(--accent);">저장됨</span>
+            <span th:if="${row.dislikes() > 0}"
+                  style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--danger-soft); color:var(--danger);">싫어요</span>
+            <span th:if="${row.likes() > 0 and row.saves() == 0 and row.dislikes() == 0}"
+                  style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--warn-soft); color:var(--warn);">좋아요만</span>
+            <span th:if="${row.shown() > 0 and row.likes() + row.saves() + row.dislikes() == 0}"
+                  style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--bg); color:var(--muted);">반응 없음</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="empty" th:if="${funnel.rows().isEmpty()}">
+      <span th:if="${#strings.isEmpty(funnel.q())}">
+        이 기간에 노출된 ref가 없어요. (채팅에서 ref가 추천되면 여기 쌓여요. 윈도우를 7d/30d로 넓혀보세요.)
+      </span>
+      <span th:if="${!#strings.isEmpty(funnel.q())}">
+        '<b th:text="${funnel.q()}">-</b>' 검색 결과가 없어요. 다른 키워드를 시도해 보세요.
+      </span>
+    </div>
+
+    <!-- 페이지네이션 -->
+    <nav th:if="${funnel.totalPages() > 1}"
+         hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML"
+         style="display:flex; justify-content:center; gap:16px; align-items:center;
+                margin-top:18px; padding-top:14px; border-top:1px solid var(--line-soft);">
+      <a th:if="${funnel.hasPrev()}"
+         th:href="@{/admin/funnel(hours=${hours}, q=${funnel.q()}, page=${funnel.prevPage()}, size=${funnel.size()})}"
+         style="padding:6px 14px; border:1px solid var(--line); border-radius:8px;
+                color:var(--ink); text-decoration:none;">‹ 이전</a>
+      <span th:unless="${funnel.hasPrev()}"
+            style="padding:6px 14px; border:1px solid var(--line-soft); border-radius:8px;
+                   color:var(--line-strong);">‹ 이전</span>
+
+      <span class="meta">
+        <b th:text="${funnel.page()}">1</b> / <span th:text="${funnel.totalPages()}">1</span>
+      </span>
+
+      <a th:if="${funnel.hasNext()}"
+         th:href="@{/admin/funnel(hours=${hours}, q=${funnel.q()}, page=${funnel.nextPage()}, size=${funnel.size()})}"
+         style="padding:6px 14px; border:1px solid var(--line); border-radius:8px;
+                color:var(--ink); text-decoration:none;">다음 ›</a>
+      <span th:unless="${funnel.hasNext()}"
+            style="padding:6px 14px; border:1px solid var(--line-soft); border-radius:8px;
+                   color:var(--line-strong);">다음 ›</span>
+    </nav>
+  </section>
+
+  <script th:inline="javascript">
+    (function () {
+      var s = {
+        shown:    /*[[${summary.shown()}]]*/ 0,
+        likes:    /*[[${summary.likes()}]]*/ 0,
+        saves:    /*[[${summary.saves()}]]*/ 0,
+        dislikes: /*[[${summary.dislikes()}]]*/ 0
+      };
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        if (s.shown > 0) D.hbars('fn-summary',
+          ['노출', '좋아요', '저장', '싫어요'], [s.shown, s.likes, s.saves, s.dislikes],
+          { color: [D.tokens.accent, D.tokens.accentBright, D.tokens.accent, D.tokens.danger] });
+      };
+      window.__adminRun && window.__adminRun();
+    })();
+  </script>
+</main>
+</body>
+</html>

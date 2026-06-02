@@ -64,7 +64,7 @@ resource "aws_ssm_parameter" "alloy_config" {
 resource "aws_ssm_parameter" "alloy_daemon_config" {
   name  = "/${var.project}/${var.env}/alloy-daemon-config-b64"
   type  = "SecureString"
-  value = base64gzip(file("${path.module}/../configs/alloy-daemon.alloy"))
+  value = base64gzip(file("${path.module}/../configs/alloy-daemon-prod.alloy"))
   tier  = "Standard"
 }
 
@@ -147,5 +147,22 @@ resource "aws_ssm_parameter" "bria_base_url" {
   type  = "String"
   value = "https://engine.prod.bria-api.com"
   tags  = { Name = "${local.name_prefix}-bria-base-url" }
+  lifecycle { ignore_changes = [value] }
+}
+
+# ── Admin 콘솔 ───────────────────────────────────────────
+resource "aws_ssm_parameter" "admin_password" {
+  name  = "/${var.project}/${var.env}/admin-password"
+  type  = "SecureString"
+  value = "CHANGE_ME_admin_password"
+  tags  = { Name = "${local.name_prefix}-admin-password" }
+  lifecycle { ignore_changes = [value] }
+}
+
+resource "aws_ssm_parameter" "ga4_sa_key" {
+  name  = "/${var.project}/${var.env}/ga4-sa-key"
+  type  = "SecureString"
+  value = "CHANGE_ME"          # apply 후 실제 JSON 수동 주입
+  tags  = { Name = "${local.name_prefix}-ga4-sa-key" }
   lifecycle { ignore_changes = [value] }
 }

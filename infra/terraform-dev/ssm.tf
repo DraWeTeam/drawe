@@ -127,6 +127,23 @@ resource "aws_ssm_parameter" "bria_base_url" {
   lifecycle { ignore_changes = [value] }
 }
 
+# ── Admin 콘솔 ───────────────────────────────────────────
+resource "aws_ssm_parameter" "admin_password" {
+  name  = "/${var.project}/${var.env}/admin-password"
+  type  = "SecureString"
+  value = "CHANGE_ME_admin_password"
+  tags  = { Name = "${local.name_prefix}-admin-password" }
+  lifecycle { ignore_changes = [value] }
+}
+
+resource "aws_ssm_parameter" "ga4_sa_key" {
+  name  = "/${var.project}/${var.env}/ga4-sa-key"
+  type  = "SecureString"
+  value = "CHANGE_ME"          # apply 후 실제 JSON 수동 주입 
+  tags  = { Name = "${local.name_prefix}-ga4-sa-key" }
+  lifecycle { ignore_changes = [value] }
+}
+
 ############################################################
 # Observability — Grafana Cloud (dev only)
 #
@@ -143,10 +160,11 @@ resource "aws_ssm_parameter" "alloy_config" {
 resource "aws_ssm_parameter" "alloy_daemon_config" {
   name  = "/${var.project}/${var.env}/alloy-daemon-config-b64"
   type  = "SecureString"
-  value = "CHANGE_ME_base64_encoded_alloy_daemon_config"
+  # Terraform 이 daemon config 의 단일 source of truth (sidecar 와 동일 방식).
+  # 과거: placeholder + 수동 업로드(upload-alloy-config.sh) → 미주입/스크립트 버그 위험 제거.
+  value = base64gzip(file("${path.module}/../configs/alloy-daemon.alloy"))
   tier  = "Advanced"
   tags  = { Name = "${local.name_prefix}-alloy-daemon-config" }
-  lifecycle { ignore_changes = [value] }
 }
 
 resource "aws_ssm_parameter" "grafana_otlp_endpoint" {

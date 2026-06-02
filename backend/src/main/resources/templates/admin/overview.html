@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · Overview')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('overview')}"></header>
+
+<main class="wrap" id="admin-content">
+  <div class="pagehead">
+    <div>
+      <h1>Overview</h1>
+      <div class="meta">
+        최근 <span th:text="${hours}">24</span>시간 ·
+        기준 <span th:text="${kpi.generatedAtText()}">-</span>
+      </div>
+    </div>
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
+      <a th:href="@{/admin/overview(hours=24)}" th:classappend="${kpi.windowHours() == 24} ? 'active'">24h</a>
+      <a th:href="@{/admin/overview(hours=168)}" th:classappend="${kpi.windowHours() == 168} ? 'active'">7d</a>
+      <a th:href="@{/admin/overview(hours=720)}" th:classappend="${kpi.windowHours() == 720} ? 'active'">30d</a>
+    </div>
+  </div>
+
+  <section class="grid">
+    <div class="card">
+      <div class="label">활성 사용자</div>
+      <div class="value mono" th:text="${kpi.activeUsers()}">0</div>
+      <div class="foot">고유 user_id</div>
+    </div>
+    <div class="card">
+      <div class="label">채팅 수</div>
+      <div class="value mono" th:text="${kpi.chatSuccess()}">0</div>
+      <div class="foot">chat_success · 시작 <span th:text="${kpi.chatStart()}">0</span></div>
+    </div>
+    <div class="card">
+      <div class="label">검색 수</div>
+      <div class="value mono" th:text="${kpi.searchExecuted()}">0</div>
+      <div class="foot">search_executed</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>이벤트 분포 <span class="tag">전체 event_type</span></h2>
+    <div class="chartbox" th:if="${!kpi.eventDistribution().isEmpty()}"><canvas id="ov-events"></canvas></div>
+    <table th:if="${!kpi.eventDistribution().isEmpty()}">
+      <thead><tr><th>event_type</th><th class="num">건수</th></tr></thead>
+      <tbody>
+        <tr th:each="d : ${kpi.eventDistribution()}">
+          <td class="mono" th:text="${d.eventType()}">-</td>
+          <td class="num" th:text="${d.count()}">0</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="empty" th:if="${kpi.eventDistribution().isEmpty()}">이 구간에 이벤트가 없어요.</div>
+  </section>
+
+  <script th:inline="javascript">
+    (function () {
+      var ev = /*[[${kpi.eventDistribution()}]]*/ [];
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        if (ev.length) D.hbars('ov-events', ev.map(function (x) { return x.eventType; }), ev.map(function (x) { return x.count; }));
+      };
+      window.__adminRun && window.__adminRun();
+    })();
+  </script>
+</main>
+</body>
+</html>

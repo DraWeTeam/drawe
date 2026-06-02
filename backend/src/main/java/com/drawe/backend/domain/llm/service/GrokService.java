@@ -70,7 +70,21 @@ public class GrokService implements LlmService {
     int latency = (int) (System.currentTimeMillis() - start);
 
     String content = extractText(response);
-    return new LlmCallResult(content, cfg.getModel(), latency);
+    return new LlmCallResult(
+        content,
+        cfg.getModel(),
+        latency,
+        usageInt(response, "prompt_tokens"),
+        usageInt(response, "completion_tokens"));
+  }
+
+  /** OpenAI 호환 usage 블록에서 토큰 값을 null-safe 하게. 없으면 null. */
+  private static Integer usageInt(Map<?, ?> response, String key) {
+    Object usage = response.get("usage");
+    if (usage instanceof Map<?, ?> u && u.get(key) instanceof Number n) {
+      return n.intValue();
+    }
+    return null;
   }
 
   private Map<String, Object> buildBody(String model, LlmCallContext context) {

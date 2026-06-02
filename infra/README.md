@@ -14,16 +14,19 @@ dev / prod 환경을 별도 AWS 계정으로 운영하며, ECS EC2 (Graviton ARM
 * Alloy 기반 OpenTelemetry 수집 (DAEMON + sidecar 구조)
 * Cloudflare + ALB 기반 HTTPS 구성
 * dev 환경은 EventBridge 스케줄 기반 자동 on/off 로 비용 절감
+* prod 환경은 `prod_enabled` 토글 + 수동 셧다운/재가동 사이클로 비활성 시간 절감
 
 ## 디렉토리 구조
 
 ```text
 infra/
-├── terraform-dev/           # dev 환경 Terraform
-├── terraform-prod/          # prod 환경 Terraform
-├── configs/                 # Alloy / Grafana / Loki / Tempo config
-├── scripts/                 # 운영 보조 스크립트 (seed-local.sh 등)
-└── docker-compose.local.yml # 로컬 백엔드 스택 + observability
+├── terraform-dev/                    # dev 환경 Terraform
+├── terraform-prod/                   # prod 환경 Terraform
+├── configs/                          # Alloy / Grafana / Loki / Tempo config
+├── scripts/                          # 운영 보조 스크립트 (seed-local.sh, upload-alloy-config.sh)
+├── docker-compose.local.yml          # 로컬 백엔드 스택 (MySQL · Valkey · backend · fastapi)
+├── docker-compose.observability.yml  # overlay — 로컬 LGTM 관측 스택
+└── docker-compose.ga4.yml            # overlay — GA4 credentials
 ```
 
 ## 환경 비교
@@ -31,10 +34,11 @@ infra/
 | 항목     | dev                        | prod                               |
 | ------ | -------------------------- | ---------------------------------- |
 | AWS 계정 | 분리 운영                      | 분리 운영                              |
-| 운영 시간  | 평일 13:00~18:00 KST         | 24/7                               |
+| 운영 시간  | 평일 13:00~18:00 KST (EventBridge 자동) | 24/7 (수동 토글 가능)            |
 | NAT    | NAT instance (`t4g.micro`) | fck-nat Multi-AZ (ASG)             |
 | Redis  | EC2 Valkey                 | ElastiCache                        |
 | 관측     | Grafana Cloud              | AMP + self-host Grafana/Loki/Tempo |
+| 알람     | Discord webhook (SNS → Lambda)     | 동일                       |
 | 컴퓨트    | ECS EC2 · Graviton (`t4g.*`, ARM64) | 동일                       |
 
 ## 🧭 왜 이렇게 구성했나 (설계 의도)
@@ -92,6 +96,21 @@ docker compose -f docker-compose.local.yml up -d
 | 8080 | Backend (Spring Boot) |
 | 8000 | FastAPI |
 
+### 로컬 관측 스택 (선택)
+
+```bash
+docker compose -f docker-compose.local.yml -f docker-compose.observability.yml up -d
+```
+
+| 포트 | 서비스 |
+| --- | --- |
+| 3000 | Grafana UI (anonymous Admin) |
+| 4317 | OTLP gRPC (otel-lgtm) |
+| 4318 | OTLP HTTP (otel-lgtm) |
+
+`grafana/otel-lgtm` 단일 이미지로 Loki/Tempo/Prometheus/Grafana 일괄 제공.
+앱은 컴포즈 환경변수로 OTLP endpoint 가 자동 주입.
+
 ### 로컬 데이터 시드 (선택)
 
 1. 공유 스토리지에서 `reference_data.sql` 을 받아 `infra/` 에 둡니다.
@@ -127,6 +146,31 @@ terraform plan -out tfplan
 terraform apply tfplan
 ```
 
+### apply 후 1회 — 시크릿 placeholder 실값 주입
+
+Terraform 으로 SSM SecureString 을 만들 때 placeholder (`CHANGE_ME_*`) 가 박혀 있고 `lifecycle.ignore_changes = [value]` 라 state 에 평문이 안 들어갑니다. apply 직후 한 번 실값을 주입합니다.
+
+```bash
+# 어드민 비밀번호 (Spring Boot 어드민 콘솔)
+aws ssm put-parameter --name "/drawe/<env>/admin-password" \
+  --value "$(openssl rand -base64 24)" \
+  --type SecureString --overwrite
+
+# Grafana 어드민 비밀번호 (self-host prod 만)
+aws ssm put-parameter --name "/drawe/prod/grafana-admin-password" \
+  --value "$(openssl rand -base64 24)" \
+  --type SecureString --overwrite
+
+# Discord 웹훅 URL (dev / prod 각각)
+aws ssm put-parameter --name "/drawe/<env>/discord-webhook-url" \
+  --value "https://discord.com/api/webhooks/..." \
+  --type SecureString --overwrite
+
+# 해당 서비스 force-new-deployment 로 새 secret 반영
+aws ecs update-service --cluster drawe-<env>-cluster \
+  --service drawe-<env>-backend --force-new-deployment
+```
+
 ## 📡 관측성 (Observability)
 
 OpenTelemetry 기반으로 trace · log · metric 을 수집합니다. **Alloy**(daemon + sidecar)가 앱의 OTLP(4317/4318)를 받아 환경별 destination 으로 전달합니다(dev → Grafana Cloud / prod → AMP + self-host).
@@ -139,31 +183,63 @@ flowchart LR
   AL -->|prod| SH[AMP + self-host<br/>Grafana · Loki · Tempo]
 ```
 
-**✅ 완료 — 수집·라우팅·보안 설계**
+**✅ 완료 — 인프라 + 앱 계측 + 알람**
 - Alloy 수집 파이프라인 (daemon + sidecar 구조, OTLP 수신)
 - 환경별 destination 분리 (dev → Grafana Cloud / prod → AMP + self-host)
-- 외부 전송 전 **PII redaction** 규칙 (이메일·토큰·LLM 프롬프트 본문 등 삭제/해싱)
-- prod self-host config (Tempo / Loki / Grafana datasource)
+- 외부 전송 전 **PII redaction** 규칙 (이메일·토큰·LLM 프롬프트 본문 등 삭제/해싱, user.id 는 1회 해시·session.id 는 opaque, 수집기 재해시 없음)
+- prod self-host 스택 배포 (Loki / Tempo / Grafana + AMP) 및 종단 검증
+- Grafana → AMP SigV4 query 인증 (`GF_AUTH_SIGV4_AUTH_ENABLED`)
+- Daemon Alloy 의 컨테이너 stdout → Loki 수집 (`service_name=drawe/infra-daemon`)
+- Spring Boot 자동 계측 (OTel Java Agent + JSON 로그 + Micrometer 커스텀 카운터)
+- FastAPI 자동 계측 (opentelemetry-distro + opentelemetry-instrument)
+- 로컬 관측성 스택 (otel-lgtm 단일 이미지) 배선
+- SNS → Lambda → Discord 알람 (4xx/5xx/RDS CPU/스토리지/NAT/ALB unhealthy target 등)
 
-**🚧 진행 중 — 앱 계측**
-- 앱 분산 추적 계측 (Micrometer Tracing bridge-otel + OTLP exporter)
-- 로컬 관측성 스택(self-host) 배선
+**🚧 진행 중 — 운영 폴리시**
+- RED 대시보드 (Rate · Errors · Duration) — Alloy spanmetrics connector 기반
+- admin 대시보드 ↔ Grafana/Loki 딥링크 (session_id/trace_id)
+- Sidecar config 의 backend/fastapi 분리 (현재 공유 — actuator scrape 자리 정리)
+- §C 자동 발화 부하 테스트 검증 (현재 자연 트래픽 0 으로 4xx 알람 임계치 미달)
 
-**📋 계획 — 대시보드·알람**
-- RED 대시보드 (Rate · Errors · Duration)
-- CloudWatch P0 알람 + SNS→Slack 배선
-- admin 대시보드 ↔ Grafana/Loki 딥링크(session_id/trace_id)
+**📋 계획 — EKS 이관**
+- ECS → EKS dev cluster 시작 (Helm chart 기반)
+- kube-prometheus-stack + grafana-loki + grafana-tempo
+- ECS ↔ EKS 비교 ADR 작성
 
-> 즉 **수집 파이프라인과 라우팅·보안(PII) 설계는 완료**, **앱 계측과 대시보드·알람은 정비 중**인 단계입니다.
+### 어드민 대시보드
+
+내부 운영자용 Thymeleaf 대시보드 (인메모리 계정 1개).
+
+```
+URL:        https://api.drawe.xyz/admin/login   (prod)
+            https://api-dev.drawe.xyz/admin/login (dev)
+Username:   admin
+Password:   SSM /drawe/<env>/admin-password
+```
+
+비밀번호 조회 / 재설정:
+```bash
+# 조회
+aws ssm get-parameter --name "/drawe/prod/admin-password" \
+  --with-decryption --query 'Parameter.Value' --output text
+
+# 재설정
+aws ssm put-parameter --name "/drawe/prod/admin-password" \
+  --value "$(openssl rand -base64 24)" \
+  --type SecureString --overwrite
+aws ecs update-service --cluster drawe-prod-cluster \
+  --service drawe-prod-backend --force-new-deployment
+```
 
 ## 참고 사항
 
 * ECS EC2 인스턴스는 ARM64 (`t4g.*`) 기반으로 운영
 * 컨테이너 이미지도 ARM64 호환 빌드 필요 (`docker buildx --platform linux/arm64`)
-* 주요 시크릿은 AWS SSM Parameter Store (SecureString) 로 관리
-* Alloy config 는 gzip + base64 로 압축 저장
-* ECS Exec 활성화 상태로 운영
+* 주요 시크릿은 AWS SSM Parameter Store (SecureString) 로 관리, `lifecycle.ignore_changes = [value]` 로 평문이 state 에 들어가지 않음
+* Alloy config 는 gzip + base64 로 압축 저장 (`scripts/upload-alloy-config.sh` 또는 terraform `base64gzip` 자동)
+* ECS Exec 활성화 상태로 운영 (`aws ecs execute-command` 로 진입)
 * ECS service 의 `task_definition` 은 `ignore_changes` 처리되어 있어 수동 force deployment 방식 사용
+* 환경변수 (task def 내 직접 박힌 값) 변경 시 `aws ecs update-service --task-definition <family> --force-new-deployment` 로 latest revision 명시 필요
 
 ## 관련 문서
 

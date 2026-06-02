@@ -3,8 +3,8 @@ resource "aws_appautoscaling_target" "backend" {
   service_namespace  = "ecs"
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.backend.name}"
   scalable_dimension = "ecs:service:DesiredCount"
-  min_capacity       = var.backend_min_capacity
-  max_capacity       = var.backend_max_capacity
+  min_capacity       = var.prod_enabled ? var.backend_min_capacity : 0
+  max_capacity       = var.prod_enabled ? var.backend_max_capacity : 0
 }
 
 resource "aws_appautoscaling_policy" "backend_cpu" {
@@ -46,8 +46,8 @@ resource "aws_appautoscaling_target" "fastapi" {
   service_namespace  = "ecs"
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.fastapi.name}"
   scalable_dimension = "ecs:service:DesiredCount"
-  min_capacity       = var.fastapi_min_capacity
-  max_capacity       = var.fastapi_max_capacity
+  min_capacity       = var.prod_enabled ? var.fastapi_min_capacity : 0
+  max_capacity       = var.prod_enabled ? var.fastapi_max_capacity : 0
 }
 
 resource "aws_appautoscaling_policy" "fastapi_cpu" {

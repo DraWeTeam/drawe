@@ -61,6 +61,18 @@ variable "ecs_desired_instances" {
   default     = 2
 }
 
+# ════════════════════════════════════════════════════════
+# prod 스택 on/off 토글
+#   false = ECS/NAT 인스턴스 + 서비스 태스크를 0 으로 내려 비용 절감
+#   true  = 정상 가동
+#   (RDS stop/start, ElastiCache 는 Terraform 으로 토글 불가 - 별도 수동)
+# ════════════════════════════════════════════════════════
+variable "prod_enabled" {
+  description = "prod 스택 가동 토글. false 면 ECS/NAT 0, 서비스 0 태스크"
+  type        = bool
+  default     = true
+}
+
 # ── Backend ──
 variable "backend_cpu"           { default = 1024 }
 variable "backend_memory"        { default = 2048 }
@@ -164,8 +176,13 @@ variable "elasticache_replicas" {
 # prod 는 항상 Cloudflare + Full Strict (TLS 종단 CF + ACM at ALB).
 # 가비아 등에서 산 도메인이 Cloudflare DNS 에 등록되어 있다고 가정.
 ############################################################
-variable "domain_name" {
-  description = "Public hostname (예: api.drawe.com)"
+variable "api_domain" {
+  description = "API hostname (예: api.drawe.xyz). backend/fastapi ALB rule + OAuth redirect 에 사용."
+  type        = string
+}
+
+variable "root_domain" {
+  description = "Root domain (예: drawe.xyz). Cloudflare 의 *.drawe.xyz Universal cert 와 매칭되는 base. Grafana 등 obs 호스트가 사용."
   type        = string
 }
 
