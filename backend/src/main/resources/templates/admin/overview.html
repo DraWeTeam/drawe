@@ -27,71 +27,14 @@
       <div class="foot">고유 user_id</div>
     </div>
     <div class="card">
-      <div class="label">채팅 성공률</div>
-      <div class="value mono good"
-           th:text="${kpi.chatSuccessRate() != null ? #numbers.formatPercent(kpi.chatSuccessRate(),1,1) : '—'}">—</div>
-      <div class="foot">
-        성공 <span th:text="${kpi.chatSuccess()}">0</span> / 실패 <span th:text="${kpi.chatError()}">0</span>
-      </div>
+      <div class="label">채팅 수</div>
+      <div class="value mono" th:text="${kpi.chatSuccess()}">0</div>
+      <div class="foot">chat_success · 시작 <span th:text="${kpi.chatStart()}">0</span></div>
     </div>
     <div class="card">
-      <div class="label">응답 지연 P95</div>
-      <div class="value mono"
-           th:classappend="${kpi.latencyP95Ms() == null ? 'muted' : ''}"
-           th:text="${kpi.latencyP95Ms() != null ? kpi.latencyP95Ms() + ' ms' : '—'}">—</div>
-      <div class="foot">표본 <span th:text="${kpi.latencySampleCount()}">0</span>건</div>
-    </div>
-    <div class="card">
-      <div class="label">에러</div>
-      <div class="value mono"
-           th:classappend="${kpi.chatError() > 0 ? 'bad' : ''}"
-           th:text="${kpi.chatError()}">0</div>
-      <div class="foot">chat_error</div>
-    </div>
-  </section>
-
-  <section class="panel">
-    <h2>응답 지연 분포 (chat_success)</h2>
-    <div class="statline" th:if="${kpi.latencySampleCount() > 0}">
-      <div><span class="k">평균</span><span class="v" th:text="${kpi.latencyAvgMs()} + ' ms'">-</span></div>
-      <div><span class="k">P50</span><span class="v" th:text="${kpi.latencyP50Ms()} + ' ms'">-</span></div>
-      <div><span class="k">P95</span><span class="v" th:text="${kpi.latencyP95Ms()} + ' ms'">-</span></div>
-      <div><span class="k">최대</span><span class="v" th:text="${kpi.latencyMaxMs()} + ' ms'">-</span></div>
-    </div>
-    <div class="chartbox sm" th:if="${kpi.latencySampleCount() > 0}" style="margin-top:14px;">
-      <canvas id="ov-latency"></canvas>
-    </div>
-    <div class="empty" th:unless="${kpi.latencySampleCount() > 0}">이 구간에 chat_success 표본이 없어요.</div>
-  </section>
-
-  <section class="cols">
-    <div class="panel">
-      <h2>검색 실행 차단율 <span class="tag">analytics_events</span></h2>
-      <div class="statline">
-        <div>
-          <span class="k">차단율</span>
-          <span class="v" th:text="${kpi.searchBlockRate() != null ? #numbers.formatPercent(kpi.searchBlockRate(),1,1) : '—'}">—</span>
-        </div>
-        <div><span class="k">실행</span><span class="v" th:text="${kpi.searchExecuted()}">0</span></div>
-        <div><span class="k">차단</span><span class="v" th:text="${kpi.searchBlocked()}">0</span></div>
-        <div><span class="k">전체 시도</span><span class="v" th:text="${kpi.searchExecuted() + kpi.searchBlocked()}">0</span></div>
-      </div>
-      <div class="foot meta" style="margin-top:10px">차단 / (실행+차단). 시스템이 무관 판정으로 <b>검색 실행 자체를 막은</b> 비율이에요 — 검색 품질 탭의 "저품질"(결과는 떴는데 점수 낮음)과는 다른 지표. 평소보다 높으면 시드 데이터 부족 신호.</div>
-    </div>
-
-    <div class="panel">
-      <h2>최근 에러 Top</h2>
-      <div class="chartbox sm" th:if="${!kpi.topErrors().isEmpty()}"><canvas id="ov-errors"></canvas></div>
-      <table th:if="${!kpi.topErrors().isEmpty()}">
-        <thead><tr><th>error_class</th><th class="num">건수</th></tr></thead>
-        <tbody>
-          <tr th:each="e : ${kpi.topErrors()}">
-            <td th:text="${e.errorClass()}">-</td>
-            <td class="num" th:text="${e.count()}">0</td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="empty" th:if="${kpi.topErrors().isEmpty()}">에러 없음 👍</div>
+      <div class="label">검색 수</div>
+      <div class="value mono" th:text="${kpi.searchExecuted()}">0</div>
+      <div class="foot">search_executed</div>
     </div>
   </section>
 
@@ -112,18 +55,10 @@
 
   <script th:inline="javascript">
     (function () {
-      var ev  = /*[[${kpi.eventDistribution()}]]*/ [];
-      var er  = /*[[${kpi.topErrors()}]]*/ [];
-      var lat = {
-        avg: /*[[${kpi.latencyAvgMs()}]]*/ 0, p50: /*[[${kpi.latencyP50Ms()}]]*/ 0,
-        p95: /*[[${kpi.latencyP95Ms()}]]*/ 0, max: /*[[${kpi.latencyMaxMs()}]]*/ 0,
-        n:   /*[[${kpi.latencySampleCount()}]]*/ 0
-      };
+      var ev = /*[[${kpi.eventDistribution()}]]*/ [];
       window.__adminCharts = function () {
         var D = window.Drawe; if (!D) return;
         if (ev.length) D.hbars('ov-events', ev.map(function (x) { return x.eventType; }), ev.map(function (x) { return x.count; }));
-        if (er.length) D.hbars('ov-errors', er.map(function (x) { return x.errorClass; }), er.map(function (x) { return x.count; }), { color: D.tokens.danger });
-        if (lat.n > 0)  D.bars('ov-latency', ['평균', 'P50', 'P95', '최대'], [lat.avg, lat.p50, lat.p95, lat.max], { label: 'ms' });
       };
       window.__adminRun && window.__adminRun();
     })();

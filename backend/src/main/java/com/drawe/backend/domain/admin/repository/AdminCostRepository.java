@@ -59,10 +59,17 @@ public interface AdminCostRepository extends JpaRepository<AnalyticsEvent, Long>
       nativeQuery = true)
   long imageGenCount(@Param("since") Instant since);
 
-  /** 일별 AI 이미지 생성 수. (created_at 표기는 기존 repo와 동일하게 저장값 그대로) */
+  /**
+   * 일별 AI 이미지 생성 수 (KST 기준).
+   *
+   * <p>created_at은 UTC로 저장되므로 {@code DATE_ADD(..., INTERVAL 9 HOUR)} 로 KST 시각으로 보정한 뒤 일자 추출.
+   * {@code CONVERT_TZ}는 MySQL의 tz 테이블이 적재돼 있어야 동작하므로, 운영 환경 독립적인 단순 offset을 사용한다.
+   * (서머타임이 없는 KST에서만 안전한 단순화 — 다른 타임존으로 바꿀 땐 재검토 필요.)
+   */
   @Query(
       value =
-          "SELECT DATE_FORMAT(created_at,'%Y-%m-%d') AS day, COUNT(*) AS cnt "
+          "SELECT DATE_FORMAT(DATE_ADD(created_at, INTERVAL 9 HOUR),'%Y-%m-%d') AS day, "
+              + "       COUNT(*) AS cnt "
               + "FROM analytics_events "
               + "WHERE event_type='image_generated' AND created_at >= :since "
               + "GROUP BY day ORDER BY day",
