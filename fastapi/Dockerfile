@@ -25,6 +25,11 @@ COPY requirements.txt .
 RUN grep -vE '^(torch==|torchvision==|nvidia-)' requirements.txt > requirements-cpu.txt && \
     pip install --user -r requirements-cpu.txt
 
+# ── 추가: OTel auto-instrumentation 라이브러리 일괄 설치 ──
+# 설치된 패키지(fastapi, httpx 등)에 매칭되는 instrumentation 자동 발견
+RUN /root/.local/bin/opentelemetry-bootstrap -a requirements > requirements-otel.txt && \
+    pip install --user -r requirements-otel.txt
+
 # CLIP 모델 가중치를 이미지에 baking — runtime cold start 시 다운로드 불필요
 ENV HF_HOME=/app/.cache/huggingface
 RUN python -c "from transformers import CLIPModel, CLIPProcessor; \
@@ -60,8 +65,12 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# main.py 안에서 모델 로딩 끝낸 다음 uvicorn 이 워커 fork — 안정성 우선 1 worker
-CMD ["uvicorn", "main:app", \
+# OpenTelemetry 자동 계측 활성화.
+# opentelemetry-instrument 가 Python 프로세스를 래핑하여
+# Trace/Metric/Log 계측을 자동 주입한다.
+# OTEL_EXPORTER_OTLP_ENDPOINT 등 OTEL_* 환경변수는
+# ECS Task Definition 에서 주입되며 별도 코드 설정 없이 적용된다.
+CMD ["opentelemetry-instrument", "uvicorn", "main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
      "--workers", "1"]
