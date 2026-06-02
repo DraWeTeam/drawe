@@ -1,0 +1,11 @@
+services:
+  backend:
+    environment:
+      # GA4 인증에 사용되는 서비스 계정 키 경로 (컨테이너 내부 기준)
+      # → GA4 데이터 조회를 위해 필요한 credentials 입니다.
+      GOOGLE_APPLICATION_CREDENTIALS: /app/ga4-key.json
+    volumes:
+      # GA4 인증 키 파일 (로컬에 수동 생성 필요)
+      # 경로: ../.secrets/ga4-key.json
+      # Git에 포함되지 않는 민감 정보입니다.
+      - ../.secrets/ga4-key.json:/app/ga4-key.json:ro

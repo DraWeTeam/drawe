@@ -19,11 +19,13 @@ dev / prod 환경을 별도 AWS 계정으로 운영하며, ECS EC2 (Graviton ARM
 
 ```text
 infra/
-├── terraform-dev/           # dev 환경 Terraform
-├── terraform-prod/          # prod 환경 Terraform
-├── configs/                 # Alloy / Grafana / Loki / Tempo config
-├── scripts/                 # 운영 보조 스크립트 (seed-local.sh 등)
-└── docker-compose.local.yml # 로컬 백엔드 스택 + observability
+├── terraform-dev/                    # dev 환경 Terraform
+├── terraform-prod/                   # prod 환경 Terraform
+├── configs/                          # Alloy / Grafana / Loki / Tempo config
+├── scripts/                          # 운영 보조 스크립트 (seed-local.sh 등)
+├── docker-compose.local.yml          # 로컬 백엔드 스택 (MySQL · Valkey · backend · fastapi)
+├── docker-compose.observability.yml  # overlay — 로컬 LGTM 관측 스택
+└── docker-compose.ga4.yml            # overlay — GA4 credentials
 ```
 
 ## 환경 비교
@@ -92,6 +94,21 @@ docker compose -f docker-compose.local.yml up -d
 | 8080 | Backend (Spring Boot) |
 | 8000 | FastAPI |
 
+### 로컬 관측 스택 (선택)
+
+```bash
+docker compose -f docker-compose.local.yml -f docker-compose.observability.yml up -d
+```
+
+| 포트 | 서비스 |
+| --- | --- |
+| 3000 | Grafana UI (anonymous Admin) |
+| 4317 | OTLP gRPC (otel-lgtm) |
+| 4318 | OTLP HTTP (otel-lgtm) |
+
+`grafana/otel-lgtm` 단일 이미지로 Loki/Tempo/Prometheus/Grafana 일괄 제공.
+앱은 컴포즈 환경변수로 OTLP endpoint 가 자동 주입.
+
 ### 로컬 데이터 시드 (선택)
 
 1. 공유 스토리지에서 `reference_data.sql` 을 받아 `infra/` 에 둡니다.
@@ -144,17 +161,19 @@ flowchart LR
 - 환경별 destination 분리 (dev → Grafana Cloud / prod → AMP + self-host)
 - 외부 전송 전 **PII redaction** 규칙 (이메일·토큰·LLM 프롬프트 본문 등 삭제/해싱)
 - prod self-host config (Tempo / Loki / Grafana datasource)
+- 로컬 관측성 스택 (self-host) 배선
+- SNS → Lambda → Discord 알림 파이프
 
 **🚧 진행 중 — 앱 계측**
-- 앱 분산 추적 계측 (Micrometer Tracing bridge-otel + OTLP exporter)
-- 로컬 관측성 스택(self-host) 배선
+- Spring Boot: OTel Java Agent 적용 + JSON 구조화 로그 (logstash-logback-encoder) + Micrometer 커스텀 카운터
+- FastAPI: opentelemetry-distro 자동 계측
 
 **📋 계획 — 대시보드·알람**
-- RED 대시보드 (Rate · Errors · Duration)
-- CloudWatch P0 알람 + SNS→Slack 배선
-- admin 대시보드 ↔ Grafana/Loki 딥링크(session_id/trace_id)
+- RED 대시보드 (Rate · Errors · Duration) — Alloy spanmetrics connector 기반
+- CloudWatch 4xx 알람 추가 (Discord 배선은 이미 적용됨)
+- admin 대시보드 ↔ Grafana/Loki 딥링크 (session_id/trace_id)
 
-> 즉 **수집 파이프라인과 라우팅·보안(PII) 설계는 완료**, **앱 계측과 대시보드·알람은 정비 중**인 단계입니다.
+> 즉 **수집·라우팅·보안(PII)·알람 채널 배선은 완료**, **앱 계측과 대시보드는 정비 중**인 단계입니다.
 
 ## 참고 사항
 
