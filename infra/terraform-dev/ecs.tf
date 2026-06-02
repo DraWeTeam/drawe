@@ -174,8 +174,7 @@ locals {
     essential = false
     entryPoint = ["/bin/sh", "-c"]
     command = [
-      #"echo $ALLOY_CONFIG_B64 | base64 -d | gunzip > /tmp/config.alloy && exec /bin/alloy run /tmp/config.alloy --stability.level=public-preview"
-      "echo \"=== B64 length: $${#ALLOY_CONFIG_B64} ===\" && echo $ALLOY_CONFIG_B64 | base64 -d | gunzip > /tmp/config.alloy && echo \"=== file size: $$(wc -c < /tmp/config.alloy) ===\" && echo \"=== first 5 lines ===\" && head -5 /tmp/config.alloy && echo \"=== running alloy ===\" && exec /bin/alloy run /tmp/config.alloy --stability.level=public-preview"
+      "echo $ALLOY_CONFIG_B64 | base64 -d | gunzip > /tmp/config.alloy && exec /bin/alloy run /tmp/config.alloy --stability.level=public-preview"
     ]
 
     portMappings = [
@@ -200,6 +199,10 @@ locals {
     { name = "OTEL_EXPORTER_OTLP_PROTOCOL", value = "grpc" },
     { name = "OTEL_RESOURCE_ATTRIBUTES", value = "deployment.environment=${var.env},service.namespace=drawe" },
     { name = "OTEL_TRACES_SAMPLER", value = "parentbased_always_on" },
+    # ── 추가 (distro default 와 동일하지만 안전망) ──
+    { name = "OTEL_TRACES_EXPORTER",  value = "otlp" },
+    { name = "OTEL_METRICS_EXPORTER", value = "otlp" },
+    { name = "OTEL_LOGS_EXPORTER",    value = "otlp" },
   ]
 
   alloy_env = [
@@ -363,6 +366,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "BRIA_API_KEY",     valueFrom = aws_ssm_parameter.bria_api_key.arn },
         { name = "BRIA_BASE_URL",    valueFrom = aws_ssm_parameter.bria_base_url.arn },
         { name = "ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.admin_password.arn },
+        { name = "GA4_SA_KEY_JSON", valueFrom = aws_ssm_parameter.ga4_sa_key.arn },
       ]
 
       logConfiguration = {

@@ -17,6 +17,25 @@ resource "aws_cloudwatch_log_group" "alloy" {
   tags              = { Name = "${local.name_prefix}-alloy-logs" }
 }
 
+# SNS — dev 알람 알림 대상 (없으면 알람이 떠도 아무에게도 안 감)
+resource "aws_sns_topic" "alerts" {
+  name = "${local.name_prefix}-alerts"
+  tags = { Name = "${local.name_prefix}-alerts" }
+}
+
+variable "alert_email" {
+  description = "dev 알람 받을 이메일 (선택). 비우면 토픽만 생성."
+  type        = string
+  default     = ""
+}
+
+resource "aws_sns_topic_subscription" "email" {
+  count     = var.alert_email != "" ? 1 : 0
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}
+
 # Metric Alarms — Backend
 resource "aws_cloudwatch_metric_alarm" "backend_cpu_high" {
   alarm_name          = "${local.name_prefix}-backend-cpu-high"
@@ -33,6 +52,7 @@ resource "aws_cloudwatch_metric_alarm" "backend_cpu_high" {
     ServiceName = aws_ecs_service.backend.name
   }
 
+  alarm_actions     = [aws_sns_topic.alerts.arn]
   alarm_description = "Backend CPU > 80% for 10 min"
   tags              = { Name = "${local.name_prefix}-backend-cpu-alarm" }
 }
@@ -52,6 +72,7 @@ resource "aws_cloudwatch_metric_alarm" "backend_memory_high" {
     ServiceName = aws_ecs_service.backend.name
   }
 
+  alarm_actions     = [aws_sns_topic.alerts.arn]
   alarm_description = "Backend Memory > 80% for 10 min"
   tags              = { Name = "${local.name_prefix}-backend-memory-alarm" }
 }
@@ -71,6 +92,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
     DBInstanceIdentifier = aws_db_instance.main.identifier
   }
 
+  alarm_actions     = [aws_sns_topic.alerts.arn]
   alarm_description = "RDS CPU > 80% for 10 min"
   tags              = { Name = "${local.name_prefix}-rds-cpu-alarm" }
 }
@@ -89,6 +111,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_free_storage" {
     DBInstanceIdentifier = aws_db_instance.main.identifier
   }
 
+  alarm_actions     = [aws_sns_topic.alerts.arn]
   alarm_description = "RDS free storage < 2 GB"
   tags              = { Name = "${local.name_prefix}-rds-storage-alarm" }
 }
@@ -109,6 +132,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
     LoadBalancer = aws_lb.main.arn_suffix
   }
 
+  alarm_actions     = [aws_sns_topic.alerts.arn]
   alarm_description = "ALB 5xx errors > 10 in 5 min"
   tags              = { Name = "${local.name_prefix}-alb-5xx-alarm" }
 }
@@ -201,4 +225,89 @@ resource "aws_cloudwatch_dashboard" "main" {
       }
     ]
   })
+}
+
+resource "aws_cloudwatch_metric_alarm" "alb_4xx_high" {
+  alarm_name          = "${local.name_prefix}-alb-4xx-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 5
+  metric_name         = "HTTPCode_Target_4XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 20      # dev 트래픽이 작아서 50 은 안 터짐
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+  }
+
+  alarm_actions     = [aws_sns_topic.alerts.arn]
+  alarm_description = "dev ALB 4xx > 20/min for 5 min"
+  tags              = { Name = "${local.name_prefix}-alb-4xx-alarm" }
+}
+
+# ── Backend ECS Service: 정상 task 수 < desired ──────────
+resource "aws_cloudwatch_metric_alarm" "backend_unhealthy" {
+  alarm_name          = "${local.name_prefix}-backend-unhealthy"
+  alarm_description   = "Backend ECS service running task < desired (서비스 다운)"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "RunningTaskCount"
+  namespace           = "ECS/ContainerInsights"
+  period              = 60
+  statistic           = "Average"
+  threshold           = var.backend_desired_count
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.backend.name
+  }
+
+  alarm_actions      = [aws_sns_topic.alerts.arn]
+  treat_missing_data = "breaching"
+  tags               = { Name = "${local.name_prefix}-backend-unhealthy-alarm" }
+}
+
+# ── FastAPI ECS: 정상 task 수 < desired ─────────────────
+resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
+  alarm_name          = "${local.name_prefix}-fastapi-unhealthy"
+  alarm_description   = "FastAPI ECS service running task < desired (서비스 다운)"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "RunningTaskCount"
+  namespace           = "ECS/ContainerInsights"
+  period              = 60
+  statistic           = "Average"
+  threshold           = var.fastapi_desired_count
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.fastapi.name
+  }
+
+  alarm_actions      = [aws_sns_topic.alerts.arn]
+  treat_missing_data = "breaching"
+  tags               = { Name = "${local.name_prefix}-fastapi-unhealthy-alarm" }
+}
+
+# ── ALB: target health ─────────────────────────────────
+resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
+  alarm_name          = "${local.name_prefix}-alb-unhealthy-targets"
+  alarm_description   = "ALB target health 0 미만 (라우팅 불가)"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "UnHealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+    TargetGroup  = aws_lb_target_group.backend.arn_suffix
+  }
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  tags          = { Name = "${local.name_prefix}-alb-unhealthy-alarm" }
 }

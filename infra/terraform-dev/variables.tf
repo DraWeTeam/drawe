@@ -118,8 +118,8 @@ variable "alloy_sidecar_memory" {
 
 # Observability
 variable "otel_sampling_rate" {
-  description = "Trace sampling rate (Alloy probabilistic): 0~100"
-  default     = "10"
+  description = "Trace sampling rate (Alloy probabilistic): 0~100. dev 는 디버깅 위해 100%"
+  default     = "100"
 }
 
 # Grafana(:3000) 인바운드를 허용할 CIDR 목록 (팀/사무실 공인 IP).
