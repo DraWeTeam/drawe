@@ -93,7 +93,7 @@ resource "aws_autoscaling_group" "ecs" {
   vpc_zone_identifier = [aws_subnet.private_a.id, aws_subnet.private_c.id]
   min_size            = var.prod_enabled ? var.ecs_desired_instances : 0
   max_size            = var.prod_enabled ? 6 : 0
-  desired_capacity    = var.ecs_desired_instances
+  desired_capacity    = var.prod_enabled ? var.ecs_desired_instances : 0
 
   capacity_rebalance = true
 
