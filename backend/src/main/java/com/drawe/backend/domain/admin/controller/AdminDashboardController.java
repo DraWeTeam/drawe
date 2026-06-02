@@ -5,7 +5,6 @@ import com.drawe.backend.domain.admin.service.AdminCostService;
 import com.drawe.backend.domain.admin.service.AdminFlowService;
 import com.drawe.backend.domain.admin.service.AdminFunnelService;
 import com.drawe.backend.domain.admin.service.AdminSearchService;
-import com.drawe.backend.domain.admin.service.AdminTranslationService;
 import com.drawe.backend.domain.admin.service.AdminTagEngagementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -29,7 +28,6 @@ public class AdminDashboardController {
   private final AdminAnalyticsService analyticsService;
   private final AdminFunnelService funnelService;
   private final AdminSearchService searchService;
-  private final AdminTranslationService translationService;
   private final AdminFlowService flowService;
   private final AdminCostService costService;
   private final AdminTagEngagementService tagEngagementService;
@@ -90,15 +88,6 @@ public class AdminDashboardController {
     model.addAttribute("view", searchService.build(safeHours, bp, bs, bq, dp, ds, dq));
     model.addAttribute("hours", safeHours);
     return "admin/search-quality";
-  }
-
-  @GetMapping("/translation")
-  public String translation(
-      @RequestParam(name = "hours", defaultValue = "168") int hours, Model model) {
-    int safeHours = clampHours(hours);
-    model.addAttribute("view", translationService.build(safeHours));
-    model.addAttribute("hours", safeHours);
-    return "admin/translation";
   }
 
   /** 비용·사용량 — 토큰/호출 수·추정 비용·AI 이미지 생성량. */
