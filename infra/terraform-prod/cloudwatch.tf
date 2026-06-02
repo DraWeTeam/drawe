@@ -118,6 +118,29 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_high" {
   treat_missing_data = "notBreaching"
 }
 
+# ── ALB: 4xx 비율 ───────────────────────────────────────
+# 인증 깨짐·클라이언트 버그·악성 트래픽 폭증 감지.
+# 5xx 와 달리 4xx 는 정상 운영 중에도 어느 정도 발생 → 임계값은 baseline 기반.
+# 초기 50/min: 1~2주 운영 후 baseline 측정해서 튜닝.
+resource "aws_cloudwatch_metric_alarm" "alb_4xx_high" {
+  alarm_name          = "${local.name_prefix}-alb-4xx-high"
+  alarm_description   = "ALB 4xx > 50/min for 5 min - 인증/클라이언트/abuse 의심"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 5
+  metric_name         = "HTTPCode_Target_4XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 50
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+  }
+
+  alarm_actions      = [aws_sns_topic.alerts.arn]
+  treat_missing_data = "notBreaching"
+}
+
 # ── ALB: target health ─────────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
   alarm_name          = "${local.name_prefix}-alb-unhealthy-targets"
@@ -175,6 +198,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
 
 # ── ElastiCache CPU high ──────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "valkey_cpu_high" {
+  count = var.prod_enabled ? 1 : 0
   alarm_name          = "${local.name_prefix}-valkey-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
@@ -185,7 +209,7 @@ resource "aws_cloudwatch_metric_alarm" "valkey_cpu_high" {
   threshold           = 80
 
   dimensions = {
-    ReplicationGroupId = aws_elasticache_replication_group.main.id
+    ReplicationGroupId = aws_elasticache_replication_group.main[0].id
   }
 
   alarm_actions = [aws_sns_topic.alerts.arn]

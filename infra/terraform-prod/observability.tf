@@ -61,7 +61,7 @@ resource "aws_ecs_task_definition" "loki" {
 
     environment = [
       { name = "LOKI_S3_BUCKET", value = aws_s3_bucket.loki.id },
-      { name = "AWS_REGION", value = var.aws_region },
+      { name = "AWS_REGION",     value = var.aws_region },
     ]
 
     secrets = [
@@ -71,7 +71,7 @@ resource "aws_ecs_task_definition" "loki" {
     # Config 를 SSM 에서 받아 파일로 떨어뜨린 뒤 loki 실행
     entryPoint = [
       "sh", "-c",
-      "echo $LOKI_CONFIG_B64 | base64 -d > /etc/loki/loki-config.yaml && exec /usr/bin/loki -config.file=/etc/loki/loki-config.yaml -target=all"
+      "mkdir -p /etc/loki && echo $LOKI_CONFIG_B64 | base64 -d > /etc/loki/loki-config.yaml && exec /usr/bin/loki -config.file=/etc/loki/loki-config.yaml -config.expand-env=true -target=all"
     ]
 
     healthCheck = {
@@ -99,7 +99,7 @@ resource "aws_ecs_service" "loki" {
   name            = "${local.name_prefix}-loki"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.loki.arn
-  desired_count   = 1   # monolithic 단일 - 더 키우려면 microservices 모드로 분리
+  desired_count   = var.prod_enabled ? 1 : 0
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name
@@ -125,7 +125,7 @@ resource "aws_ecs_service" "loki" {
   tags       = { Name = "${local.name_prefix}-loki-svc" }
 
   lifecycle {
-    ignore_changes = [desired_count, task_definition]
+    ignore_changes = [task_definition]
   }
 }
 
@@ -154,7 +154,7 @@ resource "aws_ecs_task_definition" "tempo" {
 
     environment = [
       { name = "TEMPO_S3_BUCKET", value = aws_s3_bucket.tempo.id },
-      { name = "AWS_REGION", value = var.aws_region },
+      { name = "AWS_REGION",      value = var.aws_region },
     ]
 
     secrets = [
@@ -163,7 +163,7 @@ resource "aws_ecs_task_definition" "tempo" {
 
     entryPoint = [
       "sh", "-c",
-      "echo $TEMPO_CONFIG_B64 | base64 -d > /etc/tempo/tempo.yaml && exec /tempo -config.file=/etc/tempo/tempo.yaml"
+      "echo $TEMPO_CONFIG_B64 | base64 -d > /tmp/tempo.yaml && exec /tempo -config.file=/tmp/tempo.yaml -config.expand-env=true"
     ]
 
     healthCheck = {
@@ -191,7 +191,7 @@ resource "aws_ecs_service" "tempo" {
   name            = "${local.name_prefix}-tempo"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.tempo.arn
-  desired_count   = 1
+  desired_count   = var.prod_enabled ? 1 : 0
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name
@@ -217,7 +217,7 @@ resource "aws_ecs_service" "tempo" {
   tags       = { Name = "${local.name_prefix}-tempo-svc" }
 
   lifecycle {
-    ignore_changes = [desired_count, task_definition]
+    ignore_changes = [task_definition]
   }
 }
 
@@ -241,15 +241,21 @@ resource "aws_ecs_task_definition" "grafana" {
     portMappings = [{ containerPort = 3000, protocol = "tcp" }]
 
     environment = [
-      { name = "GF_SERVER_ROOT_URL", value = "https://grafana.${var.domain_name}" },
+      { name = "GF_SERVER_ROOT_URL", value = "https://grafana.${var.root_domain}" },
+      # RDS MySQL 사용 ===
+      { name = "GF_DATABASE_TYPE",   value = "mysql" },
+      { name = "GF_DATABASE_HOST",   value = "${aws_db_instance.main.address}:3306" },
+      { name = "GF_DATABASE_NAME",   value = "grafana" },
+      { name = "GF_DATABASE_USER",   value = aws_db_instance.main.username },
       { name = "GF_AUTH_ANONYMOUS_ENABLED", value = "false" },
-      { name = "GF_USERS_ALLOW_SIGN_UP", value = "false" },
-      { name = "GF_INSTALL_PLUGINS", value = "grafana-x-ray-datasource" },
+      { name = "GF_USERS_ALLOW_SIGN_UP",    value = "false" },
+      { name = "GF_INSTALL_PLUGINS",        value = "grafana-x-ray-datasource" },
       # Datasource provisioning 은 SSM 으로 주입
-      { name = "AWS_REGION", value = var.aws_region },
+      { name = "AWS_REGION",    value = var.aws_region },
       { name = "AMP_QUERY_URL", value = aws_prometheus_workspace.main.prometheus_endpoint },
-      { name = "LOKI_URL", value = "http://loki.${local.name_prefix}.local:3100" },
-      { name = "TEMPO_URL", value = "http://tempo.${local.name_prefix}.local:3200" },
+      { name = "LOKI_URL",      value = "http://loki.${local.name_prefix}.local:3100" },
+      { name = "TEMPO_URL",     value = "http://tempo.${local.name_prefix}.local:3200" },
+      { name = "GF_AUTH_SIGV4_AUTH_ENABLED", value = "true" },
     ]
 
     secrets = [
@@ -282,7 +288,7 @@ resource "aws_ecs_service" "grafana" {
   name            = "${local.name_prefix}-grafana"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.grafana.arn
-  desired_count   = 1
+  desired_count   = var.prod_enabled ? 1 : 0
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name
@@ -310,6 +316,6 @@ resource "aws_ecs_service" "grafana" {
   tags       = { Name = "${local.name_prefix}-grafana-svc" }
 
   lifecycle {
-    ignore_changes = [desired_count, task_definition]
+    ignore_changes = [task_definition]
   }
 }

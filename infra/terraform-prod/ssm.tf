@@ -158,3 +158,11 @@ resource "aws_ssm_parameter" "admin_password" {
   tags  = { Name = "${local.name_prefix}-admin-password" }
   lifecycle { ignore_changes = [value] }
 }
+
+resource "aws_ssm_parameter" "ga4_sa_key" {
+  name  = "/${var.project}/${var.env}/ga4-sa-key"
+  type  = "SecureString"
+  value = "CHANGE_ME"          # apply 후 실제 JSON 수동 주입
+  tags  = { Name = "${local.name_prefix}-ga4-sa-key" }
+  lifecycle { ignore_changes = [value] }
+}

@@ -326,7 +326,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "DB_NAME", value = var.db_name },
         { name = "DB_SSL_MODE", value = "VERIFY_IDENTITY" },
         # ⌁ prod: ElastiCache primary endpoint (single primary 또는 reader endpoint)
-        { name = "REDIS_HOST", value = aws_elasticache_replication_group.main.primary_endpoint_address },
+        { name = "REDIS_HOST", value = try(aws_elasticache_replication_group.main[0].primary_endpoint_address, "") },
         { name = "REDIS_PORT", value = "6379" },
         { name = "REDIS_TLS", value = "true" },              # ElastiCache transit encryption
         { name = "JPA_DDL_AUTO", value = "validate" },        # ⌁ prod: validate (Flyway 사용)
@@ -354,6 +354,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "BRIA_API_KEY",     valueFrom = aws_ssm_parameter.bria_api_key.arn },
         { name = "BRIA_BASE_URL",    valueFrom = aws_ssm_parameter.bria_base_url.arn },
         { name = "ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.admin_password.arn },
+        { name = "GA4_SA_KEY_JSON", valueFrom = aws_ssm_parameter.ga4_sa_key.arn },
       ]
 
       logConfiguration = {
@@ -408,7 +409,7 @@ resource "aws_ecs_task_definition" "fastapi" {
 
       environment = concat([
         { name = "PORT", value = "8000" },
-        { name = "WORKERS", value = "2" },   # ⌁ prod: 2 workers
+        { name = "WORKERS", value = "2" },   # unused — Dockerfile CMD 가 결정
         # ── CLIP 모델 설정 (main.py 의 env 변수와 매칭) ──
         { name = "CLIP_MODEL_NAME", value = "openai/clip-vit-large-patch14" },
         { name = "DEVICE", value = "cpu" },
