@@ -23,9 +23,11 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
     title,
     focusLabel,
     imageUrl,
+    summary,
     observation,
     effect,
     direction,
+    recommendPractice,
     guideAsset,
     references = [],
     nextGoal,
@@ -33,6 +35,10 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
 
   const heading = `${title || focusLabel || ""} 한 끗 가이드`.trim();
   const assetSrc = guideAsset ? guideAssetUrl(guideAsset.refId) : null;
+
+  // 축이 없을 때 변형: 분석·읽히는 느낌 대신 "추천 연습"으로 시작하고 섹션 번호가 하나씩 당겨진다.
+  //   (가이드 최소 2번 이상 요청 후 → 그림에 축이 없을 때)
+  const axisless = !!recommendPractice;
 
   const react = (refId, kind) => {
     const next = reactions[refId] === kind ? null : kind; // 같은 버튼 재클릭=취소
@@ -55,29 +61,42 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
       </div>
 
       <div className={styles.scroll}>
-        {/* 1. 분석 */}
-        <Section n="1. 분석">
-          <div className={styles.analysis}>
-            <div className={styles.thumb}>
-              {imageUrl && <img src={imageUrl} alt="업로드 그림" />}
+        {summary && <p className={styles.summary}>{summary}</p>}
+
+        {axisless ? (
+          /* 축이 없을 때: 분석/읽히는 느낌 대신 추천 연습으로 시작 */
+          <Section n="1. 추천 연습">
+            <div className={styles.card}>
+              <p className={styles.lead}>{recommendPractice}</p>
             </div>
-            <p className={styles.lead}>
-              {observation || "관찰 내용이 여기 표시됩니다."}
-            </p>
-          </div>
-        </Section>
+          </Section>
+        ) : (
+          <>
+            {/* 1. 분석 */}
+            <Section n="1. 분석">
+              <div className={styles.analysis}>
+                <div className={styles.thumb}>
+                  {imageUrl && <img src={imageUrl} alt="업로드 그림" />}
+                </div>
+                <p className={styles.lead}>
+                  {observation || "관찰 내용이 여기 표시됩니다."}
+                </p>
+              </div>
+            </Section>
 
-        {/* 2. 읽히는 느낌 */}
-        <Section n="2. 읽히는 느낌">
-          <div className={styles.card}>
-            <p className={styles.lead}>
-              {effect || "읽히는 느낌이 여기 표시됩니다."}
-            </p>
-          </div>
-        </Section>
+            {/* 2. 읽히는 느낌 */}
+            <Section n="2. 읽히는 느낌">
+              <div className={styles.card}>
+                <p className={styles.lead}>
+                  {effect || "읽히는 느낌이 여기 표시됩니다."}
+                </p>
+              </div>
+            </Section>
+          </>
+        )}
 
-        {/* 3. 한 끗 포인트 */}
-        <Section n="3. 한 끗 포인트" accent>
+        {/* 한 끗 포인트 */}
+        <Section n={axisless ? "2. 한 끗 포인트" : "3. 한 끗 포인트"} accent>
           <div className={`${styles.card} ${styles.accentCard}`}>
             <p className={styles.lead}>
               {direction || "지금 해볼 실험이 여기 표시됩니다."}
@@ -100,8 +119,8 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
           </div>
         </Section>
 
-        {/* 4. 추천 레퍼런스 */}
-        <Section n="4. 추천 레퍼런스">
+        {/* 추천 레퍼런스 */}
+        <Section n={axisless ? "3. 추천 레퍼런스" : "4. 추천 레퍼런스"}>
           <div className={styles.card}>
             <div className={styles.refs}>
               {references.length ? (
@@ -124,8 +143,9 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
                             }
                             onClick={() => react(rid, "like")}
                             title="도움돼요"
+                            aria-label="도움돼요"
                           >
-                            👍
+                            <ThumbsUpIcon />
                           </button>
                           <button
                             type="button"
@@ -134,8 +154,9 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
                             }
                             onClick={() => react(rid, "dislike")}
                             title="별로예요"
+                            aria-label="별로예요"
                           >
-                            👎
+                            <ThumbsDownIcon />
                           </button>
                         </span>
                       </div>
@@ -151,8 +172,8 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
           </div>
         </Section>
 
-        {/* 5. 앞으로 해야 할 것 */}
-        <Section n="5. 앞으로 해야 할 것">
+        {/* 앞으로 해야 할 것 */}
+        <Section n={axisless ? "4. 앞으로 해야 할 것" : "5. 앞으로 해야 할 것"}>
           <div className={styles.card}>
             {nextGoal ? (
               <>
@@ -298,6 +319,37 @@ const CloseIcon = () => (
       d="M1.4 14L0 12.6L5.6 7L0 1.4L1.4 0L7 5.6L12.6 0L14 1.4L8.4 7L14 12.6L12.6 14L7 8.4L1.4 14Z"
       fill="currentColor"
     />
+  </svg>
+);
+
+/* 좋아요/싫어요 — 레퍼런스 카드 메뉴와 동일한 아이콘 */
+const ThumbsUpIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M7 11v8a2 2 0 0 0 2 2h7.5a2 2 0 0 0 2-1.5l1.5-6.5a2 2 0 0 0-2-2.5h-4l.7-3.5a2 2 0 0 0-2-2.5L10 8 7 11z" />
+  </svg>
+);
+
+const ThumbsDownIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M17 13V5a2 2 0 0 0-2-2H7.5a2 2 0 0 0-2 1.5L4 11a2 2 0 0 0 2 2.5h4l-.7 3.5a2 2 0 0 0 2 2.5L14 16l3-3z" />
   </svg>
 );
 
