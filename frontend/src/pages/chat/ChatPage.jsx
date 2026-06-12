@@ -88,9 +88,46 @@ const extractGuide = (res, imageUrl, fallbackRefs) => {
   };
 };
 
+// DEMO(임시): 백엔드 미통합 상태에서 가이드 카드/패널을 눈으로 확인하기 위한 목 데이터.
+//   ?guideDemo=1 로 접속하면 가짜 가이드 메시지를 주입한다. 백엔드 통합 후 이 블록 전체 제거.
+// 가이드 최소 2번 이상 요청 후 → 그림에 축이 없을 때 변형(무게중심 가이드)에 맞춘 목 데이터.
+//   recommendPractice 가 있으면 GuidePanel이 "분석/읽히는 느낌" 대신 "추천 연습"으로 시작한다.
+const DEMO_GUIDE = {
+  guideId: "demo",
+  title: "무게중심",
+  focusLabel: "무게중심",
+  imageUrl: null,
+  summary:
+    "무게중심은 최근 5장 중 4회(80%)에서 보인 어려움으로, 가장 자주 짚어본 부분이에요. 지금 한 번 잡아두면 다른 그림에도 두루 도움이 돼요.",
+  recommendPractice:
+    "단축·생성 단계를 건너뛰고, 한 다리에 무게를 실은 컨트라포스토 포즈를 가볍게 그려보아요.",
+  direction:
+    "골반에서 바닥으로 수직선을 그어, 그 선이 무게를 디딘 발을 지나는지 확인해 보세요.",
+  guideAsset: null,
+  references: [{ id: "demo-r1" }, { id: "demo-r2" }, { id: "demo-r3" }],
+  nextGoal: {
+    key: "weight_balance",
+    label: "무게중심",
+    practice: "무게중심이 안정적으로 잡힐 때까지 무게중심 그리기를 연습해요.",
+  },
+};
+const DEMO_GROWTH = {
+  timeline: [
+    { flagged_count: 5 },
+    { flagged_count: 4 },
+    { flagged_count: 4 },
+    { flagged_count: 2 },
+  ],
+  current: { sub_problem: "weight_balance" },
+};
+
 const ChatPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
+
+  // DEMO(임시): 머지 전 제거
+  const guideDemo =
+    new URLSearchParams(window.location.search).get("guideDemo") === "1";
 
   const [project, setProject] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -113,6 +150,11 @@ const ChatPage = () => {
   const openGuide = useCallback(
     async (guide) => {
       setActiveGuide(guide);
+      // DEMO(임시): 데모 모드면 가짜 성장 흐름을 바로 채운다. 머지 전 이 분기 제거.
+      if (guideDemo) {
+        setGuideGrowth(DEMO_GROWTH);
+        return;
+      }
       setGuideGrowth(undefined);
       try {
         // 성장 흐름은 별도 조회 (백엔드 미통합이면 null 반환 → 섹션 숨김)
@@ -122,7 +164,7 @@ const ChatPage = () => {
         setGuideGrowth(null);
       }
     },
-    [projectId],
+    [projectId, guideDemo],
   );
 
   const handleGuideReact = useCallback((guideId, refId, kind) => {
@@ -306,6 +348,24 @@ const ChatPage = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxSrc]);
+
+  // DEMO(임시): ?guideDemo=1 이면 가짜 유저/가이드 메시지를 한 번 주입한다.
+  //   백엔드 통합 후 이 effect 전체 제거.
+  const demoSeeded = useRef(false);
+  useEffect(() => {
+    if (!guideDemo || demoSeeded.current) return;
+    demoSeeded.current = true;
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: "서 있는 인물을 그리는데 자세가 불안정해 보여요" },
+      {
+        role: "assistant",
+        content:
+          "좋은 관찰이에요. 무게중심이 한쪽으로 쏠리면 자세가 불안정하게 읽히기 쉬워요. 무게중심을 다시 잡아볼 수 있는 한 끗 가이드를 만들어 드릴게요.",
+        guide: DEMO_GUIDE,
+      },
+    ]);
+  }, [guideDemo]);
 
   // 새로 만든 프로젝트에서 레퍼런스가 처음 생성/노출되고,
   // 보드가 보이는 화면(프롬프트 전체화면 아님)일 때 노출.
