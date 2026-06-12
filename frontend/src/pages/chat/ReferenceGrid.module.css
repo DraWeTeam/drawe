@@ -375,6 +375,13 @@
   margin: 4px 0;
 }
 
+.empty .emptyTitle {
+  margin-top: 20px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #4a4846;
+}
+
 .emptyHint {
   font-size: 13px;
   color: #bbb;

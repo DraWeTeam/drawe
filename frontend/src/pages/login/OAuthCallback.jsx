@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getOnboardingStatus } from "../onboarding/api";
+// 온보딩 비활성화: import { getOnboardingStatus } from "../onboarding/api";
 import { track, setUserId } from "../../analytics";
 
 function getUserIdFromToken(token) {
@@ -26,19 +26,25 @@ const OAuthCallback = () => {
     const accessToken = params.get("accessToken");
     const refreshToken = params.get("refreshToken");
 
-    const checkOnboardingAndRedirect = async () => {
-      try {
-        const status = await getOnboardingStatus();
-        if (status.completed) {
-          navigate("/projects");
-        } else {
-          navigate("/onboarding");
-        }
-      } catch (err) {
-        console.error("온보딩 상태 조회 실패:", err);
-        navigate("/projects"); // 에러 시 일단 프로젝트로
-      }
+    // 온보딩 비활성화: 항상 /projects 로 이동
+    const checkOnboardingAndRedirect = () => {
+      navigate("/projects");
     };
+
+    // 온보딩 비활성화 전 원본 — 재활성화 시 위 함수 대신 사용
+    // const checkOnboardingAndRedirect = async () => {
+    //   try {
+    //     const status = await getOnboardingStatus();
+    //     if (status.completed) {
+    //       navigate("/projects");
+    //     } else {
+    //       navigate("/onboarding");
+    //     }
+    //   } catch (err) {
+    //     console.error("온보딩 상태 조회 실패:", err);
+    //     navigate("/projects"); // 에러 시 일단 프로젝트로
+    //   }
+    // };
 
     if (!accessToken || !refreshToken) {
       // ↓ OAuth 실패 (토큰 못 받음)

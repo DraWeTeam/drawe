@@ -3,7 +3,7 @@ import Google from "../../assets/google.png";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import api from "./api";
-import { getOnboardingStatus } from "../onboarding/api"; // ← 추가
+// 온보딩 비활성화: import { getOnboardingStatus } from "../onboarding/api";
 import AuthHeader from "./AuthHeader";
 import { setUserId } from "../../analytics"; // ← 추가
 import { track } from "../../analytics";
@@ -56,19 +56,25 @@ const Login = () => {
   };
 
   // 온보딩 체크 + 리다이렉트 — 추가
+  // 온보딩 비활성화: 항상 /projects 로 이동
   const redirectAfterLogin = async () => {
-    try {
-      const status = await getOnboardingStatus();
-      if (status.completed) {
-        navigate("/projects");
-      } else {
-        navigate("/onboarding");
-      }
-    } catch (err) {
-      console.error("온보딩 상태 조회 실패:", err);
-      navigate("/projects"); // 에러 시 안전 진행
-    }
+    navigate("/projects");
   };
+
+  // 온보딩 비활성화 전 원본 — 재활성화 시 위 함수 대신 사용
+  // const redirectAfterLogin = async () => {
+  //   try {
+  //     const status = await getOnboardingStatus();
+  //     if (status.completed) {
+  //       navigate("/projects");
+  //     } else {
+  //       navigate("/onboarding");
+  //     }
+  //   } catch (err) {
+  //     console.error("온보딩 상태 조회 실패:", err);
+  //     navigate("/projects"); // 에러 시 안전 진행
+  //   }
+  // };
 
   const handleLogin = async (e) => {
     e.preventDefault();

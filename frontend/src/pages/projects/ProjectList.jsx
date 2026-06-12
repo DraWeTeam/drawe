@@ -77,6 +77,10 @@ const ProjectList = () => {
     const detail = await createProject(payload);
     setCreateOpen(false);
     if (detail?.id) {
+      // 새 프로젝트를 만들 때마다 채팅 튜토리얼 코치마크 노출 (프로젝트 id로 키잉)
+      const pid = String(detail.id);
+      localStorage.setItem("drawe_show_project_tutorial", pid);
+      localStorage.setItem("drawe_show_reaction_tutorial", pid);
       navigate(`/projects/${detail.id}/chat`);
     } else {
       fetchProjects();

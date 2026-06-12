@@ -21,6 +21,7 @@ import {
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import AuthedImage from "./AuthedImage";
+import TutorialCoachmark from "./TutorialCoachmark";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 import { track } from "../../analytics";
@@ -69,9 +70,29 @@ const ChatPage = () => {
   // 이미지 확대 보기 (AI 생성 이미지 클릭 시)
   const [lightboxSrc, setLightboxSrc] = useState(null);
 
+  // 새 프로젝트 생성 직후 노출되는 튜토리얼 코치마크 (플래그는 해당 프로젝트 id)
+  const [showTutorial, setShowTutorial] = useState(
+    () => localStorage.getItem("drawe_show_project_tutorial") === projectId,
+  );
+
+  const dismissTutorial = () => {
+    localStorage.removeItem("drawe_show_project_tutorial");
+    setShowTutorial(false);
+  };
+
+  // 레퍼런스 반응 튜토리얼 — 새 프로젝트에서 레퍼런스가 처음 보일 때 노출
+  const [showReactionTutorial, setShowReactionTutorial] = useState(false);
+
+  const dismissReactionTutorial = () => {
+    localStorage.removeItem("drawe_show_reaction_tutorial");
+    setShowReactionTutorial(false);
+  };
+
   const listRef = useRef(null);
   const textareaRef = useRef(null);
   const lastResponseTime = useRef(null);
+  const attachAnchorRef = useRef(null); // 튜토리얼 코치마크 앵커 (첨부 버튼)
+  const firstRefMenuRef = useRef(null); // 레퍼런스 반응 튜토리얼 앵커 (첫 카드 ... 메뉴)
 
   const pinnedIds = useMemo(
     () => new Set(pinnedRefs.map((r) => r.id)),
@@ -209,6 +230,19 @@ const ChatPage = () => {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxSrc]);
+
+  // 새로 만든 프로젝트에서 레퍼런스가 처음 생성/노출되고,
+  // 보드가 보이는 화면(프롬프트 전체화면 아님)일 때 노출.
+  // chatFull(프롬프트만 전체화면)이면 보류 → split/refFull 로 전환되면 노출.
+  useEffect(() => {
+    if (localStorage.getItem("drawe_show_reaction_tutorial") !== projectId)
+      return;
+    if (showTutorial) return; // 첨부 튜토리얼과 동시 노출 방지
+    const boardVisible = mode !== "chatFull";
+    if (references.length > 0 && boardVisible) {
+      setShowReactionTutorial(true);
+    }
+  }, [references, mode, showTutorial, projectId]);
 
   const handleSend = async (e) => {
     e?.preventDefault?.();
@@ -637,6 +671,7 @@ const ChatPage = () => {
             onPinToggle={handlePinToggle}
             onCardClick={handleCardClick}
             expanded={mode === "refFull"}
+            firstMenuRef={firstRefMenuRef}
           />
         </aside>
 
@@ -821,13 +856,15 @@ const ChatPage = () => {
 
               {/* 입력 줄 — 클립 + textarea + 전송 */}
               <div className={styles.inputRow}>
-                <AttachmentPicker
-                  attachment={attachment}
-                  onAttach={setAttachment}
-                  onClear={() => setAttachment(null)}
-                  onError={setErrorMessage}
-                  disabled={sending}
-                />
+                <span ref={attachAnchorRef} className={styles.attachAnchor}>
+                  <AttachmentPicker
+                    attachment={attachment}
+                    onAttach={setAttachment}
+                    onClear={() => setAttachment(null)}
+                    onError={setErrorMessage}
+                    disabled={sending}
+                  />
+                </span>
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -864,6 +901,29 @@ const ChatPage = () => {
       >
         <img className={styles.fabIcon} src={logo} alt="" />
       </button>
+
+      {/* 첫 프로젝트 진입 튜토리얼 */}
+      {showTutorial && (
+        <TutorialCoachmark
+          anchorRef={attachAnchorRef}
+          onClose={dismissTutorial}
+          step="1 of 1"
+        />
+      )}
+
+      {/* 레퍼런스 반응 튜토리얼 — 첫 카드 ... 메뉴 오른쪽 */}
+      {showReactionTutorial && (
+        <TutorialCoachmark
+          anchorRef={firstRefMenuRef}
+          onClose={dismissReactionTutorial}
+          placement="right"
+          variant="reaction"
+          gap={8}
+          step="1 of 1"
+          title="반응할수록 더 정확해져요"
+          description="고정하기, 마음에 들어요, 별로예요 등의 반응을 통해 학습하고 더 정확한 레퍼런스를 제공할 수 있어요."
+        />
+      )}
 
       {/* 이미지 확대 라이트박스 */}
       {lightboxSrc && (
