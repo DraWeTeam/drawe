@@ -3,7 +3,13 @@ import { uploadImage } from "./api";
 import { resizeImage, validateImageFile } from "./imageUtils";
 import styles from "./AttachmentPicker.module.css";
 
-const AttachmentPicker = ({ attachment, onAttach, onError, disabled }) => {
+const AttachmentPicker = ({
+  attachment,
+  onAttach,
+  onError,
+  disabled,
+  onOpenGuide,
+}) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -85,7 +91,7 @@ const AttachmentPicker = ({ attachment, onAttach, onError, disabled }) => {
       <button
         type="button"
         className={styles.clipBtn}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => (onOpenGuide ? onOpenGuide() : inputRef.current?.click())}
         disabled={disabled || uploading || !!attachment}
         aria-label="이미지 첨부"
         title="이미지 첨부"

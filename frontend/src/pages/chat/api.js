@@ -7,13 +7,18 @@ export const uploadImage = async (file) => {
   return res.data.data;
 };
 
+// TODO(백엔드 통합): 한 끗 가이드용 intent/medium 필드는 임시 계약이다.
+//   백엔드가 첨부 이미지를 보고 의도를 분류해 FastAPI(artcoach) 가이드를 호출하는 구조가
+//   확정되면 전달 방식(필드명·엔드포인트)이 바뀔 수 있으니, 그때 이 시그니처를 맞춰 수정할 것.
 export const sendMessage = async (
   projectId,
-  { message, sessionId, imageUrl },
+  { message, sessionId, imageUrl, intent, medium },
 ) => {
   const body = { message };
   if (sessionId) body.sessionId = sessionId;
   if (imageUrl) body.imageUrl = imageUrl;
+  if (intent) body.intent = intent; // open(작업중) | finished(완성작)
+  if (medium) body.medium = medium; // ""(자동) | "sketch"(스케치)
   const res = await api.post(`/projects/${projectId}/chat`, body);
   return res.data.data;
 };

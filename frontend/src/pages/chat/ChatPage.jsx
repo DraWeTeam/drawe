@@ -17,11 +17,14 @@ import {
   removePin,
   resetSession,
   sendMessage,
+  uploadImage,
 } from "./api";
+import { resizeImage } from "./imageUtils";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import AuthedImage from "./AuthedImage";
 import TutorialCoachmark from "./TutorialCoachmark";
+import GuideRequestModal from "./GuideRequestModal";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 import { track } from "../../analytics";
@@ -57,6 +60,10 @@ const ChatPage = () => {
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [attachment, setAttachment] = useState(null);
+
+  // 한 끗 가이드 입력 모달 (첨부 버튼으로 열림)
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideSubmitting, setGuideSubmitting] = useState(false);
 
   const [references, setReferences] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
@@ -244,12 +251,14 @@ const ChatPage = () => {
     }
   }, [references, mode, showTutorial, projectId]);
 
-  const handleSend = async (e) => {
+  // override: 한 끗 가이드 모달이 직접 전송할 때 state 대신 명시적으로 넘긴다.
+  //   { text, attachment, intent, medium }
+  const handleSend = async (e, override) => {
     e?.preventDefault?.();
-    const text = input.trim();
-    if ((!text && !attachment) || sending) return;
+    const text = (override?.text ?? input).trim();
+    const sentAttachment = override?.attachment ?? attachment;
+    if ((!text && !sentAttachment) || sending) return;
 
-    const sentAttachment = attachment;
     setErrorMessage("");
 
     const showGeneratingHint = looksLikeGenerateRequest(text);
@@ -340,6 +349,9 @@ const ChatPage = () => {
         message: text,
         sessionId,
         imageUrl: sentAttachment?.url,
+        // 가이드 모달에서 온 경우에만 채워짐 (백엔드 의도 분류용)
+        intent: override?.intent,
+        medium: override?.medium,
       });
       if (res?.sessionId && res.sessionId !== sessionId) {
         setSessionId(res.sessionId);
@@ -429,6 +441,39 @@ const ChatPage = () => {
     } finally {
       if (rotator) clearInterval(rotator);
       setSending(false);
+    }
+  };
+
+  // 한 끗 가이드 모달 제출 → 이미지 업로드 후 채팅 전송으로 흘려보낸다.
+  //   백엔드가 첨부 이미지를 보고 의도를 분류해 가이드(coach) 응답을 돌려주는 구조라,
+  //   별도 /guide 호출 없이 기존 채팅 전송(handleSend)을 그대로 탄다.
+  // TODO(백엔드 통합): 가이드 전용 엔드포인트/응답 형태가 확정되면 이 흐름을 맞춰 조정할 것.
+  const handleGuideSubmit = async ({ file, message, medium, intent }) => {
+    setGuideSubmitting(true);
+    setErrorMessage("");
+    try {
+      const resized = await resizeImage(file);
+      const { imageId, url } = await uploadImage(resized);
+      const attachmentObj = {
+        imageId,
+        url,
+        previewUrl: URL.createObjectURL(file),
+        format: file.type?.split("/")[1] || "unknown",
+        sizeKb: Math.round((resized?.size || file.size) / 1024),
+      };
+      setGuideOpen(false);
+      await handleSend(null, {
+        text: message,
+        attachment: attachmentObj,
+        intent,
+        medium,
+      });
+    } catch (e) {
+      setErrorMessage(
+        e.response?.data?.error?.message || "이미지 업로드에 실패했어요.",
+      );
+    } finally {
+      setGuideSubmitting(false);
     }
   };
 
@@ -863,6 +908,7 @@ const ChatPage = () => {
                     onClear={() => setAttachment(null)}
                     onError={setErrorMessage}
                     disabled={sending}
+                    onOpenGuide={() => setGuideOpen(true)}
                   />
                 </span>
                 <textarea
@@ -901,6 +947,15 @@ const ChatPage = () => {
       >
         <img className={styles.fabIcon} src={logo} alt="" />
       </button>
+
+      {/* 한 끗 가이드 입력 모달 */}
+      {guideOpen && (
+        <GuideRequestModal
+          onClose={() => setGuideOpen(false)}
+          onSubmit={handleGuideSubmit}
+          submitting={guideSubmitting}
+        />
+      )}
 
       {/* 첫 프로젝트 진입 튜토리얼 */}
       {showTutorial && (

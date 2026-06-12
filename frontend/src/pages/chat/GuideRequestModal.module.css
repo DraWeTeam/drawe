@@ -1,0 +1,265 @@
+/* 한 끗 가이드 입력 폼 모달 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 15, 15, 0.4);
+}
+
+.modal {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 28px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #24221f;
+}
+
+.close {
+  border: none;
+  background: transparent;
+  color: #888685;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+}
+
+.close:hover {
+  color: #24221f;
+}
+
+.label {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4846;
+}
+
+/* 업로드 드롭존 */
+.drop {
+  border: 1px dashed #ff8534;
+  background: #fffbf5;
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-align: center;
+  color: #888685;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pick {
+  margin-top: 12px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  background: #ff8534;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pick:hover {
+  background: #f0742a;
+}
+
+/* 파일 미리보기 */
+.preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #edebea;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.thumb {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #f6f6f6;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.fileName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #24221f;
+}
+
+.fileSize {
+  font-size: 12px;
+  color: #888685;
+}
+
+.fileInfo .pick {
+  margin-top: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.removeFile {
+  margin-left: auto;
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: #888685;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+}
+
+.removeFile:hover {
+  color: #24221f;
+}
+
+.fileError {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9b2c2c;
+}
+
+/* 텍스트 입력 */
+.textInput,
+.select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #edebea;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #4a4846;
+  background: #fff;
+  font-family: inherit;
+}
+
+.textInput:focus,
+.select:focus {
+  outline: none;
+  border-color: #ff8534;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chip,
+.chipSel {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border: 1px solid #edebea;
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #4a4846;
+  cursor: pointer;
+}
+
+.chipSel {
+  border-color: #ff8534;
+  color: #ff8534;
+  background: #fffbf5;
+}
+
+/* 상태 토글 */
+.toggle {
+  display: inline-flex;
+  border: 1px solid #edebea;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toggle button {
+  border: none;
+  background: #fff;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #4a4846;
+  cursor: pointer;
+}
+
+.toggle button.toggleSel {
+  background: #ff8534;
+  color: #fff;
+  font-weight: 600;
+}
+
+.submit {
+  margin-top: 24px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: #ff8534;
+  cursor: pointer;
+}
+
+.submit:disabled {
+  background: #e7e4e0;
+  color: #b6b2ad;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d8d7d5;
+  border-top-color: #ff8534;
+  border-radius: 50%;
+  animation: guideSpin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes guideSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
