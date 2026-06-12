@@ -25,6 +25,9 @@ import AttachmentPicker from "./AttachmentPicker";
 import AuthedImage from "./AuthedImage";
 import TutorialCoachmark from "./TutorialCoachmark";
 import GuideRequestModal from "./GuideRequestModal";
+import GuidePanel from "./GuidePanel";
+import { getRoadmap, adoptReference } from "./guideApi";
+import { labelOf } from "./guideLabels";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 import { track } from "../../analytics";
@@ -47,6 +50,44 @@ const GENERATE_INTENT_PATTERN = /만들|그려|생성|AI|이미지/i;
 const looksLikeGenerateRequest = (text) =>
   !!text && GENERATE_INTENT_PATTERN.test(text);
 
+// 채팅 응답에서 한 끗 가이드 데이터를 정규화해서 꺼낸다.
+// TODO(백엔드 통합): 응답 형태는 woz(artcoach) 프로토타입을 가정한 것이다.
+//   백엔드가 가이드를 어떤 키로 실어 줄지(res.guide vs mode:"coach" vs 별도 필드) 확정되면
+//   여기 매핑만 맞추면 GuidePanel/가이드 카드가 그대로 동작한다. 가이드가 아니면 null.
+const extractGuide = (res, imageUrl, fallbackRefs) => {
+  const g = res?.guide || (res?.mode === "coach" ? res : null);
+  if (!g) return null;
+  const b = (g.blocks && g.blocks[0]) || {};
+  const ns = g.next_steps || {};
+  const focusKey = g.primary_focus || ns.focus;
+  const goalKey = ns.next_goal || ns.focus;
+  const blockRefs = (b.reference_ids || []).map((id) => ({ id }));
+  return {
+    guideId: g.guide_id || "",
+    title: g.title || labelOf(focusKey),
+    focusLabel: labelOf(focusKey),
+    imageUrl,
+    observation: b.observation,
+    effect: b.effect,
+    direction: b.direction || g.one_thing,
+    guideAsset: b.guide_asset?.ref_id
+      ? {
+          refId: b.guide_asset.ref_id,
+          label: b.guide_asset.label,
+          caption: b.guide_asset.caption,
+        }
+      : null,
+    references: blockRefs.length ? blockRefs : fallbackRefs || [],
+    nextGoal: goalKey
+      ? {
+          key: goalKey,
+          label: labelOf(goalKey),
+          practice: ns.next_goal_practice || ns.focus_practice || g.one_thing,
+        }
+      : null,
+  };
+};
+
 const ChatPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -64,6 +105,34 @@ const ChatPage = () => {
   // 한 끗 가이드 입력 모달 (첨부 버튼으로 열림)
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideSubmitting, setGuideSubmitting] = useState(false);
+
+  // 채팅 가이드 카드 클릭 시 좌측 패널에 뜨는 전체 가이드
+  const [activeGuide, setActiveGuide] = useState(null);
+  const [guideGrowth, setGuideGrowth] = useState(undefined); // undefined=로딩, null=미제공
+
+  const openGuide = useCallback(
+    async (guide) => {
+      setActiveGuide(guide);
+      setGuideGrowth(undefined);
+      try {
+        // 성장 흐름은 별도 조회 (백엔드 미통합이면 null 반환 → 섹션 숨김)
+        const data = await getRoadmap(projectId);
+        setGuideGrowth(data ?? null);
+      } catch {
+        setGuideGrowth(null);
+      }
+    },
+    [projectId],
+  );
+
+  const handleGuideReact = useCallback((guideId, refId, kind) => {
+    if (!kind) return; // 취소는 로깅 안 함
+    adoptReference({
+      guideId,
+      referenceId: refId,
+      event: kind === "like" ? "liked" : "disliked",
+    });
+  }, []);
 
   const [references, setReferences] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
@@ -362,6 +431,13 @@ const ChatPage = () => {
       const newRefs = res.references || [];
       const generated = res.generatedImage;
 
+      // 한 끗 가이드 응답이면 메시지에 가이드 데이터를 실어 카드로 렌더한다.
+      const guide = extractGuide(
+        res,
+        sentAttachment?.previewUrl || sentAttachment?.url || null,
+        newRefs,
+      );
+
       setMessages((prev) => {
         const next = prev.filter((m) => !m._generating);
         return [
@@ -373,6 +449,7 @@ const ChatPage = () => {
             referencesAction: action,
             imageUrl: generated?.url ?? null,
             isAi: !!generated,
+            guide,
           },
         ];
       });
@@ -699,25 +776,36 @@ const ChatPage = () => {
 
       {/* 본문 — 좌/우 분할 */}
       <div className={styles.body}>
-        {/* 좌측: 레퍼런스 — 항상 mount, hidden 클래스로 숨김 처리 */}
+        {/* 좌측: 가이드 패널이 열려 있으면 그것을, 아니면 레퍼런스 보드 */}
         <aside
           className={`${styles.leftPanel} ${
             mode === "chatFull" ? styles.panelHidden : ""
           }`}
         >
-          <ReferenceGrid
-            references={references}
-            loading={sending}
-            justUpdated={justUpdated}
-            pinnedRefs={pinnedRefs}
-            pinnedIds={pinnedIds}
-            pinError={pinError}
-            onClearPinError={() => setPinError("")}
-            onPinToggle={handlePinToggle}
-            onCardClick={handleCardClick}
-            expanded={mode === "refFull"}
-            firstMenuRef={firstRefMenuRef}
-          />
+          {activeGuide ? (
+            <GuidePanel
+              guide={activeGuide}
+              growth={guideGrowth}
+              onClose={() => setActiveGuide(null)}
+              onReact={(refId, kind) =>
+                handleGuideReact(activeGuide.guideId, refId, kind)
+              }
+            />
+          ) : (
+            <ReferenceGrid
+              references={references}
+              loading={sending}
+              justUpdated={justUpdated}
+              pinnedRefs={pinnedRefs}
+              pinnedIds={pinnedIds}
+              pinError={pinError}
+              onClearPinError={() => setPinError("")}
+              onPinToggle={handlePinToggle}
+              onCardClick={handleCardClick}
+              expanded={mode === "refFull"}
+              firstMenuRef={firstRefMenuRef}
+            />
+          )}
         </aside>
 
         {/* 우측: 채팅 */}
@@ -840,6 +928,32 @@ const ChatPage = () => {
                           )}
                           <div>{m.content}</div>
                         </div>
+                      )}
+
+                      {/* 한 끗 가이드 카드 — 클릭 시 좌측 패널에 전체 가이드 */}
+                      {m.guide && (
+                        <button
+                          type="button"
+                          className={styles.guideCard}
+                          onClick={() => openGuide(m.guide)}
+                        >
+                          <span className={styles.guideCardThumb}>
+                            {m.guide.imageUrl ? (
+                              <img src={m.guide.imageUrl} alt="" />
+                            ) : (
+                              <PhotoGlyph />
+                            )}
+                          </span>
+                          <span className={styles.guideCardText}>
+                            <span className={styles.guideCardTitle}>
+                              {m.guide.title || "한 끗 가이드"}
+                            </span>
+                            <span className={styles.guideCardSub}>
+                              한 끗 가이드 보기
+                            </span>
+                          </span>
+                          <ChevronRightIcon />
+                        </button>
                       )}
                     </div>
                   ))
@@ -1010,6 +1124,41 @@ const ChatPage = () => {
 };
 
 /* ===== 아이콘 ===== */
+const ChevronRightIcon = () => (
+  <svg
+    width="8"
+    height="14"
+    viewBox="0 0 8 14"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M1 13L7 7L1 1"
+      stroke="#888685"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const PhotoGlyph = () => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#b8b6b4"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="M21 15l-5-5L5 21" />
+  </svg>
+);
+
 const BackIcon = () => (
   <svg
     width="12"
