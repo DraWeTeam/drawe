@@ -67,6 +67,9 @@ const extractGuide = (res, imageUrl, fallbackRefs) => {
     title: g.title || labelOf(focusKey),
     focusLabel: labelOf(focusKey),
     imageUrl,
+    // 축 없을 때 변형용 필드 — 백엔드 신호(필드명) 확정 시 매핑 조정 필요.
+    summary: g.summary,
+    recommendPractice: g.recommend_practice || g.recommended_practice,
     observation: b.observation,
     effect: b.effect,
     direction: b.direction || g.one_thing,

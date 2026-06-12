@@ -8,13 +8,19 @@
 }
 
 .head {
+  border-bottom: 1px solid #edebea;
+  flex-shrink: 0;
+}
+
+/* 채팅 확대 시처럼 콘텐츠 폭을 제한하고 가운데 정렬 → 패널이 넓어지면 양옆 마진 생김 */
+.headInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  max-width: 800px;
+  margin: 0 auto;
   /* 레퍼런스 보드와 동일한 좌우 여백 (좌 64 / 우 40) */
   padding: 16px 40px 16px 64px;
-  border-bottom: 1px solid #edebea;
-  flex-shrink: 0;
 }
 
 .heading {
@@ -41,7 +47,12 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* 레퍼런스 보드와 동일한 좌우 여백 (좌 64 / 우 40) */
+}
+
+/* 본문도 800px로 제한·가운데 정렬 (레퍼런스 보드와 동일한 좌 64 / 우 40 여백) */
+.inner {
+  max-width: 800px;
+  margin: 0 auto;
   padding: 8px 40px 40px 64px;
 }
 
@@ -58,7 +69,7 @@
 
 /* 요약(멘트)이 없을 때만 첫 섹션 상단 여백을 줄인다.
    요약이 있으면 요약이 첫 자식이라 이 규칙은 적용되지 않고 40px 유지. */
-.scroll > .sec:first-child {
+.inner > .sec:first-child {
   margin-top: 24px;
 }
 

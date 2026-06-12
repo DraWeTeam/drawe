@@ -49,18 +49,21 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
   return (
     <div className={styles.panel}>
       <div className={styles.head}>
-        <h2 className={styles.heading}>{heading}</h2>
-        <button
-          type="button"
-          className={styles.close}
-          onClick={onClose}
-          aria-label="닫기"
-        >
-          <CloseIcon />
-        </button>
+        <div className={styles.headInner}>
+          <h2 className={styles.heading}>{heading}</h2>
+          <button
+            type="button"
+            className={styles.close}
+            onClick={onClose}
+            aria-label="닫기"
+          >
+            <CloseIcon />
+          </button>
+        </div>
       </div>
 
       <div className={styles.scroll}>
+        <div className={styles.inner}>
         {summary && <p className={styles.summary}>{summary}</p>}
 
         {axisless ? (
@@ -193,12 +196,13 @@ const GuidePanel = ({ guide, growth, onClose, onReact }) => {
           </div>
         </Section>
 
-        {/* 성장 흐름 */}
-        {growth !== null && (
-          <Section n="성장 흐름" accent>
-            <Growth growth={growth} />
-          </Section>
-        )}
+          {/* 성장 흐름 */}
+          {growth !== null && (
+            <Section n="성장 흐름" accent>
+              <Growth growth={growth} />
+            </Section>
+          )}
+        </div>
       </div>
     </div>
   );
