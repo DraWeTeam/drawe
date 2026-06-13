@@ -14,6 +14,7 @@ const ReferenceGrid = ({
   onPinToggle,
   onCardClick,
   expanded,
+  firstMenuRef,
 }) => {
   const hasReferences = references && references.length > 0;
   const totalCount = (references || []).length;
@@ -91,10 +92,9 @@ const ReferenceGrid = ({
         <div className={styles.loading}>이미지 검색 중...</div>
       ) : !hasReferences ? (
         <div className={styles.empty}>
-          <p>그림에 대해 질문해보세요.</p>
-          <p className={styles.emptyHint}>
-            관련 참고 이미지를 자동으로 찾아드려요.
-          </p>
+          <EmptyBoardIcon />
+          <p className={styles.emptyTitle}>레퍼런스 보드가 비어있어요</p>
+          <p className={styles.emptyHint}>원하는 레퍼런스에 대해 질문해보세요</p>
           <p className={styles.scopeText}>(풍경 · 인물 · 동물 · 정물 위주)</p>
         </div>
       ) : (
@@ -109,6 +109,9 @@ const ReferenceGrid = ({
                   isPinned={pinnedIds?.has(ref.id) ?? false}
                   onPinToggle={onPinToggle}
                   onClick={() => onCardClick(ref, index)}
+                  menuBtnRef={
+                    ref.id === displayItems[0]?.ref.id ? firstMenuRef : undefined
+                  }
                 />
               ))}
             </div>
@@ -134,6 +137,7 @@ const ReferenceCard = ({
   isPinned,
   onPinToggle,
   onClick,
+  menuBtnRef,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
@@ -275,11 +279,28 @@ const ReferenceCard = ({
             className={styles.menuBtn}
             onClick={handleMenuClick}
             aria-label="더보기"
+            ref={menuBtnRef}
           >
             <DotsIcon />
           </button>
           {menuOpen && (
             <div className={styles.menuPopup}>
+              <button
+                type="button"
+                className={styles.menuItem}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onPinToggle(reference.id);
+                }}
+              >
+                {isPinned ? (
+                  <PinOutlineIcon size={14} />
+                ) : (
+                  <PinIcon size={14} />
+                )}
+                <span>{isPinned ? "고정 취소하기" : "고정하기"}</span>
+              </button>
               <button
                 type="button"
                 className={`${styles.menuItem} ${
@@ -318,10 +339,25 @@ const ReferenceCard = ({
 };
 
 /* ===== 아이콘 ===== */
-const PinIcon = () => (
+const EmptyBoardIcon = () => (
   <svg
-    width="18"
-    height="18"
+    width="48"
+    height="48"
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M5.33333 48C3.86667 48 2.61111 47.4778 1.56667 46.4333C0.522222 45.3889 0 44.1333 0 42.6667V5.33333C0 3.86667 0.522222 2.61111 1.56667 1.56667C2.61111 0.522222 3.86667 0 5.33333 0H42.6667C44.1333 0 45.3889 0.522222 46.4333 1.56667C47.4778 2.61111 48 3.86667 48 5.33333V42.6667C48 44.1333 47.4778 45.3889 46.4333 46.4333C45.3889 47.4778 44.1333 48 42.6667 48H5.33333ZM5.33333 42.6667H42.6667V5.33333H5.33333V42.6667ZM8 37.3333H40L30 24L22 34.6667L16 26.6667L8 37.3333ZM17.5 17.5C18.2778 16.7222 18.6667 15.7778 18.6667 14.6667C18.6667 13.5556 18.2778 12.6111 17.5 11.8333C16.7222 11.0556 15.7778 10.6667 14.6667 10.6667C13.5556 10.6667 12.6111 11.0556 11.8333 11.8333C11.0556 12.6111 10.6667 13.5556 10.6667 14.6667C10.6667 15.7778 11.0556 16.7222 11.8333 17.5C12.6111 18.2778 13.5556 18.6667 14.6667 18.6667C15.7778 18.6667 16.7222 18.2778 17.5 17.5Z"
+      fill="#D8D7D5"
+    />
+  </svg>
+);
+
+const PinIcon = ({ size = 18 }) => (
+  <svg
+    width={size}
+    height={size}
     viewBox="0 0 18 18"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
@@ -329,6 +365,24 @@ const PinIcon = () => (
     <path
       d="M10.6066 12.728V15.5564L9.19239 16.9706L5.65686 13.4351L1.41422 17.6777H3.21865e-06V16.2635L4.24264 12.0209L0.70711 8.48536L2.12132 7.07114H4.94975L9.8995 2.1214L9.19239 1.41429L10.6066 7.55191e-05L17.6777 7.07114L16.2635 8.48536L15.5564 7.77825L10.6066 12.728Z"
       fill="currentColor"
+    />
+  </svg>
+);
+
+const PinOutlineIcon = ({ size = 18 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M10.6066 12.728V15.5564L9.19239 16.9706L5.65686 13.4351L1.41422 17.6777H3.21865e-06V16.2635L4.24264 12.0209L0.70711 8.48536L2.12132 7.07114H4.94975L9.8995 2.1214L9.19239 1.41429L10.6066 7.55191e-05L17.6777 7.07114L16.2635 8.48536L15.5564 7.77825L10.6066 12.728Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinejoin="round"
     />
   </svg>
 );

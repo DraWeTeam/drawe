@@ -387,6 +387,11 @@
   align-items: flex-end;
 }
 
+/* 튜토리얼 코치마크 앵커 — 첨부 버튼을 감싸되 레이아웃에 영향 없도록 */
+.attachAnchor {
+  display: inline-flex;
+}
+
 .input {
   flex: 1;
   padding: 8px 0;
