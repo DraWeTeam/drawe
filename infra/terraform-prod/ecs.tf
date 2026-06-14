@@ -336,7 +336,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "APP_OAUTH2_REDIRECT_URI", value = "${var.frontend_url}/oauth/callback" },
         { name = "FASTAPI_URL", value = "http://fastapi.${local.name_prefix}.local:8000" },
         { name = "OTEL_SERVICE_NAME", value = "backend" },
-      ], local.otel_env)
+      ], local.otel_env, local.s3_env)  # ← S3 env (S3_BUCKET/S3_REGION[, SPRING_PROFILES_ACTIVE=s3]). 정의: s3-bria.tf
 
       secrets = [
         { name = "DB_USERNAME",          valueFrom = aws_ssm_parameter.db_username.arn },
@@ -414,7 +414,9 @@ resource "aws_ecs_task_definition" "fastapi" {
         { name = "CLIP_MODEL_NAME", value = "openai/clip-vit-large-patch14" },
         { name = "DEVICE", value = "cpu" },
         { name = "OTEL_SERVICE_NAME", value = "ai-server" },
-      ], local.otel_env)
+      ], local.otel_env, local.qdrant_env, local.artref_env)  # ← Qdrant + artref(기본 off). 정의: ssm-qdrant.tf / ssm-artref-fastapi.tf
+
+      secrets = concat(local.qdrant_secrets, local.artref_secrets)  # Qdrant + (플래그 on 시) Pinecone/DB_DSN
 
       logConfiguration = {
         logDriver = "awslogs"
