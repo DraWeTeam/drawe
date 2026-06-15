@@ -657,6 +657,99 @@
         "perspective"
       ],
       "caption": "눈높이 위는 밑면, 아래는 윗면이 보인다."
+    },
+    "horizon_thirds": {
+      "supports": [
+        "horizon_placement"
+      ],
+      "personas": [
+        "composition",
+        "perspective"
+      ],
+      "caption": "지평선을 위/아래 1/3에 — 하늘이냐 땅이냐를 정한다."
+    },
+    "horizon_level_tilt": {
+      "supports": [
+        "horizon_placement"
+      ],
+      "personas": [
+        "composition",
+        "perspective"
+      ],
+      "caption": "수평이 기준 — 한 번 기울면 화면 전체가 기운다."
+    },
+    "figure_eyeline_horizon": {
+      "supports": [
+        "horizon_placement"
+      ],
+      "personas": [
+        "composition",
+        "perspective",
+        "pose"
+      ],
+      "caption": "같은 키 인물은 멀어져도 눈이 지평선에 모인다."
+    },
+    "size_diminution": {
+      "supports": [
+        "depth_layering"
+      ],
+      "personas": [
+        "perspective",
+        "composition"
+      ],
+      "caption": "같은 크기 물체가 멀수록 작게 — 크기 변화가 거리."
+    },
+    "baseline_height": {
+      "supports": [
+        "depth_layering"
+      ],
+      "personas": [
+        "perspective",
+        "composition"
+      ],
+      "caption": "밑변이 화면 아래에 닿을수록 가깝다."
+    },
+    "near_mid_far_massing": {
+      "supports": [
+        "depth_layering"
+      ],
+      "personas": [
+        "composition",
+        "perspective",
+        "light"
+      ],
+      "caption": "근·중·원경을 명도 덩어리 셋으로 먼저 묶기."
+    },
+    "value_compression_distance": {
+      "supports": [
+        "atmospheric_perspective"
+      ],
+      "personas": [
+        "perspective",
+        "light"
+      ],
+      "caption": "멀수록 명도 범위가 좁아져 중간톤으로 모인다."
+    },
+    "cool_desaturation_distance": {
+      "supports": [
+        "atmospheric_perspective"
+      ],
+      "personas": [
+        "perspective",
+        "light",
+        "color"
+      ],
+      "caption": "멀수록 차갑고 탁하게 — 따뜻·선명함은 앞으로."
+    },
+    "mountain_layers_fade": {
+      "supports": [
+        "atmospheric_perspective"
+      ],
+      "personas": [
+        "perspective",
+        "light"
+      ],
+      "caption": "겹친 능선이 멀수록 옅어지는 대기원근 대표 예."
     }
   },
   "asset_index": {
@@ -1511,6 +1604,37 @@
           "composition",
           "perspective"
         ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/size_diminution.svg",
+        "label": "도식",
+        "caption": "같은 크기 물체가 멀수록 작게 — 크기 변화가 거리.",
+        "personas": [
+          "perspective",
+          "composition"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/baseline_height.svg",
+        "label": "도식",
+        "caption": "밑변이 화면 아래에 닿을수록 가깝다.",
+        "personas": [
+          "perspective",
+          "composition"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/near_mid_far_massing.svg",
+        "label": "도식",
+        "caption": "근·중·원경을 명도 덩어리 셋으로 먼저 묶기.",
+        "personas": [
+          "composition",
+          "perspective",
+          "light"
+        ]
       }
     ],
     "atmospheric_perspective": [
@@ -1529,6 +1653,37 @@
         "ref_id": "reference/edge_detail_falloff.svg",
         "label": "도식",
         "caption": "가까운 가장자리 또렷, 먼 것은 흐릿·단순.",
+        "personas": [
+          "perspective",
+          "light"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/value_compression_distance.svg",
+        "label": "도식",
+        "caption": "멀수록 명도 범위가 좁아져 중간톤으로 모인다.",
+        "personas": [
+          "perspective",
+          "light"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/cool_desaturation_distance.svg",
+        "label": "도식",
+        "caption": "멀수록 차갑고 탁하게 — 따뜻·선명함은 앞으로.",
+        "personas": [
+          "perspective",
+          "light",
+          "color"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/mountain_layers_fade.svg",
+        "label": "도식",
+        "caption": "겹친 능선이 멀수록 옅어지는 대기원근 대표 예.",
         "personas": [
           "perspective",
           "light"
@@ -1553,6 +1708,37 @@
         "personas": [
           "composition",
           "perspective"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/horizon_thirds.svg",
+        "label": "도식",
+        "caption": "지평선을 위/아래 1/3에 — 하늘이냐 땅이냐를 정한다.",
+        "personas": [
+          "composition",
+          "perspective"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/horizon_level_tilt.svg",
+        "label": "도식",
+        "caption": "수평이 기준 — 한 번 기울면 화면 전체가 기운다.",
+        "personas": [
+          "composition",
+          "perspective"
+        ]
+      },
+      {
+        "type": "svg",
+        "ref_id": "reference/figure_eyeline_horizon.svg",
+        "label": "도식",
+        "caption": "같은 키 인물은 멀어져도 눈이 지평선에 모인다.",
+        "personas": [
+          "composition",
+          "perspective",
+          "pose"
         ]
       }
     ]

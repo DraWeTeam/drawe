@@ -1,0 +1,29 @@
+<svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="near_mid_far_massing">
+  <style>
+    .guide { fill:none; stroke:#c7ccd4; stroke-width:2.5; }
+    .gfill { fill:#c7ccd4; opacity:.18; stroke:none; }
+    .cons  { fill:none; stroke:#e0533d; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+    .consd { fill:none; stroke:#e0533d; stroke-width:2; stroke-dasharray:6 5; }
+    .acc   { fill:none; stroke:#2f6df0;  stroke-width:2.5; stroke-linecap:round; }
+    .accd  { fill:none; stroke:#2f6df0;  stroke-width:2; stroke-dasharray:6 5; }
+    .dot   { fill:#e0533d; stroke:none; }
+    .adot  { fill:#2f6df0; stroke:none; }
+    .lbl   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:14px; }
+    .cap   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:13px; opacity:.8; }
+    .tag   { fill:#e0533d; font-family:sans-serif; font-size:12px; font-weight:600; }
+  </style>
+  <g id="guide">
+    <rect class="guide" x="40" y="40" width="400" height="400"/>
+  </g>
+  <g id="construction">
+    <path d="M40 250 Q140 175 250 220 T440 205 V250 H40 Z" fill="#c7ccd4"/>
+    <path d="M40 320 Q160 255 300 300 T440 296 V320 H40 Z" fill="#9aa0a6"/>
+    <path d="M40 440 Q120 350 220 380 Q320 410 440 360 V440 Z" fill="#3f444c"/>
+  </g>
+  <g id="label">
+    <text class="lbl" x="330" y="232" fill="#3a3f47">원경 (옅게)</text>
+    <text class="lbl" x="300" y="300" fill="#3a3f47">중경</text>
+    <text class="lbl" x="70" y="418" fill="#f0f0f0">근경 (진하게)</text>
+    <text class="cap" x="20" y="462">복잡한 장면도 근·중·원 세 명도 덩어리로 먼저 묶으면 공간이 선다.</text>
+  </g>
+</svg>
