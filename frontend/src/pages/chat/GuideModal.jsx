@@ -403,9 +403,6 @@ export const GuideContent = ({
       <header className={styles.header}>
         <h2 className={styles.title}>{loading ? "한 끗 가이드" : title}</h2>
         <div className={styles.headerRight}>
-          {guide?.degraded && (
-            <span className={styles.degradedBadge}>일부 정보로 생성됨</span>
-          )}
           {onToggleFull && (
             <button
               type="button"
@@ -470,9 +467,6 @@ const GuideModal = ({
         <header className={styles.header}>
           <h2 className={styles.title}>{loading ? "한 끗 가이드" : title}</h2>
           <div className={styles.headerRight}>
-            {guide?.degraded && (
-              <span className={styles.degradedBadge}>일부 정보로 생성됨</span>
-            )}
             <button
               type="button"
               className={styles.closeBtn}

@@ -76,6 +76,10 @@ lexicon:
   대비: value_structure
   입체: value_structure
   톤: value_structure
+  # 얼굴/흉상: 부위(landmark)는 측정 불가지만 '얼굴이 어색/평평'은 보통 면·명암 문제로 읽힌다.
+  #   비례(proportion)는 전신 축이라 흉상에선 측정 불가·부적절 → 측정 가능한 입체(value_structure)로 안내.
+  얼굴: value_structure
+  표정: value_structure
   자세: weight_balance
   포즈: weight_balance
   균형: weight_balance
