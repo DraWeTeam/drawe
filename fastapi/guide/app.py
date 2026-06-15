@@ -9,6 +9,7 @@
 import signal
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -36,6 +37,10 @@ async def lifespan(app: FastAPI):
 
     async def _warm():
         try:
+            if os.environ.get("GUIDE_AUTO_MIGRATE") == "1":
+                from guide.stores.migrate import run_migrations
+                applied = await asyncio.to_thread(run_migrations)  # 스키마 자동 적용(락 안전)
+                log.info("guide migrations applied: %s", applied or "(none)")
             from guide.warmup import warmup_guide
             await asyncio.to_thread(warmup_guide)   # blocking 모델 로드 → 워커 스레드
             rt.ready = True
