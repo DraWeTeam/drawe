@@ -1,16 +1,15 @@
-name: FastAPI CD
+name: FastAPI Guide CD
 
 on:
   push:
     branches: [develop, main]
-    # embed 전용. guide(Dockerfile.guide)가 COPY 하는 경로는 제외 → guide-only 변경 시 중복 배포 안 함.
-    # (guide 는 fastapi-guide-cd.yml 이 담당)
+    # guide 서비스(Dockerfile.guide)가 COPY 하는 것만: guide/ · assets/ · Dockerfile.guide · requirements.guide.txt.
+    # embed(fastapi-cd.yml)와 트리거가 겹치지 않게 분리한다.
     paths:
-      - "fastapi/**"
-      - "!fastapi/guide/**"
-      - "!fastapi/assets/**"
-      - "!fastapi/Dockerfile.guide"
-      - "!fastapi/requirements.guide.txt"
+      - "fastapi/guide/**"
+      - "fastapi/assets/**"
+      - "fastapi/Dockerfile.guide"
+      - "fastapi/requirements.guide.txt"
   workflow_dispatch:
     inputs:
       environment:
@@ -71,16 +70,17 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & push Docker image (linux/arm64)
+      - name: Build & push Docker image (linux/arm64, Dockerfile.guide)
         id: build
         working-directory: fastapi
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
-          REPO: drawe-${{ env.ENV_NAME }}-fastapi
+          REPO: drawe-${{ env.ENV_NAME }}-fastapi-guide
           TAG: ${{ github.sha }}
         run: |
           docker buildx build \
               --platform linux/arm64 \
+              -f Dockerfile.guide \
               -t $REGISTRY/$REPO:$TAG \
               -t $REGISTRY/$REPO:latest \
               --push \
@@ -90,8 +90,8 @@ jobs:
       - name: Register new task definition with SHA tag
         id: register-td
         env:
-          SERVICE: drawe-${{ env.ENV_NAME }}-fastapi
-          CONTAINER_NAME: drawe-${{ env.ENV_NAME }}-fastapi
+          SERVICE: drawe-${{ env.ENV_NAME }}-fastapi-guide
+          CONTAINER_NAME: fastapi-guide
           IMAGE_URI: ${{ steps.build.outputs.image_uri }}
         run: |
           aws ecs describe-task-definition \
@@ -117,7 +117,7 @@ jobs:
         run: |
           aws ecs update-service \
               --cluster drawe-${{ env.ENV_NAME }}-cluster \
-              --service drawe-${{ env.ENV_NAME }}-fastapi \
+              --service drawe-${{ env.ENV_NAME }}-fastapi-guide \
               --task-definition ${{ steps.register-td.outputs.td_arn }} \
               --region $AWS_REGION
 
@@ -125,6 +125,6 @@ jobs:
         run: |
           aws ecs wait services-stable \
               --cluster drawe-${{ env.ENV_NAME }}-cluster \
-              --services drawe-${{ env.ENV_NAME }}-fastapi \
+              --services drawe-${{ env.ENV_NAME }}-fastapi-guide \
               --region $AWS_REGION
           echo "✅ Deployment stable. New revision: ${{ steps.register-td.outputs.td_arn }}"

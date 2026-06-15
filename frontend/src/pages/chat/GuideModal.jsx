@@ -1,5 +1,6 @@
 import { useState } from "react";
 import styles from "./GuideModal.module.css";
+import { downloadGuidePdf } from "./guidePdf";
 
 // 축 id → 사용자 노출 한글 라벨. 시안 표기에 맞춤(명암 대비/무게중심/구도·균형 등).
 // taxonomy 에는 짧은 라벨이 없어 여기서 큐레이션해 들고 간다.
@@ -226,32 +227,60 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
   const primary = blocks[0];
   const extra = blocks.slice(1);
   const next = guide.next_steps;
+  // 레이아웃 분기(시안):
+  //  - 반복 가이드(로드맵 연습 있음) → "추천 연습" 선행(이미지6).
+  //  - 최초 가이드(연습 없음=콜드스타트) → "1.분석 / 2.읽히는 느낌" 선행(이미지5).
+  const hasPractice = !!next?.focus_practice;
   // 이력 내레이션은 '한 번만' 상단에(중복 제거). note 없으면 synthesis 폴백.
   const intro = next?.note || guide.synthesis || "";
   const primaryRefs = primary
     ? (references || []).filter((r) => (primary.reference_ids || []).includes(r.refId))
     : [];
-  // 이미지4 번호: 있는 섹션만 1,2,3,4 연속 부여(빈 섹션은 번호 건너뜀).
+  // 번호: 있는 섹션만 1,2,3… 연속 부여(빈 섹션은 번호 건너뜀).
   let num = 0;
   const goalShown = next && (next.next_goal_practice || next.next_goal);
 
   return (
     <>
-      {drawingPreviewUrl && (
+      {/* 반복 레이아웃에서만 상단 이미지/인트로(최초 레이아웃은 '1.분석' 안으로 들어감) */}
+      {hasPractice && drawingPreviewUrl && (
         <img className={styles.userImg} src={drawingPreviewUrl} alt="첨부한 그림" />
       )}
 
-      {intro && <p className={styles.intro}>{intro}</p>}
+      {hasPractice && intro && <p className={styles.intro}>{intro}</p>}
 
-      {primary?.observation && (
+      {hasPractice && primary?.observation && (
         <p className={styles.lead}>
           {primary.observation}
           {primary.effect ? ` ${primary.effect}` : ""}
         </p>
       )}
 
+      {/* 최초 가이드 — 1. 분석 (첨부 그림 + 관찰) */}
+      {!hasPractice && primary?.observation && (
+        <section className={styles.section}>
+          <SectionTitle num={++num}>분석</SectionTitle>
+          <div className={styles.analysisBox}>
+            {drawingPreviewUrl && (
+              <img className={styles.analysisImg} src={drawingPreviewUrl} alt="첨부한 그림" />
+            )}
+            <p className={styles.bodyText}>{primary.observation}</p>
+          </div>
+        </section>
+      )}
+
+      {/* 최초 가이드 — 2. 읽히는 느낌 (effect) */}
+      {!hasPractice && primary?.effect && (
+        <section className={styles.section}>
+          <SectionTitle num={++num}>읽히는 느낌</SectionTitle>
+          <div className={styles.readBox}>
+            <p className={styles.bodyText}>{primary.effect}</p>
+          </div>
+        </section>
+      )}
+
       {/* 1. 추천 연습 — 로드맵 연습(focus_practice). 없으면 섹션 생략. */}
-      {next?.focus_practice && (
+      {hasPractice && (
         <section className={styles.section}>
           <SectionTitle num={++num}>추천 연습</SectionTitle>
           <div className={styles.practiceBox}>
@@ -350,6 +379,21 @@ const GuideModal = ({
           <div className={styles.headerRight}>
             {guide?.degraded && (
               <span className={styles.degradedBadge}>일부 정보로 생성됨</span>
+            )}
+            {!loading && !error && guide?.mode === "coach" && (
+              <button
+                type="button"
+                className={styles.pdfBtn}
+                onClick={() => downloadGuidePdf(result, drawingPreviewUrl)}
+                aria-label="PDF 다운로드"
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <path d="M7 10l5 5 5-5" />
+                  <path d="M12 15V3" />
+                </svg>
+                PDF 다운로드
+              </button>
             )}
             <button
               type="button"

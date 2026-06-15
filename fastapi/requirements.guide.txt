@@ -16,7 +16,7 @@ requests                 # llm.py(Grok)·vision.py(Gemini) 최상위 — artref 
 # 가이딩 핵심
 open_clip_torch          # OpenCLIP ViT-L/14 (지연 로드)
 qdrant-client            # 가이딩 ref 검색(reference_images_dev)
-SQLAlchemy               # drawe_fastapi (성장/로그). DSN 스킴에 맞춰 드라이버 선택
+SQLAlchemy               # drawe_guide (성장/로그). DSN 스킴에 맞춰 드라이버 선택
 PyMySQL                  # DB_DSN = mysql+pymysql://...
 boto3                    # S3(에셋 해소·presign)
 mediapipe                # 손/포즈(게이트). aarch64 휠은 P5 빌드에서 확인

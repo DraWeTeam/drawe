@@ -50,6 +50,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# CORS — 브라우저가 /guide-asset·/image presigned 리다이렉트를 직접 열람. 출처는 env(CORS_ORIGINS).
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from guide._security import cors_origins  # noqa: E402
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/health")
 def health():

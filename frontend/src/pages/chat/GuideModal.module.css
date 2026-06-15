@@ -179,6 +179,29 @@
   padding: 14px 16px;
 }
 
+/* ── 최초 가이드: 1. 분석 / 2. 읽히는 느낌 ── */
+.analysisBox {
+  background: #ffffff;
+  border: 1px solid #efeae3;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.analysisImg {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 10px;
+  margin: 0 0 10px;
+  object-fit: contain;
+  background: #f4f1ec;
+}
+.readBox {
+  background: #ffffff;
+  border: 1px solid #efeae3;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
 /* ── 2. 한 끗 포인트 ── */
 .tipBox {
   background: #fdf4e8;
@@ -410,4 +433,24 @@
   border: 1px solid #ebe6df;
   padding: 4px 10px;
   border-radius: 999px;
+}
+
+/* ── PDF 다운로드 버튼(복사 대신) ── */
+.pdfBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #f4d8b3;
+  background: #fff8ef;
+  color: #c9692a;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pdfBtn:hover {
+  background: #fdeede;
+  border-color: #eec48d;
 }

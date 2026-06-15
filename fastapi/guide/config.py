@@ -6,14 +6,16 @@ class Settings(BaseSettings):
     db_dsn: str
     qdrant_url: str = ""          # 개발(qdrant) 백엔드에서만 필요. pinecone 운영이면 비워도 됨.
     qdrant_api_key: str = ""      # QDRANT_API_KEY — Qdrant Cloud 인증용. 로컬(키 불필요)이면 비움.
-    s3_endpoint: str
-    s3_key: str
-    s3_secret: str
+    # S3 — 로컬(MinIO)은 endpoint+key+secret 명시, AWS(ECS)는 비워두면 IAM task role + 리전 기본값 사용.
+    #   endpoint 비면 boto3 가 AWS S3 기본 엔드포인트, key/secret 비면 기본 자격증명 체인(IAM 역할)로 폴백.
+    s3_endpoint: str = ""
+    s3_key: str = ""
+    s3_secret: str = ""
     s3_bucket: str = "artref"
     # presigned URL 서명용 '브라우저가 닿는' 주소. 컨테이너 내부 통신은 s3_endpoint(minio:9000),
     # 브라우저 열람은 이 주소(localhost:9000). 배포 시 실제 공개 도메인으로.
     s3_public_endpoint: str = "http://localhost:9000"
-    embedding_model: str
+    embedding_model: str = ""     # 비우면 embed.py 기본(open_clip:ViT-L-14:openai)
     qdrant_collection: str = "reference_images"
     # 벡터 DB 백엔드 — 개발은 qdrant(로컬 도커, 키 불필요), 운영은 pinecone(매니지드). stores/vectors.py 가 이걸로 분기.
     vector_backend: str = "qdrant"          # "qdrant" | "pinecone"
