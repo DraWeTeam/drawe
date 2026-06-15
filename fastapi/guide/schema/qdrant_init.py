@@ -1,15 +1,22 @@
-import os, sys
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance
 from guide.config import settings
-from guide.ml.embed import embedder   # 실제 임베딩 차원을 모델에서 가져옴(512/768 하드코딩 제거)
+from guide.ml.embed import (
+    embedder,
+)  # 실제 임베딩 차원을 모델에서 가져옴(512/768 하드코딩 제거)
 
 # 필터용 payload 인덱스(필드 -> 스키마). 문자열 스키마로 두어 버전 호환.
 INDEX_FIELDS = {
-    "source_type": "keyword", "commercial_ok": "bool",
-    "gender": "keyword", "body_type": "keyword",
-    "region": "keyword", "category": "keyword",
+    "source_type": "keyword",
+    "commercial_ok": "bool",
+    "gender": "keyword",
+    "body_type": "keyword",
+    "region": "keyword",
+    "category": "keyword",
 }
 
 
@@ -27,8 +34,9 @@ def init():
 
     for field, schema in INDEX_FIELDS.items():
         try:
-            c.create_payload_index(settings.qdrant_collection,
-                                   field_name=field, field_schema=schema)
+            c.create_payload_index(
+                settings.qdrant_collection, field_name=field, field_schema=schema
+            )
             print("payload index:", field)
         except Exception as e:
             print(f"payload index {field} skip: {type(e).__name__}")

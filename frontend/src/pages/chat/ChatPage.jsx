@@ -25,7 +25,8 @@ import {
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import GuideForm from "./GuideForm";
-import { axisLabel, GuideContent } from "./GuideModal";
+import { GuideContent } from "./GuideModal";
+import { axisLabel } from "./guideLabels";
 import { downloadGuidePdf } from "./guidePdf";
 import AuthedImage from "./AuthedImage";
 import TutorialCoachmark from "./TutorialCoachmark";
@@ -106,7 +107,13 @@ const ChatPage = () => {
 
   // 한 끗 가이드: 폼 제출 → (1) 첨부 이미지·로딩을 채팅에 반영 → requestGuide
   //  → (2) 결과를 '가이드 카드' 메시지로 채팅에 삽입. 모달은 카드 클릭 시 열림(와이어프레임 의도).
-  const handleGuideSubmit = async ({ file, previewUrl, message, intent, track }) => {
+  const handleGuideSubmit = async ({
+    file,
+    previewUrl,
+    message,
+    intent,
+    track,
+  }) => {
     lastGuideArgs.current = { file, previewUrl, message, intent, track };
     setGuideFormOpen(false);
     const gid = `g_${Date.now()}`;
@@ -115,12 +122,22 @@ const ChatPage = () => {
       ...prev,
       // 첨부 이미지(+있으면 메시지)를 사용자 버블로 채팅에 반영
       ...(previewUrl || message
-        ? [{ role: "user", localPreviewUrl: previewUrl || null, content: message || "" }]
+        ? [
+            {
+              role: "user",
+              localPreviewUrl: previewUrl || null,
+              content: message || "",
+            },
+          ]
         : []),
       { role: "assistant", type: "guideLoading", _gid: gid },
     ]);
     try {
-      const result = await requestGuide(projectId, file, { message, intent, track });
+      const result = await requestGuide(projectId, file, {
+        message,
+        intent,
+        track,
+      });
       setMessages((prev) =>
         prev.map((m) =>
           m._gid === gid
@@ -198,7 +215,8 @@ const ChatPage = () => {
     );
     const guideId = msg?.guide?.guide_id;
     if (guideId) {
-      const fb = nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
+      const fb =
+        nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
       sendGuideFeedback(projectId, guideId, fb).catch(() => {});
     }
   };
@@ -909,7 +927,11 @@ const ChatPage = () => {
                       return (
                         <div key={idx} className={styles.assistantMessage}>
                           <div className={styles.assistantBubble}>
-                            <img className={styles.assistantLogo} src={logo} alt="" />
+                            <img
+                              className={styles.assistantLogo}
+                              src={logo}
+                              alt=""
+                            />
                             한 끗 가이드를 만들고 있어요…
                           </div>
                         </div>
@@ -920,7 +942,11 @@ const ChatPage = () => {
                       return (
                         <div key={idx} className={styles.assistantMessage}>
                           <div className={styles.assistantBubble}>
-                            <img className={styles.assistantLogo} src={logo} alt="" />
+                            <img
+                              className={styles.assistantLogo}
+                              src={logo}
+                              alt=""
+                            />
                             <div>
                               {m.error}
                               <button
@@ -973,7 +999,9 @@ const ChatPage = () => {
                               className={styles.guideActBtn}
                               data-active={m.guideFeedback === "down"}
                               aria-label="싫어요"
-                              onClick={() => setGuideCardFeedback(m._gid, "down")}
+                              onClick={() =>
+                                setGuideCardFeedback(m._gid, "down")
+                              }
                             >
                               <ThumbDownIcon />
                             </button>
@@ -995,71 +1023,71 @@ const ChatPage = () => {
                       );
                     }
                     return (
-                    <div
-                      key={idx}
-                      className={
-                        m.role === "user"
-                          ? styles.userMessage
-                          : styles.assistantMessage
-                      }
-                    >
-                      {/* 이미지 묶음 — 배경 없이 */}
-                      {(m.localPreviewUrl || m.imageUrl) && (
-                        <div className={styles.messageImages}>
-                          <div
-                            className={`${styles.imageWrap} ${
-                              m.isAi ? styles.imageWrapAi : ""
-                            }`}
-                          >
-                            <AuthedImage
-                              src={m.localPreviewUrl || m.imageUrl}
-                              alt={
-                                m.isAi ? "AI로 생성된 이미지" : "첨부 이미지"
-                              }
-                              className={
-                                m.isAi ? styles.aiImage : styles.bubbleImage
-                              }
-                              onClick={
-                                m.isAi
-                                  ? () =>
-                                      setLightboxSrc(
-                                        m.localPreviewUrl || m.imageUrl,
-                                      )
-                                  : undefined
-                              }
-                            />
-                            {m.isAi && (
-                              <span
-                                className={styles.aiBadge}
-                                aria-label="AI로 생성된 이미지"
-                              >
-                                ✨ AI
-                              </span>
-                            )}
+                      <div
+                        key={idx}
+                        className={
+                          m.role === "user"
+                            ? styles.userMessage
+                            : styles.assistantMessage
+                        }
+                      >
+                        {/* 이미지 묶음 — 배경 없이 */}
+                        {(m.localPreviewUrl || m.imageUrl) && (
+                          <div className={styles.messageImages}>
+                            <div
+                              className={`${styles.imageWrap} ${
+                                m.isAi ? styles.imageWrapAi : ""
+                              }`}
+                            >
+                              <AuthedImage
+                                src={m.localPreviewUrl || m.imageUrl}
+                                alt={
+                                  m.isAi ? "AI로 생성된 이미지" : "첨부 이미지"
+                                }
+                                className={
+                                  m.isAi ? styles.aiImage : styles.bubbleImage
+                                }
+                                onClick={
+                                  m.isAi
+                                    ? () =>
+                                        setLightboxSrc(
+                                          m.localPreviewUrl || m.imageUrl,
+                                        )
+                                    : undefined
+                                }
+                              />
+                              {m.isAi && (
+                                <span
+                                  className={styles.aiBadge}
+                                  aria-label="AI로 생성된 이미지"
+                                >
+                                  ✨ AI
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* 텍스트 버블 */}
-                      {m.content && (
-                        <div
-                          className={
-                            m.role === "user"
-                              ? styles.userBubble
-                              : styles.assistantBubble
-                          }
-                        >
-                          {m.role !== "user" && (
-                            <img
-                              className={styles.assistantLogo}
-                              src={logo}
-                              alt=""
-                            />
-                          )}
-                          <div>{m.content}</div>
-                        </div>
-                      )}
-                    </div>
+                        {/* 텍스트 버블 */}
+                        {m.content && (
+                          <div
+                            className={
+                              m.role === "user"
+                                ? styles.userBubble
+                                : styles.assistantBubble
+                            }
+                          >
+                            {m.role !== "user" && (
+                              <img
+                                className={styles.assistantLogo}
+                                src={logo}
+                                alt=""
+                              />
+                            )}
+                            <div>{m.content}</div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })
                 )}
@@ -1331,31 +1359,76 @@ const CloseIcon = () => (
 
 /* ===== 가이드 카드 아이콘 ===== */
 const ImgPlaceholderIcon = () => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="22"
+    height="22"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <circle cx="8.5" cy="8.5" r="1.5" />
     <path d="M21 15l-5-5L5 21" />
   </svg>
 );
 const ChevronRightIcon = () => (
-  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="18"
+    height="18"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M9 18l6-6-6-6" />
   </svg>
 );
 const ThumbUpIcon = () => (
-  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M7 10v11" />
     <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
   </svg>
 );
 const ThumbDownIcon = () => (
-  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M17 14V3" />
     <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
   </svg>
 );
 const DownloadIcon = () => (
-  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <path d="M7 10l5 5 5-5" />
     <path d="M12 15V3" />

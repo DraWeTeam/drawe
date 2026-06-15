@@ -6,6 +6,7 @@ main.py 의 `if not screen_upload(pil)["allow"]: ... refused` 가 수정 없이 
 실제 판정은 safety/screen.screen() 에 위임한다(대조 CLIP baseline + 외부 provider 훅,
 fail-open/closed 설정 가능). 한계·운영 권장은 screen.py 의 docstring 참고.
 """
+
 from guide.safety.screen import screen
 
 

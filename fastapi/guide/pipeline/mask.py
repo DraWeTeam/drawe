@@ -6,8 +6,8 @@ region_signals(figure_value_range / figure_bg_contrast)를 채운다. 정확한 
   paper   : 밝은 종이 위 스케치 → 종이보다 어두운 자국(임계). 흰 종이 스케치용.
   salient : 톤 배경/흉상 → rembg(설치돼 있으면, 최고 품질) → 없으면 중앙 박스 폴백.
 업그레이드 여지: `pip install rembg`(자동 사용) 또는 opencv GrabCut/사람분할 모델(이 하니스로 검증)."""
+
 import numpy as np
-from PIL import Image
 
 
 def _dominant(g01):
@@ -24,7 +24,7 @@ def _paper_mask(g01):
 def _center_box(shape, fx=0.12, fy=0.08, fw=0.76, fh=0.84):
     H, W = shape
     m = np.zeros((H, W), bool)
-    m[int(fy * H):int((fy + fh) * H), int(fx * W):int((fx + fw) * W)] = True
+    m[int(fy * H) : int((fy + fh) * H), int(fx * W) : int((fx + fw) * W)] = True
     return m
 
 
@@ -36,7 +36,8 @@ def _center_salient(g01):
 
 
 def _rembg_mask(pil):
-    from rembg import remove                       # 설치돼 있을 때만(없으면 ImportError → 폴백)
+    from rembg import remove  # 설치돼 있을 때만(없으면 ImportError → 폴백)
+
     a = np.asarray(remove(pil.convert("RGB")))[..., 3]
     return a > 128
 
@@ -71,5 +72,7 @@ def region_signals_from_mask(pil, mask):
         return {}
     fig, bg = g[mask], g[~mask]
     lo, hi = np.percentile(fig, [10, 90])
-    return {"figure_value_range": float(hi - lo),
-            "figure_bg_contrast": float(abs(fig.mean() - bg.mean()))}
+    return {
+        "figure_value_range": float(hi - lo),
+        "figure_bg_contrast": float(abs(fig.mean() - bg.mean())),
+    }

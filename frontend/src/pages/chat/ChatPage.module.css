@@ -606,7 +606,10 @@
   background: #fcfbfa;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
 }
 .guideCard:hover {
   border-color: #ffd2ab;
@@ -666,7 +669,9 @@
   background: transparent;
   color: #8a857e;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .guideActBtn:hover {
   background: #f3f1ee;

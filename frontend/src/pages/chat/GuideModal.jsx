@@ -1,26 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { axisLabel } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import styles from "./GuideModal.module.css";
-
-// 축 id → 사용자 노출 한글 라벨. 시안 표기에 맞춤(명암 대비/무게중심/구도·균형 등).
-// taxonomy 에는 짧은 라벨이 없어 여기서 큐레이션해 들고 간다.
-const AXIS_LABELS = {
-  weight_balance: "무게중심",
-  foreshortening: "단축",
-  proportion: "비율",
-  action_line: "동세선",
-  joint_articulation: "관절",
-  hand_structure: "손 구조",
-  value_structure: "명암 대비",
-  composition_balance: "구도·균형",
-  color_harmony: "색 조화",
-  light_direction: "광원 방향",
-  linear_perspective: "선원근",
-  atmospheric_perspective: "대기원근",
-  depth_layering: "깊이층",
-  horizon_placement: "지평선",
-};
-export const axisLabel = (id) => AXIS_LABELS[id] || (id ? id.replace(/_/g, " ") : "");
 
 // guide 서비스 에셋(SVG 도식) 공개 base. 미설정이면 도식 영역 자체를 숨김(빈 박스 금지).
 const GUIDE_BASE = import.meta.env.VITE_GUIDE_PUBLIC_URL || "";
@@ -100,7 +81,9 @@ const RefCard = ({ reference }) => {
           />
         )}
       </div>
-      <figcaption className={styles.refLabel}>참고 {reference.ordinal}</figcaption>
+      <figcaption className={styles.refLabel}>
+        참고 {reference.ordinal}
+      </figcaption>
     </figure>
   );
 };
@@ -111,7 +94,11 @@ const RefCard = ({ reference }) => {
 const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
   const [sel, setSel] = useState(null);
   const refKey = (refIds || []).join(",");
-  useEffect(() => setSel(null), [refKey]);
+  const [prevRefKey, setPrevRefKey] = useState(refKey);
+  if (refKey !== prevRefKey) {
+    setPrevRefKey(refKey);
+    setSel(null);
+  }
 
   const choose = (kind) => {
     const next = sel === kind ? null : kind; // 토글
@@ -127,7 +114,16 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
         aria-pressed={sel === "up"}
         onClick={() => choose("up")}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M7 10v11" />
           <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
         </svg>
@@ -139,7 +135,16 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
         aria-pressed={sel === "down"}
         onClick={() => choose("down")}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M17 14V3" />
           <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
         </svg>
@@ -151,7 +156,16 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
         disabled={!canRefresh}
         onClick={() => onRefresh && onRefresh()}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M21 12a9 9 0 1 1-2.6-6.4" />
           <path d="M21 3v5h-5" />
         </svg>
@@ -186,7 +200,11 @@ const GrowthChart = ({ trend, delta }) => {
     <div className={styles.chartWrap}>
       <p className={styles.chartTitle}>그림 한 장당 어려움을 느낀 횟수</p>
       <div className={styles.chartArea}>
-        <svg viewBox={`0 0 ${W} ${H}`} className={styles.chartSvg} preserveAspectRatio="none">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className={styles.chartSvg}
+          preserveAspectRatio="none"
+        >
           <defs>
             <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#f2853f" stopOpacity="0.34" />
@@ -194,7 +212,13 @@ const GrowthChart = ({ trend, delta }) => {
             </linearGradient>
           </defs>
           <path d={area} fill="url(#growthFill)" />
-          <path d={line} fill="none" stroke="#ee6f2d" strokeWidth="2.5" strokeLinecap="round" />
+          <path
+            d={line}
+            fill="none"
+            stroke="#ee6f2d"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
         </svg>
         {delta && delta.pct != null && delta.dir !== "flat" && (
           <span className={styles.deltaTag}>
@@ -238,7 +262,9 @@ const Growth = ({ growth }) => {
       <div className={styles.growthBox}>
         {hasChart && <GrowthChart trend={trend} delta={delta} />}
         {message && (
-          <p className={hasChart ? styles.growthMsg : styles.growthFirst}>{message}</p>
+          <p className={hasChart ? styles.growthMsg : styles.growthFirst}>
+            {message}
+          </p>
         )}
       </div>
       <ChipRow label="현재 그림 단계" axes={current} />
@@ -295,7 +321,11 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
   })();
   const [refOffset, setRefOffset] = useState(0);
   const poolKey = refPool.join(",");
-  useEffect(() => setRefOffset(0), [poolKey]); // 가이드(풀)가 바뀌면 처음으로
+  const [prevPoolKey, setPrevPoolKey] = useState(poolKey);
+  if (poolKey !== prevPoolKey) {
+    setPrevPoolKey(poolKey);
+    setRefOffset(0); // 가이드(풀)가 바뀌면 처음으로
+  }
   const displayedRefs =
     refPool.length === 0
       ? []
@@ -313,7 +343,11 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
     <>
       {/* 반복 레이아웃에서만 상단 이미지/인트로(최초 레이아웃은 '1.분석' 안으로 들어감) */}
       {hasPractice && drawingPreviewUrl && (
-        <AuthedImage className={styles.userImg} src={drawingPreviewUrl} alt="첨부한 그림" />
+        <AuthedImage
+          className={styles.userImg}
+          src={drawingPreviewUrl}
+          alt="첨부한 그림"
+        />
       )}
 
       {hasPractice && intro && <p className={styles.intro}>{intro}</p>}
@@ -331,7 +365,11 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
           <SectionTitle num={++num}>분석</SectionTitle>
           <div className={styles.analysisBox}>
             {drawingPreviewUrl && (
-              <AuthedImage className={styles.analysisImg} src={drawingPreviewUrl} alt="첨부한 그림" />
+              <AuthedImage
+                className={styles.analysisImg}
+                src={drawingPreviewUrl}
+                alt="첨부한 그림"
+              />
             )}
             <p className={styles.bodyText}>{primary.observation}</p>
           </div>
@@ -365,7 +403,9 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
             한 끗 포인트
           </SectionTitle>
           <div className={styles.tipBox}>
-            {primary.direction && <p className={styles.tipText}>{primary.direction}</p>}
+            {primary.direction && (
+              <p className={styles.tipText}>{primary.direction}</p>
+            )}
             <AssetSvg asset={primary.guide_asset} />
           </div>
         </section>
@@ -395,7 +435,9 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
           <SectionTitle>함께 보면 좋은 것</SectionTitle>
           {extra.map((b, i) => (
             <p key={i} className={styles.extraLine}>
-              <strong className={styles.extraAxis}>{axisLabel(b.sub_problem)}</strong>{" "}
+              <strong className={styles.extraAxis}>
+                {axisLabel(b.sub_problem)}
+              </strong>{" "}
               {b.direction || b.observation}
             </p>
           ))}
@@ -409,7 +451,9 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
           <div className={styles.nextGoal}>
             <span className={styles.goalBadge}>다음 목표</span>
             {next.next_goal && (
-              <span className={styles.goalAxis}>{axisLabel(next.next_goal)}</span>
+              <span className={styles.goalAxis}>
+                {axisLabel(next.next_goal)}
+              </span>
             )}
             {next.next_goal_practice && (
               <p className={styles.goalText}>{next.next_goal_practice}</p>
@@ -425,7 +469,15 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
 };
 
 // 가이드 본문(로딩/에러/코치) — 모달·인라인 공용.
-const GuideBody = ({ loading, error, guide, references, drawingPreviewUrl, onRetry, onRefFeedback }) => (
+const GuideBody = ({
+  loading,
+  error,
+  guide,
+  references,
+  drawingPreviewUrl,
+  onRetry,
+  onRefFeedback,
+}) => (
   <div className={styles.body}>
     {loading && (
       <div className={styles.state}>
@@ -445,8 +497,10 @@ const GuideBody = ({ loading, error, guide, references, drawingPreviewUrl, onRet
         )}
       </div>
     )}
-    {!loading && !error && guide && (
-      guide.mode !== "coach" ? (
+    {!loading &&
+      !error &&
+      guide &&
+      (guide.mode !== "coach" ? (
         <p className={styles.bodyText}>
           {guide.message ||
             "이 그림으로는 가이드를 만들기 어려웠어요. 조금 더 진행한 뒤 다시 시도해 주세요."}
@@ -458,15 +512,22 @@ const GuideBody = ({ loading, error, guide, references, drawingPreviewUrl, onRet
           drawingPreviewUrl={drawingPreviewUrl}
           onRefFeedback={onRefFeedback}
         />
-      )
-    )}
+      ))}
   </div>
 );
 
 // 인라인 가이드(채팅 왼쪽 패널 / 전체화면) — 와이어프레임 레이아웃. 떠 있는 모달이 아니라 좌측 영역을 채움.
 //   onToggleFull 있으면 전체화면 토글 노출(isFull = 현재 전체화면 여부).
 export const GuideContent = ({
-  result, loading, error, drawingPreviewUrl, onClose, onRetry, onRefFeedback, onToggleFull, isFull,
+  result,
+  loading,
+  error,
+  drawingPreviewUrl,
+  onClose,
+  onRetry,
+  onRefFeedback,
+  onToggleFull,
+  isFull,
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
@@ -486,7 +547,16 @@ export const GuideContent = ({
               aria-label={isFull ? "분할 보기" : "전체화면"}
               title={isFull ? "분할 보기" : "전체화면"}
             >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 {isFull ? (
                   <path d="M9 9H4M9 9V4M15 9h5M15 9V4M9 15H4M9 15v5M15 15h5M15 15v5" />
                 ) : (
@@ -496,7 +566,12 @@ export const GuideContent = ({
             </button>
           )}
           {onClose && (
-            <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="닫기">
+            <button
+              type="button"
+              className={styles.closeBtn}
+              onClick={onClose}
+              aria-label="닫기"
+            >
               ×
             </button>
           )}

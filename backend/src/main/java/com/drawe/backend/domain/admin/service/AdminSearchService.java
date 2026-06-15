@@ -38,8 +38,7 @@ public class AdminSearchService {
   /**
    * 검색 품질 뷰 조립.
    *
-   * @param backlogPage/Size/Q 시드 보강 백로그 섹션 페이지·크기·검색어
-   * @param demandPage/Size/Q 검색 수요 TOP 섹션 페이지·크기·검색어
+   * <p>backlog 섹션(시드 보강 백로그)과 demand 섹션(검색 수요 TOP)의 페이지·크기·검색어를 받아 조립한다.
    */
   @Transactional(readOnly = true)
   public View build(

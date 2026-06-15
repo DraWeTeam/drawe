@@ -4,10 +4,19 @@ search.py 가 이걸로 (must, must_not) 필터를 만들고 점수를 가산한
 - 형태 persona(pose/anatomy/hand) 질의엔 ai_example 을 must_not 으로 차단 → AI 해부가 근거 슬롯에 누출되지 않음.
 - source_type/persona/medium/track 일치는 *소프트 가산*(하드필터 아님 → 라이브러리가 비면 폴백 유지).
 """
+
 # persona → 우선 source_type (가산 부스트, 하드 아님)
-SOURCE_PREF = {"pose": "self_render", "anatomy": "self_render", "hand": "self_render",
-               "light": "museum", "color": "museum", "style": "museum", "mood": "museum",
-               "composition": "museum", "perspective": "museum"}  # 이미지/풍경 축은 미술관 우선
+SOURCE_PREF = {
+    "pose": "self_render",
+    "anatomy": "self_render",
+    "hand": "self_render",
+    "light": "museum",
+    "color": "museum",
+    "style": "museum",
+    "mood": "museum",
+    "composition": "museum",
+    "perspective": "museum",
+}  # 이미지/풍경 축은 미술관 우선
 # AI가 형태를 자주 틀리는 축의 persona — ai_example 을 결과에서 제외(하드)
 CONSTRUCTION_PERSONAS = {"pose", "anatomy", "hand"}
 SRC_BOOST, PERSONA_BOOST, MEDIUM_BOOST, TRACK_BOOST = 0.06, 0.05, 0.04, 0.04

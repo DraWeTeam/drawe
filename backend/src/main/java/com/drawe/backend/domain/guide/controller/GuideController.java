@@ -56,8 +56,8 @@ public class GuideController {
   }
 
   /**
-   * 가이드 내 레퍼런스 묶음 피드백(👍/👎). 그 가이드가 보여준 레퍼런스(최대 3컷)에 liked/disliked 를 기록한다.
-   * body: {@code {"event": "liked" | "disliked"}}.
+   * 가이드 내 레퍼런스 묶음 피드백(👍/👎). 그 가이드가 보여준 레퍼런스(최대 3컷)에 liked/disliked 를 기록한다. body: {@code {"event":
+   * "liked" | "disliked"}}.
    */
   @PostMapping("/{guideId}/references/feedback")
   public ApiResponse<Void> referenceFeedback(
@@ -71,8 +71,8 @@ public class GuideController {
   }
 
   /**
-   * 가이드 전체 피드백(👍/👎). adoption_log 와 분리된 guide_feedback 에 사용자별 1행으로 수집한다.
-   * body: {@code {"feedback": "like" | "dislike" | null}}. null/빈 값은 토글 해제(삭제).
+   * 가이드 전체 피드백(👍/👎). adoption_log 와 분리된 guide_feedback 에 사용자별 1행으로 수집한다. body: {@code
+   * {"feedback": "like" | "dislike" | null}}. null/빈 값은 토글 해제(삭제).
    */
   @PostMapping("/{guideId}/feedback")
   public ApiResponse<Void> guideFeedback(

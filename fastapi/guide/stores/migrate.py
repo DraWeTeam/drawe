@@ -15,6 +15,7 @@ schema/ddl.sql(=논리 001) + schema/migrations/NNN_*.sql 을 *순서대로, 각
   기동 자동(dev/로컬):             환경변수 GUIDE_AUTO_MIGRATE=1 → app lifespan 이 호출(락으로 안전).
                                    prod 는 기본 비활성 → 배포 시 위 CLI 를 1회만 돌리는 통제 적용 권장.
 """
+
 import logging
 import re
 from pathlib import Path
@@ -26,7 +27,7 @@ from guide.stores.db import engine
 
 log = logging.getLogger("drawe-fastapi.guide.migrate")
 
-_SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schema"   # guide/schema
+_SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schema"  # guide/schema
 _TRACK = "schema_version"
 _LOCK = "guide_schema_migrate"
 # 재적용 시 정상인(이미 존재/없음) 에러코드 — mysql --force 와 동일하게 무시. 그 외는 실패.
@@ -65,10 +66,13 @@ def _files():
 
 def _applied(cx):
     """추적 테이블 보장 + 적용된 version 집합."""
-    cx.execute(text(
-        f"CREATE TABLE IF NOT EXISTS {_TRACK} ("
-        " version VARCHAR(128) PRIMARY KEY,"
-        " applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+    cx.execute(
+        text(
+            f"CREATE TABLE IF NOT EXISTS {_TRACK} ("
+            " version VARCHAR(128) PRIMARY KEY,"
+            " applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+        )
+    )
     return {r[0] for r in cx.execute(text(f"SELECT version FROM {_TRACK}")).fetchall()}
 
 
@@ -91,16 +95,25 @@ def run_migrations():
                     continue
                 for stmt in _statements(path.read_text(encoding="utf-8")):
                     try:
-                        with engine.begin() as cx:      # DDL 은 MySQL 에서 자동커밋 → statement 단위 자율 적용
+                        with (
+                            engine.begin() as cx
+                        ):  # DDL 은 MySQL 에서 자동커밋 → statement 단위 자율 적용
                             cx.execute(text(stmt))
                     except SQLAlchemyError as e:
                         if _errno(e) in _IDEMPOTENT_ERRNOS:
-                            log.info("migrate: 이미 적용된 변경 무시(errno=%s) in %s", _errno(e), version)
+                            log.info(
+                                "migrate: 이미 적용된 변경 무시(errno=%s) in %s",
+                                _errno(e),
+                                version,
+                            )
                         else:
                             log.error("migrate: 실패 in %s: %s", version, e)
                             raise
                 with engine.begin() as cx:
-                    cx.execute(text(f"INSERT INTO {_TRACK}(version) VALUES (:v)"), {"v": version})
+                    cx.execute(
+                        text(f"INSERT INTO {_TRACK}(version) VALUES (:v)"),
+                        {"v": version},
+                    )
                 applied_now.append(version)
                 log.info("migrate applied: %s", version)
             return applied_now
@@ -109,6 +122,8 @@ def run_migrations():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
+    )
     applied = run_migrations()
     print(f"[migrate] 적용 {len(applied)}건: {applied or '(없음 — 이미 최신)'}")

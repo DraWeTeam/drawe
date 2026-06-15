@@ -15,6 +15,7 @@
 순수 로직은 전부 *주입 가능*(search_fn·is_miss_fn·rows)이라 DB·Qdrant·CLIP 없이 테스트된다.
 CLI(scripts/corpus_audit.py)가 실제 search_text/engine 을 붙여 돌린다.
 """
+
 from collections import Counter
 
 
@@ -33,9 +34,15 @@ def axis_probe(taxonomy, search_fn, is_miss_fn, k=8):
         if not hits and f:
             hits = search_fn(rq, persona, None, axis)
         top = float(hits[0][1]) if hits else None
-        out.append({"axis": axis, "persona": persona,
-                    "top_score": round(top, 4) if top is not None else None,
-                    "n_hits": len(hits), "miss": bool(is_miss_fn(hits))})
+        out.append(
+            {
+                "axis": axis,
+                "persona": persona,
+                "top_score": round(top, 4) if top is not None else None,
+                "n_hits": len(hits),
+                "miss": bool(is_miss_fn(hits)),
+            }
+        )
     return out
 
 
@@ -57,8 +64,9 @@ def supply_by_axis(taxonomy, rows):
             "total": len(sel),
             "by_source": dict(Counter(r[1] for r in sel)),
             "region_hand": sum(1 for r in sel if r[2] == "hand"),
-            "backbone_material": sum(1 for r in sel
-                                     if r[1] == "self_render" and r[2] in (None, "full")),
+            "backbone_material": sum(
+                1 for r in sel if r[1] == "self_render" and r[2] in (None, "full")
+            ),
         }
     return out
 
@@ -82,6 +90,7 @@ def hand_gate_recommendation(probe, supply):
 def summarize_miss(miss_rows, top=15):
     """miss_log rows: [(term, count, context_dict_or_str)] → count 순 상위. context 의 sub_problem 노출."""
     import json
+
     out = []
     for term, count, ctx in miss_rows:
         if isinstance(ctx, str):
@@ -90,10 +99,15 @@ def summarize_miss(miss_rows, top=15):
             except Exception:
                 ctx = {}
         ctx = ctx or {}
-        out.append({"term": term, "count": int(count or 0),
-                    "sub_problem": ctx.get("sub_problem"),
-                    "measured": ctx.get("measured"),
-                    "top_score": ctx.get("top_score")})
+        out.append(
+            {
+                "term": term,
+                "count": int(count or 0),
+                "sub_problem": ctx.get("sub_problem"),
+                "measured": ctx.get("measured"),
+                "top_score": ctx.get("top_score"),
+            }
+        )
     out.sort(key=lambda r: -r["count"])
     return out[:top]
 
@@ -106,8 +120,15 @@ def gaps(probe, supply):
         sup = supply.get(axis, {})
         total = sup.get("total", 0)
         if p["miss"] or total == 0:
-            g.append({"axis": axis, "miss": p["miss"], "top_score": p["top_score"],
-                      "supply_total": total, "by_source": sup.get("by_source", {})})
+            g.append(
+                {
+                    "axis": axis,
+                    "miss": p["miss"],
+                    "top_score": p["top_score"],
+                    "supply_total": total,
+                    "by_source": sup.get("by_source", {}),
+                }
+            )
     return g
 
 
@@ -118,6 +139,7 @@ def resolvable_misses(miss_rows, search_fn, is_miss_fn):
     search_fn(term) -> [(ref_id, score)]. 적재 후 옛 miss 가 더는 miss 가 아니면 정리 대상.
     """
     import json
+
     out = []
     for mid, term, ctx in miss_rows:
         if isinstance(ctx, str):

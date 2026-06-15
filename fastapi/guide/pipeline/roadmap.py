@@ -12,17 +12,23 @@ LLM 없이 결정적으로 동작한다. taxonomy(practice_prompt/personas) + pr
   new → practicing(1회 tried) → improving(2회+ / 최근 진단에서 약하게 뜸) → steady(3회+ & 최근 미검출)
 모든 DB 작업은 예외를 삼켜 /roadmap·/practice 가 앱을 막지 않게 한다.
 """
+
 import os
 import json
 from collections import defaultdict
 from sqlalchemy import text, bindparam
 from guide.stores.db import engine
 from guide.pipeline.diagnose import taxonomy
-from guide.pipeline.profiles import resolve_profile, POSE_DEPENDENT, FIGURE_ORDER, ALL_AXES
+from guide.pipeline.profiles import (
+    resolve_profile,
+    POSE_DEPENDENT,
+    FIGURE_ORDER,
+    ALL_AXES,
+)
 from guide.pipeline.growth_stage import estimate_stage
 
 # 구조 먼저 → 디테일. 이 순서가 "다음 목표"의 사다리.
-CURRICULUM = FIGURE_ORDER          # 단일 출처: profiles 의 인물 순서를 그대로(중복 정의 제거).
+CURRICULUM = FIGURE_ORDER  # 단일 출처: profiles 의 인물 순서를 그대로(중복 정의 제거).
 # 각 축의 구축 다이어그램(tools/gen_construction_diagrams.py 산출물 키와 1:1). 인물 10 + 풍경 4 = 14축
 # 전부 construction/<sp>.svg 가 존재하므로 풍경 축도 diagram 키가 붙는다(예전엔 인물 축만 있었음).
 DIAGRAM_KEY = {sp: sp for sp in ALL_AXES}
@@ -47,22 +53,35 @@ LABELS = {
 
 STEADY_TRIES = 3
 IMPROVING_TRIES = 2
-RECUR_MIN = 2          # 진단에 이만큼 이상 떴고 아직 steady가 아니면 '자주 막히는 부분'
-RECENT_N = 5           # '최근'으로 볼 업로드(=guide 호출) 회수. 방향이 바뀌면 옛 신호가 이 창 밖으로 빠진다.
-OBS_MIN = 2            # 개별 축 '개선' 인정 최소 관측 횟수(최근 창에서 측정가능했던 업로드 수). 부재≠개선.
-GOAL_MIN_WINDOW = 2    # 목표 고정 후 최소 이만큼 업로드해야 '안 보임'으로 달성 인정(steady 졸업은 예외)
+RECUR_MIN = 2  # 진단에 이만큼 이상 떴고 아직 steady가 아니면 '자주 막히는 부분'
+RECENT_N = 5  # '최근'으로 볼 업로드(=guide 호출) 회수. 방향이 바뀌면 옛 신호가 이 창 밖으로 빠진다.
+OBS_MIN = 2  # 개별 축 '개선' 인정 최소 관측 횟수(최근 창에서 측정가능했던 업로드 수). 부재≠개선.
+GOAL_MIN_WINDOW = (
+    2  # 목표 고정 후 최소 이만큼 업로드해야 '안 보임'으로 달성 인정(steady 졸업은 예외)
+)
 
 
 def record_practice(user_id, sub_problem, action, confidence=None, guide_id=None):
     """버튼/진단 이벤트를 기록. action ∈ {seen, tried, later}."""
-    from guide.pipeline.diagnose import instrument_version   # 성장 비교 연속성 태그(계측 변경 경계 표시)
+    from guide.pipeline.diagnose import (
+        instrument_version,
+    )  # 성장 비교 연속성 태그(계측 변경 경계 표시)
+
     try:
         with engine.begin() as cx:
-            cx.execute(text("""INSERT INTO practice_log
+            cx.execute(
+                text("""INSERT INTO practice_log
                 (user_id, sub_problem, action, confidence, guide_id, instrument_version)
                 VALUES (:u, :sp, :a, :c, :g, :iv)"""),
-                dict(u=user_id or "anon", sp=sub_problem, a=action,
-                     c=confidence, g=guide_id, iv=instrument_version()))
+                dict(
+                    u=user_id or "anon",
+                    sp=sub_problem,
+                    a=action,
+                    c=confidence,
+                    g=guide_id,
+                    iv=instrument_version(),
+                ),
+            )
     except Exception as e:
         print(f"[roadmap] practice 기록 실패(무시): {type(e).__name__}: {e}")
 
@@ -77,34 +96,49 @@ def _history(user_id):
       seen_recent = 최근 창 안에서의 최신 confidence, flag_count = 최근 창에서 떴던 업로드 수.
     """
     tries = defaultdict(int)
-    seen_recent = {}               # sub_problem -> 최근 창 안 최신 confidence(없으면 = 최근엔 미검출)
-    flag_count = defaultdict(int)  # sub_problem -> 최근 창에서 떴던 업로드 수(재발 신호)
-    trend = "new"                  # 최근 창에서 약점 수의 증감 방향(개선/악화/유지)
-    timeline = []                  # 막대 차트용: 업로드별(예전→최근) 함께 짚은 약점 수
+    seen_recent = {}  # sub_problem -> 최근 창 안 최신 confidence(없으면 = 최근엔 미검출)
+    flag_count = defaultdict(
+        int
+    )  # sub_problem -> 최근 창에서 떴던 업로드 수(재발 신호)
+    trend = "new"  # 최근 창에서 약점 수의 증감 방향(개선/악화/유지)
+    timeline = []  # 막대 차트용: 업로드별(예전→최근) 함께 짚은 약점 수
     try:
         with engine.begin() as cx:
-            for sp, n in cx.execute(text(
+            for sp, n in cx.execute(
+                text(
                     "SELECT sub_problem, COUNT(*) FROM practice_log "
-                    "WHERE user_id=:u AND action='tried' GROUP BY sub_problem"),
-                    {"u": user_id}):
+                    "WHERE user_id=:u AND action='tried' GROUP BY sub_problem"
+                ),
+                {"u": user_id},
+            ):
                 tries[sp] = int(n)
 
             # 최근 N회 업로드(guide_id) — '한 번 그린 그림'의 단위. 최신순.
-            recent_ids = [r[0] for r in cx.execute(text(
-                "SELECT guide_id FROM practice_log "
-                "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL "
-                "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"),
-                {"u": user_id, "n": RECENT_N}).fetchall()]
+            recent_ids = [
+                r[0]
+                for r in cx.execute(
+                    text(
+                        "SELECT guide_id FROM practice_log "
+                        "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL "
+                        "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"
+                    ),
+                    {"u": user_id, "n": RECENT_N},
+                ).fetchall()
+            ]
 
             if recent_ids:
                 stmt = text(
                     "SELECT sub_problem, guide_id, confidence, ts FROM practice_log "
                     "WHERE user_id=:u AND action='seen' AND guide_id IN :gids"
                 ).bindparams(bindparam("gids", expanding=True))
-                guides_by_sp = defaultdict(set)   # 재발: sub_problem이 뜬 '업로드' 집합
-                flags_per_guide = defaultdict(set)  # 업로드(guide_id) -> 떴던 축 집합(→ trend)
-                latest = {}                       # sub_problem -> (ts, confidence)
-                for sp, gid, conf, ts in cx.execute(stmt, {"u": user_id, "gids": recent_ids}):
+                guides_by_sp = defaultdict(set)  # 재발: sub_problem이 뜬 '업로드' 집합
+                flags_per_guide = defaultdict(
+                    set
+                )  # 업로드(guide_id) -> 떴던 축 집합(→ trend)
+                latest = {}  # sub_problem -> (ts, confidence)
+                for sp, gid, conf, ts in cx.execute(
+                    stmt, {"u": user_id, "gids": recent_ids}
+                ):
                     guides_by_sp[sp].add(gid)
                     flags_per_guide[gid].add(sp)
                     if sp not in latest or ts > latest[sp][0]:
@@ -113,10 +147,14 @@ def _history(user_id):
                     flag_count[sp] = len(guides)
                 for sp, (_, conf) in latest.items():
                     seen_recent[sp] = conf
-                trend = _trend_from(recent_ids, flags_per_guide)  # delta3: 약점 수 증감 방향
+                trend = _trend_from(
+                    recent_ids, flags_per_guide
+                )  # delta3: 약점 수 증감 방향
                 # 막대 차트용 — 업로드별(예전→최근) 함께 짚은 약점 축 수 시계열.
-                timeline = [{"flagged_count": len(flags_per_guide.get(g, ()))}
-                            for g in reversed(recent_ids)]
+                timeline = [
+                    {"flagged_count": len(flags_per_guide.get(g, ()))}
+                    for g in reversed(recent_ids)
+                ]
     except Exception as e:
         print(f"[roadmap] 이력 집계 실패(무시, 빈 이력): {type(e).__name__}: {e}")
     return tries, seen_recent, flag_count, trend, timeline
@@ -144,7 +182,7 @@ def _trend_from(recent_ids, flags_per_guide):
 
 def _status(sp, tries, seen_recent):
     t = tries.get(sp, 0)
-    flagged = sp in seen_recent     # 최근 진단에서 아직 약점으로 떴는가
+    flagged = sp in seen_recent  # 최근 진단에서 아직 약점으로 떴는가
     if t >= STEADY_TRIES and not flagged:
         return "steady"
     if t >= IMPROVING_TRIES:
@@ -160,7 +198,7 @@ def _step(sp, tax):
         "sub_problem": sp,
         "practice_prompt": e.get("practice_prompt", ""),
         "what_to_observe": e.get("what_to_observe", ""),
-        "diagram": DIAGRAM_KEY.get(sp),          # 프론트가 construction/<diagram>.svg 로드
+        "diagram": DIAGRAM_KEY.get(sp),  # 프론트가 construction/<diagram>.svg 로드
         "reference_query": e.get("reference_query", ""),
     }
 
@@ -196,7 +234,7 @@ def _focus_and_next(tries, seen_recent, flag_count, curriculum=CURRICULUM):
         pool = not_steady
     current_sp = pool[0] if pool else curriculum[-1]
     idx = curriculum.index(current_sp)
-    nxt = next((sp for sp in curriculum[idx + 1:] if statuses[sp] != "steady"), None)
+    nxt = next((sp for sp in curriculum[idx + 1 :] if statuses[sp] != "steady"), None)
     return current_sp, nxt, statuses
 
 
@@ -224,17 +262,20 @@ def _ensure_goal_table():
         return
     try:
         with engine.begin() as cx:
-            cx.execute(text(
-                "CREATE TABLE IF NOT EXISTS user_goal ("
-                " user_id VARCHAR(64) NOT NULL,"
-                " track VARCHAR(32) NOT NULL DEFAULT '',"
-                " sub_problem VARCHAR(48) NOT NULL,"
-                " baseline_count INT NOT NULL DEFAULT 0,"
-                " set_seq INT NOT NULL DEFAULT 0,"
-                " prev_achieved VARCHAR(48) NULL,"
-                " advanced_seq INT NULL,"
-                " updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
-                " PRIMARY KEY (user_id, track))"))
+            cx.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS user_goal ("
+                    " user_id VARCHAR(64) NOT NULL,"
+                    " track VARCHAR(32) NOT NULL DEFAULT '',"
+                    " sub_problem VARCHAR(48) NOT NULL,"
+                    " baseline_count INT NOT NULL DEFAULT 0,"
+                    " set_seq INT NOT NULL DEFAULT 0,"
+                    " prev_achieved VARCHAR(48) NULL,"
+                    " advanced_seq INT NULL,"
+                    " updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+                    " PRIMARY KEY (user_id, track))"
+                )
+            )
         _goal_table_ready = True
     except Exception as e:
         print(f"[roadmap] user_goal 준비 실패(무시): {type(e).__name__}: {e}")
@@ -268,16 +309,19 @@ def _ensure_plan_table():
         return
     try:
         with engine.begin() as cx:
-            cx.execute(text(
-                "CREATE TABLE IF NOT EXISTS user_plan ("
-                " user_id VARCHAR(64) NOT NULL,"
-                " track VARCHAR(32) NOT NULL DEFAULT '',"
-                " focus VARCHAR(48) NOT NULL,"
-                " next_goal VARCHAR(48) NULL,"
-                " reason_code VARCHAR(48) NOT NULL DEFAULT 'rule_default',"
-                " candidates TEXT NULL,"
-                " updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
-                " PRIMARY KEY (user_id, track))"))
+            cx.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS user_plan ("
+                    " user_id VARCHAR(64) NOT NULL,"
+                    " track VARCHAR(32) NOT NULL DEFAULT '',"
+                    " focus VARCHAR(48) NOT NULL,"
+                    " next_goal VARCHAR(48) NULL,"
+                    " reason_code VARCHAR(48) NOT NULL DEFAULT 'rule_default',"
+                    " candidates TEXT NULL,"
+                    " updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+                    " PRIMARY KEY (user_id, track))"
+                )
+            )
         _plan_table_ready = True
     except Exception as e:
         print(f"[roadmap] user_plan 준비 실패(무시): {type(e).__name__}: {e}")
@@ -291,13 +335,23 @@ def _save_plan(user_id, track, focus, next_goal, reason_code, candidates, plan=N
     _ensure_plan_table()
     try:
         with engine.begin() as cx:
-            cx.execute(text(
-                "INSERT INTO user_plan (user_id, track, focus, next_goal, reason_code, candidates) "
-                "VALUES (:u,:t,:f,:n,:r,:c) "
-                "ON DUPLICATE KEY UPDATE focus=:f, next_goal=:n, reason_code=:r, candidates=:c"),
-                dict(u=user_id or "anon", t=track or "", f=focus, n=next_goal,
-                     r=reason_code or "rule_default",
-                     c=json.dumps({"path": plan or [], "pool": candidates}, ensure_ascii=False)))
+            cx.execute(
+                text(
+                    "INSERT INTO user_plan (user_id, track, focus, next_goal, reason_code, candidates) "
+                    "VALUES (:u,:t,:f,:n,:r,:c) "
+                    "ON DUPLICATE KEY UPDATE focus=:f, next_goal=:n, reason_code=:r, candidates=:c"
+                ),
+                dict(
+                    u=user_id or "anon",
+                    t=track or "",
+                    f=focus,
+                    n=next_goal,
+                    r=reason_code or "rule_default",
+                    c=json.dumps(
+                        {"path": plan or [], "pool": candidates}, ensure_ascii=False
+                    ),
+                ),
+            )
     except Exception as e:
         print(f"[roadmap] plan 저장 실패(무시): {type(e).__name__}: {e}")
 
@@ -307,15 +361,18 @@ def _load_plan(user_id, track):
     _ensure_plan_table()
     try:
         with engine.begin() as cx:
-            r = cx.execute(text(
-                "SELECT focus, next_goal, reason_code, candidates FROM user_plan "
-                "WHERE user_id=:u AND track=:t"),
-                {"u": user_id or "anon", "t": track or ""}).fetchone()
+            r = cx.execute(
+                text(
+                    "SELECT focus, next_goal, reason_code, candidates FROM user_plan "
+                    "WHERE user_id=:u AND track=:t"
+                ),
+                {"u": user_id or "anon", "t": track or ""},
+            ).fetchone()
         if r:
             path = []
             try:
                 blob = json.loads(r[3]) if r[3] else None
-                if isinstance(blob, dict):       # 새 형식 {path, pool}
+                if isinstance(blob, dict):  # 새 형식 {path, pool}
                     path = blob.get("path") or []
                 # 예전 형식(후보 리스트만)이면 경로 없음 → path=[] (무해 폴백)
             except Exception:
@@ -328,9 +385,13 @@ def _load_plan(user_id, track):
 
 def _upload_seq(cx, user_id):
     """지금까지의 누적 업로드 수(서로 다른 guide_id 수) = N장 창의 좌표."""
-    r = cx.execute(text("SELECT COUNT(DISTINCT guide_id) FROM practice_log "
-                        "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL"),
-                   {"u": user_id}).scalar()
+    r = cx.execute(
+        text(
+            "SELECT COUNT(DISTINCT guide_id) FROM practice_log "
+            "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL"
+        ),
+        {"u": user_id},
+    ).scalar()
     return int(r or 0)
 
 
@@ -338,13 +399,17 @@ def _next_curriculum(sp, curriculum, statuses):
     """sp 다음으로 아직 steady가 아닌 커리큘럼 축(없으면 남은 첫 축, 그것도 없으면 마지막)."""
     if sp in curriculum:
         idx = curriculum.index(sp)
-        nxt = next((x for x in curriculum[idx + 1:] if statuses.get(x) != "steady"), None)
+        nxt = next(
+            (x for x in curriculum[idx + 1 :] if statuses.get(x) != "steady"), None
+        )
         if nxt:
             return nxt
     return next((x for x in curriculum if statuses.get(x) != "steady"), curriculum[-1])
 
 
-def _resolve_goal(user_id, track, curriculum, statuses, seen_recent, flag_count, candidate_sp):
+def _resolve_goal(
+    user_id, track, curriculum, statuses, seen_recent, flag_count, candidate_sp
+):
     """목표를 고정/평가/진급하고 활성 목표 dict 반환. 실패/표없음 → None(기존 동작 유지).
 
     - 첫 목표: 지금 후보(candidate_sp)가 '실제 약점'(flagged/재발)일 때만 고정. 안 그러면 None.
@@ -356,55 +421,95 @@ def _resolve_goal(user_id, track, curriculum, statuses, seen_recent, flag_count,
     try:
         with engine.begin() as cx:
             seq = _upload_seq(cx, user_id)
-            row = cx.execute(text(
-                "SELECT sub_problem, baseline_count, set_seq, prev_achieved, advanced_seq "
-                "FROM user_goal WHERE user_id=:u AND track=:t"),
-                {"u": user_id, "t": tkey}).fetchone()
+            row = cx.execute(
+                text(
+                    "SELECT sub_problem, baseline_count, set_seq, prev_achieved, advanced_seq "
+                    "FROM user_goal WHERE user_id=:u AND track=:t"
+                ),
+                {"u": user_id, "t": tkey},
+            ).fetchone()
 
             def _set(sp, prev, adv):
-                cx.execute(text(
-                    "INSERT INTO user_goal "
-                    "(user_id,track,sub_problem,baseline_count,set_seq,prev_achieved,advanced_seq) "
-                    "VALUES (:u,:t,:sp,:b,:s,:p,:a) "
-                    "ON DUPLICATE KEY UPDATE sub_problem=:sp, baseline_count=:b, "
-                    "set_seq=:s, prev_achieved=:p, advanced_seq=:a"),
-                    {"u": user_id, "t": tkey, "sp": sp, "b": flag_count.get(sp, 0),
-                     "s": seq, "p": prev, "a": adv})
+                cx.execute(
+                    text(
+                        "INSERT INTO user_goal "
+                        "(user_id,track,sub_problem,baseline_count,set_seq,prev_achieved,advanced_seq) "
+                        "VALUES (:u,:t,:sp,:b,:s,:p,:a) "
+                        "ON DUPLICATE KEY UPDATE sub_problem=:sp, baseline_count=:b, "
+                        "set_seq=:s, prev_achieved=:p, advanced_seq=:a"
+                    ),
+                    {
+                        "u": user_id,
+                        "t": tkey,
+                        "sp": sp,
+                        "b": flag_count.get(sp, 0),
+                        "s": seq,
+                        "p": prev,
+                        "a": adv,
+                    },
+                )
 
             def _out(sp, status, baseline, set_seq, just, prev):
-                return {"sub_problem": sp, "status": status,
-                        "baseline_count": int(baseline), "current_count": flag_count.get(sp, 0),
-                        "uploads_since": max(0, seq - int(set_seq)),
-                        "just_achieved": bool(just), "prev_achieved": prev}
+                return {
+                    "sub_problem": sp,
+                    "status": status,
+                    "baseline_count": int(baseline),
+                    "current_count": flag_count.get(sp, 0),
+                    "uploads_since": max(0, seq - int(set_seq)),
+                    "just_achieved": bool(just),
+                    "prev_achieved": prev,
+                }
 
             # 첫 목표 — '실제 약점'일 때만 고정(커리큘럼 체크박스로 행진하지 않게)
             if row is None:
-                if not candidate_sp or (flag_count.get(candidate_sp, 0) == 0
-                                        and candidate_sp not in seen_recent):
+                if not candidate_sp or (
+                    flag_count.get(candidate_sp, 0) == 0
+                    and candidate_sp not in seen_recent
+                ):
                     return None
                 _set(candidate_sp, None, None)
-                return _out(candidate_sp, "in_progress", flag_count.get(candidate_sp, 0), seq, False, None)
+                return _out(
+                    candidate_sp,
+                    "in_progress",
+                    flag_count.get(candidate_sp, 0),
+                    seq,
+                    False,
+                    None,
+                )
 
             gsp, baseline, set_seq, prev_ach, adv_seq = row
             uploads_since = seq - int(set_seq)
             is_steady = statuses.get(gsp) == "steady"
-            stopped = gsp not in seen_recent                     # 최근 창에서 더 이상 안 뜸
+            stopped = gsp not in seen_recent  # 최근 창에서 더 이상 안 뜸
             achieved = is_steady or (uploads_since >= GOAL_MIN_WINDOW and stopped)
 
             if achieved:
                 nxt = _next_curriculum(gsp, curriculum, statuses)
-                celebrate = int(baseline) > 0                    # 실제로 막혔던 축만 '달성' 표시
+                celebrate = int(baseline) > 0  # 실제로 막혔던 축만 '달성' 표시
                 if nxt and nxt != gsp:
                     _set(nxt, gsp if celebrate else None, seq)
-                    return _out(nxt, "in_progress", flag_count.get(nxt, 0), seq,
-                                celebrate, gsp if celebrate else None)
+                    return _out(
+                        nxt,
+                        "in_progress",
+                        flag_count.get(nxt, 0),
+                        seq,
+                        celebrate,
+                        gsp if celebrate else None,
+                    )
                 # 더 갈 곳 없음(전부 steady) → 목표 완료 상태로 종료
-                return _out(gsp, "achieved", baseline, set_seq,
-                            (adv_seq != seq), prev_ach)
+                return _out(
+                    gsp, "achieved", baseline, set_seq, (adv_seq != seq), prev_ach
+                )
 
             # 진행 중 — just_achieved 는 직전 진급이 '이번 업로드'에 일어났는지
-            return _out(gsp, "in_progress", baseline, set_seq,
-                        adv_seq is not None and int(adv_seq) == seq, prev_ach)
+            return _out(
+                gsp,
+                "in_progress",
+                baseline,
+                set_seq,
+                adv_seq is not None and int(adv_seq) == seq,
+                prev_ach,
+            )
     except Exception as e:
         print(f"[roadmap] goal 처리 실패(무시, 목표 비활성): {type(e).__name__}: {e}")
         return None
@@ -424,22 +529,31 @@ def get_roadmap(user_id="anon", track=None, degraded=False):
     current_sp, nxt, statuses = _focus_and_next(tries, seen_recent, flag_count, cur)
 
     # N장 기준 목표 고정/진급(실패 시 None → 기존 재계산 동작 유지).
-    goal = _resolve_goal(user_id, track, cur, statuses, seen_recent, flag_count, current_sp)
+    goal = _resolve_goal(
+        user_id, track, cur, statuses, seen_recent, flag_count, current_sp
+    )
     if goal and goal["status"] == "in_progress":
-        current_sp = goal["sub_problem"]                       # 고정 목표로 노출 안정화(흔들림 방지)
+        current_sp = goal["sub_problem"]  # 고정 목표로 노출 안정화(흔들림 방지)
         nx = _next_curriculum(current_sp, cur, statuses)
         nxt = nx if nx != current_sp else None
 
     ladder = []
     for sp in cur:
         st = statuses[sp]
-        ladder.append({"sub_problem": sp, "status": st,
-                       "tries": tries.get(sp, 0),
-                       "flagged": sp in seen_recent,
-                       # 자주 막히는 부분: 진단에 RECUR_MIN회+ 떴는데 아직 안정화 안 됨.
-                       "recurring": flag_count.get(sp, 0) >= RECUR_MIN and st != "steady",
-                       "peer_active": _peer_active(sp, seen_recent),  # delta2: 해결 vs 주제전환 단서
-                       "flag_count": flag_count.get(sp, 0)})
+        ladder.append(
+            {
+                "sub_problem": sp,
+                "status": st,
+                "tries": tries.get(sp, 0),
+                "flagged": sp in seen_recent,
+                # 자주 막히는 부분: 진단에 RECUR_MIN회+ 떴는데 아직 안정화 안 됨.
+                "recurring": flag_count.get(sp, 0) >= RECUR_MIN and st != "steady",
+                "peer_active": _peer_active(
+                    sp, seen_recent
+                ),  # delta2: 해결 vs 주제전환 단서
+                "flag_count": flag_count.get(sp, 0),
+            }
+        )
 
     done = sum(1 for r in ladder if r["status"] == "steady")
     observed_count, flagged_in_obs = _observed(user_id)
@@ -453,31 +567,41 @@ def get_roadmap(user_id="anon", track=None, degraded=False):
         if plan and plan["focus"] in cands_now:
             ng = _next_curriculum(plan["focus"], cur, statuses)
             # 경로 = 저장된 path 중 아직 유효(후보)한 것만 스텝으로 렌더. 없으면 focus 한 스텝.
-            path_ids = [sp for sp in (plan.get("path") or []) if sp in cands_now] or [plan["focus"]]
+            path_ids = [sp for sp in (plan.get("path") or []) if sp in cands_now] or [
+                plan["focus"]
+            ]
             agent_plan = {
                 "focus": _step(plan["focus"], tax),
                 "next_goal": _step(ng, tax) if (ng and ng != plan["focus"]) else None,
-                "path": [_step(sp, tax) for sp in path_ids],          # 에이전트가 짠 순서(토대→디테일)
+                "path": [
+                    _step(sp, tax) for sp in path_ids
+                ],  # 에이전트가 짠 순서(토대→디테일)
                 "reason_code": plan.get("reason_code"),
                 "reason": REASON_LABELS.get(plan.get("reason_code") or "", ""),
             }
     return {
         "user_id": user_id,
         "track": track,
-        "current": _step(current_sp, tax),                     # 지금 집중
-        "next_practice": tax.get(current_sp, {}).get("practice_prompt", ""),  # 바로 할 연습
-        "next_goal": _step(nxt, tax) if nxt else None,         # 다음 목표
+        "current": _step(current_sp, tax),  # 지금 집중
+        "next_practice": tax.get(current_sp, {}).get(
+            "practice_prompt", ""
+        ),  # 바로 할 연습
+        "next_goal": _step(nxt, tax) if nxt else None,  # 다음 목표
         "progress": {"steady": done, "total": len(cur)},
         "ladder": ladder,
-        "recurring": [r["sub_problem"] for r in ladder if r["recurring"]],  # 자주 막히는 부분
-        "trend": trend,                                                      # delta3: 약점 수 증감 방향
-        "timeline": timeline,                                                # 막대용: 업로드별(예전→최근) 약점 수
-        "improved": improved,                # 관측 검증된 '최근에 덜 보이는 어려움'(부재 아님, 실제 개선)
-        "observed": observed,                # 최근 측정된 축(핸드오프/게이팅용)
-        "reduction_pct": _reduction(user_id),  # '처음 대비' 어려움 수 감소율(%) — 성장 흐름 한 줄 요약
-        "goal": goal,                                                        # N장 기준 고정 목표(진행/달성/진급)
+        "recurring": [
+            r["sub_problem"] for r in ladder if r["recurring"]
+        ],  # 자주 막히는 부분
+        "trend": trend,  # delta3: 약점 수 증감 방향
+        "timeline": timeline,  # 막대용: 업로드별(예전→최근) 약점 수
+        "improved": improved,  # 관측 검증된 '최근에 덜 보이는 어려움'(부재 아님, 실제 개선)
+        "observed": observed,  # 최근 측정된 축(핸드오프/게이팅용)
+        "reduction_pct": _reduction(
+            user_id
+        ),  # '처음 대비' 어려움 수 감소율(%) — 성장 흐름 한 줄 요약
+        "goal": goal,  # N장 기준 고정 목표(진행/달성/진급)
         "why": _why(current_sp, nxt),
-        "agent_plan": agent_plan,            # 에이전트가 고른 영속 계획 — 프런트가 '다음 목표'로 읽어 guide 와 일관
+        "agent_plan": agent_plan,  # 에이전트가 고른 영속 계획 — 프런트가 '다음 목표'로 읽어 guide 와 일관
     }
 
 
@@ -486,24 +610,34 @@ def _observed(user_id):
     flagged('seen')만 보던 _history 와 달리 '그렸지만 안 걸린' 경우를 센다 → 부재와 개선을 구분.
     창은 observable 기준(모든 업로드가 observable 을 남김)이라 약점 0인 업로드도 포함된다.
     """
-    observed_count = defaultdict(int)   # sub_problem -> 최근 창에서 측정가능했던 업로드 수
-    flagged_in_obs = defaultdict(int)   # 그 창 안에서 flagged(seen)된 업로드 수
+    observed_count = defaultdict(
+        int
+    )  # sub_problem -> 최근 창에서 측정가능했던 업로드 수
+    flagged_in_obs = defaultdict(int)  # 그 창 안에서 flagged(seen)된 업로드 수
     try:
         with engine.begin() as cx:
-            recent_ids = [r[0] for r in cx.execute(text(
-                "SELECT guide_id FROM practice_log "
-                "WHERE user_id=:u AND action='observable' AND guide_id IS NOT NULL "
-                "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"),
-                {"u": user_id, "n": RECENT_N}).fetchall()]
+            recent_ids = [
+                r[0]
+                for r in cx.execute(
+                    text(
+                        "SELECT guide_id FROM practice_log "
+                        "WHERE user_id=:u AND action='observable' AND guide_id IS NOT NULL "
+                        "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"
+                    ),
+                    {"u": user_id, "n": RECENT_N},
+                ).fetchall()
+            ]
             if recent_ids:
-                obs_q = text("SELECT DISTINCT sub_problem, guide_id FROM practice_log "
-                             "WHERE user_id=:u AND action='observable' AND guide_id IN :gids"
-                             ).bindparams(bindparam("gids", expanding=True))
+                obs_q = text(
+                    "SELECT DISTINCT sub_problem, guide_id FROM practice_log "
+                    "WHERE user_id=:u AND action='observable' AND guide_id IN :gids"
+                ).bindparams(bindparam("gids", expanding=True))
                 for sp, _g in cx.execute(obs_q, {"u": user_id, "gids": recent_ids}):
                     observed_count[sp] += 1
-                seen_q = text("SELECT DISTINCT sub_problem, guide_id FROM practice_log "
-                              "WHERE user_id=:u AND action='seen' AND guide_id IN :gids"
-                              ).bindparams(bindparam("gids", expanding=True))
+                seen_q = text(
+                    "SELECT DISTINCT sub_problem, guide_id FROM practice_log "
+                    "WHERE user_id=:u AND action='seen' AND guide_id IN :gids"
+                ).bindparams(bindparam("gids", expanding=True))
                 for sp, _g in cx.execute(seen_q, {"u": user_id, "gids": recent_ids}):
                     flagged_in_obs[sp] += 1
     except Exception as e:
@@ -518,10 +652,13 @@ def _improved_from(observed_count, flagged_in_obs, seen_recent):
     'steady(=최근 미검출)'만으로는 절대 개선이라 하지 않는다 — 관측이 없으면 정보 부족이다.
     """
     observed = {sp for sp, n in observed_count.items() if n >= 1}
-    improved = [sp for sp, n in observed_count.items()
-                if n >= OBS_MIN
-                and flagged_in_obs.get(sp, 0) < n      # 그린 횟수보다 덜 걸림(가끔 괜찮았다)
-                and sp not in seen_recent]             # 가장 최근 창엔 안 걸림(요즘 괜찮다)
+    improved = [
+        sp
+        for sp, n in observed_count.items()
+        if n >= OBS_MIN
+        and flagged_in_obs.get(sp, 0) < n  # 그린 횟수보다 덜 걸림(가끔 괜찮았다)
+        and sp not in seen_recent
+    ]  # 가장 최근 창엔 안 걸림(요즘 괜찮다)
     return improved, sorted(observed)
 
 
@@ -531,10 +668,14 @@ def _reduction(user_id):
     '60% 감소' 같은 한 줄 요약용 — 그래프(timeline)와 같은 seen 기반이라 일관."""
     try:
         with engine.begin() as cx:
-            rows = cx.execute(text(
-                "SELECT guide_id, COUNT(DISTINCT sub_problem) FROM practice_log "
-                "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL "
-                "GROUP BY guide_id ORDER BY MIN(ts)"), {"u": user_id}).fetchall()
+            rows = cx.execute(
+                text(
+                    "SELECT guide_id, COUNT(DISTINCT sub_problem) FROM practice_log "
+                    "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL "
+                    "GROUP BY guide_id ORDER BY MIN(ts)"
+                ),
+                {"u": user_id},
+            ).fetchall()
         counts = [int(c) for _g, c in rows]
         if len(counts) < 3:
             return None
@@ -547,7 +688,9 @@ def _reduction(user_id):
         return None
 
 
-def growth_context(user_id="anon", track=None, curriculum=None, degraded=False, llm=None):
+def growth_context(
+    user_id="anon", track=None, curriculum=None, degraded=False, llm=None
+):
     """가이드 파이프라인이 쓰는 '압축 이력'. 진단 랭킹·프롬프트·응답분기로 흘러간다.
 
     LLM 없이 결정적. DB가 없거나 이력이 비면 빈 컨텍스트로 안전하게 폴백한다
@@ -565,11 +708,14 @@ def growth_context(user_id="anon", track=None, curriculum=None, degraded=False, 
         tries, seen_recent, flag_count, trend, _timeline = _history(user_id)
         current_sp, nxt, statuses = _focus_and_next(tries, seen_recent, flag_count, cur)
         steady = [sp for sp in cur if statuses[sp] == "steady"]
-        recurring = [sp for sp in cur
-                     if flag_count.get(sp, 0) >= RECUR_MIN and statuses[sp] != "steady"]
+        recurring = [
+            sp
+            for sp in cur
+            if flag_count.get(sp, 0) >= RECUR_MIN and statuses[sp] != "steady"
+        ]
         # 콜드스타트 여부(첫 업로드: 연습/노출 이력 사실상 없음) → main 이 그림 기반 진입점 교정에 사용.
         total_tries = sum(tries.values())
-        cold = (total_tries == 0 and not seen_recent)
+        cold = total_tries == 0 and not seen_recent
         # 내부 성장 단계(노출 금지 — apply_cold_start·톤 힌트 전용. '_' 접두로 비노출 표식).
         stage, _ratio = estimate_stage(len(steady), len(cur), trend, total_tries)
         # 관측 기반 개선(SAFE 규칙) — steady(=부재일 수 있음)와 분리된 '정직한' 축별 개선 신호.
@@ -579,37 +725,70 @@ def growth_context(user_id="anon", track=None, curriculum=None, degraded=False, 
         reason_code = "rule_default"
         if llm is not None:
             from guide.pipeline import agent  # 지연 import(순환 회피)
+
             cands = _focus_candidates(statuses, seen_recent, flag_count, cur)
             plan, reason_code = agent.plan_next(
-                {"recurring": recurring, "trend": trend, "improved": improved,
-                 "stage": stage, "flag_count": {sp: flag_count.get(sp, 0) for sp in cands}},
-                cands, llm)
+                {
+                    "recurring": recurring,
+                    "trend": trend,
+                    "improved": improved,
+                    "stage": stage,
+                    "flag_count": {sp: flag_count.get(sp, 0) for sp in cands},
+                },
+                cands,
+                llm,
+            )
             sel = plan[0] if plan else None
-            if sel and sel in cands:          # grounding: 후보 밖이면 결정적 유지
+            if sel and sel in cands:  # grounding: 후보 밖이면 결정적 유지
                 current_sp = sel
                 # 다음 목표 = 에이전트 경로의 2번째(있으면), 없으면 커리큘럼상 다음
-                nxt = (plan[1] if len(plan) > 1 and plan[1] in cands
-                       else _next_curriculum(current_sp, cur, statuses)) or nxt
-            if _agent_plan_on():              # 영속화: /roadmap 이 같은 계획·경로를 읽도록
+                nxt = (
+                    plan[1]
+                    if len(plan) > 1 and plan[1] in cands
+                    else _next_curriculum(current_sp, cur, statuses)
+                ) or nxt
+            if _agent_plan_on():  # 영속화: /roadmap 이 같은 계획·경로를 읽도록
                 _save_plan(user_id, track, current_sp, nxt, reason_code, cands, plan)
-        return {"user_id": user_id, "steady": steady, "recurring": recurring,
-                "current_focus": current_sp, "next_goal": nxt,
-                "trend": trend, "why": _why(current_sp, nxt),
-                "cold": cold, "_stage": stage,
-                "improved": improved, "observed": observed,
-                "reason_code": reason_code}
+        return {
+            "user_id": user_id,
+            "steady": steady,
+            "recurring": recurring,
+            "current_focus": current_sp,
+            "next_goal": nxt,
+            "trend": trend,
+            "why": _why(current_sp, nxt),
+            "cold": cold,
+            "_stage": stage,
+            "improved": improved,
+            "observed": observed,
+            "reason_code": reason_code,
+        }
     except Exception as e:
-        print(f"[roadmap] growth_context 실패(무시, 빈 컨텍스트): {type(e).__name__}: {e}")
-        return {"user_id": user_id, "steady": [], "recurring": [],
-                "current_focus": None, "next_goal": None, "trend": "new", "why": "",
-                "cold": True, "_stage": estimate_stage(0, 1)[0],
-                "improved": [], "observed": [], "reason_code": "rule_default"}
+        print(
+            f"[roadmap] growth_context 실패(무시, 빈 컨텍스트): {type(e).__name__}: {e}"
+        )
+        return {
+            "user_id": user_id,
+            "steady": [],
+            "recurring": [],
+            "current_focus": None,
+            "next_goal": None,
+            "trend": "new",
+            "why": "",
+            "cold": True,
+            "_stage": estimate_stage(0, 1)[0],
+            "improved": [],
+            "observed": [],
+            "reason_code": "rule_default",
+        }
 
 
 def _why(current_sp, nxt):
     """'왜 지금 이걸, 다음에 저걸'에 대한 한 줄 설명(구조 먼저 원칙). 내부 id 대신 한글 라벨 노출."""
     cur = LABELS.get(current_sp, current_sp)
-    msg = f"지금은 '{cur}'에 집중하면 좋아요 — 커리큘럼에서 아직 자리잡지 않은 단계예요."
+    msg = (
+        f"지금은 '{cur}'에 집중하면 좋아요 — 커리큘럼에서 아직 자리잡지 않은 단계예요."
+    )
     if nxt:
         msg += f" 이게 안정되면 다음은 '{LABELS.get(nxt, nxt)}' 단계로 넘어가면 자연스럽습니다."
     return msg
@@ -625,15 +804,18 @@ def growth_view(user_id="anon", track=None, degraded=False):
         cur = [sp for sp in curriculum if sp not in exclude] or list(curriculum)
         tries, seen_recent, flag_count, trend, timeline = _history(user_id)
         current_sp, nxt, statuses = _focus_and_next(tries, seen_recent, flag_count, cur)
-        recurring = [sp for sp in cur
-                     if flag_count.get(sp, 0) >= RECUR_MIN and statuses[sp] != "steady"]
+        recurring = [
+            sp
+            for sp in cur
+            if flag_count.get(sp, 0) >= RECUR_MIN and statuses[sp] != "steady"
+        ]
         observed_count, flagged_in_obs = _observed(user_id)
         improved, _obs = _improved_from(observed_count, flagged_in_obs, seen_recent)
         return {
             "window": RECENT_N,
-            "timeline": timeline,            # [{"flagged_count": n}, ...] 예전→최근
+            "timeline": timeline,  # [{"flagged_count": n}, ...] 예전→최근
             "flag_count": dict(flag_count),
-            "trend": trend,                  # new|decreasing|increasing|steady
+            "trend": trend,  # new|decreasing|increasing|steady
             "recurring": recurring,
             "current_focus": current_sp,
             "next_goal": nxt,
@@ -641,5 +823,13 @@ def growth_view(user_id="anon", track=None, degraded=False):
         }
     except Exception as e:
         print(f"[roadmap] growth_view 실패(무시, 빈 성장): {type(e).__name__}: {e}")
-        return {"window": RECENT_N, "timeline": [], "flag_count": {}, "trend": "new",
-                "recurring": [], "current_focus": None, "next_goal": None, "improved": []}
+        return {
+            "window": RECENT_N,
+            "timeline": [],
+            "flag_count": {},
+            "trend": "new",
+            "recurring": [],
+            "current_focus": None,
+            "next_goal": None,
+            "improved": [],
+        }

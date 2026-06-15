@@ -9,25 +9,30 @@ LLM이 켜져 있으면(AGENT_LLM_SELECT) LLM이 후보 중에서 고르고(comp
 통과 못 하면 결정적 정책으로 폴백한다. validate()가 모든 선택을 후보와 교집합해 grounding을 강제하므로,
 LLM이 무엇을 뱉든 측정 밖의 것은 응답에 못 들어온다(= "환각이 성장에 개입하지 않는다").
 """
+
 import os
 import json
 
 from guide.pipeline.profiles import POSE_DEPENDENT
 
-MAX_BLOCKS = 3   # 한 번에 보여줄 최대 블록 수(인지 부하 ↓). diagnose가 이미 상위로 좁혀 둠.
+MAX_BLOCKS = (
+    3  # 한 번에 보여줄 최대 블록 수(인지 부하 ↓). diagnose가 이미 상위로 좁혀 둠.
+)
 
 
 def assemble_context(diagnosis, refs_by_sp, growth, intent, track):
     """룰 산출물을 에이전트가 고를 '후보 묶음'으로 명시화한다(순수 dict)."""
     obs = diagnosis.get("observations", [])
-    cand_ids = [o["sub_problem"] for o in obs]                      # 후보 sub_problem(룰 랭킹순)
+    cand_ids = [o["sub_problem"] for o in obs]  # 후보 sub_problem(룰 랭킹순)
     ref_cand = {sp: [rid for rid, _ in refs_by_sp.get(sp, [])] for sp in cand_ids}
     g = growth or {}
     return {
         "candidates": cand_ids,
         "obs_by_sp": {o["sub_problem"]: o for o in obs},
         "ref_candidates": ref_cand,
-        "degraded": bool(diagnosis.get("degraded")),   # 전신 미검출 → 포즈 축은 측정 불가
+        "degraded": bool(
+            diagnosis.get("degraded")
+        ),  # 전신 미검출 → 포즈 축은 측정 불가
         "focus": g.get("current_focus"),
         "recurring": [s for s in g.get("recurring", []) if s in cand_ids],
         "steady": g.get("steady", []),
@@ -66,16 +71,19 @@ def _deterministic(ctx):
     elif appl:
         lead = appl[0]
     else:
-        lead = cand[0]      # 적용 가능한 축이 하나도 없음(전부 degraded 포즈축) → 가설형으로 안내됨
+        lead = cand[
+            0
+        ]  # 적용 가능한 축이 하나도 없음(전부 degraded 포즈축) → 가설형으로 안내됨
 
     order = [lead]
     rest = [sp for sp in appl if sp != lead]
-    rest.sort(key=lambda sp: (not obs.get(sp, {}).get("measured"),
-                              sp not in ctx["recurring"]))   # 측정·재발 먼저(안정 정렬)
+    rest.sort(
+        key=lambda sp: (not obs.get(sp, {}).get("measured"), sp not in ctx["recurring"])
+    )  # 측정·재발 먼저(안정 정렬)
     for sp in rest:
         if sp not in order:
             order.append(sp)
-    for sp in cand:         # 비적용(degraded 포즈) 축은 맨 뒤
+    for sp in cand:  # 비적용(degraded 포즈) 축은 맨 뒤
         if sp not in order:
             order.append(sp)
     order = order[:MAX_BLOCKS]
@@ -96,12 +104,16 @@ def _strip(text):
 
 def _llm_select(ctx, llm):
     """LLM이 후보 중에서 고른다(선택만, 사실 생성 아님). 실패 가능 → 호출부가 검증·폴백한다."""
-    items = [{"id": sp,
-              "measured": ctx["obs_by_sp"][sp].get("measured", False),
-              "recurring": sp in ctx["recurring"],
-              "is_focus": sp == ctx["focus"],
-              "refs": ctx["ref_candidates"].get(sp, [])}
-             for sp in ctx["candidates"]]
+    items = [
+        {
+            "id": sp,
+            "measured": ctx["obs_by_sp"][sp].get("measured", False),
+            "recurring": sp in ctx["recurring"],
+            "is_focus": sp == ctx["focus"],
+            "refs": ctx["ref_candidates"].get(sp, []),
+        }
+        for sp in ctx["candidates"]
+    ]
     prompt = (
         "너는 그림 코칭 에이전트의 '선택자'다. 아래 후보(이미 측정·진단된 약점들) 중에서만 고른다.\n"
         "규칙: 새 항목이나 새 레퍼런스를 만들지 말 것. 완성도·성장을 판정하지 말 것. 후보 id만 사용할 것.\n"
@@ -144,7 +156,11 @@ def decide(diagnosis, refs_by_sp, growth, intent="open", track=None, llm=None):
     if not ctx["candidates"]:
         return {"order": [], "lead": None, "refs": {}, "emphasis": "direct"}, ctx
     base = _deterministic(ctx)
-    use_llm = llm is not None and os.environ.get("AGENT_LLM_SELECT", "0").lower() in ("1", "true", "yes")
+    use_llm = llm is not None and os.environ.get("AGENT_LLM_SELECT", "0").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
     if use_llm:
         try:
             v = validate(_llm_select(ctx, llm), ctx)
@@ -174,7 +190,9 @@ def order_refs(refs_by_sp, decision):
     for sp, rid in (decision.get("refs") or {}).items():
         lst = out.get(sp)
         if lst and rid:
-            out[sp] = sorted(lst, key=lambda pair: pair[0] != rid)  # 선택 ref를 앞으로(안정 정렬)
+            out[sp] = sorted(
+                lst, key=lambda pair: pair[0] != rid
+            )  # 선택 ref를 앞으로(안정 정렬)
     return out
 
 
@@ -182,15 +200,24 @@ def order_refs(refs_by_sp, decision):
 # '앞으로 할 것'의 *축 선택*을 룰 → 에이전트로 옮긴다. 단 불변식은 decide 와 동일:
 #   룰이 후보(아직 자리잡지 않은 축들)와 상태(성장 판정)를 소유 → 에이전트는 후보 *안에서만* 고른다.
 #   새 축 생성·상태 재해석·성장 재정의 금지. AGENT_PLAN 환경변수로 옵트인(기본 OFF=결정적, 비용 0).
-PLAN_REASONS = {"recent_recurring", "curriculum_order", "consolidate_before_advance",
-                "revisit_regressed", "next_in_sequence"}
+PLAN_REASONS = {
+    "recent_recurring",
+    "curriculum_order",
+    "consolidate_before_advance",
+    "revisit_regressed",
+    "next_in_sequence",
+}
 PLAN_LEN = 3  # 경로 길이 상한(즉시 집중 + 그 다음 1~2단계)
 
 
 def _plan_deterministic(state, candidates):
     """결정적 폴백: 후보는 이미 룰 우선순위(재발빈도↓→커리큘럼순) 정렬 → 앞에서부터 경로로."""
     plan = candidates[:PLAN_LEN]
-    reason = "recent_recurring" if plan[0] in set(state.get("recurring", [])) else "curriculum_order"
+    reason = (
+        "recent_recurring"
+        if plan[0] in set(state.get("recurring", []))
+        else "curriculum_order"
+    )
     return plan, reason
 
 
@@ -204,7 +231,9 @@ def _plan_llm(state, candidates, llm):
         f"상태(JSON): {json.dumps(state, ensure_ascii=False)}\n"
         f"후보(룰 우선순위순): {json.dumps(candidates, ensure_ascii=False)}\n"
         "아래 STRICT JSON만 출력(설명 금지):\n"
-        '{"plan": [id,...(후보 중에서, 최대 ' + str(PLAN_LEN) + '개, 순서가 곧 계획)], "reason_code": '
+        '{"plan": [id,...(후보 중에서, 최대 '
+        + str(PLAN_LEN)
+        + '개, 순서가 곧 계획)], "reason_code": '
         '"recent_recurring|curriculum_order|consolidate_before_advance|revisit_regressed|next_in_sequence"}\n'
         "plan[0]=이번에 집중할 축. 토대를 앞에 둘 때 사유는 consolidate_before_advance/revisit_regressed."
     )
@@ -215,7 +244,7 @@ def _plan_validate(decision, candidates):
     """grounding 강제: 경로는 후보의 *순서있는 부분집합*(중복 제거)만. 비면 None(→폴백)."""
     cand = list(candidates)
     seen, plan = set(), []
-    for x in (decision.get("plan") or []):
+    for x in decision.get("plan") or []:
         if x in cand and x not in seen:
             plan.append(x)
             seen.add(x)
@@ -239,7 +268,11 @@ def plan_next(state, candidates, llm=None):
     if not candidates:
         return [], "no_candidates"
     base = _plan_deterministic(state, candidates)
-    use_llm = llm is not None and os.environ.get("AGENT_PLAN", "0").lower() in ("1", "true", "yes")
+    use_llm = llm is not None and os.environ.get("AGENT_PLAN", "0").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
     if use_llm:
         try:
             v = _plan_validate(_plan_llm(state, candidates, llm), candidates)

@@ -18,49 +18,91 @@
 
 # 인물 track 기본 순서(구조 먼저). 전체 taxonomy를 커리큘럼으로 사용.
 _FIGURE_ORDER = [
-    "proportion", "weight_balance", "action_line", "joint_articulation",
-    "foreshortening", "hand_structure", "value_structure", "light_direction",
-    "composition_balance", "color_harmony",
+    "proportion",
+    "weight_balance",
+    "action_line",
+    "joint_articulation",
+    "foreshortening",
+    "hand_structure",
+    "value_structure",
+    "light_direction",
+    "composition_balance",
+    "color_harmony",
 ]
 # 비인물(풍경·정물): 풍경 전용 축(원근·대기원근·깊이·지평선) + 범용 축. 구조(구도·원근) 먼저 → 빛/색.
-_SCENE_ORDER = ["composition_balance", "horizon_placement", "linear_perspective",
-                "atmospheric_perspective", "depth_layering",
-                "value_structure", "light_direction", "color_harmony"]
+_SCENE_ORDER = [
+    "composition_balance",
+    "horizon_placement",
+    "linear_perspective",
+    "atmospheric_perspective",
+    "depth_layering",
+    "value_structure",
+    "light_direction",
+    "color_harmony",
+]
 
 # 단일 출처(SSOT): 커리큘럼/축 정의는 여기 한 곳. roadmap 등 다른 모듈은 이 공개 별칭을 끌어다 쓴다
 # (예전엔 roadmap.py 가 _FIGURE_ORDER 를 복제해 drift 위험이 있었음 → 제거).
 FIGURE_ORDER = _FIGURE_ORDER
 SCENE_ORDER = _SCENE_ORDER
-ALL_AXES = _FIGURE_ORDER + [a for a in _SCENE_ORDER if a not in _FIGURE_ORDER]  # 순서 보존 합집합(14축)
+ALL_AXES = _FIGURE_ORDER + [
+    a for a in _SCENE_ORDER if a not in _FIGURE_ORDER
+]  # 순서 보존 합집합(14축)
 
 # 포즈(전신 키포인트)에 의존하는 축. 포즈가 degraded(전신 미검출)면 측정 불가라,
 # 진단·중재에서 이 축들을 '리드(이번에 딱 하나)'로 단정·승격하지 않는다(흉상·초상에 전신 비율 오발화 방지).
 # 이미지 기반 축(value_structure·composition_balance·light_direction·color_harmony)은 포즈 없이도 측정된다.
-POSE_DEPENDENT = {"proportion", "weight_balance", "foreshortening",
-                  "joint_articulation", "action_line", "hand_structure"}
+POSE_DEPENDENT = {
+    "proportion",
+    "weight_balance",
+    "foreshortening",
+    "joint_articulation",
+    "action_line",
+    "hand_structure",
+}
 
 # norms — 비율 스코어러의 leg_torso 밴드(이 밖이면 발화). 대략값, 데이터로 재튜닝 대상.
 #   밴드가 None이면 비율 자동 발화를 끈다(스타일을 모를 때 '비율 틀림' 오발화 방지 = 안전 기본값).
-_NORM_REAL = {"leg_torso": (0.75, 1.7)}     # 사실체(약 7~8등신)
-_NORM_ANIME = {"leg_torso": (0.9, 2.3)}     # 애니/웹툰(다리 길게)
-_NORM_CHIBI = {"leg_torso": (0.4, 1.1)}     # 치비/SD(다리 짧게·머리 크게)
-_NORM_OFF = {"leg_torso": None}             # 스타일 미상/비인물 → 비율 자동 발화 끔
+_NORM_REAL = {"leg_torso": (0.75, 1.7)}  # 사실체(약 7~8등신)
+_NORM_ANIME = {"leg_torso": (0.9, 2.3)}  # 애니/웹툰(다리 길게)
+_NORM_CHIBI = {"leg_torso": (0.4, 1.1)}  # 치비/SD(다리 짧게·머리 크게)
+_NORM_OFF = {"leg_torso": None}  # 스타일 미상/비인물 → 비율 자동 발화 끔
 
 PROFILES = {
-    "realistic_figure": {"label": "사실체 인물", "subproblems": _FIGURE_ORDER,
-                         "curriculum": _FIGURE_ORDER, "norms": _NORM_REAL},
-    "anime_figure":     {"label": "애니/웹툰 인물", "subproblems": _FIGURE_ORDER,
-                         "curriculum": _FIGURE_ORDER, "norms": _NORM_ANIME},
-    "chibi_figure":     {"label": "치비/SD", "subproblems": _FIGURE_ORDER,
-                         "curriculum": _FIGURE_ORDER, "norms": _NORM_CHIBI},
-    "landscape":        {"label": "풍경/정물", "subproblems": _SCENE_ORDER,
-                         "curriculum": _SCENE_ORDER, "norms": _NORM_OFF},
+    "realistic_figure": {
+        "label": "사실체 인물",
+        "subproblems": _FIGURE_ORDER,
+        "curriculum": _FIGURE_ORDER,
+        "norms": _NORM_REAL,
+    },
+    "anime_figure": {
+        "label": "애니/웹툰 인물",
+        "subproblems": _FIGURE_ORDER,
+        "curriculum": _FIGURE_ORDER,
+        "norms": _NORM_ANIME,
+    },
+    "chibi_figure": {
+        "label": "치비/SD",
+        "subproblems": _FIGURE_ORDER,
+        "curriculum": _FIGURE_ORDER,
+        "norms": _NORM_CHIBI,
+    },
+    "landscape": {
+        "label": "풍경/정물",
+        "subproblems": _SCENE_ORDER,
+        "curriculum": _SCENE_ORDER,
+        "norms": _NORM_OFF,
+    },
 }
 
 # 자동(track 미지정) 폴백. 인물이면 인물(자동), 아니면 풍경.
 #   인물(자동)은 스타일을 모르므로 norms를 OFF로 둬 비율 오발화를 막는다(사실체 단정 금지).
-_FIGURE_AUTO = {"label": "인물(자동)", "subproblems": _FIGURE_ORDER,
-                "curriculum": _FIGURE_ORDER, "norms": _NORM_OFF}
+_FIGURE_AUTO = {
+    "label": "인물(자동)",
+    "subproblems": _FIGURE_ORDER,
+    "curriculum": _FIGURE_ORDER,
+    "norms": _NORM_OFF,
+}
 
 
 def resolve_profile(track=None, scene=None):
@@ -72,7 +114,7 @@ def resolve_profile(track=None, scene=None):
     if track and track in PROFILES:
         return PROFILES[track]
     if scene is None:
-        return _FIGURE_AUTO                      # 정보 없음 → 기본 레인(인물)
+        return _FIGURE_AUTO  # 정보 없음 → 기본 레인(인물)
     # 제품 1차 레인은 인물. CLIP 은 스케치/선화(색·질감 부족)에 약해 person_p 가 자주 중립(≈0.5)으로
     # 수렴하므로, '확실히 풍경'(person_p 가 충분히 낮을 때)에만 landscape 로 보낸다.
     #   비대칭 비용: 인물→풍경 오분류(지평선 가이드 등)가 풍경→인물보다 UX 손실이 크다.

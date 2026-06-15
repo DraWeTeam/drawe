@@ -6,9 +6,15 @@ diagnose.THRESHOLDS 를 override 해 라벨 데이터(신호→발화해야 할 
 순수 로직(주입 없이 SCORERS/apply_thresholds 만 사용) → DB·CLIP 없이 테스트된다.
 실제 라벨은 scripts/extract_signals.py 로 그림에서 신호를 뽑아 사람이 expect 를 붙여 만든다.
 """
+
 from collections import defaultdict
 
-from guide.pipeline.diagnose import SCORERS, apply_thresholds, reset_thresholds, _DEFAULT_THRESHOLDS
+from guide.pipeline.diagnose import (
+    SCORERS,
+    apply_thresholds,
+    reset_thresholds,
+    _DEFAULT_THRESHOLDS,
+)
 
 # sweep 가능한 단일 임계 키(축 = key.split('.')[0]). value_structure 는 3개 키 중 figure_value_range 대표.
 SWEEPABLE = sorted(_DEFAULT_THRESHOLDS)
@@ -28,7 +34,7 @@ def fired(signals):
 
 def confusion(cases, override=None):
     """cases: [{signals:{...}, expect:[axis,...]}] → {axis: {tp,fp,fn}}. override 적용 후 복원."""
-    prev = apply_thresholds(override) if override else None
+    _prev = apply_thresholds(override) if override else None
     try:
         per = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0})
         for c in cases:
@@ -73,9 +79,21 @@ def sweep(cases, key, values):
     out = []
     for v in values:
         m = metrics(cases, {key: v})
-        c = m.get(axis, {"precision": 0.0, "recall": 0.0, "f1": 0.0, "tp": 0, "fp": 0, "fn": 0})
-        out.append({"value": v, "precision": c["precision"], "recall": c["recall"],
-                    "f1": c["f1"], "tp": c["tp"], "fp": c["fp"], "fn": c["fn"]})
+        c = m.get(
+            axis,
+            {"precision": 0.0, "recall": 0.0, "f1": 0.0, "tp": 0, "fp": 0, "fn": 0},
+        )
+        out.append(
+            {
+                "value": v,
+                "precision": c["precision"],
+                "recall": c["recall"],
+                "f1": c["f1"],
+                "tp": c["tp"],
+                "fp": c["fp"],
+                "fn": c["fn"],
+            }
+        )
     return out
 
 

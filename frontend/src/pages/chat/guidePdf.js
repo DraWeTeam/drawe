@@ -6,19 +6,31 @@
 // GuideModal 의 섹션 구조(분석/읽히는 느낌/한 끗 포인트/추천 레퍼런스/다음 목표/성장 흐름)를 그대로 옮긴다.
 
 const AXIS_LABELS = {
-  weight_balance: "무게중심", foreshortening: "단축", proportion: "비율",
-  action_line: "동세선", joint_articulation: "관절", hand_structure: "손 구조",
-  value_structure: "명암 대비", composition_balance: "구도·균형", color_harmony: "색 조화",
-  light_direction: "광원 방향", linear_perspective: "선원근", atmospheric_perspective: "대기원근",
-  depth_layering: "깊이층", horizon_placement: "지평선",
+  weight_balance: "무게중심",
+  foreshortening: "단축",
+  proportion: "비율",
+  action_line: "동세선",
+  joint_articulation: "관절",
+  hand_structure: "손 구조",
+  value_structure: "명암 대비",
+  composition_balance: "구도·균형",
+  color_harmony: "색 조화",
+  light_direction: "광원 방향",
+  linear_perspective: "선원근",
+  atmospheric_perspective: "대기원근",
+  depth_layering: "깊이층",
+  horizon_placement: "지평선",
 };
 const axisLabel = (id) => AXIS_LABELS[id] || (id ? id.replace(/_/g, " ") : "");
 
 // 텍스트 → HTML 안전 이스케이프(가이드 본문은 신뢰되지만 방어적으로).
 function esc(s) {
   return String(s ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function growthDelta(trend) {
@@ -35,7 +47,9 @@ function growthDelta(trend) {
 // 성장 면적 차트 SVG(모달의 GrowthChart 와 동일한 형태) → 인쇄용 정적 마크업.
 function growthChartSvg(trend) {
   if (!trend || trend.length < 2) return "";
-  const W = 520, H = 150, PAD = 8;
+  const W = 520,
+    H = 150,
+    PAD = 8;
   const max = Math.max(1, ...trend.map((t) => t.difficulty_count || 0));
   const n = trend.length;
   const pts = trend.map((t, i) => {
@@ -77,7 +91,9 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
   const next = guide.next_steps;
   const hasPractice = !!next?.focus_practice; // 있으면 반복(추천 연습) 레이아웃, 없으면 최초(분석/읽히는 느낌)
   const primaryRefs = primary
-    ? (references || []).filter((r) => (primary.reference_ids || []).includes(r.refId))
+    ? (references || []).filter((r) =>
+        (primary.reference_ids || []).includes(r.refId),
+      )
     : [];
   let num = 0;
   const out = [];
@@ -92,8 +108,16 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
     const intro = next?.note || guide.synthesis || "";
     if (intro) out.push(`<p class="intro">${esc(intro)}</p>`);
     if (primary?.observation)
-      out.push(`<p class="lead">${esc(primary.observation)}${primary.effect ? " " + esc(primary.effect) : ""}</p>`);
-    num++; out.push(section("추천 연습", `<div class="box"><p>${esc(next.focus_practice)}</p></div>`));
+      out.push(
+        `<p class="lead">${esc(primary.observation)}${primary.effect ? " " + esc(primary.effect) : ""}</p>`,
+      );
+    num++;
+    out.push(
+      section(
+        "추천 연습",
+        `<div class="box"><p>${esc(next.focus_practice)}</p></div>`,
+      ),
+    );
   } else {
     // 최초 가이드 레이아웃: 1.분석 / 2.읽히는 느낌
     if (primary?.observation) {
@@ -101,16 +125,31 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
       const img = drawingPreviewUrl
         ? `<img class="userImg" src="${esc(drawingPreviewUrl)}" alt="첨부한 그림"/>`
         : "";
-      out.push(section("분석", `${img}<p class="body">${esc(primary.observation)}</p>`));
+      out.push(
+        section(
+          "분석",
+          `${img}<p class="body">${esc(primary.observation)}</p>`,
+        ),
+      );
     }
     if (primary?.effect) {
-      num++; out.push(section("읽히는 느낌", `<p class="body">${esc(primary.effect)}</p>`));
+      num++;
+      out.push(
+        section("읽히는 느낌", `<p class="body">${esc(primary.effect)}</p>`),
+      );
     }
   }
 
   // 한 끗 포인트
   if (primary && primary.direction) {
-    num++; out.push(section("한 끗 포인트", `<div class="tip"><p>${esc(primary.direction)}</p></div>`, true));
+    num++;
+    out.push(
+      section(
+        "한 끗 포인트",
+        `<div class="tip"><p>${esc(primary.direction)}</p></div>`,
+        true,
+      ),
+    );
   }
 
   // 추천 레퍼런스
@@ -125,15 +164,21 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
         </figure>`,
       )
       .join("");
-    num++; out.push(section("추천 레퍼런스", `<div class="refGrid">${cards}</div>`));
+    num++;
+    out.push(section("추천 레퍼런스", `<div class="refGrid">${cards}</div>`));
   }
 
   // 함께 보면 좋은 것(보조 블록)
   if (extra.length > 0) {
     const lines = extra
-      .map((b) => `<p class="extra"><strong>${esc(axisLabel(b.sub_problem))}</strong> ${esc(b.direction || b.observation)}</p>`)
+      .map(
+        (b) =>
+          `<p class="extra"><strong>${esc(axisLabel(b.sub_problem))}</strong> ${esc(b.direction || b.observation)}</p>`,
+      )
       .join("");
-    out.push(`<section class="sec"><h3 class="secTitle">함께 보면 좋은 것</h3>${lines}</section>`);
+    out.push(
+      `<section class="sec"><h3 class="secTitle">함께 보면 좋은 것</h3>${lines}</section>`,
+    );
   }
 
   // 앞으로 해야 할 것
@@ -155,7 +200,8 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
     const delta = hasChart ? growthDelta(trend) : null;
     const msg = hasChart
       ? deltaMessage(delta)
-      : growth.narration || "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.";
+      : growth.narration ||
+        "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.";
     const current = growth.chips?.current_stage_axes || [];
     const improving = growth.chips?.improving_axes || [];
     out.push(`
@@ -163,8 +209,11 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
         <h3 class="secTitle accent">성장 흐름</h3>
         <div class="growthBox">
           ${hasChart ? `<p class="chartTitle">그림 한 장당 어려움을 느낀 횟수</p>${growthChartSvg(trend)}` : ""}
-          ${delta && delta.pct != null && delta.dir !== "flat"
-            ? `<p class="deltaTag">${delta.pct}% ${delta.dir === "down" ? "감소" : "증가"}</p>` : ""}
+          ${
+            delta && delta.pct != null && delta.dir !== "flat"
+              ? `<p class="deltaTag">${delta.pct}% ${delta.dir === "down" ? "감소" : "증가"}</p>`
+              : ""
+          }
           <p class="growthMsg">${esc(msg)}</p>
         </div>
         ${current.length ? `<p class="chipRow"><span class="chipLabel">현재 그림 단계</span>${current.map((a) => chip(axisLabel(a))).join("")}</p>` : ""}

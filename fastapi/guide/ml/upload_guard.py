@@ -11,6 +11,7 @@
 500 으로 *안전하게* 끝난다(메모리 폭증 없음). graceful 한 'refused' 응답을 원하면 main.py 의
 _pipeline 에서 UploadRejected 를 잡아 refused 로 변환하면 된다(README 패치 참고).
 """
+
 import io
 import os
 
@@ -19,6 +20,7 @@ from PIL import Image
 # HEIC/HEIF 오프너 등록(여기서도 보장 — upload_guard 를 단독 호출해도 안전).
 try:
     import pillow_heif
+
     pillow_heif.register_heif_opener()
 except Exception:
     pass
@@ -31,18 +33,27 @@ def _int_env(name, default):
         return int(default)
 
 
-MAX_BYTES = _int_env("UPLOAD_MAX_BYTES", 15 * 1024 * 1024)     # 15MB
-MAX_PIXELS = _int_env("UPLOAD_MAX_PIXELS", 40_000_000)         # 40MP (예: ~6300x6300)
+MAX_BYTES = _int_env("UPLOAD_MAX_BYTES", 15 * 1024 * 1024)  # 15MB
+MAX_PIXELS = _int_env("UPLOAD_MAX_PIXELS", 40_000_000)  # 40MP (예: ~6300x6300)
 
 # 디컴프레션 폭탄 전역 가드 — PIL 이 한도 초과 시 DecompressionBombError 를 던지게 한다.
 #   여유분(2x)을 둬서 우리의 명시적 size 검사가 먼저 걸리되, 슬립된 경로도 PIL 이 받친다.
 Image.MAX_IMAGE_PIXELS = max(MAX_PIXELS * 2, MAX_PIXELS + 1)
 
-ALLOWED_FORMATS = {"PNG", "JPEG", "WEBP", "GIF", "HEIF", "HEIC", "MPO"}  # MPO=일부 JPEG 변종
+ALLOWED_FORMATS = {
+    "PNG",
+    "JPEG",
+    "WEBP",
+    "GIF",
+    "HEIF",
+    "HEIC",
+    "MPO",
+}  # MPO=일부 JPEG 변종
 
 
 class UploadRejected(Exception):
     """업로드가 가드에 걸려 거절됨. .reason 에 사람이 읽을 사유."""
+
     def __init__(self, reason):
         super().__init__(reason)
         self.reason = reason
@@ -75,7 +86,9 @@ def safe_open(fp, *, max_pixels=None, max_bytes=None, allowed_formats=None):
     """
     mp = max_pixels or MAX_PIXELS
     fmts = allowed_formats or ALLOWED_FORMATS
-    data = _read_bytes(fp if max_bytes is None else fp)  # max_bytes 무시 시 기본 MAX_BYTES 사용
+    data = _read_bytes(
+        fp if max_bytes is None else fp
+    )  # max_bytes 무시 시 기본 MAX_BYTES 사용
     if max_bytes is not None and len(data) > max_bytes:
         raise UploadRejected(f"파일이 너무 큼({len(data)} bytes > 한도 {max_bytes})")
     try:

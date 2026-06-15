@@ -94,7 +94,9 @@ const ReferenceGrid = ({
         <div className={styles.empty}>
           <EmptyBoardIcon />
           <p className={styles.emptyTitle}>레퍼런스 보드가 비어있어요</p>
-          <p className={styles.emptyHint}>원하는 레퍼런스에 대해 질문해보세요</p>
+          <p className={styles.emptyHint}>
+            원하는 레퍼런스에 대해 질문해보세요
+          </p>
           <p className={styles.scopeText}>(풍경 · 인물 · 동물 · 정물 위주)</p>
         </div>
       ) : (
@@ -110,7 +112,9 @@ const ReferenceGrid = ({
                   onPinToggle={onPinToggle}
                   onClick={() => onCardClick(ref, index)}
                   menuBtnRef={
-                    ref.id === displayItems[0]?.ref.id ? firstMenuRef : undefined
+                    ref.id === displayItems[0]?.ref.id
+                      ? firstMenuRef
+                      : undefined
                   }
                 />
               ))}

@@ -8,6 +8,7 @@
 
 주의: 이 신호는 '레퍼런스 유용성'에 대한 것이지 사용자 실력 판정이 아니다(앱 원칙 유지).
 """
+
 import time
 import threading
 from collections import defaultdict
@@ -18,34 +19,44 @@ _TTL = 60.0  # 초. 집계 캐시 수명.
 _lock = threading.Lock()
 _cache = {"t": -1e9, "boost": {}, "global_impr": {}}
 
-EVENT_WEIGHT = {"clicked": 1.0, "saved": 2.0, "liked": 1.5, "disliked": -2.0}  # 핀(saved) 강조 / 싫어요는 강한 음수(다시 안 뜨게)
-SMOOTH_A, SMOOTH_B = 1.0, 4.0           # 사전분포: 무신호 ref의 기준점 = A/(A+B) = 0.2
+EVENT_WEIGHT = {
+    "clicked": 1.0,
+    "saved": 2.0,
+    "liked": 1.5,
+    "disliked": -2.0,
+}  # 핀(saved) 강조 / 싫어요는 강한 음수(다시 안 뜨게)
+SMOOTH_A, SMOOTH_B = 1.0, 4.0  # 사전분포: 무신호 ref의 기준점 = A/(A+B) = 0.2
 BASELINE = SMOOTH_A / (SMOOTH_A + SMOOTH_B)
-FB_SCALE = 0.10                          # 점수(코사인≈[-1,1])에 더하는 규모
-FB_CAP = 0.12                            # 보너스 상·하한 (지배 방지)
+FB_SCALE = 0.10  # 점수(코사인≈[-1,1])에 더하는 규모
+FB_CAP = 0.12  # 보너스 상·하한 (지배 방지)
 
 
 def _recompute():
-    boost = defaultdict(dict)            # sub_problem -> ref_id -> 스무딩 점수
-    global_impr = defaultdict(int)       # ref_id -> 노출수(모든 sub_problem 합)
+    boost = defaultdict(dict)  # sub_problem -> ref_id -> 스무딩 점수
+    global_impr = defaultdict(int)  # ref_id -> 노출수(모든 sub_problem 합)
     with engine.begin() as cx:
-        impr = defaultdict(lambda: defaultdict(int))   # sub_problem -> ref -> 노출수
-        for sp, ref, n in cx.execute(text(
+        impr = defaultdict(lambda: defaultdict(int))  # sub_problem -> ref -> 노출수
+        for sp, ref, n in cx.execute(
+            text(
                 "SELECT sub_problem, reference_id, COUNT(*) FROM adoption_log "
-                "WHERE event='shown' GROUP BY sub_problem, reference_id")):
+                "WHERE event='shown' GROUP BY sub_problem, reference_id"
+            )
+        ):
             if sp:
                 impr[sp][ref] = n
             global_impr[ref] += n
         # 채택(clicked/saved/liked)은 노출 행과 (guide_id, reference_id)로 조인해 sub_problem 회수
         pos = defaultdict(lambda: defaultdict(float))
-        for sp, ref, ev, n in cx.execute(text("""
+        for sp, ref, ev, n in cx.execute(
+            text("""
                 SELECT s.sub_problem AS sp, a.reference_id AS ref, a.event AS ev, COUNT(*) AS n
                 FROM adoption_log a
                 JOIN (SELECT DISTINCT guide_id, reference_id, sub_problem
                       FROM adoption_log WHERE event='shown' AND sub_problem IS NOT NULL) s
                   ON a.guide_id = s.guide_id AND a.reference_id = s.reference_id
                 WHERE a.event IN ('clicked','saved','liked','disliked')
-                GROUP BY s.sub_problem, a.reference_id, a.event""")):
+                GROUP BY s.sub_problem, a.reference_id, a.event""")
+        ):
             if sp:
                 pos[sp][ref] += EVENT_WEIGHT.get(ev, 1.0) * n
         for sp in set(impr) | set(pos):
@@ -64,7 +75,9 @@ def _ensure():
                     b, g = _recompute()
                     _cache.update(t=time.time(), boost=b, global_impr=g)
                 except Exception as e:
-                    print(f"[feedback] 집계 실패(무시, boost=0): {type(e).__name__}: {e}")
+                    print(
+                        f"[feedback] 집계 실패(무시, boost=0): {type(e).__name__}: {e}"
+                    )
                     _cache["t"] = time.time()  # 다음 TTL까지 빈 캐시 유지(앱 안 깨짐)
     return _cache
 

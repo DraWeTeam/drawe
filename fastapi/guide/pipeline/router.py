@@ -17,6 +17,7 @@ persona: 인물이 보이면 [pose, anatomy], 아니면 [composition, light, col
 
 반환 시그니처는 기존과 동일: (mode, personas, user_terms). mode ∈ {coach, redirect, clarify}.
 """
+
 import os
 import re
 import yaml
@@ -29,32 +30,100 @@ INTAKE_PATH = os.environ.get(
 
 # intake.yaml 이 없을 때의 내장 기본값(앱이 안 깨지게).
 _DEFAULTS = {
-    "generate": ["그려줘", "그려주", "그려 줘", "그려달", "그려 달",
-                 "만들어줘", "generate", "draw it", "make it"],
-    "score": ["몇 점", "몇점", "점수", "등급", "잘 그렸", "잘그렸",
-              "못 그렸", "못그렸", "평가해", "평가 좀", "잘했", "합격", "수준이"],
-    "offtopic": ["팔릴까", "팔려", "돈이 되", "ai가 그린", "ai로 그린",
-                 "인공지능이 그", "안녕", "고마워", "누구야", "넌 누구"],
+    "generate": [
+        "그려줘",
+        "그려주",
+        "그려 줘",
+        "그려달",
+        "그려 달",
+        "만들어줘",
+        "generate",
+        "draw it",
+        "make it",
+    ],
+    "score": [
+        "몇 점",
+        "몇점",
+        "점수",
+        "등급",
+        "잘 그렸",
+        "잘그렸",
+        "못 그렸",
+        "못그렸",
+        "평가해",
+        "평가 좀",
+        "잘했",
+        "합격",
+        "수준이",
+    ],
+    "offtopic": [
+        "팔릴까",
+        "팔려",
+        "돈이 되",
+        "ai가 그린",
+        "ai로 그린",
+        "인공지능이 그",
+        "안녕",
+        "고마워",
+        "누구야",
+        "넌 누구",
+    ],
     "lexicon": {
-        "손": "hand_structure", "손가락": "hand_structure", "손목": "hand_structure",
-        "구도": "composition_balance", "배치": "composition_balance", "여백": "composition_balance",
-        "색": "color_harmony", "색감": "color_harmony", "팔레트": "color_harmony", "채도": "color_harmony",
-        "조명": "light_direction", "광원": "light_direction", "빛": "light_direction", "그림자": "light_direction",
-        "명암": "value_structure", "명도": "value_structure", "대비": "value_structure",
-        "입체": "value_structure", "톤": "value_structure",
-        "자세": "weight_balance", "포즈": "weight_balance", "균형": "weight_balance",
-        "무게": "weight_balance", "중심": "weight_balance",
-        "비율": "proportion", "비례": "proportion",
-        "단축": "foreshortening", "원근": "foreshortening",
-        "관절": "joint_articulation", "팔꿈치": "joint_articulation", "무릎": "joint_articulation",
-        "동세": "action_line", "동작": "action_line", "액션": "action_line",
-        "대기원근": "atmospheric_perspective", "선원근": "linear_perspective",
-        "소실점": "linear_perspective", "깊이": "depth_layering", "깊이감": "depth_layering",
-        "공간감": "depth_layering", "지평선": "horizon_placement", "수평선": "horizon_placement",
+        "손": "hand_structure",
+        "손가락": "hand_structure",
+        "손목": "hand_structure",
+        "구도": "composition_balance",
+        "배치": "composition_balance",
+        "여백": "composition_balance",
+        "색": "color_harmony",
+        "색감": "color_harmony",
+        "팔레트": "color_harmony",
+        "채도": "color_harmony",
+        "조명": "light_direction",
+        "광원": "light_direction",
+        "빛": "light_direction",
+        "그림자": "light_direction",
+        "명암": "value_structure",
+        "명도": "value_structure",
+        "대비": "value_structure",
+        "입체": "value_structure",
+        "톤": "value_structure",
+        "자세": "weight_balance",
+        "포즈": "weight_balance",
+        "균형": "weight_balance",
+        "무게": "weight_balance",
+        "중심": "weight_balance",
+        "비율": "proportion",
+        "비례": "proportion",
+        "단축": "foreshortening",
+        "원근": "foreshortening",
+        "관절": "joint_articulation",
+        "팔꿈치": "joint_articulation",
+        "무릎": "joint_articulation",
+        "동세": "action_line",
+        "동작": "action_line",
+        "액션": "action_line",
+        "대기원근": "atmospheric_perspective",
+        "선원근": "linear_perspective",
+        "소실점": "linear_perspective",
+        "깊이": "depth_layering",
+        "깊이감": "depth_layering",
+        "공간감": "depth_layering",
+        "지평선": "horizon_placement",
+        "수평선": "horizon_placement",
     },
     "intent": {
-        "finished": ["완성작", "완성", "끝냈", "다 그렸", "다그렸", "마무리",
-                     "최종본", "finished", "done"],
+        "finished": [
+            "완성작",
+            "완성",
+            "끝냈",
+            "다 그렸",
+            "다그렸",
+            "마무리",
+            "최종본",
+            "finished",
+            "done",
+        ],
         "practice": ["연습", "습작", "공부 중", "연습 중", "스케치 중", "study", "wip"],
     },
 }
@@ -68,7 +137,9 @@ def intake_config():
         with open(INTAKE_PATH, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
     except Exception as e:
-        print(f"[router] intake.yaml 로드 실패 → 내장 기본값 사용: {type(e).__name__}: {e}")
+        print(
+            f"[router] intake.yaml 로드 실패 → 내장 기본값 사용: {type(e).__name__}: {e}"
+        )
     return {k: (cfg.get(k) or _DEFAULTS[k]) for k in _DEFAULTS}
 
 
@@ -103,7 +174,7 @@ def detect_intent(message, explicit=None):
         return explicit
     cfg = intake_config().get("intent") or _DEFAULTS["intent"]
     m = message or ""
-    for stage in ("finished", "practice"):       # finished 우선(둘 다 걸리면 완성작로)
+    for stage in ("finished", "practice"):  # finished 우선(둘 다 걸리면 완성작로)
         for kw in cfg.get(stage, []):
             if re.search(r"(?<![가-힣])" + re.escape(str(kw)), m):
                 return stage
@@ -120,9 +191,9 @@ def triage(message, scene):
         return "not_drawing", "clarify"
     has_term = bool(detect_terms(msg))
     if not has_term and _has(msg, cfg["offtopic"]):
-        return "offtopic", "coach"        # 그림은 분석 가능 → 관찰 제안(L1)
+        return "offtopic", "coach"  # 그림은 분석 가능 → 관찰 제안(L1)
     if _has(msg, cfg["score"]):
-        return "score", "coach"           # 채점하지 않고 관찰 코칭으로
+        return "score", "coach"  # 채점하지 않고 관찰 코칭으로
     return "coach", "coach"
 
 

@@ -78,9 +78,7 @@ public class GuideService {
     Optional<Guide> existing = guideRepository.findByRequestId(reqId);
     if (existing.isPresent()) {
       return buildResult(
-          existing.get().getPayload(),
-          existing.get().getCreatedAt(),
-          uploadUrl(existing.get()));
+          existing.get().getPayload(), existing.get().getCreatedAt(), uploadUrl(existing.get()));
     }
 
     byte[] bytes;
@@ -143,8 +141,8 @@ public class GuideService {
   /**
    * 업로드 원본을 image_blobs 에 저장하고 ImageBlob 프록시를 반환(히스토리 썸네일용).
    *
-   * <p>가이드의 핵심 가치는 코칭이므로 저장 실패(검증/IO)는 치명적이지 않다 — null 을 반환해 upload_id 만 비우고
-   * 가이드는 정상 반환한다. 이미 읽어둔 bytes 를 재사용(재읽기 없음).
+   * <p>가이드의 핵심 가치는 코칭이므로 저장 실패(검증/IO)는 치명적이지 않다 — null 을 반환해 upload_id 만 비우고 가이드는 정상 반환한다. 이미 읽어둔
+   * bytes 를 재사용(재읽기 없음).
    */
   private ImageBlob storeUploadQuietly(User user, byte[] bytes, String mime) {
     if (mime == null || mime.isBlank()) {
@@ -162,8 +160,8 @@ public class GuideService {
   /**
    * 프로젝트 내 '내 가이드' 히스토리. 채팅 재진입 시 가이드 카드를 복원하는 근거.
    *
-   * <p>레포는 최신순(DESC)으로 주므로, 채팅 흐름과 맞게 오래된→최신 순으로 뒤집어 반환한다. payload(=저장
-   * 시점 GuideResponse)로 {@link #buildResult}를 재실행해 레퍼런스 URL을 현재 기준으로 다시 보강한다.
+   * <p>레포는 최신순(DESC)으로 주므로, 채팅 흐름과 맞게 오래된→최신 순으로 뒤집어 반환한다. payload(=저장 시점 GuideResponse)로 {@link
+   * #buildResult}를 재실행해 레퍼런스 URL을 현재 기준으로 다시 보강한다.
    */
   @Transactional(readOnly = true)
   public List<GuideResult> list(User user, Long projectId) {
@@ -178,8 +176,8 @@ public class GuideService {
   }
 
   /**
-   * 가이드 내 레퍼런스 묶음 피드백(👍 liked / 👎 disliked). 그 가이드가 보여준 레퍼런스(최대 3컷)에
-   * 동일 이벤트를 adoption_log 로 적재(guide 서비스 /adopt 경유). best-effort — 일부 실패해도 흐름 유지.
+   * 가이드 내 레퍼런스 묶음 피드백(👍 liked / 👎 disliked). 그 가이드가 보여준 레퍼런스(최대 3컷)에 동일 이벤트를 adoption_log 로
+   * 적재(guide 서비스 /adopt 경유). best-effort — 일부 실패해도 흐름 유지.
    */
   @Transactional(readOnly = true)
   public void adoptReferences(
@@ -227,8 +225,8 @@ public class GuideService {
   }
 
   /**
-   * 가이드 전체 피드백(👍 like / 👎 dislike / 해제 null) — adoption_log 와 분리된 guide_feedback 에 적재.
-   * 사용자별 1행(있으면 갱신, 없으면 생성), null/빈 값이면 토글 해제(행 삭제). ImageFeedbackService 와 동일 패턴.
+   * 가이드 전체 피드백(👍 like / 👎 dislike / 해제 null) — adoption_log 와 분리된 guide_feedback 에 적재. 사용자별
+   * 1행(있으면 갱신, 없으면 생성), null/빈 값이면 토글 해제(행 삭제). ImageFeedbackService 와 동일 패턴.
    */
   @Transactional
   public void setGuideFeedback(User user, Long projectId, String guideId, String feedback) {
@@ -243,7 +241,9 @@ public class GuideService {
 
     // 토글 해제: 기존 피드백 있으면 삭제하고 종료.
     if (feedback == null || feedback.isBlank()) {
-      guideFeedbackRepository.findByUserAndGuide(user, g).ifPresent(guideFeedbackRepository::delete);
+      guideFeedbackRepository
+          .findByUserAndGuide(user, g)
+          .ifPresent(guideFeedbackRepository::delete);
       return;
     }
 

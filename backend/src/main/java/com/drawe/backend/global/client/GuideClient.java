@@ -17,8 +17,8 @@ import reactor.util.retry.Retry;
 /**
  * 이미지 가이딩 전용 FastAPI 클라이언트.
  *
- * <p>embed 와 *별도 ECS 서비스*(Service Connect: fastapi-guide.drawe-{env}.local:8000)라
- * {@code ${fastapi.guide.url}} 를 따로 쓴다. /guide 계약: multipart/form-data, file field name = "file".
+ * <p>embed 와 *별도 ECS 서비스*(Service Connect: fastapi-guide.drawe-{env}.local:8000)라 {@code
+ * ${fastapi.guide.url}} 를 따로 쓴다. /guide 계약: multipart/form-data, file field name = "file".
  * request_id(멱등 키)를 함께 보내므로, 네트워크 재시도가 발생해도 fastapi 가 부작용을 at-most-once 로 처리한다.
  */
 @Slf4j
@@ -43,22 +43,28 @@ public class GuideClient {
       String requestId) {
     try {
       MultipartBodyBuilder b = new MultipartBodyBuilder();
-      b.part(
-              "file",
-              new ByteArrayResource(imageBytes) {
-                @Override
-                public String getFilename() {
-                  return filename != null ? filename : "upload";
-                }
-              })
+      b.part("file", new ByteArrayResource(imageBytes))
+          .filename(filename != null ? filename : "upload")
           .contentType(
               MediaType.parseMediaType(mimeType != null ? mimeType : "application/octet-stream"));
-      if (message != null) b.part("message", message);
-      if (userId != null) b.part("user_id", userId);
-      if (intent != null) b.part("intent", intent);
-      if (track != null) b.part("track", track);
-      if (medium != null) b.part("medium", medium);
-      if (requestId != null) b.part("request_id", requestId);
+      if (message != null) {
+        b.part("message", message);
+      }
+      if (userId != null) {
+        b.part("user_id", userId);
+      }
+      if (intent != null) {
+        b.part("intent", intent);
+      }
+      if (track != null) {
+        b.part("track", track);
+      }
+      if (medium != null) {
+        b.part("medium", medium);
+      }
+      if (requestId != null) {
+        b.part("request_id", requestId);
+      }
 
       GuideResponse resp =
           webClient
@@ -94,8 +100,8 @@ public class GuideClient {
   /**
    * 레퍼런스 피드백(liked/disliked 등)을 guide 서비스 {@code POST /adopt} 로 전달 → adoption_log 적재.
    *
-   * <p>persona/source_type 은 guide 서비스가 reference_images·직전 'shown' 행에서 보강하므로 보내지 않는다.
-   * 피드백 적재 실패는 사용자 흐름에 치명적이지 않으므로 예외를 삼키고 로그만 남긴다(best-effort).
+   * <p>persona/source_type 은 guide 서비스가 reference_images·직전 'shown' 행에서 보강하므로 보내지 않는다. 피드백 적재 실패는
+   * 사용자 흐름에 치명적이지 않으므로 예외를 삼키고 로그만 남긴다(best-effort).
    */
   public void adopt(String guideId, String referenceId, String event) {
     try {
@@ -109,7 +115,8 @@ public class GuideClient {
           .timeout(Duration.ofSeconds(5))
           .block();
     } catch (Exception e) {
-      log.warn("guide /adopt 실패(무시): ref={}, event={}, error={}", referenceId, event, e.getMessage());
+      log.warn(
+          "guide /adopt 실패(무시): ref={}, event={}, error={}", referenceId, event, e.getMessage());
     }
   }
 }

@@ -57,12 +57,12 @@ npm run dev               # http://localhost:5173
 npm run build:cf          # → dist/
 ```
 
-| 스크립트 | 동작 |
-| --- | --- |
-| `dev` | 개발 서버(Vite) |
-| `build` / `build:cf` | 프로덕션 빌드 / 브랜치별 API 자동선택 빌드 |
-| `lint` · `format` · `format:check` | ESLint · Prettier |
-| `preview` | 빌드 결과 미리보기 |
+| 스크립트                           | 동작                                       |
+| ---------------------------------- | ------------------------------------------ |
+| `dev`                              | 개발 서버(Vite)                            |
+| `build` / `build:cf`               | 프로덕션 빌드 / 브랜치별 API 자동선택 빌드 |
+| `lint` · `format` · `format:check` | ESLint · Prettier                          |
+| `preview`                          | 빌드 결과 미리보기                         |
 
 ## 배포 (Cloudflare Pages)
 

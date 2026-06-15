@@ -16,11 +16,13 @@ def _keys(api_key_setting):
 
 def extract_key(headers):
     """요청 헤더에서 제시된 키를 뽑는다(없으면 None). headers 는 대소문자 무시 매핑."""
+
     def _get(name):
         try:
             return headers.get(name)
         except Exception:
             return None
+
     k = _get("x-api-key") or _get("X-API-Key")
     if k:
         return k.strip()
@@ -34,5 +36,5 @@ def is_authorized(headers, api_key_setting):
     """인증 비활성(키 미설정)이면 항상 True. 활성이면 제시 키가 허용 집합에 있어야 True."""
     allowed = _keys(api_key_setting)
     if not allowed:
-        return True                       # 무인증 모드(로컬/테스트)
+        return True  # 무인증 모드(로컬/테스트)
     return extract_key(headers) in allowed

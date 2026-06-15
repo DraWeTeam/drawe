@@ -8,8 +8,8 @@ import java.util.List;
 /**
  * FastAPI guide 서비스의 /guide 응답 계약(= Frontend ↔ Spring ↔ FastAPI 공유 형태).
  *
- * <p>fastapi JSON 은 snake_case 이므로 record 필드(camelCase)에 SnakeCaseStrategy 를 적용한다.
- * 알 수 없는 필드는 무시(전방 호환). 비-coach(refused/redirect/clarify)는 mode + message(+reason)만 채워진다.
+ * <p>fastapi JSON 은 snake_case 이므로 record 필드(camelCase)에 SnakeCaseStrategy 를 적용한다. 알 수 없는 필드는 무시(전방
+ * 호환). 비-coach(refused/redirect/clarify)는 mode + message(+reason)만 채워진다.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @JsonIgnoreProperties(ignoreUnknown = true)

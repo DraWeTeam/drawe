@@ -5,7 +5,10 @@ guide 서비스용: 모델을 *import 시점이 아니라 첫 사용 시* 로드
   /health 가 loading(503)→ok(200) 로 관측되고 spot 콜드 방어가 의도대로 동작.
 공개 API(image/text/dim/model_id)는 artref 원본과 동일.
 """
-import open_clip, torch, numpy as np
+
+import open_clip
+import torch
+import numpy as np
 from guide.config import settings
 
 _DEFAULT = ("ViT-L-14", "openai")  # Spring(clip-vit-large-patch14, 768)과 같은 가중치
@@ -40,7 +43,8 @@ class Embedder:
         # Spring(HF clip-vit-large-patch14 = QuickGELU)과 동일 임베딩 공간 유지에도 필수.
         force_qg = (pretrained or "").lower() == "openai"
         self.model, _, self.preprocess = open_clip.create_model_and_transforms(
-            arch, pretrained=pretrained, force_quick_gelu=force_qg)
+            arch, pretrained=pretrained, force_quick_gelu=force_qg
+        )
         self.tokenizer = open_clip.get_tokenizer(arch)
         self.model.eval()
 

@@ -12,6 +12,7 @@
 한 번에 자료는 *하나만*(type 라벨 동봉). UI는 type을 보고 렌더만 바꾸고, 'type 스왑'으로 다른 후보를 보여줄 수 있다.
 스키마로는 GuideBlock/NextSteps 에 guide_asset:{type,ref_id,label,caption} 한 필드가 추가될 뿐 — 새 파이프라인이 아니다.
 """
+
 from guide.pipeline.profiles import POSE_DEPENDENT
 
 SVG = "svg"
@@ -27,88 +28,104 @@ TYPE_LABEL = {SVG: "도식", AI: "AI 예시", BACKBONE: "3D 참고"}
 #   - 빛 방향·색(느낌이 핵심)              : AI 일러스트가 강함, 없으면 svg.
 #   - 손(AI가 가장 자주 틀림)              : svg 도식만(AI·확신형 3D 배제).
 AXIS_PREF = {
-    "foreshortening":      [BACKBONE, SVG],
-    "weight_balance":      [BACKBONE, SVG],
-    "joint_articulation":  [BACKBONE, SVG],
-    "proportion":          [BACKBONE, SVG],
-    "action_line":         [BACKBONE, SVG],
-    "hand_structure":      [SVG],
-    "value_structure":     [SVG, AI],
+    "foreshortening": [BACKBONE, SVG],
+    "weight_balance": [BACKBONE, SVG],
+    "joint_articulation": [BACKBONE, SVG],
+    "proportion": [BACKBONE, SVG],
+    "action_line": [BACKBONE, SVG],
+    "hand_structure": [SVG],
+    "value_structure": [SVG, AI],
     "composition_balance": [SVG, AI],
-    "light_direction":     [AI, SVG],
-    "color_harmony":       [AI, SVG],
+    "light_direction": [AI, SVG],
+    "color_harmony": [AI, SVG],
     # 풍경 전용 축: 원근/지평선은 svg 도해, 대기원근·깊이는 AI 일러스트가 느낌을 잘 보여줌.
-    "linear_perspective":      [SVG],
-    "horizon_placement":       [SVG],
+    "linear_perspective": [SVG],
+    "horizon_placement": [SVG],
     "atmospheric_perspective": [AI, SVG],
-    "depth_layering":          [SVG, AI],
+    "depth_layering": [SVG, AI],
 }
-_DEFAULT_PREF = [SVG]   # 모르는 축도 svg 바닥으로 안전하게 동작
+_DEFAULT_PREF = [SVG]  # 모르는 축도 svg 바닥으로 안전하게 동작
 
 # AI가 형태를 자주 틀리는 축 — ai_example을 *후보에서 제외*한다(있어도 안 붙임). 해부·손·비율.
-AI_AVOID = {"hand_structure", "joint_articulation", "foreshortening", "proportion", "weight_balance"}
+AI_AVOID = {
+    "hand_structure",
+    "joint_articulation",
+    "foreshortening",
+    "proportion",
+    "weight_balance",
+}
 
 # 축마다 항상 가능한 svg 도식 바닥의 설명(방법/도해). 없는 축은 일반 격자 도해로 폴백.
 _FLOOR_CAPTION = {
-    "weight_balance":      "골반 중심에서 바닥으로 수직선을 하나 그어보세요 — 두 발 사이를 지나가면 안정적으로 읽혀요.",
-    "hand_structure":      "손을 손바닥 덩어리 + 손가락으로 먼저 단순화해보세요 — 큰 덩어리가 맞으면 디테일이 자연스러워져요.",
-    "joint_articulation":  "관절을 원, 뼈를 선으로 먼저 잡아보세요 — 꺾이는 방향이 분명해지면 포즈가 살아나요.",
-    "value_structure":     "명암을 밝음·중간·어둠 3단계로 묶어 보는 도식이에요.",
+    "weight_balance": "골반 중심에서 바닥으로 수직선을 하나 그어보세요 — 두 발 사이를 지나가면 안정적으로 읽혀요.",
+    "hand_structure": "손을 손바닥 덩어리 + 손가락으로 먼저 단순화해보세요 — 큰 덩어리가 맞으면 디테일이 자연스러워져요.",
+    "joint_articulation": "관절을 원, 뼈를 선으로 먼저 잡아보세요 — 꺾이는 방향이 분명해지면 포즈가 살아나요.",
+    "value_structure": "명암을 밝음·중간·어둠 3단계로 묶어 보는 도식이에요.",
     "composition_balance": "화면을 3분할해 무게가 어디로 쏠리는지 보는 썸네일 격자예요.",
-    "proportion":          "머리 하나를 단위로 등신을 재는 비율 사다리예요.",
-    "foreshortening":      "면이 시점으로 줄어드는 정도를 보는 투시 격자예요.",
-    "action_line":         "포즈를 관통하는 하나의 큰 흐름(동세 선)을 보는 도식이에요.",
-    "light_direction":     "광원 한 개에서 면이 받는 빛의 방향을 보는 도식이에요.",
-    "color_harmony":       "색상환에서 쓰는 색들의 관계를 보는 도식이에요.",
-    "linear_perspective":      "선들이 한 소실점으로 모이는 원근 격자 도식이에요.",
-    "horizon_placement":       "지평선을 화면 위·아래 1/3에 두는 배치 도식이에요.",
+    "proportion": "머리 하나를 단위로 등신을 재는 비율 사다리예요.",
+    "foreshortening": "면이 시점으로 줄어드는 정도를 보는 투시 격자예요.",
+    "action_line": "포즈를 관통하는 하나의 큰 흐름(동세 선)을 보는 도식이에요.",
+    "light_direction": "광원 한 개에서 면이 받는 빛의 방향을 보는 도식이에요.",
+    "color_harmony": "색상환에서 쓰는 색들의 관계를 보는 도식이에요.",
+    "linear_perspective": "선들이 한 소실점으로 모이는 원근 격자 도식이에요.",
+    "horizon_placement": "지평선을 화면 위·아래 1/3에 두는 배치 도식이에요.",
     "atmospheric_perspective": "거리에 따라 대비·채도가 옅어지는 깊이 도식이에요.",
-    "depth_layering":          "근·중·원경 세 층으로 공간을 나눠 보는 도식이에요.",
+    "depth_layering": "근·중·원경 세 층으로 공간을 나눠 보는 도식이에요.",
 }
 _GENERIC_CAPTION = "이 부분을 어떻게 나눠 보는지 도해로 정리한 예시예요."
 
 
 def floor_asset(sp):
     """축마다 항상 존재하는 svg 도식 바닥(슬롯이 절대 비지 않게 하는 폴백)."""
-    return {"type": SVG, "ref_id": f"floor:{sp}", "label": TYPE_LABEL[SVG],
-            "caption": _FLOOR_CAPTION.get(sp, _GENERIC_CAPTION)}
+    return {
+        "type": SVG,
+        "ref_id": f"floor:{sp}",
+        "label": TYPE_LABEL[SVG],
+        "caption": _FLOOR_CAPTION.get(sp, _GENERIC_CAPTION),
+    }
 
 
 # 축별 항상-가능한 도식 SVG(서빙용). 적재 자료가 0개여도 슬롯이 실제 그림을 가진다는 보증.
 _INK, _SUB = "#3a3a3a", "#9aa0a6"
 _FLOOR_SVG = {
-    "value_structure":
-        '<rect x="20" y="40" width="60" height="80" fill="#f2f2f2" stroke="{i}"/>'
-        '<rect x="80" y="40" width="60" height="80" fill="#9a9a9a" stroke="{i}"/>'
-        '<rect x="140" y="40" width="60" height="80" fill="#2b2b2b" stroke="{i}"/>'
-        '<text x="110" y="150" text-anchor="middle" fill="{s}" font-size="13">밝음 · 중간 · 어둠</text>',
-    "composition_balance":
-        '<rect x="30" y="30" width="180" height="120" fill="none" stroke="{i}"/>'
-        '<line x1="90" y1="30" x2="90" y2="150" stroke="{s}" stroke-dasharray="4"/>'
-        '<line x1="150" y1="30" x2="150" y2="150" stroke="{s}" stroke-dasharray="4"/>'
-        '<line x1="30" y1="70" x2="210" y2="70" stroke="{s}" stroke-dasharray="4"/>'
-        '<line x1="30" y1="110" x2="210" y2="110" stroke="{s}" stroke-dasharray="4"/>'
-        '<circle cx="150" cy="70" r="6" fill="{i}"/>',
-    "proportion":
-        ''.join(f'<line x1="60" y1="{30+i*16}" x2="160" y2="{30+i*16}" stroke="{{s}}"/>' for i in range(8))
-        + '<line x1="60" y1="30" x2="60" y2="158" stroke="{i}"/>'
-        + '<line x1="160" y1="30" x2="160" y2="158" stroke="{i}"/>'
-        + '<text x="170" y="36" fill="{s}" font-size="11">1</text>'
-        + '<text x="170" y="156" fill="{s}" font-size="11">8</text>',
-    "foreshortening":
-        '<polygon points="40,40 200,60 200,120 40,140" fill="none" stroke="{i}"/>'
-        + ''.join(f'<line x1="{40+i*40}" y1="{40+i*5}" x2="{40+i*40}" y2="{140-i*5}" stroke="{{s}}"/>' for i in range(1,4)),
+    "value_structure": '<rect x="20" y="40" width="60" height="80" fill="#f2f2f2" stroke="{i}"/>'
+    '<rect x="80" y="40" width="60" height="80" fill="#9a9a9a" stroke="{i}"/>'
+    '<rect x="140" y="40" width="60" height="80" fill="#2b2b2b" stroke="{i}"/>'
+    '<text x="110" y="150" text-anchor="middle" fill="{s}" font-size="13">밝음 · 중간 · 어둠</text>',
+    "composition_balance": '<rect x="30" y="30" width="180" height="120" fill="none" stroke="{i}"/>'
+    '<line x1="90" y1="30" x2="90" y2="150" stroke="{s}" stroke-dasharray="4"/>'
+    '<line x1="150" y1="30" x2="150" y2="150" stroke="{s}" stroke-dasharray="4"/>'
+    '<line x1="30" y1="70" x2="210" y2="70" stroke="{s}" stroke-dasharray="4"/>'
+    '<line x1="30" y1="110" x2="210" y2="110" stroke="{s}" stroke-dasharray="4"/>'
+    '<circle cx="150" cy="70" r="6" fill="{i}"/>',
+    "proportion": "".join(
+        f'<line x1="60" y1="{30 + i * 16}" x2="160" y2="{30 + i * 16}" stroke="{{s}}"/>'
+        for i in range(8)
+    )
+    + '<line x1="60" y1="30" x2="60" y2="158" stroke="{i}"/>'
+    + '<line x1="160" y1="30" x2="160" y2="158" stroke="{i}"/>'
+    + '<text x="170" y="36" fill="{s}" font-size="11">1</text>'
+    + '<text x="170" y="156" fill="{s}" font-size="11">8</text>',
+    "foreshortening": '<polygon points="40,40 200,60 200,120 40,140" fill="none" stroke="{i}"/>'
+    + "".join(
+        f'<line x1="{40 + i * 40}" y1="{40 + i * 5}" x2="{40 + i * 40}" y2="{140 - i * 5}" stroke="{{s}}"/>'
+        for i in range(1, 4)
+    ),
 }
-_GENERIC_SVG = ('<rect x="40" y="40" width="160" height="100" fill="none" stroke="{i}"/>'
-                '<line x1="40" y1="90" x2="200" y2="90" stroke="{s}" stroke-dasharray="4"/>'
-                '<line x1="120" y1="40" x2="120" y2="140" stroke="{s}" stroke-dasharray="4"/>')
+_GENERIC_SVG = (
+    '<rect x="40" y="40" width="160" height="100" fill="none" stroke="{i}"/>'
+    '<line x1="40" y1="90" x2="200" y2="90" stroke="{s}" stroke-dasharray="4"/>'
+    '<line x1="120" y1="40" x2="120" y2="140" stroke="{s}" stroke-dasharray="4"/>'
+)
 
 
 def floor_svg(sp):
     """그 축의 도식 SVG 문자열(라우트가 그대로 서빙). 어떤 축도 최소한 일반 격자 도해는 항상 나온다."""
     body = _FLOOR_SVG.get(sp, _GENERIC_SVG).format(i=_INK, s=_SUB)
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" '
-            f'width="240" height="180" role="img">{body}</svg>')
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" '
+        f'width="240" height="180" role="img">{body}</svg>'
+    )
 
 
 def gather_candidates(sp, loaded=None, degraded=False):
@@ -121,7 +138,7 @@ def gather_candidates(sp, loaded=None, degraded=False):
       바닥(svg 도식)은 항상 마지막 후보로 포함 → 후보가 비는 일이 없다.
     """
     out = []
-    for a in (loaded or []):
+    for a in loaded or []:
         t = a.get("type")
         if t == AI and sp in AI_AVOID:
             continue
@@ -129,10 +146,15 @@ def gather_candidates(sp, loaded=None, degraded=False):
             continue
         if t not in (SVG, AI, BACKBONE):
             continue
-        out.append({"type": t, "ref_id": a["ref_id"],
-                    "label": a.get("label") or TYPE_LABEL[t],
-                    "caption": a.get("caption", "")})
-    out.append(floor_asset(sp))      # 바닥은 항상 후보(마지막)
+        out.append(
+            {
+                "type": t,
+                "ref_id": a["ref_id"],
+                "label": a.get("label") or TYPE_LABEL[t],
+                "caption": a.get("caption", ""),
+            }
+        )
+    out.append(floor_asset(sp))  # 바닥은 항상 후보(마지막)
     return out
 
 
@@ -180,7 +202,9 @@ def attach(blocks, degraded=False, index=None):
     """
     idx = index or {}
     for b in blocks:
-        sp = getattr(b, "sub_problem", None) or (b.get("sub_problem") if isinstance(b, dict) else None)
+        sp = getattr(b, "sub_problem", None) or (
+            b.get("sub_problem") if isinstance(b, dict) else None
+        )
         if not sp:
             continue
         a = pick(sp, loaded=idx.get(sp), degraded=degraded)

@@ -1,6 +1,7 @@
 """guide/warmup.py — 콜드 방어 워밍업. lifespan(startup)에서 1회.
 이게 끝나야(ready) /health 가 200. (P1: 포팅된 OpenCLIP 임베더 사용)
 """
+
 import os
 import logging
 
@@ -9,7 +10,8 @@ log = logging.getLogger("drawe-fastapi.guide")
 
 def warmup_guide():
     from PIL import Image
-    from guide.ml.embed import embedder        # artref OpenCLIP ViT-L/14
+    from guide.ml.embed import embedder  # artref OpenCLIP ViT-L/14
+
     dummy = Image.new("RGB", (64, 64), (127, 127, 127))
     embedder.image(dummy)
     embedder.text("warmup")

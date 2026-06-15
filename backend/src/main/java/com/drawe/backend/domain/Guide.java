@@ -14,8 +14,8 @@ import org.hibernate.type.SqlTypes;
 /**
  * 이미지 가이딩 결과(한 끗 가이드) 영속 레코드. 사용자 대면 "지난 가이드"·PDF·레퍼런스 재방문의 근거.
  *
- * <p>payload = FastAPI /guide 응답(GuideResponse) 전체. reference_ids 형태로 보관하고(만료되는 presigned URL은
- * 저장하지 않음) 조회 시 재보강한다. request_id = Spring 발급 멱등 키(재시도 시 at-most-once 영속, UNIQUE 보장).
+ * <p>payload = FastAPI /guide 응답(GuideResponse) 전체. reference_ids 형태로 보관하고(만료되는 presigned URL은 저장하지
+ * 않음) 조회 시 재보강한다. request_id = Spring 발급 멱등 키(재시도 시 at-most-once 영속, UNIQUE 보장).
  */
 @Getter
 @Setter

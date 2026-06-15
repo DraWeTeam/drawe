@@ -109,7 +109,8 @@ public class Ga4DataApiClickSource implements Ga4ClickSource {
         root = root.getCause();
       }
       log.warn(
-          "GA4 Data API 클릭 조회 실패, 클릭 없이 진행: error_class={}, message={}, root_class={}, root_message={}",
+          "GA4 Data API 클릭 조회 실패, 클릭 없이 진행: "
+              + "error_class={}, message={}, root_class={}, root_message={}",
           e.getClass().getSimpleName(),
           e.getMessage(),
           root.getClass().getSimpleName(),

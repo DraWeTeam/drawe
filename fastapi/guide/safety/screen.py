@@ -12,6 +12,7 @@
    범주는 이 휴리스틱으로 신뢰성 있게 못 잡는다 — 운영에선 *전용 모더레이션/해시매칭 제공자*를
    MODERATION_PROVIDER 로 반드시 연결하고, 민감 배포는 fail-closed 를 권장한다.
 """
+
 import os
 
 # 대조 앵커 — '막아야 할 것' vs '정당한 작품/일상'. 후자에 '예술적 인물·해부 습작'을 포함시켜
@@ -44,11 +45,16 @@ MIN_ABS = _f("MODERATION_MIN", 0.24)
 
 def _fail_open():
     # 기본 fail-open(앱 안 깨짐). 민감 배포는 MODERATION_FAIL_CLOSED=1.
-    return os.environ.get("MODERATION_FAIL_CLOSED", "0").lower() not in ("1", "true", "yes")
+    return os.environ.get("MODERATION_FAIL_CLOSED", "0").lower() not in (
+        "1",
+        "true",
+        "yes",
+    )
 
 
 def _real_embedder():
     from guide.ml.embed import embedder
+
     return embedder
 
 
@@ -65,11 +71,13 @@ def _external_provider(pil):
     구현 예: provider SDK 호출 → {'allow': bool, 'reason': str, 'scores': {...}} 반환."""
     raise NotImplementedError(
         "MODERATION_PROVIDER 가 설정됐지만 _external_provider 가 미구현입니다. "
-        "여기에 외부 모더레이션 API 호출을 연결하세요.")
+        "여기에 외부 모더레이션 API 호출을 연결하세요."
+    )
 
 
 def _cos(a, b):
     import numpy as np
+
     return float(np.dot(np.asarray(a, dtype="float32"), np.asarray(b, dtype="float32")))
 
 
@@ -81,11 +89,18 @@ def _baseline(pil, embedder):
     u_max = max(unsafe.values())
     s_max = max(safe.values())
     block = (u_max >= MIN_ABS) and (u_max - s_max >= MARGIN)
-    scores = {"unsafe_max": round(u_max, 4), "safe_max": round(s_max, 4),
-              "margin": round(u_max - s_max, 4)}
+    scores = {
+        "unsafe_max": round(u_max, 4),
+        "safe_max": round(s_max, 4),
+        "margin": round(u_max - s_max, 4),
+    }
     if block:
         worst = max(unsafe, key=unsafe.get)
-        return {"allow": False, "reason": f"unsafe content suspected ({worst})", "scores": scores}
+        return {
+            "allow": False,
+            "reason": f"unsafe content suspected ({worst})",
+            "scores": scores,
+        }
     return {"allow": True, "reason": None, "scores": scores}
 
 
@@ -106,8 +121,11 @@ def screen(pil, *, embedder=None, provider=None, fail_open=None):
         except Exception as e:
             print(f"[moderation] provider 실패: {type(e).__name__}: {e}")
             if not fail_open:
-                return {"allow": False, "reason": "moderation provider error (fail-closed)",
-                        "scores": {}}
+                return {
+                    "allow": False,
+                    "reason": "moderation provider error (fail-closed)",
+                    "scores": {},
+                }
             # fail-open: baseline 으로 폴백 시도
     try:
         emb = embedder or _real_embedder()
@@ -116,5 +134,8 @@ def screen(pil, *, embedder=None, provider=None, fail_open=None):
         print(f"[moderation] baseline 실패: {type(e).__name__}: {e}")
         if fail_open:
             return {"allow": True, "reason": None, "scores": {"skipped": True}}
-        return {"allow": False, "reason": "moderation unavailable (fail-closed)",
-                "scores": {"skipped": True}}
+        return {
+            "allow": False,
+            "reason": "moderation unavailable (fail-closed)",
+            "scores": {"skipped": True},
+        }

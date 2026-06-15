@@ -11,12 +11,22 @@
 
 이 모듈은 무거운 의존이 없다(redis 는 있을 때만 lazy import) → 단위 테스트가 쉽다.
 """
+
 import time
 import threading
 
-_PERIODS = {"second": 1, "sec": 1, "s": 1,
-            "minute": 60, "min": 60, "m": 60,
-            "hour": 3600, "h": 3600, "day": 86400, "d": 86400}
+_PERIODS = {
+    "second": 1,
+    "sec": 1,
+    "s": 1,
+    "minute": 60,
+    "min": 60,
+    "m": 60,
+    "hour": 3600,
+    "h": 3600,
+    "day": 86400,
+    "d": 86400,
+}
 
 
 def parse_rate(spec):
@@ -39,9 +49,9 @@ class _LocalBucket:
 
     def __init__(self, limit, window):
         self.limit = float(limit)
-        self.rate = float(limit) / float(window)   # 초당 충전량
+        self.rate = float(limit) / float(window)  # 초당 충전량
         self.window = window
-        self._state = {}                            # key -> [tokens, last_ts]
+        self._state = {}  # key -> [tokens, last_ts]
         self._lock = threading.Lock()
 
     def allow(self, key):
@@ -93,7 +103,11 @@ class Limiter:
         limit, window = parsed
         self.limit, self.window = limit, window
         client = _maybe_redis(redis_url)
-        self._backend = _RedisWindow(client, limit, window) if client else _LocalBucket(limit, window)
+        self._backend = (
+            _RedisWindow(client, limit, window)
+            if client
+            else _LocalBucket(limit, window)
+        )
 
     def allow(self, key):
         """(allowed: bool, retry_after_seconds: int). 비활성이면 (True, 0)."""
@@ -107,6 +121,7 @@ def _maybe_redis(redis_url):
         return None
     try:
         import redis  # lazy: 설치/설정됐을 때만
+
         c = redis.Redis.from_url(redis_url, socket_connect_timeout=1)
         c.ping()
         return c

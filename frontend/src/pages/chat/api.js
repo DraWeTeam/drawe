@@ -97,10 +97,13 @@ export const sendReferenceFeedback = async (
   event,
   referenceIds,
 ) => {
-  await api.post(`/projects/${projectId}/guide/${guideId}/references/feedback`, {
-    event,
-    referenceIds,
-  });
+  await api.post(
+    `/projects/${projectId}/guide/${guideId}/references/feedback`,
+    {
+      event,
+      referenceIds,
+    },
+  );
 };
 
 /**
@@ -108,5 +111,7 @@ export const sendReferenceFeedback = async (
  * 사용자별 1행으로 수집되며, null 이면 토글 해제(삭제). best-effort.
  */
 export const sendGuideFeedback = async (projectId, guideId, feedback) => {
-  await api.post(`/projects/${projectId}/guide/${guideId}/feedback`, { feedback });
+  await api.post(`/projects/${projectId}/guide/${guideId}/feedback`, {
+    feedback,
+  });
 };

@@ -28,15 +28,18 @@ _presign = _client(_PUBLIC_ENDPOINT, signed_path=True)
 
 
 def put_image(key: str, data: bytes, content_type: str = "image/png"):
-    s3.put_object(Bucket=settings.s3_bucket, Key=key, Body=data, ContentType=content_type)
+    s3.put_object(
+        Bucket=settings.s3_bucket, Key=key, Body=data, ContentType=content_type
+    )
 
 
 def put_svg(key: str, data):
     """구축선 SVG 저장(Phase 4). data 는 str 또는 bytes."""
     if isinstance(data, str):
         data = data.encode("utf-8")
-    s3.put_object(Bucket=settings.s3_bucket, Key=key, Body=data,
-                  ContentType="image/svg+xml")
+    s3.put_object(
+        Bucket=settings.s3_bucket, Key=key, Body=data, ContentType="image/svg+xml"
+    )
 
 
 def get_image(key: str) -> bytes:
@@ -53,7 +56,9 @@ def ensure_bucket():
     except Exception:
         if not _HAS_KEYS:
             # 매니지드 버킷(Terraform) 전제 — 생성 시도 금지(권한 없음). 로그만.
-            print(f"[s3] head_bucket 실패(매니지드 버킷 전제로 생성 건너뜀): {settings.s3_bucket}")
+            print(
+                f"[s3] head_bucket 실패(매니지드 버킷 전제로 생성 건너뜀): {settings.s3_bucket}"
+            )
             return
         s3.create_bucket(Bucket=settings.s3_bucket)
 

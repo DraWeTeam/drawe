@@ -18,9 +18,9 @@ LLM 없이 결정적. 이력이 없으면 그림 자체(측정된 약점)로만 
 """
 
 # 내부 단계 id(노출 금지). 진척 비율·약점 분포로 가르는 '커리큘럼 좌표'일 뿐.
-FOUNDATION = "foundation"     # 큰 구조부터 같이 보는 구간
-DEVELOPING = "developing"     # 구조는 잡혀가고 디테일로 확장하는 구간
-REFINING = "refining"         # 대부분 자리잡고 다듬는 구간
+FOUNDATION = "foundation"  # 큰 구조부터 같이 보는 구간
+DEVELOPING = "developing"  # 구조는 잡혀가고 디테일로 확장하는 구간
+REFINING = "refining"  # 대부분 자리잡고 다듬는 구간
 
 
 def estimate_stage(steady, total, trend="new", total_tries=0):
@@ -32,7 +32,9 @@ def estimate_stage(steady, total, trend="new", total_tries=0):
     total = max(int(total or 0), 1)
     steady = max(int(steady or 0), 0)
     ratio = min(steady / total, 1.0)
-    bump = 0.05 if trend == "decreasing" else 0.0   # 개선 추세 소폭 가산(경계 근처만 영향)
+    bump = (
+        0.05 if trend == "decreasing" else 0.0
+    )  # 개선 추세 소폭 가산(경계 근처만 영향)
     score = ratio + bump
     if score >= 0.5:
         return REFINING, ratio
@@ -80,7 +82,11 @@ def apply_cold_start(growth, measured_subproblems, curriculum, why_fn=None):
         return growth
     growth["current_focus"] = cf
     idx = curriculum.index(cf) if cf in curriculum else -1
-    nxt = curriculum[idx + 1] if 0 <= idx < len(curriculum) - 1 else growth.get("next_goal")
+    nxt = (
+        curriculum[idx + 1]
+        if 0 <= idx < len(curriculum) - 1
+        else growth.get("next_goal")
+    )
     growth["next_goal"] = nxt
     if why_fn:
         try:

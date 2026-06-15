@@ -16,6 +16,7 @@ multipart 폼:
   caption  : (선택) 사용자 노출 캡션. 비우면 코드가 축 기반으로 채움.
   strict_anatomy : (선택, ingest) "1"이면 깨진 해부 hard-reject.
 """
+
 from fastapi import APIRouter, UploadFile, Form, HTTPException
 from io import BytesIO
 
@@ -36,22 +37,36 @@ def _clean(s):
 
 
 @router.post("/ai-example/qc")
-async def ai_example_qc(file: UploadFile, concept: str = Form(...),
-                        axes: str = Form(""), caption: str = Form(None),
-                        strict_anatomy: str = Form("0")):
+async def ai_example_qc(
+    file: UploadFile,
+    concept: str = Form(...),
+    axes: str = Form(""),
+    caption: str = Form(None),
+    strict_anatomy: str = Form("0"),
+):
     pil = normalize(BytesIO(await file.read()))
-    v = qc_example(pil, concept, _axes(axes), caption=caption,
-                   strict_anatomy=strict_anatomy.lower() in ("1", "true", "yes"))
+    v = qc_example(
+        pil,
+        concept,
+        _axes(axes),
+        caption=caption,
+        strict_anatomy=strict_anatomy.lower() in ("1", "true", "yes"),
+    )
     return v
 
 
 @router.post("/ai-example/ingest")
-async def ai_example_ingest(file: UploadFile, concept: str = Form(...),
-                            axes: str = Form(""), caption: str = Form(None),
-                            license: str = Form("CC0"),
-                            attribution: str = Form("AI-generated example (QC-gated)"),
-                            medium: str = Form(None), track: str = Form(None),
-                            strict_anatomy: str = Form("0")):
+async def ai_example_ingest(
+    file: UploadFile,
+    concept: str = Form(...),
+    axes: str = Form(""),
+    caption: str = Form(None),
+    license: str = Form("CC0"),
+    attribution: str = Form("AI-generated example (QC-gated)"),
+    medium: str = Form(None),
+    track: str = Form(None),
+    strict_anatomy: str = Form("0"),
+):
     medium, track = _clean(medium), _clean(track)
     # 취향 매칭 신호(soft boost) — 오타로 죽은 부스트가 되지 않게 어휘를 검증한다.
     if medium and medium not in MEDIUMS:
@@ -59,9 +74,16 @@ async def ai_example_ingest(file: UploadFile, concept: str = Form(...),
     if track and track not in PROFILES:
         raise HTTPException(422, f"track must be one of {sorted(PROFILES)}")
     pil = normalize(BytesIO(await file.read()))
-    res = qc_and_ingest(pil, concept, _axes(axes), license=license,
-                        attribution=attribution, caption=caption,
-                        medium=medium, track=track,
-                        strict_anatomy=strict_anatomy.lower() in ("1", "true", "yes"))
+    res = qc_and_ingest(
+        pil,
+        concept,
+        _axes(axes),
+        license=license,
+        attribution=attribution,
+        caption=caption,
+        medium=medium,
+        track=track,
+        strict_anatomy=strict_anatomy.lower() in ("1", "true", "yes"),
+    )
     # 적재 실패(QC 탈락)면 사유를 그대로 노출 — 운영자가 프롬프트/축을 고치게.
     return res

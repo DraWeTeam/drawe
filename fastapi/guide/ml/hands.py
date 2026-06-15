@@ -11,15 +11,20 @@ pose.py 와 같은 degraded-폴백 패턴: 모델/런타임이 없거나 손 미
 
 ⚠️ 2번(라이브러리 확대) 뒤에 켜세요 — region=hand ref가 없으면 손 신호가 떠도 전부 miss.
 """
+
 import os
 import math
 import tempfile
 import urllib.request
 
-_HAND_URL = ("https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
-             "hand_landmarker/float16/latest/hand_landmarker.task")
+_HAND_URL = (
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
+    "hand_landmarker/float16/latest/hand_landmarker.task"
+)
 # pose.py 와 동일 패턴: 모델(.task)을 첫 사용 시 자동 다운로드(약 7MB). HAND_TASK 로 경로 override 가능.
-_HAND_TASK = os.environ.get("HAND_TASK", os.path.join(tempfile.gettempdir(), "hand_landmarker.task"))
+_HAND_TASK = os.environ.get(
+    "HAND_TASK", os.path.join(tempfile.gettempdir(), "hand_landmarker.task")
+)
 _landmarker = None
 _AVAILABLE = None
 
@@ -42,15 +47,17 @@ def _ensure():
     if _AVAILABLE is not None:
         return _AVAILABLE
     try:
-        import mediapipe as mp
         from mediapipe.tasks import python as mp_python
         from mediapipe.tasks.python import vision
+
         if not _ensure_model():
             _AVAILABLE = False
             return False
         opts = vision.HandLandmarkerOptions(
             base_options=mp_python.BaseOptions(model_asset_path=_HAND_TASK),
-            num_hands=2, min_hand_detection_confidence=0.3)
+            num_hands=2,
+            min_hand_detection_confidence=0.3,
+        )
         _landmarker = vision.HandLandmarker.create_from_options(opts)
         _AVAILABLE = True
     except Exception as e:
@@ -67,15 +74,19 @@ def detect(pil):
     try:
         import numpy as np
         import mediapipe as mp
+
         rgb = pil.convert("RGB")
         arr = np.asarray(rgb)
         mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=arr)
         res = _landmarker.detect(mp_img)
         hands = []
         for i, lms in enumerate(res.hand_landmarks):
-            pts = [(p.x, p.y, p.z) for p in lms]   # 정규화 좌표(0~1), z는 상대깊이
-            handed = (res.handedness[i][0].category_name
-                      if res.handedness and i < len(res.handedness) else "?")
+            pts = [(p.x, p.y, p.z) for p in lms]  # 정규화 좌표(0~1), z는 상대깊이
+            handed = (
+                res.handedness[i][0].category_name
+                if res.handedness and i < len(res.handedness)
+                else "?"
+            )
             hands.append({"landmarks": pts, "handedness": handed})
         return {"available": True, "hands": hands}
     except Exception as e:
@@ -113,7 +124,7 @@ def hand_signal(hands):
         ny = u[2] * t[0] - u[0] * t[2]
         nz = u[0] * t[1] - u[1] * t[0]
         nlen = math.sqrt(nx * nx + ny * ny + nz * nz) or 1e-6
-        facing = abs(nz) / nlen          # 1=정면(평면이 화면을 향함), 0=옆면
+        facing = abs(nz) / nlen  # 1=정면(평면이 화면을 향함), 0=옆면
     except Exception:
         import_ok = False
         facing = 0.0
@@ -123,7 +134,7 @@ def hand_signal(hands):
         idx_mcp, idx_tip = v(5), v(8)
         proj = math.hypot(idx_tip[0] - idx_mcp[0], idx_tip[1] - idx_mcp[1])
         hand_w = math.hypot(v(17)[0] - v(5)[0], v(17)[1] - v(5)[1]) or 1e-6
-        ratio = proj / hand_w            # 작을수록 손가락이 카메라 쪽(단축)
+        ratio = proj / hand_w  # 작을수록 손가락이 카메라 쪽(단축)
     except Exception:
         ratio = 1.0
 

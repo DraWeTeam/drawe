@@ -3,7 +3,13 @@ import { uploadImage } from "./api";
 import { resizeImage, validateImageFile } from "./imageUtils";
 import styles from "./AttachmentPicker.module.css";
 
-const AttachmentPicker = ({ attachment, onAttach, onError, disabled, onClick }) => {
+const AttachmentPicker = ({
+  attachment,
+  onAttach,
+  onError,
+  disabled,
+  onClick,
+}) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);

@@ -6,6 +6,7 @@
 - SIGTERM(spot 2분 통지) 시 draining 으로 전환해 신규 요청을 끊는다.
 - P0: 파이프라인 미이식 → NotImplementedError 를 깔끔한 501 로 매핑(라우트는 살아있음).
 """
+
 import signal
 import asyncio
 import logging
@@ -19,8 +20,8 @@ log = logging.getLogger("drawe-fastapi.guide")
 
 
 class _Runtime:
-    ready = False       # 워밍업 완료 → 비로소 트래픽
-    draining = False    # SIGTERM 수신 → 신규 거절(in-flight 만 마무리)
+    ready = False  # 워밍업 완료 → 비로소 트래픽
+    draining = False  # SIGTERM 수신 → 신규 거절(in-flight 만 마무리)
 
 
 rt = _Runtime()
@@ -39,10 +40,14 @@ async def lifespan(app: FastAPI):
         try:
             if os.environ.get("GUIDE_AUTO_MIGRATE") == "1":
                 from guide.stores.migrate import run_migrations
-                applied = await asyncio.to_thread(run_migrations)  # 스키마 자동 적용(락 안전)
+
+                applied = await asyncio.to_thread(
+                    run_migrations
+                )  # 스키마 자동 적용(락 안전)
                 log.info("guide migrations applied: %s", applied or "(none)")
             from guide.warmup import warmup_guide
-            await asyncio.to_thread(warmup_guide)   # blocking 모델 로드 → 워커 스레드
+
+            await asyncio.to_thread(warmup_guide)  # blocking 모델 로드 → 워커 스레드
             rt.ready = True
             log.info("guide warmup complete")
         except Exception:
@@ -86,4 +91,5 @@ async def _not_implemented(request: Request, exc: NotImplementedError):
 
 # guide 라우터(현재 /guide 는 facade 미구현 → 501. 라우팅·운영만 살아있음)
 from guide.routes import router as guide_router  # noqa: E402
+
 app.include_router(guide_router)

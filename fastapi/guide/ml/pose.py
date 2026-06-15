@@ -6,12 +6,17 @@
 
 어떤 단계든 실패하면(import·모델·추론) 예외를 삼키고 degraded로 폴백 → API는 항상 기동.
 """
-import os, tempfile, urllib.request
+
+import os
+import tempfile
+import urllib.request
 import numpy as np
 
 VIS = 0.5
-_MODEL_URL = ("https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
-              "pose_landmarker_lite/float16/latest/pose_landmarker_lite.task")
+_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
+    "pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+)
 _MODEL_PATH = os.path.join(tempfile.gettempdir(), "pose_landmarker_lite.task")
 
 _detector = None
@@ -39,15 +44,19 @@ def _get_detector():
             return None
         from mediapipe.tasks import python as mp_python
         from mediapipe.tasks.python import vision as mp_vision
+
         opts = mp_vision.PoseLandmarkerOptions(
             base_options=mp_python.BaseOptions(model_asset_path=_MODEL_PATH),
             running_mode=mp_vision.RunningMode.IMAGE,
-            num_poses=1)
+            num_poses=1,
+        )
         _detector = mp_vision.PoseLandmarker.create_from_options(opts)
         _ready = True
         print("[pose] mediapipe Tasks PoseLandmarker 준비 완료")
     except Exception as e:
-        print(f"[pose] mediapipe Tasks 초기화 실패 → 포즈 비활성: {type(e).__name__}: {e}")
+        print(
+            f"[pose] mediapipe Tasks 초기화 실패 → 포즈 비활성: {type(e).__name__}: {e}"
+        )
         _detector, _ready = None, False
     return _detector
 
@@ -58,6 +67,7 @@ def extract(scene, pil):
         return {"status": "skipped", "reason": "pose_unavailable"}
     try:
         import mediapipe as mp
+
         rgb = np.array(pil.convert("RGB"), dtype=np.uint8)
         res = det.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb))
     except Exception as e:
@@ -66,9 +76,14 @@ def extract(scene, pil):
     if not res.pose_landmarks:
         return {"status": "skipped", "reason": "no_person_detected"}
     lms = res.pose_landmarks[0]  # 첫 인물 (33 keypoints, BlazePose 순서)
+
     def v(p):
         return float(getattr(p, "visibility", 1.0) or 0.0)
+
     mean_vis = float(np.mean([v(p) for p in lms])) if lms else 0.0
     status = "ok" if mean_vis >= VIS else "low_confidence"
-    return {"status": status, "mean_visibility": mean_vis,
-            "keypoints": [(p.x, p.y, v(p)) for p in lms]}
+    return {
+        "status": status,
+        "mean_visibility": mean_vis,
+        "keypoints": [(p.x, p.y, v(p)) for p in lms],
+    }
