@@ -73,5 +73,9 @@ def resolve_profile(track=None, scene=None):
         return PROFILES[track]
     if scene is None:
         return _FIGURE_AUTO                      # 정보 없음 → 기본 레인(인물)
-    person = bool(scene.get("subject", {}).get("person", {}).get("present", False))
-    return _FIGURE_AUTO if person else PROFILES["landscape"]
+    # 제품 1차 레인은 인물. CLIP 은 스케치/선화(색·질감 부족)에 약해 person_p 가 자주 중립(≈0.5)으로
+    # 수렴하므로, '확실히 풍경'(person_p 가 충분히 낮을 때)에만 landscape 로 보낸다.
+    #   비대칭 비용: 인물→풍경 오분류(지평선 가이드 등)가 풍경→인물보다 UX 손실이 크다.
+    #   확정 인물은 명시 track(위) 또는 추후 face-detection 으로, 여기선 보수적 풍경 게이트만.
+    prom = float(scene.get("subject", {}).get("person", {}).get("prominence", 0.0))
+    return PROFILES["landscape"] if prom < 0.35 else _FIGURE_AUTO

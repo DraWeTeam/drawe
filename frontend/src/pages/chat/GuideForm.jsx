@@ -27,7 +27,9 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState("");
-  const [track, setTrack] = useState("");
+  // 인물-우선 제품 → 기본을 figure 레인(실사 인물)으로. 명시 track 이 백엔드 자동판단을 덮으므로
+  // 스케치 CLIP 오분류(인물→풍경)를 결정적으로 회피. 풍경/애니/치비는 사용자가 직접 선택.
+  const [track, setTrack] = useState("realistic_figure");
   const [intent, setIntent] = useState("practice"); // 작업중
   const [dragOver, setDragOver] = useState(false);
   const [err, setErr] = useState(null);
