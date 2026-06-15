@@ -245,7 +245,9 @@ export function downloadGuidePdf(result, drawingPreviewUrl) {
   ${bodyHtml(guide, references, drawingPreviewUrl)}
 </body></html>`;
 
-  const win = window.open("", "_blank", "noopener,noreferrer,width=820,height=1000");
+  // noopener/noreferrer 를 features 에 넣으면 window.open 이 null 을 반환해(스펙) win.print() 가
+  // 절대 실행되지 않고 폴백(Blob 새 탭)만 떴다. 우리가 만든 인쇄 문서라 opener 차단 불필요 → 제거.
+  const win = window.open("", "_blank", "width=820,height=1000");
   if (!win) {
     // 팝업 차단 폴백: 동일 문서를 Blob URL 로 새 탭 열기(사용자가 직접 인쇄).
     const blob = new Blob([html], { type: "text/html" });
