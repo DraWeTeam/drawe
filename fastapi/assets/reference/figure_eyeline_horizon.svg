@@ -1,0 +1,41 @@
+<svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="figure_eyeline_horizon">
+  <style>
+    .guide { fill:none; stroke:#c7ccd4; stroke-width:2.5; }
+    .gfill { fill:#c7ccd4; opacity:.18; stroke:none; }
+    .cons  { fill:none; stroke:#e0533d; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+    .consd { fill:none; stroke:#e0533d; stroke-width:2; stroke-dasharray:6 5; }
+    .acc   { fill:none; stroke:#2f6df0;  stroke-width:2.5; stroke-linecap:round; }
+    .accd  { fill:none; stroke:#2f6df0;  stroke-width:2; stroke-dasharray:6 5; }
+    .dot   { fill:#e0533d; stroke:none; }
+    .adot  { fill:#2f6df0; stroke:none; }
+    .lbl   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:14px; }
+    .cap   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:13px; opacity:.8; }
+    .tag   { fill:#e0533d; font-family:sans-serif; font-size:12px; font-weight:600; }
+  </style>
+  <g id="guide">
+    <line class="guide" x1="20" y1="200" x2="460" y2="200"/>
+    <rect class="gfill" x="20" y="200" width="440" height="220"/>
+  </g>
+  <g id="construction">
+    <g class="cons">
+      <circle cx="110" cy="214" r="14"/><line x1="110" y1="228" x2="110" y2="330"/>
+      <line x1="110" y1="252" x2="80" y2="290"/><line x1="110" y1="252" x2="140" y2="290"/>
+      <line x1="110" y1="330" x2="90" y2="386"/><line x1="110" y1="330" x2="132" y2="386"/>
+    </g>
+    <g class="cons">
+      <circle cx="250" cy="200" r="10"/><line x1="250" y1="210" x2="250" y2="284"/>
+      <line x1="250" y1="228" x2="228" y2="256"/><line x1="250" y1="228" x2="272" y2="256"/>
+      <line x1="250" y1="284" x2="236" y2="326"/><line x1="250" y1="284" x2="266" y2="326"/>
+    </g>
+    <g class="cons">
+      <circle cx="372" cy="192" r="7"/><line x1="372" y1="199" x2="372" y2="252"/>
+      <line x1="372" y1="212" x2="356" y2="232"/><line x1="372" y1="212" x2="388" y2="232"/>
+      <line x1="372" y1="252" x2="362" y2="282"/><line x1="372" y1="252" x2="382" y2="282"/>
+    </g>
+    <circle class="adot" cx="110" cy="200" r="4"/><circle class="adot" cx="250" cy="200" r="4"/><circle class="adot" cx="372" cy="200" r="4"/>
+  </g>
+  <g id="label">
+    <text class="tag" x="20" y="192">눈높이 = 지평선</text>
+    <text class="cap" x="20" y="462">키가 같은 인물은 멀어져도 눈이 지평선에 놓인다 — 눈높이로 거리를 잡는다.</text>
+  </g>
+</svg>

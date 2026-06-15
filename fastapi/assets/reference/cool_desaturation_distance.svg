@@ -1,0 +1,33 @@
+<svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="cool_desaturation_distance">
+  <style>
+    .guide { fill:none; stroke:#c7ccd4; stroke-width:2.5; }
+    .gfill { fill:#c7ccd4; opacity:.18; stroke:none; }
+    .cons  { fill:none; stroke:#e0533d; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+    .consd { fill:none; stroke:#e0533d; stroke-width:2; stroke-dasharray:6 5; }
+    .acc   { fill:none; stroke:#2f6df0;  stroke-width:2.5; stroke-linecap:round; }
+    .accd  { fill:none; stroke:#2f6df0;  stroke-width:2; stroke-dasharray:6 5; }
+    .dot   { fill:#e0533d; stroke:none; }
+    .adot  { fill:#2f6df0; stroke:none; }
+    .lbl   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:14px; }
+    .cap   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:13px; opacity:.8; }
+    .tag   { fill:#e0533d; font-family:sans-serif; font-size:12px; font-weight:600; }
+  </style>
+  <g id="guide">
+    <rect class="guide" x="40" y="40" width="400" height="320"/>
+    <line class="guide" x1="40" y1="300" x2="440" y2="300"/>
+  </g>
+  <g id="construction">
+    <path d="M60 300 L150 150 L240 300 Z" fill="#b07a4e"/>
+    <path d="M180 300 L270 185 L360 300 Z" fill="#8f9aa0"/>
+    <path d="M300 300 L380 210 L460 300 Z" fill="#aab6c4"/>
+  </g>
+  <g id="label">
+    <text class="lbl" x="92" y="332">따뜻·선명</text>
+    <text class="lbl" x="330" y="332">차갑·탁함</text>
+    <rect x="60" y="356" width="40" height="22" fill="#b07a4e"/>
+    <rect x="110" y="356" width="40" height="22" fill="#9b8f86"/>
+    <rect x="160" y="356" width="40" height="22" fill="#9aa6b4"/>
+    <line class="consd" x1="100" y1="367" x2="160" y2="367"/>
+    <text class="cap" x="20" y="402">멀어질수록 색이 차가워지고 채도가 떨어진다 — 따뜻·선명함은 앞으로 당긴다.</text>
+  </g>
+</svg>

@@ -3,7 +3,14 @@ name: FastAPI CD
 on:
   push:
     branches: [develop, main]
-    paths: ["fastapi/**"]
+    # embed 전용. guide(Dockerfile.guide)가 COPY 하는 경로는 제외 → guide-only 변경 시 중복 배포 안 함.
+    # (guide 는 fastapi-guide-cd.yml 이 담당)
+    paths:
+      - "fastapi/**"
+      - "!fastapi/guide/**"
+      - "!fastapi/assets/**"
+      - "!fastapi/Dockerfile.guide"
+      - "!fastapi/requirements.guide.txt"
   workflow_dispatch:
     inputs:
       environment:

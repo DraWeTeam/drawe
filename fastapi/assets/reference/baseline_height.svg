@@ -1,0 +1,34 @@
+<svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="baseline_height">
+  <style>
+    .guide { fill:none; stroke:#c7ccd4; stroke-width:2.5; }
+    .gfill { fill:#c7ccd4; opacity:.18; stroke:none; }
+    .cons  { fill:none; stroke:#e0533d; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+    .consd { fill:none; stroke:#e0533d; stroke-width:2; stroke-dasharray:6 5; }
+    .acc   { fill:none; stroke:#2f6df0;  stroke-width:2.5; stroke-linecap:round; }
+    .accd  { fill:none; stroke:#2f6df0;  stroke-width:2; stroke-dasharray:6 5; }
+    .dot   { fill:#e0533d; stroke:none; }
+    .adot  { fill:#2f6df0; stroke:none; }
+    .lbl   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:14px; }
+    .cap   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:13px; opacity:.8; }
+    .tag   { fill:#e0533d; font-family:sans-serif; font-size:12px; font-weight:600; }
+  </style>
+  <g id="guide">
+    <rect class="guide" x="40" y="40" width="400" height="400"/>
+    <line class="guide" x1="40" y1="150" x2="440" y2="150"/>
+    <text class="lbl" x="350" y="142" fill="#9aa0a6">지평선</text>
+  </g>
+  <g id="construction">
+    <circle class="cons" cx="120" cy="395" r="38" fill="#3f444c"/>
+    <circle class="cons" cx="250" cy="300" r="38" fill="#70757f"/>
+    <circle class="cons" cx="370" cy="205" r="38" fill="#a1a6ae"/>
+    <line class="consd" x1="120" y1="433" x2="120" y2="450"/>
+    <line class="consd" x1="250" y1="338" x2="250" y2="450"/>
+    <line class="consd" x1="370" y1="243" x2="370" y2="450"/>
+  </g>
+  <g id="label">
+    <text class="lbl" x="92" y="412" fill="#f0f0f0">가까움</text>
+    <text class="lbl" x="232" y="306" fill="#f0f0f0">중간</text>
+    <text class="lbl" x="352" y="210" fill="#3a3f47">멀음</text>
+    <text class="cap" x="20" y="462">같은 크기라도 화면 아래에 닿을수록 가깝게 읽힌다 — 밑변 높이가 거리 단서.</text>
+  </g>
+</svg>
