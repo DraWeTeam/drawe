@@ -1,5 +1,5 @@
 from guide.prompts import build_coach_prompt
-from guide.safety.validate import coach_with_guardrails
+from guide.safety.validate import coach_with_guardrails, strip_redundant_text
 from guide.schemas import GuideResponse, NextSteps, GuideAsset
 from guide.pipeline import assets
 
@@ -49,4 +49,6 @@ def run_guide(diagnosis, refs_by_sp, retrieved_ids, taxonomy, llm,
         # 완성작인데 LLM이 one_thing을 비워 보냈으면, '이번에 딱 하나'를 성장 방향으로 채운다.
         if intent == "finished" and not g.one_thing and g.next_steps:
             g.one_thing = g.next_steps.focus_practice
+        # 렌더 중복 가드(보험): 인트로·추천연습·한끗포인트가 같은 문장으로 겹치면 비워 한 번만 보이게.
+        g = strip_redundant_text(g)
     return g

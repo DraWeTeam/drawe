@@ -53,6 +53,47 @@ def _set_refs(g, refs_by_sp):
         b.reference_ids = [r for r, _ in refs_by_sp.get(b.sub_problem, [])][:3]
     return g
 
+_NORM_RE = re.compile(r"[^0-9a-z가-힣]")
+
+
+def _norm(s):
+    return _NORM_RE.sub("", (s or "").lower())
+
+
+def _too_similar(a, b, thresh=0.6):
+    """두 문장이 '사실상 같은 말'인지(공백·문장부호·어미 차이 무시). 부분포함 또는 글자 bigram Jaccard."""
+    na, nb = _norm(a), _norm(b)
+    if len(na) < 6 or len(nb) < 6:
+        return False
+    if na in nb or nb in na:
+        return True
+    A = {na[i:i + 2] for i in range(len(na) - 1)}
+    B = {nb[i:i + 2] for i in range(len(nb) - 1)}
+    if not A or not B:
+        return False
+    return len(A & B) / len(A | B) >= thresh
+
+
+def strip_redundant_text(g):
+    """렌더에서 인트로·추천연습·한끗포인트가 같은 문장으로 겹쳐 보이는 걸 막는다(LLM 비결정성 보험).
+    기준 텍스트는 focus_practice(추천 연습, 결정적). 그와 거의 같은 note/direction 을 비워 한 번만 보이게."""
+    if g.mode != "coach":
+        return g
+    ns = g.next_steps
+    fp = getattr(ns, "focus_practice", None) if ns else None
+    if not fp:
+        return g
+    # 인트로(note)가 연습을 되풀이 → 비움(렌더가 synthesis 개념으로 폴백)
+    if ns and getattr(ns, "note", None) and _too_similar(ns.note, fp):
+        ns.note = None
+    # 한 끗 포인트(primary.direction)가 연습과 ≈같음 → 텍스트 비움(도식만 남김)
+    if g.blocks:
+        b0 = g.blocks[0]
+        if getattr(b0, "direction", None) and _too_similar(b0.direction, fp):
+            b0.direction = ""
+    return g
+
+
 def coach_with_guardrails(prompt, diagnosis, refs_by_sp, retrieved_ids,
                           taxonomy, llm, max_retries=2):
     tax_ids = set(taxonomy)
