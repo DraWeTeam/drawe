@@ -14,9 +14,11 @@ RUN pip install --user \
         torch==2.5.1 torchvision==0.20.1 \
         --index-url https://download.pytorch.org/whl/cpu
 
-# torch/torchvision/nvidia-* 제외하고 설치
+# torch/torchvision/nvidia + mediapipe 제외.
+#  mediapipe: 최신 0.10.35는 linux aarch64 wheel 없음, 구버전 핀은 protobuf<4·numpy 충돌.
+#  손/포즈 게이트는 ml/pose·ml/hands 지연 import+try/except 로 런타임 degrade(서비스 정상 기동).
 COPY requirements.guide.txt .
-RUN grep -vE '^(torch==|torchvision==|nvidia-)' requirements.guide.txt > req-cpu.txt && \
+RUN grep -vE '^(torch==|torchvision==|nvidia-|mediapipe)' requirements.guide.txt > req-cpu.txt && \
     pip install --user -r req-cpu.txt
 
 # OTel auto-instrumentation
