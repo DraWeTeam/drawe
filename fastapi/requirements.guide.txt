@@ -10,7 +10,7 @@ python-dotenv==1.2.2
 pillow==11.3.0
 pillow-heif              # normalize.py 최상위 — HEIC/HEIF 디코드(아이폰 업로드)
 numpy==2.2.5
-PyYAML                   # diagnose.py·router.py 최상위 — taxonomy/track YAML
+PyYAML==6.0.2                   # diagnose.py·router.py 최상위 — taxonomy/track YAML
 requests                 # llm.py(Grok)·vision.py(Gemini) 최상위 — artref 는 requests 사용
 
 # 가이딩 핵심
