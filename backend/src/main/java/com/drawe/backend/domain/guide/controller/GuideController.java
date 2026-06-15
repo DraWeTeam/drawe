@@ -4,9 +4,11 @@ import com.drawe.backend.domain.guide.dto.GuideResult;
 import com.drawe.backend.domain.guide.service.GuideService;
 import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -27,6 +29,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class GuideController {
 
   private final GuideService guideService;
+
+  /** 채팅 재진입 시 가이드 카드 복원용 — 프로젝트의 가이드 히스토리(오래된→최신). */
+  @GetMapping
+  public ApiResponse<List<GuideResult>> list(
+      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long projectId) {
+    return ApiResponse.success(guideService.list(principal.getUser(), projectId));
+  }
 
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ApiResponse<GuideResult> guide(

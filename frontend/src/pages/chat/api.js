@@ -80,3 +80,9 @@ export const requestGuide = async (
   const res = await api.post(`/projects/${projectId}/guide`, form, { headers });
   return res.data.data;
 };
+
+/** 프로젝트의 가이드 히스토리(오래된→최신). 채팅 재진입 시 카드 복원용. 반환: GuideResult[] */
+export const getGuides = async (projectId) => {
+  const res = await api.get(`/projects/${projectId}/guide`);
+  return res.data.data;
+};

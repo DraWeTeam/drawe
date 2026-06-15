@@ -145,6 +145,22 @@ public class GuideService {
     }
   }
 
+  /**
+   * 프로젝트 내 '내 가이드' 히스토리. 채팅 재진입 시 가이드 카드를 복원하는 근거.
+   *
+   * <p>레포는 최신순(DESC)으로 주므로, 채팅 흐름과 맞게 오래된→최신 순으로 뒤집어 반환한다. payload(=저장
+   * 시점 GuideResponse)로 {@link #buildResult}를 재실행해 레퍼런스 URL을 현재 기준으로 다시 보강한다.
+   */
+  public List<GuideResult> list(User user, Long projectId) {
+    List<Guide> guides =
+        guideRepository.findByUser_IdAndProject_IdOrderByCreatedAtDesc(user.getId(), projectId);
+    List<GuideResult> out = new ArrayList<>(guides.size());
+    for (int i = guides.size() - 1; i >= 0; i--) {
+      out.add(buildResult(guides.get(i).getPayload()));
+    }
+    return out;
+  }
+
   private GuideResult buildResult(GuideResponse resp) {
     return new GuideResult(resp, resolveReferences(resp));
   }

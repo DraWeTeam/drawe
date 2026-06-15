@@ -592,3 +592,100 @@
 .lightboxClose:hover {
   background: #fff;
 }
+
+/* ===== 채팅 가이드 카드(한 끗 가이드 보기) ===== */
+.guideCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 280px;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid #efece8;
+  border-radius: 14px;
+  background: #fcfbfa;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.guideCard:hover {
+  border-color: #ffd2ab;
+  background: #fffaf5;
+  box-shadow: 0 2px 10px rgba(255, 133, 52, 0.08);
+}
+.guideCardThumb {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  background: #f1efec;
+  color: #b9b4ad;
+}
+.guideCardBody {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.guideCardTitle {
+  font-weight: 700;
+  font-size: 14px;
+  color: #24221f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.guideCardSub {
+  font-size: 12px;
+  color: #8a857e;
+}
+.guideCard > svg {
+  flex: 0 0 auto;
+  color: #b9b4ad;
+}
+
+/* 가이드 카드 아래 액션(좋아요/싫어요/PDF) */
+.guideActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 4px;
+}
+.guideActBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #8a857e;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.guideActBtn:hover {
+  background: #f3f1ee;
+  color: #4a4846;
+}
+.guideActBtn[data-active="true"] {
+  color: #ff8534;
+  background: #fff3e9;
+}
+
+/* 가이드 인라인 표시 — 좌측 패널을 덮음(분할 시 좌측, refFull 시 전체) */
+.leftPanel {
+  position: relative;
+}
+.guideInlineWrap {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: #fff;
+  display: flex;
+  min-height: 0;
+}

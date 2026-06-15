@@ -1,6 +1,5 @@
 import { useState } from "react";
 import styles from "./GuideModal.module.css";
-import { downloadGuidePdf } from "./guidePdf";
 
 // 축 id → 사용자 노출 한글 라벨. 시안 표기에 맞춤(명암 대비/무게중심/구도·균형 등).
 // taxonomy 에는 짧은 라벨이 없어 여기서 큐레이션해 들고 간다.
@@ -20,7 +19,7 @@ const AXIS_LABELS = {
   depth_layering: "깊이층",
   horizon_placement: "지평선",
 };
-const axisLabel = (id) => AXIS_LABELS[id] || (id ? id.replace(/_/g, " ") : "");
+export const axisLabel = (id) => AXIS_LABELS[id] || (id ? id.replace(/_/g, " ") : "");
 
 // guide 서비스 에셋(SVG 도식) 공개 base. 미설정이면 도식 영역 자체를 숨김(빈 박스 금지).
 const GUIDE_BASE = import.meta.env.VITE_GUIDE_PUBLIC_URL || "";
@@ -350,6 +349,100 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
   );
 };
 
+// 가이드 본문(로딩/에러/코치) — 모달·인라인 공용.
+const GuideBody = ({ loading, error, guide, references, drawingPreviewUrl, onRetry, onRefFeedback }) => (
+  <div className={styles.body}>
+    {loading && (
+      <div className={styles.state}>
+        <div className={styles.spinner} aria-hidden />
+        <p className={styles.stateText}>그림을 살펴보고 있어요…</p>
+      </div>
+    )}
+    {!loading && error && (
+      <div className={styles.state}>
+        <p className={styles.stateText}>
+          가이드를 받아오지 못했어요. 잠시 후 다시 시도해 주세요.
+        </p>
+        {onRetry && (
+          <button type="button" className={styles.retryBtn} onClick={onRetry}>
+            다시 시도
+          </button>
+        )}
+      </div>
+    )}
+    {!loading && !error && guide && (
+      guide.mode !== "coach" ? (
+        <p className={styles.bodyText}>
+          {guide.message ||
+            "이 그림으로는 가이드를 만들기 어려웠어요. 조금 더 진행한 뒤 다시 시도해 주세요."}
+        </p>
+      ) : (
+        <Coach
+          guide={guide}
+          references={references}
+          drawingPreviewUrl={drawingPreviewUrl}
+          onRefFeedback={onRefFeedback}
+        />
+      )
+    )}
+  </div>
+);
+
+// 인라인 가이드(채팅 왼쪽 패널 / 전체화면) — 와이어프레임 레이아웃. 떠 있는 모달이 아니라 좌측 영역을 채움.
+//   onToggleFull 있으면 전체화면 토글 노출(isFull = 현재 전체화면 여부).
+export const GuideContent = ({
+  result, loading, error, drawingPreviewUrl, onClose, onRetry, onRefFeedback, onToggleFull, isFull,
+}) => {
+  const guide = result?.guide;
+  const references = result?.references || [];
+  const title = guide?.primary_focus
+    ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
+    : "한 끗 가이드";
+  return (
+    <div className={styles.inlinePanel}>
+      <header className={styles.header}>
+        <h2 className={styles.title}>{loading ? "한 끗 가이드" : title}</h2>
+        <div className={styles.headerRight}>
+          {guide?.degraded && (
+            <span className={styles.degradedBadge}>일부 정보로 생성됨</span>
+          )}
+          {onToggleFull && (
+            <button
+              type="button"
+              className={styles.iconHeaderBtn}
+              onClick={onToggleFull}
+              aria-label={isFull ? "분할 보기" : "전체화면"}
+              title={isFull ? "분할 보기" : "전체화면"}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                {isFull ? (
+                  <path d="M9 9H4M9 9V4M15 9h5M15 9V4M9 15H4M9 15v5M15 15h5M15 15v5" />
+                ) : (
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                )}
+              </svg>
+            </button>
+          )}
+          {onClose && (
+            <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="닫기">
+              ×
+            </button>
+          )}
+        </div>
+      </header>
+      <GuideBody
+        loading={loading}
+        error={error}
+        guide={guide}
+        references={references}
+        drawingPreviewUrl={drawingPreviewUrl}
+        onRetry={onRetry}
+        onRefFeedback={onRefFeedback}
+      />
+    </div>
+  );
+};
+
 const GuideModal = ({
   result,
   loading,
@@ -380,21 +473,6 @@ const GuideModal = ({
             {guide?.degraded && (
               <span className={styles.degradedBadge}>일부 정보로 생성됨</span>
             )}
-            {!loading && !error && guide?.mode === "coach" && (
-              <button
-                type="button"
-                className={styles.pdfBtn}
-                onClick={() => downloadGuidePdf(result, drawingPreviewUrl)}
-                aria-label="PDF 다운로드"
-              >
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <path d="M7 10l5 5 5-5" />
-                  <path d="M12 15V3" />
-                </svg>
-                PDF 다운로드
-              </button>
-            )}
             <button
               type="button"
               className={styles.closeBtn}
@@ -405,46 +483,15 @@ const GuideModal = ({
             </button>
           </div>
         </header>
-
-        <div className={styles.body}>
-          {loading && (
-            <div className={styles.state}>
-              <div className={styles.spinner} aria-hidden />
-              <p className={styles.stateText}>그림을 살펴보고 있어요…</p>
-            </div>
-          )}
-
-          {!loading && error && (
-            <div className={styles.state}>
-              <p className={styles.stateText}>
-                가이드를 받아오지 못했어요. 잠시 후 다시 시도해 주세요.
-              </p>
-              {onRetry && (
-                <button type="button" className={styles.retryBtn} onClick={onRetry}>
-                  다시 시도
-                </button>
-              )}
-            </div>
-          )}
-
-          {!loading && !error && guide && (
-            <>
-              {guide.mode !== "coach" ? (
-                <p className={styles.bodyText}>
-                  {guide.message ||
-                    "이 그림으로는 가이드를 만들기 어려웠어요. 조금 더 진행한 뒤 다시 시도해 주세요."}
-                </p>
-              ) : (
-                <Coach
-                  guide={guide}
-                  references={references}
-                  drawingPreviewUrl={drawingPreviewUrl}
-                  onRefFeedback={onRefFeedback}
-                />
-              )}
-            </>
-          )}
-        </div>
+        <GuideBody
+          loading={loading}
+          error={error}
+          guide={guide}
+          references={references}
+          drawingPreviewUrl={drawingPreviewUrl}
+          onRetry={onRetry}
+          onRefFeedback={onRefFeedback}
+        />
       </div>
     </div>
   );

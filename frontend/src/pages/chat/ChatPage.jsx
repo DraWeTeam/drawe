@@ -11,6 +11,7 @@ import { getProject } from "../projects/api";
 import {
   addPin,
   generateImage,
+  getGuides,
   getHistory,
   getLatestSession,
   getPins,
@@ -22,7 +23,8 @@ import {
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import GuideForm from "./GuideForm";
-import GuideModal from "./GuideModal";
+import { axisLabel, GuideContent } from "./GuideModal";
+import { downloadGuidePdf } from "./guidePdf";
 import AuthedImage from "./AuthedImage";
 import TutorialCoachmark from "./TutorialCoachmark";
 import styles from "./ChatPage.module.css";
@@ -100,26 +102,49 @@ const ChatPage = () => {
     setShowReactionTutorial(false);
   };
 
-  // 한 끗 가이드: 입력 폼 제출 → 결과 모달(로딩) → requestGuide
+  // 한 끗 가이드: 폼 제출 → (1) 첨부 이미지·로딩을 채팅에 반영 → requestGuide
+  //  → (2) 결과를 '가이드 카드' 메시지로 채팅에 삽입. 모달은 카드 클릭 시 열림(와이어프레임 의도).
   const handleGuideSubmit = async ({ file, previewUrl, message, intent, track }) => {
     lastGuideArgs.current = { file, previewUrl, message, intent, track };
     setGuideFormOpen(false);
-    setGuidePreview(previewUrl || null);
-    setGuideError("");
-    setGuideResult(null);
+    const gid = `g_${Date.now()}`;
     setGuideLoading(true);
-    setGuideOpen(true);
+    setMessages((prev) => [
+      ...prev,
+      // 첨부 이미지(+있으면 메시지)를 사용자 버블로 채팅에 반영
+      ...(previewUrl || message
+        ? [{ role: "user", localPreviewUrl: previewUrl || null, content: message || "" }]
+        : []),
+      { role: "assistant", type: "guideLoading", _gid: gid },
+    ]);
     try {
-      const result = await requestGuide(projectId, file, {
-        message,
-        intent,
-        track,
-      });
-      setGuideResult(result);
+      const result = await requestGuide(projectId, file, { message, intent, track });
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._gid === gid
+            ? {
+                role: "assistant",
+                type: "guide",
+                _gid: gid,
+                guide: result?.guide,
+                references: result?.references || [],
+                guideTitle: axisLabel(result?.guide?.primary_focus) || "한 끗",
+                guidePreview: previewUrl || null,
+                guideFeedback: null,
+              }
+            : m,
+        ),
+      );
     } catch (err) {
-      setGuideError(
+      const msg =
         err.response?.data?.error?.message ||
-          "가이드를 만들지 못했어요. 잠시 후 다시 시도해주세요.",
+        "가이드를 만들지 못했어요. 잠시 후 다시 시도해주세요.";
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._gid === gid
+            ? { role: "assistant", type: "guideError", _gid: gid, error: msg }
+            : m,
+        ),
       );
     } finally {
       setGuideLoading(false);
@@ -130,10 +155,30 @@ const ChatPage = () => {
     if (lastGuideArgs.current) handleGuideSubmit(lastGuideArgs.current);
   };
 
+  // 채팅의 가이드 카드 클릭 → 전체 가이드 모달 열기(카드에 담아둔 결과 사용)
+  const openGuideFromCard = (m) => {
+    setGuideResult({ guide: m.guide, references: m.references });
+    setGuidePreview(m.guidePreview || null);
+    setGuideError("");
+    setGuideOpen(true);
+    setMode((cur) => (cur === "chatFull" ? "split" : cur)); // 좌측 패널 보이게
+  };
+
+  // 채팅 가이드 카드의 좋아요/싫어요(로컬 토글). 백엔드 연결은 후속.
+  const setGuideCardFeedback = (gidVal, kind) =>
+    setMessages((prev) =>
+      prev.map((m) =>
+        m._gid === gidVal && m.type === "guide"
+          ? { ...m, guideFeedback: m.guideFeedback === kind ? null : kind }
+          : m,
+      ),
+    );
+
   const closeGuide = () => {
     setGuideOpen(false);
     setGuideResult(null);
     setGuideError("");
+    setMode((cur) => (cur === "refFull" ? "split" : cur)); // 전체화면이었으면 채팅 복귀
   };
 
   const listRef = useRef(null);
@@ -211,6 +256,28 @@ const ChatPage = () => {
           isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
         }));
         setMessages(restored);
+
+        // 영속된 가이드 복원 — 채팅 히스토리엔 가이드 카드가 없으므로 별도로 불러와 뒤에 이어 붙인다.
+        //   getGuides 는 오래된→최신 순. 저장본엔 업로드 미리보기 URL이 없어 guidePreview=null.
+        //   주의: 가이드는 프로젝트 단위(세션 무관)라 같은 프로젝트의 가이드는 모두 표시됨.
+        try {
+          const guides = await getGuides(projectId);
+          if (Array.isArray(guides) && guides.length > 0) {
+            const guideCards = guides.map((g, i) => ({
+              role: "assistant",
+              type: "guide",
+              _gid: `restored-${i}`,
+              guide: g.guide,
+              references: g.references || [],
+              guideTitle: axisLabel(g.guide?.primary_focus) || "한 끗",
+              guidePreview: null,
+              guideFeedback: null,
+            }));
+            setMessages((prev) => [...prev, ...guideCards]);
+          }
+        } catch {
+          /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
+        }
 
         const lastWithReferences = [...restored]
           .reverse()
@@ -721,6 +788,23 @@ const ChatPage = () => {
             expanded={mode === "refFull"}
             firstMenuRef={firstRefMenuRef}
           />
+          {/* 가이드 — 떠 있는 모달이 아니라 좌측 패널을 덮어서 표시(분할/전체화면) */}
+          {guideOpen && (
+            <div className={styles.guideInlineWrap}>
+              <GuideContent
+                result={guideResult}
+                loading={guideLoading}
+                error={guideError}
+                drawingPreviewUrl={guidePreview}
+                onClose={closeGuide}
+                onRetry={retryGuide}
+                onToggleFull={() =>
+                  setMode((cur) => (cur === "refFull" ? "split" : "refFull"))
+                }
+                isFull={mode === "refFull"}
+              />
+            </div>
+          )}
         </aside>
 
         {/* 우측: 채팅 */}
@@ -779,7 +863,98 @@ const ChatPage = () => {
                     </p>
                   </div>
                 ) : (
-                  messages.map((m, idx) => (
+                  messages.map((m, idx) => {
+                    // 가이드 로딩 placeholder
+                    if (m.type === "guideLoading") {
+                      return (
+                        <div key={idx} className={styles.assistantMessage}>
+                          <div className={styles.assistantBubble}>
+                            <img className={styles.assistantLogo} src={logo} alt="" />
+                            한 끗 가이드를 만들고 있어요…
+                          </div>
+                        </div>
+                      );
+                    }
+                    // 가이드 실패 + 인라인 재시도
+                    if (m.type === "guideError") {
+                      return (
+                        <div key={idx} className={styles.assistantMessage}>
+                          <div className={styles.assistantBubble}>
+                            <img className={styles.assistantLogo} src={logo} alt="" />
+                            <div>
+                              {m.error}
+                              <button
+                                type="button"
+                                className={styles.followUpBtn}
+                                style={{ marginTop: 8 }}
+                                onClick={retryGuide}
+                              >
+                                다시 시도
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    // 가이드 카드(채팅 반영) — 클릭 시 전체 보기, 아래 좋아요/싫어요/PDF
+                    if (m.type === "guide") {
+                      return (
+                        <div key={idx} className={styles.assistantMessage}>
+                          <button
+                            type="button"
+                            className={styles.guideCard}
+                            onClick={() => openGuideFromCard(m)}
+                          >
+                            <span className={styles.guideCardThumb}>
+                              <ImgPlaceholderIcon />
+                            </span>
+                            <span className={styles.guideCardBody}>
+                              <span className={styles.guideCardTitle}>
+                                {m.guideTitle}
+                              </span>
+                              <span className={styles.guideCardSub}>
+                                한 끗 가이드 보기
+                              </span>
+                            </span>
+                            <ChevronRightIcon />
+                          </button>
+                          <div className={styles.guideActions}>
+                            <button
+                              type="button"
+                              className={styles.guideActBtn}
+                              data-active={m.guideFeedback === "up"}
+                              aria-label="좋아요"
+                              onClick={() => setGuideCardFeedback(m._gid, "up")}
+                            >
+                              <ThumbUpIcon />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.guideActBtn}
+                              data-active={m.guideFeedback === "down"}
+                              aria-label="싫어요"
+                              onClick={() => setGuideCardFeedback(m._gid, "down")}
+                            >
+                              <ThumbDownIcon />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.guideActBtn}
+                              aria-label="PDF 다운로드"
+                              onClick={() =>
+                                downloadGuidePdf(
+                                  { guide: m.guide, references: m.references },
+                                  m.guidePreview,
+                                )
+                              }
+                            >
+                              <DownloadIcon />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
                     <div
                       key={idx}
                       className={
@@ -845,7 +1020,8 @@ const ChatPage = () => {
                         </div>
                       )}
                     </div>
-                  ))
+                    );
+                  })
                 )}
                 {sending && !messages.some((m) => m._generating) && (
                   <div className={styles.assistantBubble}>
@@ -1003,16 +1179,6 @@ const ChatPage = () => {
           submitting={guideLoading}
         />
       )}
-      {guideOpen && (
-        <GuideModal
-          result={guideResult}
-          loading={guideLoading}
-          error={guideError}
-          drawingPreviewUrl={guidePreview}
-          onClose={closeGuide}
-          onRetry={retryGuide}
-        />
-      )}
     </div>
   );
 };
@@ -1120,6 +1286,39 @@ const CloseIcon = () => (
       d="M1.4 14L0 12.6L5.6 7L0 1.4L1.4 0L7 5.6L12.6 0L14 1.4L8.4 7L14 12.6L12.6 14L7 8.4L1.4 14Z"
       fill="currentColor"
     />
+  </svg>
+);
+
+/* ===== 가이드 카드 아이콘 ===== */
+const ImgPlaceholderIcon = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="M21 15l-5-5L5 21" />
+  </svg>
+);
+const ChevronRightIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+);
+const ThumbUpIcon = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 10v11" />
+    <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
+  </svg>
+);
+const ThumbDownIcon = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 14V3" />
+    <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
+  </svg>
+);
+const DownloadIcon = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M12 15V3" />
   </svg>
 );
 
