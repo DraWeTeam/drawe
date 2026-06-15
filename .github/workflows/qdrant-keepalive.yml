@@ -6,4 +6,5 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - run: curl -fsS -H "api-key: ${{ secrets.QDRANT_API_KEY }}" "${{ secrets.QDRANT_URL }}/collections"
+      - run: |
+          curl -fsS -H "api-key: ${{ secrets.QDRANT_API_KEY }}" "${{ secrets.QDRANT_URL }}/collections"
