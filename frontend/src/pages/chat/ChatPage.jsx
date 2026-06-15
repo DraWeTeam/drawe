@@ -15,11 +15,14 @@ import {
   getLatestSession,
   getPins,
   removePin,
+  requestGuide,
   resetSession,
   sendMessage,
 } from "./api";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
+import GuideForm from "./GuideForm";
+import GuideModal from "./GuideModal";
 import AuthedImage from "./AuthedImage";
 import TutorialCoachmark from "./TutorialCoachmark";
 import styles from "./ChatPage.module.css";
@@ -58,6 +61,15 @@ const ChatPage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [attachment, setAttachment] = useState(null);
 
+  // 한 끗 가이드(이미지 가이딩) — 입력 폼 + 결과 모달
+  const [guideFormOpen, setGuideFormOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideLoading, setGuideLoading] = useState(false);
+  const [guideResult, setGuideResult] = useState(null);
+  const [guideError, setGuideError] = useState("");
+  const [guidePreview, setGuidePreview] = useState(null);
+  const lastGuideArgs = useRef(null);
+
   const [references, setReferences] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
 
@@ -86,6 +98,42 @@ const ChatPage = () => {
   const dismissReactionTutorial = () => {
     localStorage.removeItem("drawe_show_reaction_tutorial");
     setShowReactionTutorial(false);
+  };
+
+  // 한 끗 가이드: 입력 폼 제출 → 결과 모달(로딩) → requestGuide
+  const handleGuideSubmit = async ({ file, previewUrl, message, intent, track }) => {
+    lastGuideArgs.current = { file, previewUrl, message, intent, track };
+    setGuideFormOpen(false);
+    setGuidePreview(previewUrl || null);
+    setGuideError("");
+    setGuideResult(null);
+    setGuideLoading(true);
+    setGuideOpen(true);
+    try {
+      const result = await requestGuide(projectId, file, {
+        message,
+        intent,
+        track,
+      });
+      setGuideResult(result);
+    } catch (err) {
+      setGuideError(
+        err.response?.data?.error?.message ||
+          "가이드를 만들지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
+    } finally {
+      setGuideLoading(false);
+    }
+  };
+
+  const retryGuide = () => {
+    if (lastGuideArgs.current) handleGuideSubmit(lastGuideArgs.current);
+  };
+
+  const closeGuide = () => {
+    setGuideOpen(false);
+    setGuideResult(null);
+    setGuideError("");
   };
 
   const listRef = useRef(null);
@@ -858,10 +906,7 @@ const ChatPage = () => {
               <div className={styles.inputRow}>
                 <span ref={attachAnchorRef} className={styles.attachAnchor}>
                   <AttachmentPicker
-                    attachment={attachment}
-                    onAttach={setAttachment}
-                    onClear={() => setAttachment(null)}
-                    onError={setErrorMessage}
+                    onClick={() => setGuideFormOpen(true)}
                     disabled={sending}
                   />
                 </span>
@@ -949,6 +994,24 @@ const ChatPage = () => {
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {guideFormOpen && (
+        <GuideForm
+          onSubmit={handleGuideSubmit}
+          onClose={() => setGuideFormOpen(false)}
+          submitting={guideLoading}
+        />
+      )}
+      {guideOpen && (
+        <GuideModal
+          result={guideResult}
+          loading={guideLoading}
+          error={guideError}
+          drawingPreviewUrl={guidePreview}
+          onClose={closeGuide}
+          onRetry={retryGuide}
+        />
       )}
     </div>
   );

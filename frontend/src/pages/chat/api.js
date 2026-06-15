@@ -55,3 +55,28 @@ export const getPins = async (projectId) => {
   const res = await api.get(`/projects/${projectId}/pins`);
   return res.data.data;
 };
+
+/**
+ * 한 끗 가이드(이미지 가이딩). 클립 업로드 이미지를 fastapi guide 서비스로 보내 코칭을 받는다.
+ * 멀티파트: file(필수) + message/intent/track/medium(선택). 멱등은 Idempotency-Key 헤더.
+ * 반환: GuideResult { guide: GuideResponse, references: [{ ordinal, refId, url }] }
+ */
+export const requestGuide = async (
+  projectId,
+  file,
+  { message, intent, track, medium, requestId } = {},
+) => {
+  const form = new FormData();
+  form.append("file", file);
+  if (message) form.append("message", message);
+  if (intent) form.append("intent", intent);
+  if (track) form.append("track", track);
+  if (medium) form.append("medium", medium);
+
+  // Content-Type 은 axios 가 FormData 경계와 함께 자동 설정(직접 지정 금지).
+  const headers = {
+    "Idempotency-Key": requestId || crypto.randomUUID(),
+  };
+  const res = await api.post(`/projects/${projectId}/guide`, form, { headers });
+  return res.data.data;
+};
