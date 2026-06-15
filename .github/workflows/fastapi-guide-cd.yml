@@ -123,8 +123,13 @@ jobs:
 
       - name: Wait for deployment to stabilize
         run: |
-          aws ecs wait services-stable \
+          # aws ecs wait services-stable 는 10분(40x15s) 고정 한계.
+          # 큰 이미지 pull·롤링으로 12분+ 걸릴 수 있어, 1차 타임아웃 시 한 번 더 대기(최대 ~20분).
+          ecs_wait() {
+            aws ecs wait services-stable \
               --cluster drawe-${{ env.ENV_NAME }}-cluster \
               --services drawe-${{ env.ENV_NAME }}-fastapi-guide \
-              --region $AWS_REGION
+              --region "$AWS_REGION"
+          }
+          ecs_wait || ecs_wait
           echo "✅ Deployment stable. New revision: ${{ steps.register-td.outputs.td_arn }}"
