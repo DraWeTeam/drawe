@@ -1,6 +1,8 @@
 package com.drawe.backend.domain.guide.controller;
 
+import com.drawe.backend.domain.guide.dto.GuideFeedbackRequest;
 import com.drawe.backend.domain.guide.dto.GuideResult;
+import com.drawe.backend.domain.guide.dto.ReferenceFeedbackRequest;
 import com.drawe.backend.domain.guide.service.GuideService;
 import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
@@ -11,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -50,5 +53,34 @@ public class GuideController {
     return ApiResponse.success(
         guideService.guide(
             principal.getUser(), projectId, file, message, intent, track, medium, idempotencyKey));
+  }
+
+  /**
+   * 가이드 내 레퍼런스 묶음 피드백(👍/👎). 그 가이드가 보여준 레퍼런스(최대 3컷)에 liked/disliked 를 기록한다.
+   * body: {@code {"event": "liked" | "disliked"}}.
+   */
+  @PostMapping("/{guideId}/references/feedback")
+  public ApiResponse<Void> referenceFeedback(
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @PathVariable Long projectId,
+      @PathVariable String guideId,
+      @RequestBody ReferenceFeedbackRequest request) {
+    guideService.adoptReferences(
+        principal.getUser(), projectId, guideId, request.event(), request.referenceIds());
+    return ApiResponse.success();
+  }
+
+  /**
+   * 가이드 전체 피드백(👍/👎). adoption_log 와 분리된 guide_feedback 에 사용자별 1행으로 수집한다.
+   * body: {@code {"feedback": "like" | "dislike" | null}}. null/빈 값은 토글 해제(삭제).
+   */
+  @PostMapping("/{guideId}/feedback")
+  public ApiResponse<Void> guideFeedback(
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @PathVariable Long projectId,
+      @PathVariable String guideId,
+      @RequestBody GuideFeedbackRequest request) {
+    guideService.setGuideFeedback(principal.getUser(), projectId, guideId, request.feedback());
+    return ApiResponse.success();
   }
 }

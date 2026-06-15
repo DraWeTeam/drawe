@@ -2,6 +2,7 @@ package com.drawe.backend.global.client;
 
 import com.drawe.backend.global.client.dto.GuideResponse;
 import java.time.Duration;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -87,6 +88,28 @@ public class GuideClient {
     } catch (Exception e) {
       log.error("FastAPI guide 호출 실패: bytes={}, error={}", imageBytes.length, e.getMessage());
       throw new RuntimeException("가이드 생성 실패: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * 레퍼런스 피드백(liked/disliked 등)을 guide 서비스 {@code POST /adopt} 로 전달 → adoption_log 적재.
+   *
+   * <p>persona/source_type 은 guide 서비스가 reference_images·직전 'shown' 행에서 보강하므로 보내지 않는다.
+   * 피드백 적재 실패는 사용자 흐름에 치명적이지 않으므로 예외를 삼키고 로그만 남긴다(best-effort).
+   */
+  public void adopt(String guideId, String referenceId, String event) {
+    try {
+      webClient
+          .post()
+          .uri("/adopt")
+          .contentType(MediaType.APPLICATION_JSON)
+          .bodyValue(Map.of("guide_id", guideId, "reference_id", referenceId, "event", event))
+          .retrieve()
+          .toBodilessEntity()
+          .timeout(Duration.ofSeconds(5))
+          .block();
+    } catch (Exception e) {
+      log.warn("guide /adopt 실패(무시): ref={}, event={}, error={}", referenceId, event, e.getMessage());
     }
   }
 }

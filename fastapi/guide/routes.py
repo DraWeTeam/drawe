@@ -276,8 +276,10 @@ def search_ep(request: Request, query: str = Form(...), persona: str = Form(None
 class AdoptEvent(BaseModel):
     guide_id: str
     reference_id: str
-    persona: str
-    source_type: str
+    # persona/source_type 는 노출(_log_impressions) 시점엔 채워지지만, 외부 호출자(Spring 등)가
+    # liked/disliked 만 보낼 때는 모를 수 있다 → 옵셔널. 비면 adopt() 가 서버에서 보강한다.
+    persona: str | None = None
+    source_type: str | None = None
     event: str
 
 _adopt_schema_ready = False
@@ -301,9 +303,24 @@ def adopt(e: AdoptEvent):
     if clean_event(e.event) is None:          # 화이트리스트 밖 이벤트 차단(랭커 오염 방지)
         raise HTTPException(status_code=400, detail="invalid event")
     with engine.begin() as cx:
+        persona, source_type = e.persona, e.source_type
+        # 호출자가 안 준 경우 서버가 보강: source_type=reference_images, persona=직전 'shown' 행.
+        # (liked/disliked 행도 persona 를 갖게 되어 persona별 선호 분석이 가능)
+        if source_type is None:
+            r = cx.execute(text("SELECT source_type FROM reference_images WHERE ref_id=:r"),
+                           {"r": e.reference_id}).fetchone()
+            source_type = r[0] if r else "unknown"
+        if persona is None:
+            r = cx.execute(text("SELECT persona FROM adoption_log "
+                                "WHERE guide_id=:g AND reference_id=:r AND event='shown' "
+                                "ORDER BY id DESC LIMIT 1"),
+                           {"g": e.guide_id, "r": e.reference_id}).fetchone()
+            persona = r[0] if r else None
         cx.execute(text("""INSERT INTO adoption_log
           (guide_id,reference_id,persona,source_type,event)
-          VALUES (:guide_id,:reference_id,:persona,:source_type,:event)"""), e.model_dump())
+          VALUES (:guide_id,:reference_id,:persona,:source_type,:event)"""),
+          {"guide_id": e.guide_id, "reference_id": e.reference_id,
+           "persona": persona, "source_type": source_type, "event": e.event})
     return {"ok": True}
 
 
