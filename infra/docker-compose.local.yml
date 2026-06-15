@@ -24,6 +24,9 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-drawe_pass}
     volumes:
       - mysql-data:/var/lib/mysql
+      # 가이드 서비스용 artref DB + 스키마 자동 적용(최초 1회). 반영하려면 down -v 후 up.
+      - ./local-init/00-init-artref.sh:/docker-entrypoint-initdb.d/00-init-artref.sh:ro
+      - ./local-init/artref-schema.sql:/schema/artref-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
@@ -67,6 +70,8 @@ services:
       LOG_LEVEL_SQL: debug
       APP_CORS_ALLOWED_ORIGINS: http://localhost:5173
       FASTAPI_URL: http://fastapi:8000          # ← 앱은 fastapi.url=${FASTAPI_URL} 을 읽음 (BASE_URL 아님)
+      FASTAPI_GUIDE_URL: http://guide:8000      # ← backend→guide 서버간 통신(컨테이너명:내부포트)
+      FASTAPI_GUIDE_PUBLIC_URL: http://localhost:8001  # ← 브라우저가 레퍼런스 이미지 여는 주소(호스트)
       GROK_API_KEY: ${GROK_API_KEY:-}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -97,6 +102,40 @@ services:
       PORT: 8000
       WORKERS: 1
       PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+    networks:
+      - drawe-net
+
+  # 한 끗 가이드(이미지 가이딩) 서비스 — backend 가 FASTAPI_GUIDE_URL 로 호출. 내부 8000 → 호스트 8001.
+  guide:
+    build:
+      context: ../fastapi
+      dockerfile: Dockerfile.guide
+    container_name: drawe-guide
+    ports:
+      - "${GUIDE_PORT:-8001}:8000"
+    environment:
+      # artref DB(스키마는 mysql init 으로 적용). 로컬은 root 접속.
+      DB_DSN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-rootpass}@mysql:3306/drawe_guide
+      # 레퍼런스 벡터검색 — Qdrant Cloud(dev,768-dim) 또는 로컬 qdrant 를 .env 로 주입.
+      #   EMBEDDING_MODEL 은 그 컬렉션 차원과 반드시 일치(Cloud dev=ViT-L-14/768).
+      VECTOR_BACKEND: qdrant
+      QDRANT_URL: ${QDRANT_URL:-}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-reference_images_dev}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-open_clip:ViT-L-14:openai}
+      LLM_PROVIDER: grok
+      XAI_API_KEY: ${GROK_API_KEY:-}
+      # 레퍼런스 이미지(S3/MinIO). 비우면 썸네일 없이 코칭만 동작.
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_KEY: ${S3_KEY:-}
+      S3_SECRET: ${S3_SECRET:-}
+      S3_BUCKET: ${S3_BUCKET:-artref}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:8001}
+      HAND_VLM: "0"
+      CORS_ORIGINS: http://localhost:5173
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - drawe-net
 
