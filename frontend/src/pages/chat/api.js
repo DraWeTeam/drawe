@@ -86,3 +86,27 @@ export const getGuides = async (projectId) => {
   const res = await api.get(`/projects/${projectId}/guide`);
   return res.data.data;
 };
+
+/**
+ * 가이드 내 레퍼런스 묶음 피드백(👍 liked / 👎 disliked).
+ * 그 가이드가 보여준 레퍼런스(최대 3컷)에 이벤트가 기록된다. best-effort.
+ */
+export const sendReferenceFeedback = async (
+  projectId,
+  guideId,
+  event,
+  referenceIds,
+) => {
+  await api.post(`/projects/${projectId}/guide/${guideId}/references/feedback`, {
+    event,
+    referenceIds,
+  });
+};
+
+/**
+ * 가이드 전체 피드백(👍 like / 👎 dislike / 해제 null).
+ * 사용자별 1행으로 수집되며, null 이면 토글 해제(삭제). best-effort.
+ */
+export const sendGuideFeedback = async (projectId, guideId, feedback) => {
+  await api.post(`/projects/${projectId}/guide/${guideId}/feedback`, { feedback });
+};

@@ -311,6 +311,16 @@
   color: #5a554e;
   border-color: #e0d9d0;
 }
+.fbBtnActive,
+.fbBtnActive:hover {
+  color: #ff8534;
+  background: #fff3e9;
+  border-color: #f6e3c8;
+}
+.fbBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 
 /* ── 함께 보면 좋은 것(보조 블록) ── */
 .extraLine {

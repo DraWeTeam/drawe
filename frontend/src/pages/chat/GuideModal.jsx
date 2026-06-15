@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import AuthedImage from "./AuthedImage";
 import styles from "./GuideModal.module.css";
 
 // 축 id → 사용자 노출 한글 라벨. 시안 표기에 맞춤(명암 대비/무게중심/구도·균형 등).
@@ -104,25 +105,52 @@ const RefCard = ({ reference }) => {
   );
 };
 
-// 레퍼런스 묶음 피드백(이미지4의 👍 👎 🔄). onFeedback 없으면 동작 비활성(콘솔) — 백엔드 연결은 후속.
-const RefFeedback = ({ onFeedback }) => {
-  const fire = (kind) =>
-    onFeedback ? onFeedback(kind) : console.debug("[guide] ref feedback:", kind);
+// 레퍼런스 묶음 피드백 — 👍👎 시각 토글(주황) + 🔄 새로고침.
+//   👍/👎: 선택 시 onFeedback(kind, refIds) 로 백엔드 전송(adoption_log). 같은 버튼 재클릭=해제(전송 안 함).
+//   refIds 가 바뀌면(🔄 로 묶음 변경) 선택을 초기화한다.
+const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
+  const [sel, setSel] = useState(null);
+  const refKey = (refIds || []).join(",");
+  useEffect(() => setSel(null), [refKey]);
+
+  const choose = (kind) => {
+    const next = sel === kind ? null : kind; // 토글
+    setSel(next);
+    if (next && onFeedback) onFeedback(kind, refIds || []); // 선택 시에만 전송(해제는 로컬)
+  };
   return (
     <div className={styles.refFeedback}>
-      <button type="button" className={styles.fbBtn} aria-label="도움이 됐어요" onClick={() => fire("up")}>
+      <button
+        type="button"
+        className={`${styles.fbBtn} ${sel === "up" ? styles.fbBtnActive : ""}`}
+        aria-label="도움이 됐어요"
+        aria-pressed={sel === "up"}
+        onClick={() => choose("up")}
+      >
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M7 10v11" />
           <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
         </svg>
       </button>
-      <button type="button" className={styles.fbBtn} aria-label="별로예요" onClick={() => fire("down")}>
+      <button
+        type="button"
+        className={`${styles.fbBtn} ${sel === "down" ? styles.fbBtnActive : ""}`}
+        aria-label="별로예요"
+        aria-pressed={sel === "down"}
+        onClick={() => choose("down")}
+      >
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 14V3" />
           <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
         </svg>
       </button>
-      <button type="button" className={styles.fbBtn} aria-label="다른 레퍼런스 보기" onClick={() => fire("refresh")}>
+      <button
+        type="button"
+        className={styles.fbBtn}
+        aria-label="다른 레퍼런스 보기"
+        disabled={!canRefresh}
+        onClick={() => onRefresh && onRefresh()}
+      >
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 12a9 9 0 1 1-2.6-6.4" />
           <path d="M21 3v5h-5" />
@@ -232,9 +260,51 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
   const hasPractice = !!next?.focus_practice;
   // 이력 내레이션은 '한 번만' 상단에(중복 제거). note 없으면 synthesis 폴백.
   const intro = next?.note || guide.synthesis || "";
-  const primaryRefs = primary
-    ? (references || []).filter((r) => (primary.reference_ids || []).includes(r.refId))
-    : [];
+  // 레퍼런스 풀(🔄 새로고침용): 표시 중인 top-3(references, URL 보유) + 페이로드 전체 블록의 나머지 ref.
+  //   URL 은 references[0].url 에서 base 를 떼어 합성 → GUIDE_BASE env 불일치와 무관하게 일관.
+  const refBase = (() => {
+    const u = (references || [])[0]?.url || "";
+    const i = u.lastIndexOf("/image/");
+    return i >= 0 ? u.slice(0, i) : "";
+  })();
+  const urlFor = (refId) => {
+    const hit = (references || []).find((r) => r.refId === refId);
+    return hit ? hit.url : `${refBase}/image/${refId}`;
+  };
+  const refPool = (() => {
+    const seen = new Set();
+    const pool = [];
+    for (const r of references || []) {
+      if (r.refId && !seen.has(r.refId)) {
+        seen.add(r.refId);
+        pool.push(r.refId);
+      }
+    }
+    // URL base 를 못 구하면(references 비었음) 블록 ref 는 띄울 수 없으니 제외.
+    if (refBase) {
+      for (const b of blocks) {
+        for (const rid of b.reference_ids || []) {
+          if (rid && !seen.has(rid)) {
+            seen.add(rid);
+            pool.push(rid);
+          }
+        }
+      }
+    }
+    return pool;
+  })();
+  const [refOffset, setRefOffset] = useState(0);
+  const poolKey = refPool.join(",");
+  useEffect(() => setRefOffset(0), [poolKey]); // 가이드(풀)가 바뀌면 처음으로
+  const displayedRefs =
+    refPool.length === 0
+      ? []
+      : Array.from({ length: Math.min(3, refPool.length) }, (_, i) => {
+          const refId = refPool[(refOffset + i) % refPool.length];
+          return { ordinal: i + 1, refId, url: urlFor(refId) };
+        });
+  const canRefresh = refPool.length > 3;
+  const cycleRefs = () => setRefOffset((o) => (o + 3) % refPool.length);
   // 번호: 있는 섹션만 1,2,3… 연속 부여(빈 섹션은 번호 건너뜀).
   let num = 0;
   const goalShown = next && (next.next_goal_practice || next.next_goal);
@@ -243,7 +313,7 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
     <>
       {/* 반복 레이아웃에서만 상단 이미지/인트로(최초 레이아웃은 '1.분석' 안으로 들어감) */}
       {hasPractice && drawingPreviewUrl && (
-        <img className={styles.userImg} src={drawingPreviewUrl} alt="첨부한 그림" />
+        <AuthedImage className={styles.userImg} src={drawingPreviewUrl} alt="첨부한 그림" />
       )}
 
       {hasPractice && intro && <p className={styles.intro}>{intro}</p>}
@@ -261,7 +331,7 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
           <SectionTitle num={++num}>분석</SectionTitle>
           <div className={styles.analysisBox}>
             {drawingPreviewUrl && (
-              <img className={styles.analysisImg} src={drawingPreviewUrl} alt="첨부한 그림" />
+              <AuthedImage className={styles.analysisImg} src={drawingPreviewUrl} alt="첨부한 그림" />
             )}
             <p className={styles.bodyText}>{primary.observation}</p>
           </div>
@@ -301,16 +371,21 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
         </section>
       )}
 
-      {/* 3. 추천 레퍼런스 (+ 피드백) */}
-      {primaryRefs.length > 0 && (
+      {/* 3. 추천 레퍼런스 (+ 피드백·새로고침) */}
+      {displayedRefs.length > 0 && (
         <section className={styles.section}>
           <SectionTitle num={++num}>추천 레퍼런스</SectionTitle>
           <div className={styles.refGrid}>
-            {primaryRefs.map((r) => (
+            {displayedRefs.map((r) => (
               <RefCard key={r.refId} reference={r} />
             ))}
           </div>
-          <RefFeedback onFeedback={onRefFeedback} />
+          <RefFeedback
+            refIds={displayedRefs.map((r) => r.refId)}
+            canRefresh={canRefresh}
+            onFeedback={onRefFeedback}
+            onRefresh={cycleRefs}
+          />
         </section>
       )}
 

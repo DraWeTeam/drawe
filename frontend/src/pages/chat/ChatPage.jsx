@@ -19,6 +19,8 @@ import {
   requestGuide,
   resetSession,
   sendMessage,
+  sendGuideFeedback,
+  sendReferenceFeedback,
 } from "./api";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
@@ -129,7 +131,7 @@ const ChatPage = () => {
                 guide: result?.guide,
                 references: result?.references || [],
                 guideTitle: axisLabel(result?.guide?.primary_focus) || "한 끗",
-                guidePreview: previewUrl || null,
+                guidePreview: result?.uploadUrl || previewUrl || null,
                 guideFeedback: null,
               }
             : m,
@@ -164,15 +166,42 @@ const ChatPage = () => {
     setMode((cur) => (cur === "chatFull" ? "split" : cur)); // 좌측 패널 보이게
   };
 
-  // 채팅 가이드 카드의 좋아요/싫어요(로컬 토글). 백엔드 연결은 후속.
-  const setGuideCardFeedback = (gidVal, kind) =>
+  // 가이드 내 레퍼런스 묶음 피드백(👍 up / 👎 down / 🔄 refresh).
+  //   up→liked, down→disliked 를 백엔드로 전송 → 현재 가이드가 보여준 레퍼런스(최대 3컷)에 기록.
+  //   🔄(다른 레퍼런스 보기)는 별도 기능 — 후속.
+  const handleRefFeedback = async (kind, refIds) => {
+    const gid = guideResult?.guide?.guide_id;
+    if (!gid || (kind !== "up" && kind !== "down")) return;
+    try {
+      await sendReferenceFeedback(
+        projectId,
+        gid,
+        kind === "up" ? "liked" : "disliked",
+        refIds || [],
+      );
+    } catch {
+      // 피드백 실패는 사용자 흐름에 치명적이지 않음 — 조용히 무시.
+    }
+  };
+
+  // 채팅 가이드 카드의 좋아요/싫어요. 로컬 토글 + 백엔드(guide_feedback) 반영.
+  //   up→like, down→dislike, 같은 버튼 재클릭(해제)→null(행 삭제). 전송 실패는 조용히 무시(best-effort).
+  const setGuideCardFeedback = (gidVal, kind) => {
+    const msg = messages.find((m) => m._gid === gidVal && m.type === "guide");
+    const nextKind = msg && msg.guideFeedback === kind ? null : kind; // 토글
     setMessages((prev) =>
       prev.map((m) =>
         m._gid === gidVal && m.type === "guide"
-          ? { ...m, guideFeedback: m.guideFeedback === kind ? null : kind }
+          ? { ...m, guideFeedback: nextKind }
           : m,
       ),
     );
+    const guideId = msg?.guide?.guide_id;
+    if (guideId) {
+      const fb = nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
+      sendGuideFeedback(projectId, guideId, fb).catch(() => {});
+    }
+  };
 
   const closeGuide = () => {
     setGuideOpen(false);
@@ -251,14 +280,15 @@ const ChatPage = () => {
           content: m.content,
           references: m.references,
           imageUrl: m.imageUrl ?? null,
+          createdAt: m.createdAt ?? null,
           // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
           // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
           isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
         }));
         setMessages(restored);
 
-        // 영속된 가이드 복원 — 채팅 히스토리엔 가이드 카드가 없으므로 별도로 불러와 뒤에 이어 붙인다.
-        //   getGuides 는 오래된→최신 순. 저장본엔 업로드 미리보기 URL이 없어 guidePreview=null.
+        // 영속된 가이드 복원 — 채팅 히스토리엔 가이드 카드가 없으므로 별도로 불러와 시간순으로 합친다.
+        //   getGuides 는 오래된→최신, 각 항목에 createdAt + uploadUrl(저장된 업로드 원본) 포함.
         //   주의: 가이드는 프로젝트 단위(세션 무관)라 같은 프로젝트의 가이드는 모두 표시됨.
         try {
           const guides = await getGuides(projectId);
@@ -270,10 +300,19 @@ const ChatPage = () => {
               guide: g.guide,
               references: g.references || [],
               guideTitle: axisLabel(g.guide?.primary_focus) || "한 끗",
-              guidePreview: null,
+              guidePreview: g.uploadUrl ?? null,
               guideFeedback: null,
+              createdAt: g.createdAt ?? null,
             }));
-            setMessages((prev) => [...prev, ...guideCards]);
+            // 채팅 메시지 + 가이드 카드를 createdAt 기준으로 시간순 정렬(가이드가 맨 밑에 깔리지 않도록).
+            //   타임스탬프 없는 항목은 0으로 취급(맨 앞). sort 는 안정 정렬이라 동시각 순서는 보존.
+            setMessages((prev) =>
+              [...prev, ...guideCards].sort(
+                (a, b) =>
+                  (a.createdAt ? Date.parse(a.createdAt) : 0) -
+                  (b.createdAt ? Date.parse(b.createdAt) : 0),
+              ),
+            );
           }
         } catch {
           /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
@@ -798,6 +837,7 @@ const ChatPage = () => {
                 drawingPreviewUrl={guidePreview}
                 onClose={closeGuide}
                 onRetry={retryGuide}
+                onRefFeedback={handleRefFeedback}
                 onToggleFull={() =>
                   setMode((cur) => (cur === "refFull" ? "split" : "refFull"))
                 }
