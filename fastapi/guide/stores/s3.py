@@ -1,3 +1,4 @@
+import os
 import boto3
 from botocore.config import Config
 from guide.config import settings
@@ -8,10 +9,11 @@ from guide.config import settings
 _HAS_KEYS = bool(settings.s3_key and settings.s3_secret)
 _ENDPOINT = settings.s3_endpoint or None
 _PUBLIC_ENDPOINT = settings.s3_public_endpoint or None
+_REGION = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "ap-northeast-2"
 
 
 def _client(endpoint, signed_path=False):
-    kw = {"endpoint_url": endpoint}
+    kw = {"endpoint_url": endpoint, "region_name": _REGION}
     if _HAS_KEYS:
         kw["aws_access_key_id"] = settings.s3_key
         kw["aws_secret_access_key"] = settings.s3_secret
