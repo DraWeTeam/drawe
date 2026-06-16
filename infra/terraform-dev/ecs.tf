@@ -467,6 +467,8 @@ resource "aws_ecs_service" "backend" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.backend_desired_count
+  deployment_minimum_healthy_percent = 0
+  deployment_maximum_percent         = 100
 
   enable_execute_command = true   # ECS Exec — debug 시 컨테이너 안으로 shell
 
