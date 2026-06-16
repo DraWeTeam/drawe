@@ -188,6 +188,12 @@ variable "frontend_url" {
   default     = "https://dev.drawe.pages.dev"
 }
 
+variable "cors_extra_origins" {
+  description = "추가 CORS 허용 오리진(리스트). APP_CORS_ALLOWED_ORIGINS 에 frontend_url 과 콤마로 합쳐진다. 예: develop 프리뷰 안정 별칭(CF 대시보드의 develop 배포에서 복사)."
+  type        = list(string)
+  default     = []
+}
+
 variable "domain_name" {
   description = <<-EOT
     ALB 에 붙일 도메인 (예: api-dev.drawe.xyz).

@@ -338,7 +338,7 @@ resource "aws_ecs_task_definition" "backend" {
         # 이미지 가이딩 전용 서비스(Service Connect). Spring GuideClient 가 ${fastapi.guide.url} 로 사용.
         { name = "FASTAPI_GUIDE_URL", value = "http://fastapi-guide.${local.name_prefix}.local:8000" },
         # 레퍼런스 이미지 브라우저 도달용 base. 현재 내부 주소(=서버 도달). 공개 노출은 후속(ALB 경로/프록시).
-        { name = "FASTAPI_GUIDE_PUBLIC_URL", value = "http://fastapi-guide.${local.name_prefix}.local:8000" },
+        { name = "FASTAPI_GUIDE_PUBLIC_URL", value = "https://${var.api_domain}" },
         { name = "OTEL_SERVICE_NAME", value = "backend" },
       ], local.otel_env, local.s3_env)  # ← S3 env (S3_BUCKET/S3_REGION[, SPRING_PROFILES_ACTIVE=s3]). 정의: s3-bria.tf
 
