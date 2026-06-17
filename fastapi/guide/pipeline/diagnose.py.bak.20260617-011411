@@ -701,8 +701,8 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     measurable = sorted(
         (eligible or set(ALL_AXES)) - (POSE_DEPENDENT if tier != POSE_OK else set())
     )
-    # 오버레이 생성은 라우트로 이동(모드 선택 후 overlay_axes 만 렌더). 여기선 좌표/메타만 노출.
-    #   spatial.keypoints 등은 서버 내부용 — 최종 클라 payload 에는 안 실린다(라우트가 SVG 만 실음).
+    # 그림 위 오버레이(SVG): 측정된 관측치에 좌표를 붙여 tier 입도로 렌더.
+    #   spatial 은 전부 이미 계산되는 값. 이론 vs 오버레이 모드선택은 이 패치 밖(다음 단계).
     _g = np.asarray(pil.convert("L"), float) / 255
     _spatial = {
         "keypoints": pose.get("keypoints") if tier == POSE_OK else None,
@@ -710,6 +710,8 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         "centroid": _subject_centroid(_g),
         "horizon_y": sig.get("horizon_y"),
     }
+    _anns = resolve_anchors(obs, _spatial, tier)
+    overlay_svg = build_overlay(pil.width, pil.height, _anns, tier) if _anns else None
     return {
         "primary_focus": obs[0]["sub_problem"] if obs else None,
         "observations": obs,
@@ -718,6 +720,5 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         "measurable": measurable,
         "instrument_version": instrument_version(),
         "pose_tier": tier,
-        "spatial": _spatial,
-        "image_size": (pil.width, pil.height),
+        "overlay": overlay_svg,
     }

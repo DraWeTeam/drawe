@@ -29,11 +29,6 @@ from guide.pipeline.profiles import resolve_profile
 from guide.pipeline import agent
 from guide.pipeline.asset_index import build_asset_index
 from guide.pipeline.search import search_text, is_miss
-from guide.pipeline.overlay import (
-    select_visual_mode,
-    resolve_anchors,
-    build_overlay,
-)
 from guide.pipeline.mapping import log_miss
 from guide.safety.moderation import screen_upload
 from guide.ml.upload_guard import UploadRejected
@@ -278,24 +273,6 @@ def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
     _log_observable(user_id, dx.get("measurable", ()), resp.guide_id)
 
 
-def _make_overlay(dx, growth):
-    """모드 선택(이론 vs 오버레이) 후 overlay_axes 만 그림 위에 렌더(라우트에서 생성).
-    반환: payload 에 합칠 {overlay(SVG|None), visual_mode{theory_axes, overlay_axes}}."""
-    mode = select_visual_mode(dx.get("observations", []), growth)
-    sel = set(mode["overlay_axes"])
-    obs = [o for o in dx.get("observations", []) if o.get("sub_problem") in sel]
-    tier = dx.get("pose_tier", "fail")
-    w, h = dx.get("image_size") or (0, 0)
-    overlay = None
-    if obs and w and h:
-        anns = resolve_anchors(obs, dx.get("spatial") or {}, tier)
-        overlay = build_overlay(w, h, anns, tier) if anns else None
-    return {
-        "overlay": overlay,
-        "visual_mode": {"theory_axes": mode["theory_axes"], "overlay_axes": mode["overlay_axes"]},
-    }
-
-
 @router.post("/guide")
 async def guide_ep(
     file: UploadFile,
@@ -350,7 +327,7 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
             growth_view(user_id, track=track, degraded=resp.degraded), note=_note
         )
     payload = finalize_guide_response(resp, growth_obj=growth_obj)
-    payload.update(_make_overlay(dx, growth))  # 모드 선택 → overlay_axes 만 렌더
+    payload["overlay"] = dx.get("overlay")  # 그림 위 오버레이 SVG(없으면 None)
     return payload
 
 
@@ -414,7 +391,7 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
 
     def gen():
         payload = finalize_guide_response(resp, growth_obj=growth_obj)
-        payload.update(_make_overlay(dx, growth))  # 모드 선택 → 스트림 payload
+        payload["overlay"] = dx.get("overlay")  # 그림 위 오버레이 SVG — 스트림 payload
         # 점진 렌더용: 블록을 하나씩 흘린 뒤, 마지막에 전체 응답(메타·next_steps 포함)을 보낸다.
         for b in payload.get("blocks", []):
             yield f"data: {json.dumps({'type': 'block', 'block': b}, ensure_ascii=False)}\n\n"

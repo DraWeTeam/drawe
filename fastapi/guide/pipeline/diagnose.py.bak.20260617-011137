@@ -3,7 +3,6 @@ import yaml
 import numpy as np
 from functools import lru_cache
 from guide.pipeline.profiles import POSE_DEPENDENT, ALL_AXES
-from guide.pipeline.overlay import resolve_anchors, build_overlay
 
 # 파일 위치 기준 → repo 루트/CWD 어디서 실행해도 동작(eval 포함). 환경변수로 override 가능.
 TAXONOMY_PATH = os.environ.get(
@@ -281,25 +280,6 @@ def _figure_bbox(pose, shape):
     mask = np.zeros((H, W), bool)
     mask[int(y0 * H) : int(y1 * H), int(x0 * W) : int(x1 * W)] = True
     return mask
-
-
-def _figure_bbox_coords(pose):
-    """오버레이 앵커용 인물 bbox 정규화 좌표(x0,y0,x1,y1) 또는 None.
-    _figure_bbox 의 좌표 계산과 동일(그쪽은 mask 반환) — 한쪽 바뀌면 같이 손볼 것."""
-    kp = pose.get("keypoints")
-    if not kp:
-        return None
-    pts = [(x, y) for (x, y, v) in kp if v >= VIS_KP and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0]
-    if len(pts) < 6:
-        return None
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
-    pad = 0.08
-    x0, x1 = max(0.0, min(xs) - pad), min(1.0, max(xs) + pad)
-    y0, y1 = max(0.0, min(ys) - pad), min(1.0, max(ys) + pad)
-    if (x1 - x0) < 0.10 or (y1 - y0) < 0.15 or (x1 - x0) * (y1 - y0) > 0.85:
-        return None
-    return (x0, y0, x1, y1)
 
 
 # ── 포즈 신뢰도(불확실성 처리) ──────────────────────────────────────────────────────────
@@ -701,15 +681,6 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     measurable = sorted(
         (eligible or set(ALL_AXES)) - (POSE_DEPENDENT if tier != POSE_OK else set())
     )
-    # 오버레이 생성은 라우트로 이동(모드 선택 후 overlay_axes 만 렌더). 여기선 좌표/메타만 노출.
-    #   spatial.keypoints 등은 서버 내부용 — 최종 클라 payload 에는 안 실린다(라우트가 SVG 만 실음).
-    _g = np.asarray(pil.convert("L"), float) / 255
-    _spatial = {
-        "keypoints": pose.get("keypoints") if tier == POSE_OK else None,
-        "bbox": _figure_bbox_coords(pose) if tier != POSE_FAIL else None,
-        "centroid": _subject_centroid(_g),
-        "horizon_y": sig.get("horizon_y"),
-    }
     return {
         "primary_focus": obs[0]["sub_problem"] if obs else None,
         "observations": obs,
@@ -717,7 +688,4 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         "persona": personas,
         "measurable": measurable,
         "instrument_version": instrument_version(),
-        "pose_tier": tier,
-        "spatial": _spatial,
-        "image_size": (pil.width, pil.height),
     }

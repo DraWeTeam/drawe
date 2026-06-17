@@ -3,7 +3,6 @@ import yaml
 import numpy as np
 from functools import lru_cache
 from guide.pipeline.profiles import POSE_DEPENDENT, ALL_AXES
-from guide.pipeline.overlay import resolve_anchors, build_overlay
 
 # 파일 위치 기준 → repo 루트/CWD 어디서 실행해도 동작(eval 포함). 환경변수로 override 가능.
 TAXONOMY_PATH = os.environ.get(
@@ -92,39 +91,16 @@ def _subject_value_range(g):
     return float(p95 - p5)
 
 
-def _subject_centroid(g):
-    """'그림 자국'의 무게중심(정규화 0..1). focus_centeredness 용.
-    배경 모델은 _subject_value_range 와 동일 — 밝은 종이 위 어두운 자국만 신뢰하고,
-    어두운/꽉 찬/거의 빈 화면이면 None(주장 보류). 기존 brightness 가중은 '종이' 무게중심을
-    재던 버그였다(흰 종이에서 방향 뒤집힘)."""
-    h, _ = np.histogram(g.ravel(), bins=32, range=(0.0, 1.0))
-    mode = int(h.argmax())
-    if h[mode] / g.size < 0.30:  # 지배적 배경 없음(피사체가 꽉 참) → 보류
-        return None
-    c = (mode + 0.5) / 32.0  # 배경(종이) 밝기 중심
-    if c < 0.60:  # 어두운 배경 → 보류(값 폭과 동일 정책)
-        return None
-    fw = np.clip(c - g, 0.0, None)  # 종이보다 어두운 만큼 = '자국 무게'
-    wsum = float(fw.sum())
-    if wsum < 1.0:  # 거의 빈 화면 → 무게중심 무의미
-        return None
-    ys, xs = np.mgrid[0 : g.shape[0], 0 : g.shape[1]]
-    cx = float((xs * fw).sum() / wsum / g.shape[1])
-    cy = float((ys * fw).sum() / wsum / g.shape[0])
-    return cx, cy
-
-
 def image_signals(pil):
     g = np.asarray(pil.convert("L"), float) / 255
-    out = {
+    ys, xs = np.mgrid[0 : g.shape[0], 0 : g.shape[1]]
+    w = g.sum() + 1e-9
+    cx, cy = (xs * g).sum() / w / g.shape[1], (ys * g).sum() / w / g.shape[0]
+    return {
         "value_std": float(g.std()),
         "value_range_robust": _subject_value_range(g),  # 배경-강건(degraded 폴백용)
+        "focus_centeredness": float(1 - 2 * max(abs(cx - 0.5), abs(cy - 0.5))),
     }
-    ctr = _subject_centroid(g)  # 잉크 무게중심(밝은 종이에서만) — brightness 가중 버그 수정
-    if ctr is not None:
-        cx, cy = ctr
-        out["focus_centeredness"] = float(1 - 2 * max(abs(cx - 0.5), abs(cy - 0.5)))
-    return out
 
 
 # ── 색/빛/손 신호(Phase: 자동 측정 3종 연결) ──────────────────────────────────────────────
@@ -283,25 +259,6 @@ def _figure_bbox(pose, shape):
     return mask
 
 
-def _figure_bbox_coords(pose):
-    """오버레이 앵커용 인물 bbox 정규화 좌표(x0,y0,x1,y1) 또는 None.
-    _figure_bbox 의 좌표 계산과 동일(그쪽은 mask 반환) — 한쪽 바뀌면 같이 손볼 것."""
-    kp = pose.get("keypoints")
-    if not kp:
-        return None
-    pts = [(x, y) for (x, y, v) in kp if v >= VIS_KP and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0]
-    if len(pts) < 6:
-        return None
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
-    pad = 0.08
-    x0, x1 = max(0.0, min(xs) - pad), min(1.0, max(xs) + pad)
-    y0, y1 = max(0.0, min(ys) - pad), min(1.0, max(ys) + pad)
-    if (x1 - x0) < 0.10 or (y1 - y0) < 0.15 or (x1 - x0) * (y1 - y0) > 0.85:
-        return None
-    return (x0, y0, x1, y1)
-
-
 # ── 포즈 신뢰도(불확실성 처리) ──────────────────────────────────────────────────────────
 # extract()는 이미 status(ok/low_confidence/skipped)를 주는데 진단부가 'ok 아니면 전부 degraded'로
 # 뭉갰다. 여기서 (a) 중간 상태(low_confidence)를 LOW 로 살리고, (b) status=ok 이라도 기하가 퇴화면
@@ -342,7 +299,7 @@ def pose_reliability(pose):
 # SUBJECT_MASK 처럼 '측정 가능 영역'을 바꾸는 변경은 정확도 개선이 아니라 *계측 장치 변경*이다.
 # 그러면 학생의 "명도 폭이 늘었다"가 실력 변화인지 계측 변화인지 섞인다. practice_log 행에 이 버전을
 # 박아, 성장 비교가 변경 경계를 넘지 않게 한다(읽는 쪽은 추후 버전 경계에서 비교를 끊으면 됨).
-INSTRUMENT_VERSION = "dx-2026.08"  # 포즈 3-tier(ok/low/fail) 도입 — 계측 장치 변경, 성장 비교 경계 끊음
+INSTRUMENT_VERSION = "dx-2026.07"  # 포즈 3-tier(ok/low/fail) 도입 — 계측 장치 변경, 성장 비교 경계 끊음
 
 
 def _subject_mask_on():
@@ -701,15 +658,6 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     measurable = sorted(
         (eligible or set(ALL_AXES)) - (POSE_DEPENDENT if tier != POSE_OK else set())
     )
-    # 오버레이 생성은 라우트로 이동(모드 선택 후 overlay_axes 만 렌더). 여기선 좌표/메타만 노출.
-    #   spatial.keypoints 등은 서버 내부용 — 최종 클라 payload 에는 안 실린다(라우트가 SVG 만 실음).
-    _g = np.asarray(pil.convert("L"), float) / 255
-    _spatial = {
-        "keypoints": pose.get("keypoints") if tier == POSE_OK else None,
-        "bbox": _figure_bbox_coords(pose) if tier != POSE_FAIL else None,
-        "centroid": _subject_centroid(_g),
-        "horizon_y": sig.get("horizon_y"),
-    }
     return {
         "primary_focus": obs[0]["sub_problem"] if obs else None,
         "observations": obs,
@@ -717,7 +665,4 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         "persona": personas,
         "measurable": measurable,
         "instrument_version": instrument_version(),
-        "pose_tier": tier,
-        "spatial": _spatial,
-        "image_size": (pil.width, pil.height),
     }
