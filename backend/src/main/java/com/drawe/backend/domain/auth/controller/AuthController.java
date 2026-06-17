@@ -99,13 +99,13 @@ public class AuthController {
 
   @PostMapping("/email/send-code")
   public ApiResponse<Void> sendCode(@Valid @RequestBody SendCodeRequest request) {
-     emailVerificationService.sendCode(request.getEmail());
-     return ApiResponse.success();
+    emailVerificationService.sendCode(request.getEmail());
+    return ApiResponse.success();
   }
 
   @PostMapping("/email/verify-code")
   public ApiResponse<Void> verifyCode(@Valid @RequestBody VerifyCodeRequest request) {
-     emailVerificationService.verifyCode(request.getEmail(), request.getCode());
-     return ApiResponse.success();
+    emailVerificationService.verifyCode(request.getEmail(), request.getCode());
+    return ApiResponse.success();
   }
 }

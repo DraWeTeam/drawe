@@ -22,9 +22,9 @@ public class AuthService {
   private final RefreshTokenService refreshTokenService;
   private final PasswordEncoder passwordEncoder;
   private final JwtProvider jwtProvider;
-    private final EmailVerificationService emailVerificationService;
+  private final EmailVerificationService emailVerificationService;
 
-    @Transactional
+  @Transactional
   public SignupResponse signup(SignupRequest request) {
     if (userRepository.existsByEmail(request.getEmail())) {
       throw new CustomException(ErrorCode.EMAIL_ALREADY_EXISTS);
