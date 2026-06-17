@@ -60,6 +60,9 @@ public class User {
   @Column(name = "created_at", updatable = false)
   private Instant createdAt;
 
+  @Column(name = "terms_agreed_at")
+  private Instant termsAgreeAt; // 약관 동의 시각
+
   public void updateProfile(String nickname, String picture) {
     this.nickname = nickname;
     this.picture = picture;
