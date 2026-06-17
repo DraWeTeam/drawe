@@ -41,6 +41,7 @@ public class AuthService {
             .email(request.getEmail())
             .password(passwordEncoder.encode(request.getPassword()))
             .nickname(request.getNickname())
+            .termsAgreeAt(Instant.now())
             .build();
 
     userRepository.save(user);
