@@ -332,11 +332,15 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "JPA_DDL_AUTO", value = "validate" },        # ⌁ prod: validate (Flyway 사용)
         { name = "JPA_SHOW_SQL", value = "false" },
         { name = "LOG_LEVEL_SQL", value = "warn" },
-        { name = "APP_CORS_ALLOWED_ORIGINS", value = var.frontend_url },
+        { name = "APP_CORS_ALLOWED_ORIGINS", value = join(",", concat([var.frontend_url], var.cors_extra_origins)) },
         { name = "APP_OAUTH2_REDIRECT_URI", value = "${var.frontend_url}/oauth/callback" },
         { name = "FASTAPI_URL", value = "http://fastapi.${local.name_prefix}.local:8000" },
+        # 이미지 가이딩 전용 서비스(Service Connect). Spring GuideClient 가 ${fastapi.guide.url} 로 사용.
+        { name = "FASTAPI_GUIDE_URL", value = "http://fastapi-guide.${local.name_prefix}.local:8000" },
+        # 레퍼런스 이미지 브라우저 도달용 base. 현재 내부 주소(=서버 도달). 공개 노출은 후속(ALB 경로/프록시).
+        { name = "FASTAPI_GUIDE_PUBLIC_URL", value = "https://${var.api_domain}" },
         { name = "OTEL_SERVICE_NAME", value = "backend" },
-      ], local.otel_env)
+      ], local.otel_env, local.s3_env)  # ← S3 env (S3_BUCKET/S3_REGION[, SPRING_PROFILES_ACTIVE=s3]). 정의: s3-bria.tf
 
       secrets = [
         { name = "DB_USERNAME",          valueFrom = aws_ssm_parameter.db_username.arn },
@@ -414,7 +418,9 @@ resource "aws_ecs_task_definition" "fastapi" {
         { name = "CLIP_MODEL_NAME", value = "openai/clip-vit-large-patch14" },
         { name = "DEVICE", value = "cpu" },
         { name = "OTEL_SERVICE_NAME", value = "ai-server" },
-      ], local.otel_env)
+      ], local.otel_env, local.qdrant_env, local.artref_env)  # ← Qdrant + artref(기본 off). 정의: ssm-qdrant.tf / ssm-artref-fastapi.tf
+
+      secrets = concat(local.qdrant_secrets, local.artref_secrets)  # Qdrant + (플래그 on 시) Pinecone/DB_DSN
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -445,6 +451,8 @@ resource "aws_ecs_service" "backend" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.backend_desired_count
+  deployment_minimum_healthy_percent = 0
+  deployment_maximum_percent         = 100
 
   enable_execute_command = true   # ECS Exec - debug shell
 

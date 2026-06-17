@@ -1,0 +1,34 @@
+<svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="horizon_thirds">
+  <style>
+    .guide { fill:none; stroke:#c7ccd4; stroke-width:2.5; }
+    .gfill { fill:#c7ccd4; opacity:.18; stroke:none; }
+    .cons  { fill:none; stroke:#e0533d; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+    .consd { fill:none; stroke:#e0533d; stroke-width:2; stroke-dasharray:6 5; }
+    .acc   { fill:none; stroke:#2f6df0;  stroke-width:2.5; stroke-linecap:round; }
+    .accd  { fill:none; stroke:#2f6df0;  stroke-width:2; stroke-dasharray:6 5; }
+    .dot   { fill:#e0533d; stroke:none; }
+    .adot  { fill:#2f6df0; stroke:none; }
+    .lbl   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:14px; }
+    .cap   { fill:#3a3f47; font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-size:13px; opacity:.8; }
+    .tag   { fill:#e0533d; font-family:sans-serif; font-size:12px; font-weight:600; }
+  </style>
+  <g id="guide">
+    <rect class="guide" x="40" y="40" width="400" height="400"/>
+    <line class="guide" stroke-dasharray="6 5" x1="173" y1="40" x2="173" y2="440"/>
+    <line class="guide" stroke-dasharray="6 5" x1="307" y1="40" x2="307" y2="440"/>
+    <line class="guide" stroke-dasharray="6 5" x1="40" y1="173" x2="440" y2="173"/>
+    <line class="guide" stroke-dasharray="6 5" x1="40" y1="307" x2="440" y2="307"/>
+    <rect class="gfill" x="40" y="40" width="400" height="267"/>
+  </g>
+  <g id="construction">
+    <line class="cons" x1="40" y1="307" x2="440" y2="307"/>
+    <circle class="acc" cx="360" cy="120" r="26"/>
+    <path class="cons" d="M40 307 Q130 268 220 300 T440 296" fill="#a1a6ae"/>
+  </g>
+  <g id="label">
+    <text class="lbl" x="56" y="180">하늘 2/3</text>
+    <text class="lbl" x="56" y="350">땅 1/3</text>
+    <text class="tag" x="314" y="300">지평선 = 아래 1/3</text>
+    <text class="cap" x="20" y="462">지평선을 아래 1/3에 두면 하늘이, 위 1/3에 두면 땅이 주인공이 된다.</text>
+  </g>
+</svg>

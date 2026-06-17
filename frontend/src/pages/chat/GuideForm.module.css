@@ -1,0 +1,233 @@
+/* 한 끗 가이드 입력 폼 — 와이어프레임 기준 1차. 팀 디자인 토큰에 맞춰 다듬으세요. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 26, 22, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+.panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(40, 30, 20, 0.22);
+  overflow: hidden;
+}
+.header {
+  display: flex;
+  align-items: center;
+  padding: 18px 20px 12px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2b2826;
+}
+.closeBtn {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: #8a8480;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.closeBtn:hover {
+  background: #f1ebe2;
+}
+
+.body {
+  padding: 4px 20px 8px;
+  overflow-y: auto;
+}
+
+.fieldLabel {
+  display: block;
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4642;
+}
+.info {
+  color: #b3aaa0;
+  font-size: 12px;
+  cursor: help;
+}
+
+/* 드롭존 */
+.dropzone {
+  border: 1.5px dashed #e6b98f;
+  border-radius: 12px;
+  background: #fdf7ee;
+  padding: 22px 16px;
+  text-align: center;
+}
+.dropzone.dragOver {
+  background: #fbeedd;
+  border-color: #ef7b3f;
+}
+.dropHint {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #9a8f80;
+}
+.preview {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+  margin: 0 auto 12px;
+  border-radius: 8px;
+}
+.pickBtn {
+  border: none;
+  background: #ef7b3f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pickBtn:hover {
+  background: #e26a2d;
+}
+.pickBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.err {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: #c0492f;
+}
+
+/* 텍스트/칩 */
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e2d9cc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #3c3733;
+  resize: vertical;
+}
+.textarea:focus {
+  outline: none;
+  border-color: #ef7b3f;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chip {
+  border: 1px solid #e2d9cc;
+  background: #fff;
+  color: #6b6055;
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.chip:hover {
+  background: #f6efe5;
+}
+.chip.chipActive {
+  background: #fbeedd;
+  border-color: #ef7b3f;
+  color: #b5683f;
+}
+.chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 셀렉트 */
+.select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e2d9cc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #3c3733;
+  background: #fff;
+  cursor: pointer;
+}
+.select:focus {
+  outline: none;
+  border-color: #ef7b3f;
+}
+
+/* 토글(작업중/완성작) */
+.toggle {
+  display: inline-flex;
+  border: 1px solid #e2d9cc;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.toggleBtn {
+  border: none;
+  background: #fff;
+  color: #6b6055;
+  font-size: 13px;
+  padding: 9px 22px;
+  cursor: pointer;
+}
+.toggleBtn + .toggleBtn {
+  border-left: 1px solid #e2d9cc;
+}
+.toggleBtn.toggleOn {
+  background: #ef7b3f;
+  color: #fff;
+}
+.toggleBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 제출 */
+.footer {
+  padding: 14px 20px 18px;
+}
+.submitBtn {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: #ef7b3f;
+  cursor: pointer;
+}
+.submitBtn:hover:not(:disabled) {
+  background: #e26a2d;
+}
+.submitBtn:disabled {
+  background: #d8d2c9;
+  color: #fbf8f4;
+  cursor: default;
+}
+
+@media (max-width: 520px) {
+  .panel {
+    max-width: 100%;
+    max-height: 94vh;
+  }
+}

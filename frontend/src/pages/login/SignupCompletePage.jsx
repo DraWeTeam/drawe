@@ -6,7 +6,8 @@ const SignupCompletePage = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate("/onboarding");
+      // 온보딩 비활성화: navigate("/onboarding");
+      navigate("/projects");
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
@@ -24,9 +25,10 @@ const SignupCompletePage = () => {
         zIndex: 9999,
       }}
     >
+      {/* 온보딩 비활성화 전 원본 문구:
+        서비스를 시작하기 전, 딱 맞는 가이드를 제공하기 위해 한가지 질문에 답해주세요! */}
       <p style={{ color: "#888", marginBottom: "12px", fontSize: "14px" }}>
-        서비스를 시작하기 전, 딱 맞는 가이드를 제공하기 위해 한가지 질문에
-        답해주세요!
+        잠시 후 서비스로 이동합니다.
       </p>
       <h1 style={{ fontSize: "32px", fontWeight: "bold" }}>
         회원가입이 완료되었습니다.
