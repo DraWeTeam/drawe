@@ -22,8 +22,9 @@ public class AuthService {
   private final RefreshTokenService refreshTokenService;
   private final PasswordEncoder passwordEncoder;
   private final JwtProvider jwtProvider;
+    private final EmailVerificationService emailVerificationService;
 
-  @Transactional
+    @Transactional
   public SignupResponse signup(SignupRequest request) {
     if (userRepository.existsByEmail(request.getEmail())) {
       throw new CustomException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -31,6 +32,9 @@ public class AuthService {
     if (userRepository.existsByNickname(request.getNickname())) {
       throw new CustomException(ErrorCode.NICKNAME_ALREADY_EXISTS);
     }
+
+    // 모든 중복 검증 통과 후 인증 플래그 소비 (닉네임 충돌로 재인증 강요 방지)
+    emailVerificationService.assertVerifiedAndConsume(request.getEmail());
 
     User user =
         User.builder()
