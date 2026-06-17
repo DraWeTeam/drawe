@@ -127,11 +127,10 @@ public class GuideClient {
   }
 
   /**
-   * 가이드 자산 프록시. 내부 guide 서비스의 {@code path}(예: {@code /image/<uuid>},
-   * {@code /guide-asset/...})로 GET 하여 응답을 그대로 흘려보낸다. WebClient 는 리다이렉트를 따라가지
-   * 않으므로(기본값) guide 의 302(presigned S3)를 잡아 그대로 브라우저에 반환한다 — presigned 는 만료가
-   * 있어 캐시 금지(no-store). 인라인 SVG 등 2xx 본문은 Content-Type 과 함께 전달한다. 실패는 502 로 매핑하여
-   * 이미지 태그가 깨진 이미지로 자연 degrade 하게 둔다.
+   * 가이드 자산 프록시. 내부 guide 서비스의 {@code path}(예: {@code /image/<uuid>}, {@code /guide-asset/...})로 GET
+   * 하여 응답을 그대로 흘려보낸다. WebClient 는 리다이렉트를 따라가지 않으므로(기본값) guide 의 302(presigned S3)를 잡아 그대로 브라우저에
+   * 반환한다 — presigned 는 만료가 있어 캐시 금지(no-store). 인라인 SVG 등 2xx 본문은 Content-Type 과 함께 전달한다. 실패는 502 로
+   * 매핑하여 이미지 태그가 깨진 이미지로 자연 degrade 하게 둔다.
    */
   public ResponseEntity<byte[]> fetchAsset(String path) {
     if (path == null || path.contains("..")) {
