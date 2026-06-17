@@ -210,6 +210,12 @@ variable "frontend_url" {
   type        = string
 }
 
+variable "cors_extra_origins" {
+  description = "추가 CORS 허용 오리진(리스트). APP_CORS_ALLOWED_ORIGINS 에 frontend_url 과 함께 합쳐진다(예: 컷오버 전 drawe.pages.dev)."
+  type        = list(string)
+  default     = []
+}
+
 variable "key_pair_name" {
   description = "EC2 SSH key pair"
   type        = string

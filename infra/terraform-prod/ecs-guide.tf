@@ -193,6 +193,8 @@ resource "aws_ecs_service" "fastapi_guide" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.fastapi_guide.arn
   desired_count   = var.fastapi_guide_desired_count
+  deployment_minimum_healthy_percent = 0
+  deployment_maximum_percent         = 100
 
   enable_execute_command = true
 
