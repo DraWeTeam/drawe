@@ -3,6 +3,7 @@ package com.drawe.backend.domain.project.service;
 import com.drawe.backend.domain.ChatSession;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.enums.ProjectSort;
 import com.drawe.backend.domain.enums.ProjectStatus;
 import com.drawe.backend.domain.llm.repository.ChatSessionRepository;
 import com.drawe.backend.domain.llm.repository.LlmMessageRepository;
@@ -47,10 +48,10 @@ public class ProjectService {
   }
 
   @Transactional(readOnly = true)
-  public ProjectListResponse getList(User user, String statusParam, int limit, int offset) {
+  public ProjectListResponse getList(User user, String statusParam, ProjectSort sort, int limit, int offset) {
     ProjectStatus status = parseStatus(statusParam);
 
-    List<Project> projects = projectRepository.findPage(user, status, limit, offset);
+    List<Project> projects = projectRepository.findPage(user, status, sort, limit, offset);
     long total =
         status == null
             ? projectRepository.countByUser(user)

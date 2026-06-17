@@ -70,6 +70,14 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
+    // ── QueryDSL — 동적 쿼리 (프로젝트 정렬/검색) ─────────────
+    // Spring Boot 3 (Jakarta) → ':jakarta' classifier 필수.
+    // 빌드 시 Q클래스(QProject 등)가 build/generated 에 자동 생성됨.
+    implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
+    annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
+    annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+    annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+
     // ── DB / Misc ───────────────────────────────────────────
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'com.mysql:mysql-connector-j'
