@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { resizeImage, validateImageFile } from "./imageUtils";
 import styles from "./GuideForm.module.css";
+import { track as analyticsTrack } from "../../analytics";
+import { useParams } from "react-router-dom";
 
+const { projectId } = useParams();
 // "어떤 점이 마음에 걸리나요?" 빠른 선택 칩 — 클릭 시 message 에 채움(편집 가능).
 const CONCERNS = [
   "손이 어색해요",
@@ -34,6 +37,9 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const [dragOver, setDragOver] = useState(false);
   const [err, setErr] = useState(null);
 
+  const imageUploadedAt = useRef(null);
+  const chipSelectedAt = useRef({});  // { [chipContent]: timestamp }
+
   useEffect(
     () => () => {
       if (previewRef.current) URL.revokeObjectURL(previewRef.current);
@@ -57,8 +63,37 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     setPreview(url);
   };
 
+
+  imageUploadedAt.current = Date.now();
+    analyticsTrack("prompt_image_uploaded", {
+      project_id: projectId,
+      image_format: resized.type.split('/')[1] || "unknown",
+      image_size_kb: Math.round(resized.size / 1024),
+    });
+
   const handleSubmit = () => {
     if (!file || submitting) return;
+    const trimmedMessage = message.trim();
+    const isChip = CONCERNS.includes(trimmedMessage);
+    const hasChip = isChip;
+    const hasTyped = trimmedMessage.length > 0 && !isChip;
+    
+    let inputMethod;
+    if (hasChip) inputMethod = 'chip_only';
+    else if (hasTyped) inputMethod = 'typed_only';
+    else inputMethod = 'typed_only';  // 기본
+    
+    const selectedChipIds = hasChip ? [trimmedMessage] : [];
+    const imageStatus = intent === "practice" ? "in_progress" : "completed";
+    
+    analyticsTrack("prompt_image_with_context_submitted", {
+      project_id: projectId,
+      image_status: imageStatus,
+      input_method: inputMethod,
+      selected_chip_count: selectedChipIds.length,
+      selected_chip_ids: selectedChipIds.join(","),
+      typed_text_length: hasTyped ? trimmedMessage.length : 0,
+    });
     onSubmit({
       file,
       previewUrl: preview,
@@ -66,6 +101,68 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
       intent,
       track: track || undefined,
     });
+  };
+
+  const handleIntentSelect = (newIntent) => {
+    setIntent(newIntent);
+    const imageStatus = newIntent === "practice" ? "in_progress" : "completed";
+    
+    analyticsTrack("prompt_image_status_selected", {
+      project_id: projectId,
+      image_status: imageStatus,
+      time_to_select_sec: imageUploadedAt.current
+        ? Math.round((Date.now() - imageUploadedAt.current) / 1000)
+        : 0,
+    });
+  };
+
+  const handleChipClick = (chipContent, position) => {
+    const isCurrentlyActive = message === chipContent;
+    
+    if (isCurrentlyActive) {
+      // 같은 칩 다시 클릭 → 해제
+      const selectedAt = chipSelectedAt.current[chipContent];
+      const timeSelected = selectedAt
+        ? Math.round((Date.now() - selectedAt) / 1000)
+        : 0;
+      
+      analyticsTrack("prompt_chip_deselected", {
+        project_id: projectId,
+        chip_id: chipContent,  // ID 없으면 content를 ID로 (또는 인덱스)
+        time_selected_sec: timeSelected,
+      });
+      
+      setMessage("");
+      delete chipSelectedAt.current[chipContent];
+    } else {
+      // 새 칩 선택
+      const imageStatus = intent === "practice" ? "in_progress" : "completed";
+      
+      analyticsTrack("prompt_chip_selected", {
+        project_id: projectId,
+        chip_id: chipContent,
+        chip_content: chipContent,
+        chip_position: position + 1,  // 1부터
+        chip_count: CONCERNS.length,
+        image_status: imageStatus,
+      });
+      
+      // 이전 활성 칩의 deselect 발화 (선택적)
+      if (message && CONCERNS.includes(message)) {
+        const prevSelectedAt = chipSelectedAt.current[message];
+        analyticsTrack("prompt_chip_deselected", {
+          project_id: projectId,
+          chip_id: message,
+          time_selected_sec: prevSelectedAt
+            ? Math.round((Date.now() - prevSelectedAt) / 1000)
+            : 0,
+        });
+        delete chipSelectedAt.current[message];
+      }
+      
+      setMessage(chipContent);
+      chipSelectedAt.current[chipContent] = Date.now();
+    }
   };
 
   const canSubmit = !!file && !submitting;
