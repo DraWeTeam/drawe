@@ -25,7 +25,9 @@ opencv-python-headless
 # 지연/게이트라 우리 구성(aistudio·qdrant)에선 생략:
 #   google-auth(vertex 전용) · pinecone(VECTOR_BACKEND=pinecone) · rembg(SUBJECT_MASK) · redis(REDIS_URL)
 
-# Observability (embed 와 동일 표준)
-opentelemetry-distro==0.50b0
-opentelemetry-exporter-otlp==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
+# Observability
+#  embed 는 1.29.0/0.50b0. guide 는 mediapipe==0.10.14(protobuf<5) 와의 충돌 때문에
+#  protobuf<5 를 유지하는 마지막 OTel 라인(1.27.0/0.48b0)으로 핀. 1.28.0+ 는 protobuf>=5 요구.
+opentelemetry-distro==0.48b0
+opentelemetry-exporter-otlp==1.27.0
+opentelemetry-instrumentation-fastapi==0.48b0
