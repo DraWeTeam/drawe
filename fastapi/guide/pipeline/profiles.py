@@ -119,12 +119,5 @@ def resolve_profile(track=None, scene=None):
     # 수렴하므로, '확실히 풍경'(person_p 가 충분히 낮을 때)에만 landscape 로 보낸다.
     #   비대칭 비용: 인물→풍경 오분류(지평선 가이드 등)가 풍경→인물보다 UX 손실이 크다.
     #   확정 인물은 명시 track(위) 또는 추후 face-detection 으로, 여기선 보수적 풍경 게이트만.
-    # figure = 인물+신체부위(손/발/얼굴). person 단일 신호로는 손 클로즈업이 풍경으로 새므로
-    # figure prominence 를 본다(없으면 구 scene 호환 위해 person 으로 폴백).
-    subj = scene.get("subject", {})
-    prom = float(
-        subj.get("figure", {}).get(
-            "prominence", subj.get("person", {}).get("prominence", 0.0)
-        )
-    )
+    prom = float(scene.get("subject", {}).get("person", {}).get("prominence", 0.0))
     return PROFILES["landscape"] if prom < 0.35 else _FIGURE_AUTO

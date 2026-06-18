@@ -27,7 +27,7 @@ from guide.ml.scene import analyze
 from guide.ml.pose import extract
 from guide.pipeline.router import resolve
 from guide.pipeline.profiles import resolve_profile
-from guide.pipeline.diagnose import diagnose, image_signals
+from guide.pipeline.diagnose import diagnose, image_signals, hand_signals
 
 _EXT = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
 
@@ -49,18 +49,18 @@ def predict_axis(path, message="", track=None, debug=False):
     if not debug:
         return primary, dx
     sig = image_signals(pil)  # line_sketch·value 신호 재계산(진단 내부와 동일)
+    hand = hand_signals(pil)  # HAND_AUTO 켜졌을 때만 _hand(HandLandmarker 손 검출 여부)
     subj = scene.get("subject", {})
     dbg = {
         "person_prom": subj.get("person", {}).get("prominence"),
-        "figure_prom": subj.get("figure", {}).get("prominence"),
-        "figure_present": subj.get("figure", {}).get("present"),
-        "body_part": subj.get("figure", {}).get("body_part"),
         "track": profile.get("label"),
         "personas": personas,
         "user_terms": sorted(user_terms),
         "pose_status": pose.get("status"),
+        "hand_detected": bool(hand.get("_hand")),
         "line_sketch": sig.get("line_sketch"),
         "value_std": round(float(sig.get("value_std", 0)), 3),
+        "light_frac": round(float(sig.get("light_frac", 0)), 3),
         "value_range_robust": sig.get("value_range_robust"),
         "ranked": [(o["sub_problem"], o["confidence"], o["measured"]) for o in obs],
     }
@@ -106,14 +106,13 @@ def run(root="tests/eval_axis", message="", debug=False):
         )
         if dbg:
             print(
-                f"    person={dbg['person_prom']:.2f} figure={dbg['figure_prom']:.2f}"
-                f"(present={dbg['figure_present']}) body_part={dbg['body_part']:.2f}"
-                f" → track={dbg['track']} personas={dbg['personas']}"
+                f"    person={dbg['person_prom']:.2f} → track={dbg['track']}"
+                f" personas={dbg['personas']} user_terms={dbg['user_terms']}"
             )
             print(
-                f"    pose={dbg['pose_status']} line_sketch={dbg['line_sketch']}"
-                f" value_std={dbg['value_std']} value_range_robust={dbg['value_range_robust']}"
-                f" user_terms={dbg['user_terms']}"
+                f"    pose={dbg['pose_status']} hand_detected={dbg['hand_detected']}"
+                f" line_sketch={dbg['line_sketch']} value_std={dbg['value_std']}"
+                f" light_frac={dbg['light_frac']} vrr={dbg['value_range_robust']}"
             )
             print(f"    ranked={dbg['ranked']}")
 
