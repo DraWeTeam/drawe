@@ -555,7 +555,8 @@ const ChatPage = () => {
         });
       }
 
-      if (res?.detectedStage) {  // 백엔드 응답에 이 필드 와야 함
+      if (res?.detectedStage) {
+        // 백엔드 응답에 이 필드 와야 함
         track("prompt_stage_detected", {
           detected_stage: res.detectedStage,
           previous_stage: lastDetectedStage.current,
@@ -583,9 +584,10 @@ const ChatPage = () => {
         reference_count: responseType === "reference" ? newRefs.length : 0,
         generation_time_ms: Date.now() - responseStartTime,
         iteration_count: currentIteration,
-        reference_ids: responseType === "reference"
-          ? newRefs.map(r => r.id).join(",")
-          : "",
+        reference_ids:
+          responseType === "reference"
+            ? newRefs.map((r) => r.id).join(",")
+            : "",
       });
 
       lastResponseTime.current = Date.now();
