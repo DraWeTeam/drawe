@@ -464,7 +464,6 @@ const ChatPage = () => {
           project_id: projectId,
           image_format: sentAttachment.format || "unknown",
           image_size_kb: sentAttachment.sizeKb || 0,
-          prompt_length: text.length,
           iteration_count: currentIteration,
         });
       } else {
@@ -560,6 +559,21 @@ const ChatPage = () => {
           button_shown: true,
           project_id: projectId,
         });
+      }
+
+      const lastDetectedStage = useRef(null);
+
+      if (res?.detectedStage) {  // 백엔드 응답에 이 필드 와야 함
+        track("prompt_stage_detected", {
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore || null,
+          input_mode: inputMode,
+          prompt_length: text.length,
+          project_id: projectId,
+        });
+        lastDetectedStage.current = res.detectedStage;
       }
 
       if (action === "NEW_SEARCH" && newRefs.length > 0) {
@@ -782,9 +796,6 @@ const ChatPage = () => {
           iteration_count: userMessageCount,
           input_mode: lastInputMode,
           project_id: projectId,
-          reference_tags: refObject.tags 
-            ? refObject.tags.join(",") 
-            : "",
         });
 
         localStorage.setItem(pinKey, Date.now().toString());
