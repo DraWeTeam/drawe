@@ -25,6 +25,7 @@ from guide.pipeline.roadmap import (
 )
 from guide.pipeline.growth_stage import apply_cold_start
 from guide.pipeline.profiles import resolve_profile
+from guide.pipeline.subject import resolve_subject
 from guide.pipeline import agent
 from guide.pipeline.asset_index import build_asset_index
 from guide.pipeline.search import search_text, is_miss
@@ -86,6 +87,11 @@ def _pipeline(
         }
     # 그림 단계(완성작/연습): 폼 입력 우선, 없으면 메시지 키워드. 압축 이력(growth)을 진단 랭킹에 흘린다.
     intent = detect_intent(message, explicit=intent)
+    # 주제 에스컬레이션: track 없고 CLIP 이 애매할 때만 VLM 1회로 보강(손→hand 축, 풍경→landscape track).
+    #   확신/명시면 호출 안 함(레이턴시 0). extra_terms 는 user_terms 와 같은 의도 경로를 탄다.
+    track, _extra_terms = resolve_subject(scene, pil, track)
+    if _extra_terms:
+        user_terms = set(user_terms) | _extra_terms
     # track 프로파일: 명시 track 우선, 없으면 scene(인물 유무)로 자동. 진단 게이팅·norm과 로드맵 커리큘럼에 동시 적용.
     profile = resolve_profile(track, scene)
     growth = growth_context(

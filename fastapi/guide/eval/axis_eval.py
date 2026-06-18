@@ -27,6 +27,7 @@ from guide.ml.scene import analyze
 from guide.ml.pose import extract
 from guide.pipeline.router import resolve
 from guide.pipeline.profiles import resolve_profile
+from guide.pipeline.subject import resolve_subject
 from guide.pipeline.diagnose import diagnose, image_signals, hand_signals
 
 _EXT = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
@@ -42,7 +43,11 @@ def predict_axis(path, message="", track=None, debug=False):
     mode, personas, user_terms = resolve(message, scene)
     if mode != "coach":
         return (f"(mode={mode})", None, None) if debug else (f"(mode={mode})", None)
-    profile = resolve_profile(track, scene)
+    # 주제 에스컬레이션(_pipeline 과 동일): track 없고 CLIP 애매하면 VLM 1회 보강.
+    eff_track, extra_terms = resolve_subject(scene, pil, track)
+    if extra_terms:
+        user_terms = set(user_terms) | extra_terms
+    profile = resolve_profile(eff_track, scene)
     dx = diagnose(scene, pose, pil, personas, user_terms, growth=None, profile=profile)
     obs = dx.get("observations") or []
     primary = dx.get("primary_focus") or (obs[0]["sub_problem"] if obs else None)
