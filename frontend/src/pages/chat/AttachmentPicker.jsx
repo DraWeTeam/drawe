@@ -3,7 +3,13 @@ import { uploadImage } from "./api";
 import { resizeImage, validateImageFile } from "./imageUtils";
 import styles from "./AttachmentPicker.module.css";
 
-const AttachmentPicker = ({ attachment, onAttach, onError, disabled }) => {
+const AttachmentPicker = ({
+  attachment,
+  onAttach,
+  onError,
+  disabled,
+  onClick,
+}) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -85,10 +91,10 @@ const AttachmentPicker = ({ attachment, onAttach, onError, disabled }) => {
       <button
         type="button"
         className={styles.clipBtn}
-        onClick={() => inputRef.current?.click()}
+        onClick={onClick ? onClick : () => inputRef.current?.click()}
         disabled={disabled || uploading || !!attachment}
-        aria-label="이미지 첨부"
-        title="이미지 첨부"
+        aria-label="그림 업로드하고 가이드 받기"
+        title="그림 업로드하고 가이드 받기"
       >
         <Picker />
       </button>

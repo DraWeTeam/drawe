@@ -1,6 +1,7 @@
 # Python
 venv/
 .venv/
+.venv-win/
 __pycache__/
 *.pyc
 *.pyo
@@ -31,3 +32,5 @@ Thumbs.db
 # 로그
 *.log
 logs/
+
+resp.json

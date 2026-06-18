@@ -1,0 +1,31 @@
+# guide 서비스 전용(무거움). embed 의 requirements.txt 와 *별도*.
+# torch/torchvision 은 Dockerfile.guide 에서 CPU wheel 로 설치(여기서 제외).
+
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
+pydantic==2.13.3
+pydantic-settings
+python-multipart==0.0.29
+python-dotenv==1.2.2
+pillow==11.3.0
+pillow-heif              # normalize.py 최상위 — HEIC/HEIF 디코드(아이폰 업로드)
+numpy==2.2.5
+PyYAML==6.0.2                   # diagnose.py·router.py 최상위 — taxonomy/track YAML
+requests                 # llm.py(Grok)·vision.py(Gemini) 최상위 — artref 는 requests 사용
+
+# 가이딩 핵심
+open_clip_torch          # OpenCLIP ViT-L/14 (지연 로드)
+qdrant-client            # 가이딩 ref 검색(reference_images_dev)
+SQLAlchemy               # drawe_guide (성장/로그). DSN 스킴에 맞춰 드라이버 선택
+PyMySQL                  # DB_DSN = mysql+pymysql://...
+boto3                    # S3(에셋 해소·presign)
+mediapipe                # 손/포즈(게이트). aarch64 휠은 P5 빌드에서 확인
+opencv-python-headless
+
+# 지연/게이트라 우리 구성(aistudio·qdrant)에선 생략:
+#   google-auth(vertex 전용) · pinecone(VECTOR_BACKEND=pinecone) · rembg(SUBJECT_MASK) · redis(REDIS_URL)
+
+# Observability (embed 와 동일 표준)
+opentelemetry-distro==0.50b0
+opentelemetry-exporter-otlp==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0

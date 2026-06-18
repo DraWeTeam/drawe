@@ -69,7 +69,11 @@ public class SecurityConfig {
                         "/auth/signup",
                         "/auth/login",
                         "/auth/refresh",
+                        "/auth/email/send-code",
+                        "/auth/email/verify-code",
                         "/search/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/image/**", "/guide-asset/**")
                     .permitAll()
                     .requestMatchers(
                         HttpMethod.GET, "/auth/google", "/auth/check-email", "/auth/check-nickname")

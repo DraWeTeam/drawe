@@ -187,6 +187,7 @@ resource "aws_security_group" "rds" {
     security_groups = [
       aws_security_group.ecs_backend.id,
       aws_security_group.ecs_instance.id,
+      aws_security_group.ecs_fastapi.id,    # fastapi-guide (MySQL access)
     ]
   }
 

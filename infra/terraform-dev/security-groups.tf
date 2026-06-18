@@ -126,6 +126,7 @@ resource "aws_security_group" "rds" {
     security_groups = [
       aws_security_group.ecs_backend.id,    # 기존 (backend task)
       aws_security_group.ecs_instance.id,   # ← 추가 (SSM 터널용)
+      aws_security_group.ecs_fastapi.id,    # fastapi-guide (MySQL access)
     ]
   }
 

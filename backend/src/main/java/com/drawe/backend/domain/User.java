@@ -60,6 +60,9 @@ public class User {
   @Column(name = "created_at", updatable = false)
   private Instant createdAt;
 
+  @Column(name = "terms_agreed_at")
+  private Instant termsAgreeAt; // 약관 동의 시각
+
   public void updateProfile(String nickname, String picture) {
     this.nickname = nickname;
     this.picture = picture;
@@ -68,5 +71,11 @@ public class User {
   public void updateOAuthInfo(String provider, String providerId) {
     this.provider = provider;
     this.providerId = providerId;
+  }
+
+  public void agreeTerms() {
+    if (this.termsAgreeAt == null) { // 이미 동의했으면 최초 동의 시각 유지
+      this.termsAgreeAt = Instant.now();
+    }
   }
 }

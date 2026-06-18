@@ -1,0 +1,61 @@
+# Dockerfile.guide — guide 서비스(무거움). embed(Dockerfile)와 별개. embed 는 무변경.
+# 정책은 embed Dockerfile 과 동일(멀티스테이지 + CPU torch + OTel + 가중치 베이크).
+
+# ── Stage 1: Builder ──────────────────────────────────
+FROM python:3.11-slim AS builder
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# CPU torch (embed 와 동일)
+RUN pip install --user \
+        torch==2.5.1 torchvision==0.20.1 \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# torch/torchvision/nvidia + mediapipe 제외.
+#  mediapipe: 최신 0.10.35는 linux aarch64 wheel 없음, 구버전 핀은 protobuf<4·numpy 충돌.
+#  손/포즈 게이트는 ml/pose·ml/hands 지연 import+try/except 로 런타임 degrade(서비스 정상 기동).
+COPY requirements.guide.txt .
+RUN grep -vE '^(torch==|torchvision==|nvidia-|mediapipe)' requirements.guide.txt > req-cpu.txt && \
+    pip install --user -r req-cpu.txt
+
+# OTel auto-instrumentation
+RUN /root/.local/bin/opentelemetry-bootstrap -a requirements > req-otel.txt && \
+    pip install --user -r req-otel.txt
+
+# OpenCLIP 가중치 베이크 → cold start 다운로드 제거(~/.cache/clip)
+# HF 익명 rate limit(429) 회피용 토큰. 빈 값이면 기존 동작(로컬 무토큰 빌드도 OK).
+ARG HF_TOKEN=""
+RUN HF_TOKEN="$HF_TOKEN" HUGGING_FACE_HUB_TOKEN="$HF_TOKEN" \
+    python -c "import open_clip; open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai', force_quick_gelu=True)"
+
+# ── Stage 2: Runtime ──────────────────────────────────
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    PATH=/root/.local/bin:$PATH \
+    REFERENCE_DIR=/app/assets/reference
+WORKDIR /app
+
+# curl(healthcheck) + mediapipe/opencv 런타임 라이브러리
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates libgomp1 libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /root/.local /root/.local
+COPY --from=builder /root/.cache /root/.cache
+
+COPY guide ./guide
+COPY assets ./assets
+
+EXPOSE 8000
+
+# OpenCLIP(+P1 mediapipe) 워밍업 시간 → start-period 넉넉히
+HEALTHCHECK --interval=30s --timeout=10s --start-period=150s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# graceful-shutdown(110s) < ECS stopTimeout(120s) 로 spot in-flight 보장
+CMD ["opentelemetry-instrument", "uvicorn", "guide.app:app", \
+     "--host", "0.0.0.0", "--port", "8000", "--workers", "1", \
+     "--timeout-graceful-shutdown", "110"]

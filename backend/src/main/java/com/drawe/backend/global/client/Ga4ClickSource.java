@@ -12,6 +12,8 @@ import java.util.Map;
 public interface Ga4ClickSource {
 
   /**
+   * 기간 내 이미지(reference_id)별 클릭 수를 집계한다.
+   *
    * @param since 집계 시작 시각 (KST 날짜로 변환해 GA4 startDate 로 사용)
    * @return reference_id(image_id) → 클릭 수. 데이터 없거나 미설정이면 빈 맵.
    */
