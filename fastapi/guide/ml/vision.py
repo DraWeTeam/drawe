@@ -19,6 +19,7 @@ import json
 import time
 import base64
 import requests
+from concurrent.futures import ThreadPoolExecutor
 
 _MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.5-flash")
 _URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
@@ -255,18 +256,24 @@ def observe_hand(image, runs=2):
         return None
     b64, mime = _to_b64(image)
     key = _key()
-    parsed = []
-    for _ in range(runs):
+
+    def _sample(_):
+        # 관찰 1회: 호출→파싱→방어선. 실패는 None(상위에서 거른다).
         try:
             raw = _call(b64, mime, key)
         except Exception:
-            continue
+            return None
         p = _parse(raw)
         if not p:
-            continue
+            return None
         if FORBIDDEN.search(p["notes"] + " " + p["plane_facing"]):  # 방어선
-            continue
-        parsed.append(p)
+            return None
+        return p
+
+    # runs 회는 서로 독립적인 일관성 샘플이라 순차일 이유가 없다 → 동시에 호출해 VLM 지연을
+    # 순차 합(≈2회분)에서 ≈1회분으로 줄인다. map 은 입력 순서를 보존하므로 parsed[0]=첫 실행(base) 의미 유지.
+    with ThreadPoolExecutor(max_workers=runs) as ex:
+        parsed = [p for p in ex.map(_sample, range(runs)) if p is not None]
     if not parsed:
         return None
 
