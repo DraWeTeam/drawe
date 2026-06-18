@@ -114,14 +114,12 @@ def _subject_centroid(g):
 
 
 def _is_line_sketch(g):
-    """밝은 종이 위 얇은 선 위주(선 스케치) 추정 — 명암(shading) 코칭은 시기상조라 value 축을 보류한다.
-    보수적: 종이(고명도)가 지배적 + 종이보다 충분히 어두운 잉크 픽셀이 적을 때만 True."""
-    h, _ = np.histogram(g.ravel(), bins=32, range=(0.0, 1.0))
-    mode = int(h.argmax())
-    bg_frac = float(h[mode]) / g.size  # 지배 배경(종이) 비율
-    c = (mode + 0.5) / 32.0  # 배경 밝기 중심
-    dark_frac = float((g < c - 0.15).mean())  # 종이보다 충분히 어두운(선) 비율
-    return bool(c > 0.62 and bg_frac > 0.45 and dark_frac < 0.12)
+    """선 위주(셰이딩 전) 그림 추정 — 중간톤(그레이/셰이딩)이 거의 없을 때 True. 명암 코칭은
+    시기상조라 value 축을 보류한다. 클로즈업이라 종이 비율이 낮아도 잡히게 '톤 함량'으로 본다
+    (종이 면적 가정 안 함). 셰이딩/도색 그림은 중간톤이 많아 False, 어두운 사진은 light_frac 낮아 False."""
+    mid_frac = float(((g > 0.30) & (g < 0.78)).mean())  # 중간톤(셰이딩) 비율
+    light_frac = float((g >= 0.78).mean())  # 밝은 영역(종이/하이키)
+    return bool(mid_frac < 0.12 and light_frac > 0.30)
 
 
 def image_signals(pil):
