@@ -19,7 +19,7 @@ qdrant-client            # 가이딩 ref 검색(reference_images_dev)
 SQLAlchemy               # drawe_guide (성장/로그). DSN 스킴에 맞춰 드라이버 선택
 PyMySQL                  # DB_DSN = mysql+pymysql://...
 boto3                    # S3(에셋 해소·presign)
-mediapipe                # 손/포즈(게이트). aarch64 휠은 P5 빌드에서 확인
+mediapipe==0.10.14                # 손/포즈(게이트). aarch64 휠은 P5 빌드에서 확인
 opencv-python-headless
 
 # 지연/게이트라 우리 구성(aistudio·qdrant)에선 생략:

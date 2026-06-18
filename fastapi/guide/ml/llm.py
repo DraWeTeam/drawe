@@ -107,12 +107,21 @@ class RealLLM:
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": 0.3,
-                    "max_tokens": 4000,
+                    "max_tokens": 8000,  # was 4000 — grok-4.3는 reasoning 모델이라 추론+출력이 토큰을 공유. 4000이면 추론이 먹고 JSON이 잘려(finish=length) primary_focus 누락 → 검증 탈락. 넉넉히.
                 },
                 timeout=90,
             )
             r.raise_for_status()
-            content = r.json()["choices"][0]["message"]["content"]
+            data = r.json()
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
+            # 디버그(원인 확정 후 제거 가능): 잘렸는지(finish=length) + 추론이 토큰을 얼마나 먹었는지.
+            #   finish=length → max_tokens 더 올리거나 추론 줄이기. finish=stop인데도 None이면 프롬프트/grounding 문제.
+            print(
+                f"[llm] grok finish={choice.get('finish_reason')} "
+                f"clen={len(content or '')} "
+                f"reasoning={(data.get('usage') or {}).get('completion_tokens_details', {}).get('reasoning_tokens')}"
+            )
             return _extract_json(content)
         except Exception as e:
             print(f"[llm] Grok 호출 실패 → 템플릿 폴백: {type(e).__name__}: {e}")
