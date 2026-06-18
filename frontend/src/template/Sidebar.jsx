@@ -4,7 +4,14 @@ import api from "../pages/login/api";
 import styles from "./Sidebar.module.css";
 import logo from "../assets/drawe_logo.png";
 
-const HIDDEN_PATHS = ["/login", "/signup", "/oauth/callback", "/onboarding"];
+const HIDDEN_PATHS = [
+  "/login",
+  "/signup",
+  "/signup/terms",
+  "/terms",
+  "/oauth/callback",
+  "/onboarding",
+];
 
 const Sidebar = () => {
   const location = useLocation();
