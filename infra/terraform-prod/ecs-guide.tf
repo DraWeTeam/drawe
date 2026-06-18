@@ -33,9 +33,9 @@ variable "fastapi_guide_desired_count" {
 }
 
 variable "guide_hand_vlm" {
-  description = "손 VLM 게이트. dev 검증(P9) 통과 후 prod 도 동일 절차로 0→1 해제."
+  description = "손 VLM 게이트. dev 검증(P9) 통과 후 prod 도 동일 절차로 0→1 해제. (현재: 해제됨)"
   type        = string
-  default     = "0"
+  default     = "1" # 해제(ON) — Gemini 손 관찰자 활성. GEMINI_API_KEY 실제값 필요
 }
 
 # ── ECR ──────────────────────────────────────────────
@@ -146,7 +146,7 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
 
         # ── 모델 게이트 ──
         { name = "VLM_BACKEND", value = "aistudio" }, # Gemini(aistudio)
-        { name = "HAND_VLM", value = var.guide_hand_vlm }, # prod 도 동일 절차 0(다크)→1
+        { name = "HAND_VLM", value = var.guide_hand_vlm }, # 해제(ON): Gemini 손 관찰자
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
 
