@@ -219,6 +219,7 @@ const ReferenceCard = ({
         // iteration_count, input_mode는 카드 컴포넌트에선 모름 → 부모에서 prop으로 받거나 0
         iteration_count: 0,
         input_mode: "text",
+        reference_tags: reference?.tags?.join(",") || "",
       };
 
       if (actionType === "changed" || actionType === "removed") {

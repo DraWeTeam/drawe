@@ -21,7 +21,7 @@ INDEX_FIELDS = {
 
 
 def init():
-    c = QdrantClient(url=settings.qdrant_url)
+    c = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
     if not c.collection_exists(settings.qdrant_collection):
         c.create_collection(
             settings.qdrant_collection,

@@ -166,3 +166,29 @@ resource "aws_ssm_parameter" "ga4_sa_key" {
   tags  = { Name = "${local.name_prefix}-ga4-sa-key" }
   lifecycle { ignore_changes = [value] }
 }
+
+# ── Mail / Gmail SMTP (이메일 인증 발송) ────────────────
+# 발신용 Gmail 계정. application.properties 의
+#   spring.mail.username=${SMTP_USERNAME}
+#   spring.mail.password=${SMTP_PASSWORD}
+# 두 키에 매핑된다 (기본값 없음 → 미주입 시 앱 기동 실패).
+# 첫 apply 후 실제 값 수동 주입:
+#   aws ssm put-parameter --name "/drawe/prod/smtp-username" \
+#       --value "<발신용@gmail.com>" --type String --overwrite
+#   aws ssm put-parameter --name "/drawe/prod/smtp-password" \
+#       --value "<16자리 Gmail 앱 비밀번호>" --type SecureString --overwrite
+resource "aws_ssm_parameter" "smtp_username" {
+  name  = "/${var.project}/${var.env}/smtp-username"
+  type  = "String"
+  value = "CHANGE_ME_smtp_username"
+  tags  = { Name = "${local.name_prefix}-smtp-username" }
+  lifecycle { ignore_changes = [value] }
+}
+
+resource "aws_ssm_parameter" "smtp_password" {
+  name  = "/${var.project}/${var.env}/smtp-password"
+  type  = "SecureString"
+  value = "CHANGE_ME_smtp_app_password"
+  tags  = { Name = "${local.name_prefix}-smtp-password" }
+  lifecycle { ignore_changes = [value] }
+}

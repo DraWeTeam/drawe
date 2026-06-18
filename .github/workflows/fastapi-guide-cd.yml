@@ -81,6 +81,7 @@ jobs:
           docker buildx build \
               --platform linux/arm64 \
               -f Dockerfile.guide \
+              --build-arg HF_TOKEN="${{ secrets.HF_TOKEN }}" \
               -t $REGISTRY/$REPO:$TAG \
               -t $REGISTRY/$REPO:latest \
               --push \

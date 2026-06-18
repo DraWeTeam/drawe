@@ -2,6 +2,7 @@ package com.drawe.backend.domain.auth.controller;
 
 import com.drawe.backend.domain.auth.dto.*;
 import com.drawe.backend.domain.auth.service.AuthService;
+import com.drawe.backend.domain.auth.service.EmailVerificationService;
 import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
   private final AuthService authService;
+  private final EmailVerificationService emailVerificationService;
 
   @Value("${spring.security.oauth2.client.registration.google.client-id}")
   private String clientId;
@@ -92,6 +94,26 @@ public class AuthController {
       @AuthenticationPrincipal PrincipalDetails principalDetails,
       @Valid @RequestBody PasswordCheckRequest request) {
     authService.checkPassword(principalDetails.getUser().getId(), request);
+    return ApiResponse.success();
+  }
+
+  @PostMapping("/agree-terms")
+  public ApiResponse<Void> agreeTerms(
+      @AuthenticationPrincipal PrincipalDetails principalDetails,
+      @Valid @RequestBody AgreeTermsRequest request) {
+    authService.agreeTerms(principalDetails.getUser().getId());
+    return ApiResponse.success();
+  }
+
+  @PostMapping("/email/send-code")
+  public ApiResponse<Void> sendCode(@Valid @RequestBody SendCodeRequest request) {
+    emailVerificationService.sendCode(request.getEmail());
+    return ApiResponse.success();
+  }
+
+  @PostMapping("/email/verify-code")
+  public ApiResponse<Void> verifyCode(@Valid @RequestBody VerifyCodeRequest request) {
+    emailVerificationService.verifyCode(request.getEmail(), request.getCode());
     return ApiResponse.success();
   }
 }

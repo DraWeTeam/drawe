@@ -30,9 +30,9 @@ variable "fastapi_guide_desired_count" {
 }
 
 variable "guide_hand_vlm" {
-  description = "손 VLM 게이트. dev 는 0(다크)로 시작, P9 에서 1 로 해제."
+  description = "손 VLM 게이트. dev 는 0(다크)로 시작, P9 에서 1 로 해제. (현재: 해제됨)"
   type        = string
-  default     = "0"
+  default     = "1" # 해제(ON) — Gemini 손 관찰자 활성. GEMINI_API_KEY 실제값 필요
 }
 
 # ── ECR ──────────────────────────────────────────────
@@ -143,9 +143,14 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
 
         # ── 모델 게이트 ──
         { name = "VLM_BACKEND", value = "aistudio" }, # Gemini(aistudio)
-        { name = "HAND_VLM", value = var.guide_hand_vlm }, # dev 0(다크) → P9 1
+        { name = "HAND_VLM", value = var.guide_hand_vlm }, # 해제(ON): Gemini 손 관찰자
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
+
+        # ── 코칭 에이전트(LLM 선택자/계획자) — 후보 안에서만 선택, validate가 그라운딩 강제 ──
+        # OFF(미설정/0)면 결정적 규칙 모드(추가 LLM 호출 0). 1/true/yes 면 ON(요청당 Grok 호출 추가).
+        { name = "AGENT_LLM_SELECT", value = "1" }, # decide(): 후보 중 무엇을·어떤 순서·톤으로 선택
+        { name = "AGENT_PLAN", value = "1" },       # plan_next(): 다음 단계 학습 경로(Layer 3)
 
         # ── 브라우저 출처(CORS) ──
         { name = "CORS_ORIGINS", value = var.frontend_url },

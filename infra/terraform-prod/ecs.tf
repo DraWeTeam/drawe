@@ -332,7 +332,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "JPA_DDL_AUTO", value = "validate" },        # ⌁ prod: validate (Flyway 사용)
         { name = "JPA_SHOW_SQL", value = "false" },
         { name = "LOG_LEVEL_SQL", value = "warn" },
-        { name = "APP_CORS_ALLOWED_ORIGINS", value = var.frontend_url },
+        { name = "APP_CORS_ALLOWED_ORIGINS", value = join(",", concat([var.frontend_url], var.cors_extra_origins)) },
         { name = "APP_OAUTH2_REDIRECT_URI", value = "${var.frontend_url}/oauth/callback" },
         { name = "FASTAPI_URL", value = "http://fastapi.${local.name_prefix}.local:8000" },
         # 이미지 가이딩 전용 서비스(Service Connect). Spring GuideClient 가 ${fastapi.guide.url} 로 사용.
@@ -359,6 +359,8 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "BRIA_BASE_URL",    valueFrom = aws_ssm_parameter.bria_base_url.arn },
         { name = "ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.admin_password.arn },
         { name = "GA4_SA_KEY_JSON", valueFrom = aws_ssm_parameter.ga4_sa_key.arn },
+        { name = "SMTP_USERNAME", valueFrom = aws_ssm_parameter.smtp_username.arn },
+        { name = "SMTP_PASSWORD", valueFrom = aws_ssm_parameter.smtp_password.arn },
       ]
 
       logConfiguration = {
@@ -451,6 +453,8 @@ resource "aws_ecs_service" "backend" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.backend_desired_count
+  deployment_minimum_healthy_percent = 0
+  deployment_maximum_percent         = 100
 
   enable_execute_command = true   # ECS Exec - debug shell
 

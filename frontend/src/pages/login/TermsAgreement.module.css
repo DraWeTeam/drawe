@@ -1,0 +1,313 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #fff;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  padding: 40px 0 80px;
+  gap: 32px;
+}
+
+.section {
+  width: 402px;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 30px;
+  margin: 0;
+}
+
+.sub {
+  font-size: 14px;
+  opacity: 0.6;
+  margin: 12px 0 0 0;
+}
+
+.box {
+  width: 402px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 전체 약관 동의 */
+.allRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.allLabel {
+  font-size: 17px;
+  font-weight: 700;
+  color: #222;
+}
+
+.divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 16px 0 8px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.itemCheck {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  flex: 1;
+  text-align: left;
+}
+
+.itemLabel {
+  font-size: 15px;
+  color: #333;
+}
+
+.required {
+  color: #ff5b37;
+  font-weight: 500;
+}
+
+.optional {
+  color: rgba(0, 0, 0, 0.4);
+  font-weight: 500;
+}
+
+.detailWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.detailBtn {
+  background: none;
+  border: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.detailBtn:hover {
+  background: #ebebeb;
+}
+
+/* 자세히 보기 툴팁 */
+.tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: #2b2b2b;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: #2b2b2b;
+}
+
+.detailWrap:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 체크박스 */
+.checkbox {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(0, 0, 0, 0.2);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.checkboxOn {
+  background: #ff8534;
+  border-color: #ff8534;
+}
+
+.submitError {
+  color: #d83a3a;
+  font-size: 13px;
+  margin: 16px 0 0 4px;
+}
+
+/* 다음으로 */
+.nextBtn {
+  margin-top: 40px;
+  width: 100%;
+  height: 48px;
+  border-radius: 999px;
+  background: #ff8534;
+  border: 0;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.nextBtn:disabled {
+  background: #d9d9d9;
+  cursor: not-allowed;
+}
+
+/* 자세히 보기 모달 */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.modal {
+  width: 560px;
+  max-width: 100%;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.modalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalTitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.closeBtn {
+  background: #fff;
+  border: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 20px;
+  line-height: 1;
+  color: #555;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.closeBtn:hover {
+  background: #e0e0e0;
+  color: #222;
+}
+
+.modalSubTitle {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 18px 0 12px;
+}
+
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(0, 0, 0, 0.7);
+  white-space: pre-wrap;
+  padding-right: 8px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.disagreeBtn,
+.agreeBtn {
+  flex: 1;
+  height: 48px;
+  border-radius: 12px;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.disagreeBtn {
+  background: #f1f1f1;
+  color: #555;
+}
+
+.agreeBtn {
+  background: #ff8534;
+  color: #fff;
+}
