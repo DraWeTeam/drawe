@@ -1,11 +1,10 @@
 from fastapi import APIRouter, UploadFile, Form, Request, HTTPException
 from fastapi.responses import StreamingResponse, RedirectResponse
-from fastapi.concurrency import run_in_threadpool
-import threading
 from pydantic import BaseModel
 from io import BytesIO
 import json
 import uuid
+import asyncio
 from sqlalchemy import text, bindparam
 
 from guide.stores.db import engine
@@ -49,10 +48,9 @@ router = APIRouter()
 llm = get_llm()
 
 
-# mediapipe PoseLandmarker / CLIP 추론은 단일 공유 인스턴스라 동시 호출이 스레드-세이프하지 않다.
-# 핸들러를 run_in_threadpool 로 오프로드하면 동시에 돌 수 있으므로 ML 구간만 락으로 직렬화한다
-# (이벤트 루프는 안 막힘). LLM(Grok)·DB 는 락 밖에서 돌아 90초 호출이 서로 겹친다.
-_ML_LOCK = threading.Lock()
+# 동기 파이프라인(임베딩·mediapipe·손 VLM·LLM)은 asyncio.to_thread 로 오프로드해 이벤트 루프/헬스체크를
+# 비차단으로 둔다. 전역 락은 두지 않는다 — _pipeline 안에 느린 네트워크 호출(growth_context LLM·손 VLM)이
+# 있어 락을 걸면 그 I/O 동안 모든 동시 요청이 직렬화돼 Spring 타임아웃이 연쇄된다(검증된 develop 동작으로 복귀).
 
 
 def _pipeline(
@@ -148,12 +146,11 @@ def _pipeline(
 @router.post("/analyze")
 async def analyze_ep(file: UploadFile, message: str = Form("")):
     file_bytes = await file.read()
-    return await run_in_threadpool(_analyze_sync, file_bytes, message)
+    return await asyncio.to_thread(_analyze_sync, file_bytes, message)
 
 
 def _analyze_sync(file_bytes, message):
-    with _ML_LOCK:
-        ctx, early = _pipeline(file_bytes, message)
+    ctx, early = _pipeline(file_bytes, message)
     if early:
         return early
     dx = ctx[0]
@@ -310,14 +307,13 @@ async def guide_ep(
     request_id: str = Form(None),
 ):
     file_bytes = await file.read()
-    return await run_in_threadpool(
+    return await asyncio.to_thread(
         _guide_sync, file_bytes, message, user_id, intent, track, medium, request_id
     )
 
 
 def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id):
-    with _ML_LOCK:
-        ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         return early
     dx, refs_by_sp, retrieved, tax, growth, intent = ctx
@@ -368,7 +364,7 @@ async def guide_stream_ep(
     request_id: str = Form(None),
 ):
     file_bytes = await file.read()
-    return await run_in_threadpool(
+    return await asyncio.to_thread(
         _guide_stream_sync,
         file_bytes,
         message,
@@ -381,8 +377,7 @@ async def guide_stream_ep(
 
 
 def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, request_id):
-    with _ML_LOCK:
-        ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         body = [
             f"data: {json.dumps(early, ensure_ascii=False)}\n\n",
