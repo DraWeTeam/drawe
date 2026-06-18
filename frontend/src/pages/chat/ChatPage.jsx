@@ -460,12 +460,6 @@ const ChatPage = () => {
     if (isFirstSubmission) {
       // 첫 제출
       if (sentAttachment) {
-        track("prompt_image_uploaded", {
-          project_id: projectId,
-          image_format: sentAttachment.format || "unknown",
-          image_size_kb: sentAttachment.sizeKb || 0,
-          iteration_count: currentIteration,
-        });
       } else {
         track("prompt_submitted", {
           project_id: projectId,
