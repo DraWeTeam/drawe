@@ -74,6 +74,7 @@ const ChatPage = () => {
   const [guideError, setGuideError] = useState("");
   const [guidePreview, setGuidePreview] = useState(null);
   const lastGuideArgs = useRef(null);
+  const lastDetectedStage = useRef(null); // 직전 감지 스테이지 (전송 간 비교용)
 
   const [references, setReferences] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
@@ -554,8 +555,6 @@ const ChatPage = () => {
           project_id: projectId,
         });
       }
-
-      const lastDetectedStage = useRef(null);
 
       if (res?.detectedStage) {  // 백엔드 응답에 이 필드 와야 함
         track("prompt_stage_detected", {

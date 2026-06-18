@@ -4,7 +4,6 @@ import styles from "./GuideForm.module.css";
 import { track as analyticsTrack } from "../../analytics";
 import { useParams } from "react-router-dom";
 
-const { projectId } = useParams();
 // "어떤 점이 마음에 걸리나요?" 빠른 선택 칩 — 클릭 시 message 에 채움(편집 가능).
 const CONCERNS = [
   "손이 어색해요",
@@ -25,6 +24,7 @@ const TRACKS = [
 ];
 
 const GuideForm = ({ onSubmit, onClose, submitting }) => {
+  const { projectId } = useParams();
   const inputRef = useRef(null);
   const previewRef = useRef(null);
   const [file, setFile] = useState(null);
@@ -61,15 +61,14 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     previewRef.current = url;
     setFile(resized);
     setPreview(url);
-  };
 
-
-  imageUploadedAt.current = Date.now();
+    imageUploadedAt.current = Date.now();
     analyticsTrack("prompt_image_uploaded", {
       project_id: projectId,
-      image_format: resized.type.split('/')[1] || "unknown",
+      image_format: resized.type.split("/")[1] || "unknown",
       image_size_kb: Math.round(resized.size / 1024),
     });
+  };
 
   const handleSubmit = () => {
     if (!file || submitting) return;
