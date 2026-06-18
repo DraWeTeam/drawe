@@ -203,8 +203,13 @@ def resolve(message, scene):
     if mode != "coach":
         return mode, [], set()
 
-    person = scene.get("subject", {}).get("person", {}).get("present", False)
-    personas = ["pose", "anatomy"] if person else ["composition", "light", "color"]
+    # figure = 인물+신체부위(손/발/얼굴). 손/얼굴 클로즈업도 anatomy persona 로 보내
+    # hand_structure 등이 후보로 들어오게 한다(없으면 구 scene 호환 위해 person 폴백).
+    subj = scene.get("subject", {})
+    figure = subj.get("figure", {}).get(
+        "present", subj.get("person", {}).get("present", False)
+    )
+    personas = ["pose", "anatomy"] if figure else ["composition", "light", "color"]
 
     # offtopic 은 부위 언급이 없으니 빈 user_terms(L1 관찰-제안). 그 외엔 키워드 surface.
     user_terms = set() if category == "offtopic" else detect_terms(message)

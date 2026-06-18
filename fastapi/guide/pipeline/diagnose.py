@@ -113,11 +113,23 @@ def _subject_centroid(g):
     return cx, cy
 
 
+def _is_line_sketch(g):
+    """밝은 종이 위 얇은 선 위주(선 스케치) 추정 — 명암(shading) 코칭은 시기상조라 value 축을 보류한다.
+    보수적: 종이(고명도)가 지배적 + 종이보다 충분히 어두운 잉크 픽셀이 적을 때만 True."""
+    h, _ = np.histogram(g.ravel(), bins=32, range=(0.0, 1.0))
+    mode = int(h.argmax())
+    bg_frac = float(h[mode]) / g.size  # 지배 배경(종이) 비율
+    c = (mode + 0.5) / 32.0  # 배경 밝기 중심
+    dark_frac = float((g < c - 0.15).mean())  # 종이보다 충분히 어두운(선) 비율
+    return bool(c > 0.62 and bg_frac > 0.45 and dark_frac < 0.12)
+
+
 def image_signals(pil):
     g = np.asarray(pil.convert("L"), float) / 255
     out = {
         "value_std": float(g.std()),
         "value_range_robust": _subject_value_range(g),  # 배경-강건(degraded 폴백용)
+        "line_sketch": _is_line_sketch(g),  # 선 스케치 → value 축 보류(D)
     }
     ctr = _subject_centroid(
         g
@@ -508,6 +520,10 @@ def s_joint_articulation(s):
 
 def s_value_structure(s):
     """명도 구조 — 국소 측정(인물 명도폭 / 실루엣-배경 분리) 우선, 없으면 전역 value_std 폴백."""
+    if s.get("line_sketch"):
+        return (
+            None  # 선 스케치(선 위주, 명암 전) — shading 코칭 보류, 구조 축에 양보(D)
+        )
     parts, conf = [], 0.0
     fr = s.get("figure_value_range")
     if fr is not None:  # 인물 내부 명도 폭(배경 대비에 속지 않음)
@@ -620,6 +636,11 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         (profile or {}).get("subproblems") or []
     )  # track 게이팅(비면 전체 허용)
     norms = (profile or {}).get("norms") or {}
+    # 손/발 부위 클로즈업(scene figure.body_part) → 포즈가 실패해도 hand_structure 를 후보로
+    # 살린다(VLM 관찰 경로). 측정이 아니라 관찰이므로 measured=False 는 유지(단정 금지).
+    hand_hint = (
+        float(scene.get("subject", {}).get("figure", {}).get("body_part", 0.0)) > 0.30
+    )
     sig = {}
     if pose_trusted:
         sig.update(pose_signals(pose["keypoints"]))
@@ -645,9 +666,18 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         # 흉상/얼굴(degraded=형체 미검출): 포즈 의존 축은 측정 불가 → persona 만으로 빈 관찰을 채우지 않는다.
         #   포즈축 빈 관찰이 새면 "무게중심/단축" 같은 걸 측정한 척 흘려 신뢰를 깎는다. feel 축(명도·구도·빛)만
         #   남겨 정직한 진단으로. 단 사용자가 칩으로 직접 고른 경우(user_terms)는 가설형으로 surface(의도 존중).
-        if tier != POSE_OK and sid in POSE_DEPENDENT and sid not in user_terms:
+        if (
+            tier != POSE_OK
+            and sid in POSE_DEPENDENT
+            and sid not in user_terms
+            and not (sid == "hand_structure" and hand_hint)
+        ):
             continue
-        if any(p in personas for p in e["personas"]) or sid in user_terms:
+        if (
+            any(p in personas for p in e["personas"])
+            or sid in user_terms
+            or (sid == "hand_structure" and hand_hint)
+        ):
             # 측정 근거 없음 → signal 비움(내부 라벨이 사용자 문구로 새지 않게). 프롬프트가 measured=False를 보고
             # 결핍을 단정하지 않고 '함께 어디를 볼지'로만, 가설형으로 안내한다.
             if sid == "hand_structure":
@@ -664,7 +694,11 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     # (예: 손 클로즈업이 '인물 없음'→landscape track으로 잡혀도, "손 봐주세요"면 hand_structure 유지)
     if eligible:
         hits = {
-            sid: v for sid, v in hits.items() if sid in eligible or sid in user_terms
+            sid: v
+            for sid, v in hits.items()
+            if sid in eligible
+            or sid in user_terms
+            or (sid == "hand_structure" and hand_hint)
         }
 
     ranked = sorted(hits.items(), key=lambda kv: -kv[1][0])
@@ -705,6 +739,13 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                 "recurred": sid in recurring_set,  # 최근에도 반복적으로 떴는가(연속성)
                 "from_user": sid
                 in user_terms,  # 사용자가 칩/문구로 직접 고른 관심(중재 우선순위)
+                # (C) 조건부 우선: 이 축이 '이 그림 맥락에서 말이 되는가'.
+                #   measured(측정됨) 또는 track이 다루는 축(sid in eligible) 또는 track 게이팅 없음(eligible 빔).
+                #   풍경에 "손"을 잘못 말한 경우 → hand는 eligible 밖 → context_ok=False → lead 강제 안 됨(가설로만).
+                #   resolve_profile이 scene(인물 유무)으로 track을 정하므로, eligible이 곧 scene 맥락 신호다.
+                "context_ok": (sid in measured_ids)
+                or (not eligible)
+                or (sid in eligible),
                 "region": REGION_KP.get(sid) if not degraded else None,
                 "what_to_observe": e["what_to_observe"],
                 "reference_query": e["reference_query"],
