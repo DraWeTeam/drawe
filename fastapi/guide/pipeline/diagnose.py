@@ -114,11 +114,11 @@ def _subject_centroid(g):
 
 
 def _is_line_sketch(g):
-    """선/옅은 스케치(셰이딩 전) 추정 — 명암 코칭 보류용. 전체 명암 대비가 매우 낮고(value_std↓,
-    거의 단조) 동시에 밝은 영역이 많을 때(종이 위 옅은 선; 전면을 채운 도색 그림 아님)만 True.
-    value_std 가 선/플랫을, light_frac 이 '도색 그림' 오탐(전면 중간톤)을 거른다. 임계는 평가셋 튜닝 대상."""
-    light_frac = float((g >= 0.78).mean())  # 밝은 영역(종이/하이키)
-    return bool(float(g.std()) < 0.10 and light_frac > 0.45)
+    """거의 단조(near-flat)·옅은 그림 추정 — 명암 코칭 보류용. value_std 가 매우 낮으면(톤 변화가
+    거의 없음) '명암 폭을 넓혀라'는 조언이 무의미/오해다(선·옅은 스케치라 셰이딩 단계 전). 임계는
+    평가셋 튜닝 대상. (light_frac 은 image_signals 에서 디버그로 노출 — 추후 '밝은 선화 vs 어두운
+    플랫'을 더 가르려면 함께 쓸 수 있음.)"""
+    return bool(float(g.std()) < 0.08)
 
 
 def image_signals(pil):
@@ -676,14 +676,18 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     # track 게이팅: 이 track에서 다루지 않는 항목은 제외(풍경에 포즈 항목이 새어 나오지 않게).
     # 단 통과 예외 둘:
     #   - user_terms(직접 물은 축): 자동 노이즈가 아니라 의도.
-    #   - measured_ids(실제 자동 측정된 축, 예: HandLandmarker 가 잡은 손·포즈 키포인트):
-    #     측정 = 그 대상이 실재한다는 증거 > track '추측'. 풍경엔 손/포즈가 measure 안 되므로 안 샌다.
-    #     (손 클로즈업이 landscape track 으로 잡혀도, 손이 검출되면 hand_structure 가 살아남는다.)
+    #   - 검출돼야만 측정되는 축(POSE_DEPENDENT ∩ measured_ids): HandLandmarker 가 잡은 손,
+    #     포즈 키포인트 등은 '측정=그 대상이 실재' 증거라 track 추측을 덮고 통과한다(손 클로즈업이
+    #     landscape 로 잡혀도 손이 검출되면 hand_structure 가 살아남음). value/atmospheric/composition
+    #     처럼 *주변 픽셀 통계*로 발화하는 축은 검출 증거가 아니므로 track 게이팅을 그대로 따른다
+    #     (안 그러면 손 그림에 풍경 신호인 atmospheric 이 measured 로 새어 들어온다).
     if eligible:
         hits = {
             sid: v
             for sid, v in hits.items()
-            if sid in eligible or sid in user_terms or sid in measured_ids
+            if sid in eligible
+            or sid in user_terms
+            or (sid in measured_ids and sid in POSE_DEPENDENT)
         }
 
     ranked = sorted(hits.items(), key=lambda kv: -kv[1][0])
