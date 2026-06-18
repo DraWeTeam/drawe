@@ -460,7 +460,7 @@ const ChatPage = () => {
     if (isFirstSubmission) {
       // 첫 제출
       if (sentAttachment) {
-        track("prompt_image_uploaded_submitted", {
+        track("prompt_image_uploaded", {
           project_id: projectId,
           image_format: sentAttachment.format || "unknown",
           image_size_kb: sentAttachment.sizeKb || 0,
@@ -577,6 +577,9 @@ const ChatPage = () => {
         reference_count: responseType === "reference" ? newRefs.length : 0,
         generation_time_ms: Date.now() - responseStartTime,
         iteration_count: currentIteration,
+        reference_ids: responseType === "reference"
+          ? newRefs.map(r => r.id).join(",")
+          : "",
       });
 
       lastResponseTime.current = Date.now();
@@ -779,6 +782,9 @@ const ChatPage = () => {
           iteration_count: userMessageCount,
           input_mode: lastInputMode,
           project_id: projectId,
+          reference_tags: refObject.tags 
+            ? refObject.tags.join(",") 
+            : "",
         });
 
         localStorage.setItem(pinKey, Date.now().toString());
