@@ -3,7 +3,6 @@ import yaml
 import numpy as np
 from functools import lru_cache
 from guide.pipeline.profiles import POSE_DEPENDENT, ALL_AXES
-from guide.pipeline.overlay import resolve_anchors, build_overlay
 
 # 파일 위치 기준 → repo 루트/CWD 어디서 실행해도 동작(eval 포함). 환경변수로 override 가능.
 TAXONOMY_PATH = os.environ.get(
@@ -120,7 +119,9 @@ def image_signals(pil):
         "value_std": float(g.std()),
         "value_range_robust": _subject_value_range(g),  # 배경-강건(degraded 폴백용)
     }
-    ctr = _subject_centroid(g)  # 잉크 무게중심(밝은 종이에서만) — brightness 가중 버그 수정
+    ctr = _subject_centroid(
+        g
+    )  # 잉크 무게중심(밝은 종이에서만) — brightness 가중 버그 수정
     if ctr is not None:
         cx, cy = ctr
         out["focus_centeredness"] = float(1 - 2 * max(abs(cx - 0.5), abs(cy - 0.5)))
@@ -151,7 +152,9 @@ def light_signals(pil, pose):
     g = np.asarray(pil.convert("L"), float) / 255
     if float(g.std()) < 1e-3:
         return {}
-    mask = _figure_bbox(pose, g.shape)  # 관절 신뢰 무관 — 형체 bbox만 있으면 광원 램프 측정(하이브리드)
+    mask = _figure_bbox(
+        pose, g.shape
+    )  # 관절 신뢰 무관 — 형체 bbox만 있으면 광원 램프 측정(하이브리드)
     if mask is None:
         # 형체 미검출(흉상/얼굴): 피사체를 못 가려내면 배경이 ramp 를 왜곡 → '평면 조명'을 잘못 단정하느니
         #   광원 방향은 측정하지 않는다(없는 신호 = scorer 미발화). 명도 폭은 value_range_robust 가 따로 잡는다.
@@ -289,7 +292,11 @@ def _figure_bbox_coords(pose):
     kp = pose.get("keypoints")
     if not kp:
         return None
-    pts = [(x, y) for (x, y, v) in kp if v >= VIS_KP and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0]
+    pts = [
+        (x, y)
+        for (x, y, v) in kp
+        if v >= VIS_KP and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0
+    ]
     if len(pts) < 6:
         return None
     xs = [p[0] for p in pts]
@@ -318,10 +325,14 @@ def _implausible_skeleton(kp):
     if torso < 0.04:  # (1) 몸통 붕괴 → 뼈대 의미 없음
         return True
     pts = np.array([_xy(kp, i) for i in (L_SH, R_SH, L_HIP, R_HIP, L_AN, R_AN)])
-    if float(np.linalg.norm(pts.std(axis=0))) < 0.03:  # (2) 핵심 관절 한 점 뭉침(중앙 덤프)
+    if (
+        float(np.linalg.norm(pts.std(axis=0))) < 0.03
+    ):  # (2) 핵심 관절 한 점 뭉침(중앙 덤프)
         return True
     for a, b in ((L_SH, L_EL), (R_SH, R_EL), (L_HIP, L_KN), (R_HIP, R_KN)):
-        if float(np.linalg.norm(_xy(kp, a) - _xy(kp, b))) > 2.5 * torso:  # (3) 비현실적으로 긴 뼈
+        if (
+            float(np.linalg.norm(_xy(kp, a) - _xy(kp, b))) > 2.5 * torso
+        ):  # (3) 비현실적으로 긴 뼈
             return True
     return False
 
@@ -342,7 +353,9 @@ def pose_reliability(pose):
 # SUBJECT_MASK 처럼 '측정 가능 영역'을 바꾸는 변경은 정확도 개선이 아니라 *계측 장치 변경*이다.
 # 그러면 학생의 "명도 폭이 늘었다"가 실력 변화인지 계측 변화인지 섞인다. practice_log 행에 이 버전을
 # 박아, 성장 비교가 변경 경계를 넘지 않게 한다(읽는 쪽은 추후 버전 경계에서 비교를 끊으면 됨).
-INSTRUMENT_VERSION = "dx-2026.08"  # 포즈 3-tier(ok/low/fail) 도입 — 계측 장치 변경, 성장 비교 경계 끊음
+INSTRUMENT_VERSION = (
+    "dx-2026.08"  # 포즈 3-tier(ok/low/fail) 도입 — 계측 장치 변경, 성장 비교 경계 끊음
+)
 
 
 def _subject_mask_on():
@@ -379,7 +392,9 @@ def region_signals(pil, pose):
       편차마스크에서 구조적 오발화라 제외). eval_harness 검증: 흉상 coverage 8/32→32/32, recall 0.17→0.42.
     - 둘 다 없으면 {} — 값 주장 보류(degraded 정직성 유지)."""
     g = np.asarray(pil.convert("L"), float) / 255
-    bbox = _figure_bbox(pose, g.shape)  # 관절 신뢰와 무관 — '형체 위치'만 필요(하이브리드)
+    bbox = _figure_bbox(
+        pose, g.shape
+    )  # 관절 신뢰와 무관 — '형체 위치'만 필요(하이브리드)
     if bbox is not None:
         # OK면 bg_contrast(실루엣-배경 섞임)까지, low_confidence면 value_range만(관절 비신뢰 → 보수)
         with_bg = pose.get("status") == "ok"

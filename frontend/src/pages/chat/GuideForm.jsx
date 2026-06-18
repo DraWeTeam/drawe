@@ -102,6 +102,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     });
   };
 
+  // eslint-disable-next-line no-unused-vars -- GA4 핸들러: UI 연결 예정(develop)
   const handleIntentSelect = (newIntent) => {
     setIntent(newIntent);
     const imageStatus = newIntent === "practice" ? "in_progress" : "completed";
@@ -115,6 +116,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     });
   };
 
+  // eslint-disable-next-line no-unused-vars -- GA4 핸들러: UI 연결 예정(develop)
   const handleChipClick = (chipContent, position) => {
     const isCurrentlyActive = message === chipContent;
     

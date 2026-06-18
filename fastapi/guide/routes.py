@@ -292,7 +292,10 @@ def _make_overlay(dx, growth):
         overlay = build_overlay(w, h, anns, tier) if anns else None
     return {
         "overlay": overlay,
-        "visual_mode": {"theory_axes": mode["theory_axes"], "overlay_axes": mode["overlay_axes"]},
+        "visual_mode": {
+            "theory_axes": mode["theory_axes"],
+            "overlay_axes": mode["overlay_axes"],
+        },
     }
 
 
@@ -366,7 +369,14 @@ async def guide_stream_ep(
 ):
     file_bytes = await file.read()
     return await run_in_threadpool(
-        _guide_stream_sync, file_bytes, message, user_id, intent, track, medium, request_id
+        _guide_stream_sync,
+        file_bytes,
+        message,
+        user_id,
+        intent,
+        track,
+        medium,
+        request_id,
     )
 
 

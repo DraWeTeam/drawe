@@ -460,8 +460,7 @@ const ChatPage = () => {
 
     if (isFirstSubmission) {
       // 첫 제출
-      if (sentAttachment) {
-      } else {
+      if (!sentAttachment) {
         track("prompt_submitted", {
           project_id: projectId,
           prompt_length: text.length,
