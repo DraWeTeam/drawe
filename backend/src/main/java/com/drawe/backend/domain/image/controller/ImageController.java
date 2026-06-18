@@ -36,16 +36,42 @@ public class ImageController {
     return ApiResponse.success(new ImageUploadResponse(stored.id(), stored.url()));
   }
 
+  /**
+   * 이미지 바이트 서빙. {@code download=true} 면 {@code Content-Disposition: attachment} 로 브라우저가 인라인
+   * 표시 대신 파일을 내려받게 한다(레퍼런스/완성작 다운로드). 접근 제어는 동일한 소유자 검증을 그대로 쓴다.
+   */
   @GetMapping("/{id}")
   public ResponseEntity<byte[]> view(
-      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long id) {
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @PathVariable Long id,
+      @RequestParam(name = "download", defaultValue = "false") boolean download) {
     ImageStorage.Loaded loaded = imageStorage.load(id);
     if (!loaded.ownerId().equals(principal.getUser().getId())) {
       throw new CustomException(ErrorCode.FORBIDDEN);
     }
-    return ResponseEntity.ok()
-        .contentType(MediaType.parseMediaType(loaded.mimeType()))
-        .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
-        .body(loaded.data());
+    ResponseEntity.BodyBuilder builder =
+        ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(loaded.mimeType()))
+            .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600");
+    if (download) {
+      String filename = "image_" + id + extensionFor(loaded.mimeType());
+      builder.header(
+          HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+    }
+    return builder.body(loaded.data());
+  }
+
+  /** mimeType → 파일 확장자. 알 수 없으면 빈 문자열(확장자 없는 파일명). */
+  private static String extensionFor(String mimeType) {
+    if (mimeType == null) {
+      return "";
+    }
+    return switch (mimeType) {
+      case "image/jpeg" -> ".jpg";
+      case "image/png" -> ".png";
+      case "image/webp" -> ".webp";
+      case "image/gif" -> ".gif";
+      default -> "";
+    };
   }
 }
