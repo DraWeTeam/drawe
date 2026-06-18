@@ -192,7 +192,7 @@ resource "aws_ecs_service" "fastapi_guide" {
   name            = "${local.name_prefix}-fastapi-guide"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.fastapi_guide.arn
-  desired_count   = var.fastapi_guide_desired_count
+  desired_count   = var.prod_enabled ? var.fastapi_guide_desired_count : 0
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
 
@@ -224,7 +224,7 @@ resource "aws_ecs_service" "fastapi_guide" {
   tags = { Name = "${local.name_prefix}-fastapi-guide-svc" }
 
   lifecycle {
-    ignore_changes = [desired_count, task_definition]
+    ignore_changes = [task_definition]
   }
 }
 
