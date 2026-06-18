@@ -150,6 +150,11 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
 
+        # ── 코칭 에이전트(LLM 선택자/계획자) — 후보 안에서만 선택, validate가 그라운딩 강제 ──
+        # OFF(미설정/0)면 결정적 규칙 모드(추가 LLM 호출 0). 1/true/yes 면 ON(요청당 Grok 호출 추가).
+        { name = "AGENT_LLM_SELECT", value = "1" }, # decide(): 후보 중 무엇을·어떤 순서·톤으로 선택
+        { name = "AGENT_PLAN", value = "1" },       # plan_next(): 다음 단계 학습 경로(Layer 3)
+
         # ── 브라우저 출처(CORS) ──
         { name = "CORS_ORIGINS", value = var.frontend_url },
 
