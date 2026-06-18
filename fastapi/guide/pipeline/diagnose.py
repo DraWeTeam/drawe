@@ -113,11 +113,21 @@ def _subject_centroid(g):
     return cx, cy
 
 
+def _is_line_sketch(g):
+    """거의 단조(near-flat)·옅은 그림 추정 — 명암 코칭 보류용. value_std 가 매우 낮으면(톤 변화가
+    거의 없음) '명암 폭을 넓혀라'는 조언이 무의미/오해다(선·옅은 스케치라 셰이딩 단계 전). 임계는
+    평가셋 튜닝 대상. (light_frac 은 image_signals 에서 디버그로 노출 — 추후 '밝은 선화 vs 어두운
+    플랫'을 더 가르려면 함께 쓸 수 있음.)"""
+    return bool(float(g.std()) < 0.08)
+
+
 def image_signals(pil):
     g = np.asarray(pil.convert("L"), float) / 255
     out = {
         "value_std": float(g.std()),
         "value_range_robust": _subject_value_range(g),  # 배경-강건(degraded 폴백용)
+        "line_sketch": _is_line_sketch(g),  # 선/옅은 스케치 → value 축 보류(D)
+        "light_frac": float((g >= 0.78).mean()),  # 디버그/튜닝용(line_sketch 판정 근거)
     }
     ctr = _subject_centroid(
         g
@@ -508,6 +518,10 @@ def s_joint_articulation(s):
 
 def s_value_structure(s):
     """명도 구조 — 국소 측정(인물 명도폭 / 실루엣-배경 분리) 우선, 없으면 전역 value_std 폴백."""
+    if s.get("line_sketch"):
+        return (
+            None  # 선 스케치(선 위주, 명암 전) — shading 코칭 보류, 구조 축에 양보(D)
+        )
     parts, conf = [], 0.0
     fr = s.get("figure_value_range")
     if fr is not None:  # 인물 내부 명도 폭(배경 대비에 속지 않음)
@@ -660,11 +674,20 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                 hits[sid] = (0.25 if e.get("auto") else 0.15, "")
 
     # track 게이팅: 이 track에서 다루지 않는 항목은 제외(풍경에 포즈 항목이 새어 나오지 않게).
-    # 단 사용자가 *직접 물은* 축(user_terms)은 자동 노이즈가 아니라 의도이므로 track 추측을 덮어쓰고 통과.
-    # (예: 손 클로즈업이 '인물 없음'→landscape track으로 잡혀도, "손 봐주세요"면 hand_structure 유지)
+    # 단 통과 예외 둘:
+    #   - user_terms(직접 물은 축): 자동 노이즈가 아니라 의도.
+    #   - 검출돼야만 측정되는 축(POSE_DEPENDENT ∩ measured_ids): HandLandmarker 가 잡은 손,
+    #     포즈 키포인트 등은 '측정=그 대상이 실재' 증거라 track 추측을 덮고 통과한다(손 클로즈업이
+    #     landscape 로 잡혀도 손이 검출되면 hand_structure 가 살아남음). value/atmospheric/composition
+    #     처럼 *주변 픽셀 통계*로 발화하는 축은 검출 증거가 아니므로 track 게이팅을 그대로 따른다
+    #     (안 그러면 손 그림에 풍경 신호인 atmospheric 이 measured 로 새어 들어온다).
     if eligible:
         hits = {
-            sid: v for sid, v in hits.items() if sid in eligible or sid in user_terms
+            sid: v
+            for sid, v in hits.items()
+            if sid in eligible
+            or sid in user_terms
+            or (sid in measured_ids and sid in POSE_DEPENDENT)
         }
 
     ranked = sorted(hits.items(), key=lambda kv: -kv[1][0])
@@ -705,6 +728,13 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                 "recurred": sid in recurring_set,  # 최근에도 반복적으로 떴는가(연속성)
                 "from_user": sid
                 in user_terms,  # 사용자가 칩/문구로 직접 고른 관심(중재 우선순위)
+                # (C) 조건부 우선: 이 축이 '이 그림 맥락에서 말이 되는가'.
+                #   measured(측정됨) 또는 track이 다루는 축(sid in eligible) 또는 track 게이팅 없음(eligible 빔).
+                #   풍경에 "손"을 잘못 말한 경우 → hand는 eligible 밖 → context_ok=False → lead 강제 안 됨(가설로만).
+                #   resolve_profile이 scene(인물 유무)으로 track을 정하므로, eligible이 곧 scene 맥락 신호다.
+                "context_ok": (sid in measured_ids)
+                or (not eligible)
+                or (sid in eligible),
                 "region": REGION_KP.get(sid) if not degraded else None,
                 "what_to_observe": e["what_to_observe"],
                 "reference_query": e["reference_query"],

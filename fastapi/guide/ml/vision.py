@@ -151,16 +151,16 @@ def _redact(msg, key):
     return msg.replace(key, "***KEY***") if key else msg
 
 
-def _call(b64, mime, key, model=_MODEL, timeout=90, retries=2):
+def _call(b64, mime, key, model=_MODEL, timeout=90, retries=2, prompt=None):
     """Gemini 호출(aistudio 키 또는 vertex ADC). 429 면 백오프 후 제한 재시도. 에러의 키는 마스킹.
-    production: 429 가 끝까지면 예외 → observe_hand 가 삼켜 None(폴백). eval: 하니스가 throttle 로 예방.
+    prompt 미지정이면 손 관찰 프롬프트(_PROMPT). production: 429 가 끝까지면 예외 → 호출부가 삼켜 None(폴백).
     """
     body = {
         "contents": [
             {
                 "role": "user",
                 "parts": [
-                    {"text": _PROMPT},
+                    {"text": prompt or _PROMPT},
                     {"inline_data": {"mime_type": mime, "data": b64}},
                 ],
             }
@@ -245,6 +245,44 @@ def _agree(a, b):
     ):
         return False
     return True
+
+
+# ── 주제 분류(애매한 CLIP 보강용 — 에스컬레이션) ─────────────────────────────────────────────
+_SUBJECT_PROMPT = (
+    "Classify the MAIN SUBJECT of this drawing or sketch. "
+    "Answer with EXACTLY ONE word from: figure, hand, face, landscape, object. "
+    "figure=a full or partial human body. hand=a hand or foot close-up. "
+    "face=a face or head. landscape=scenery or an outdoor scene. "
+    "object=a still life or inanimate object. Output only the one word, nothing else."
+)
+_SUBJECT_WORDS = {
+    "figure": "figure",
+    "hand": "hand",
+    "face": "face",
+    "landscape": "landscape",
+    "object": "still_life",
+}
+
+
+def classify_subject(image):
+    """주제를 Gemini 1회로 분류 — CLIP 이 애매할 때만 호출부에서 부른다(에스컬레이션 사다리).
+    반환: figure/hand/face/landscape/still_life | None. 게이트(SUBJECT_VLM) off·키 없음·실패면 None
+    → 호출부가 CLIP 폴백. HAND_VLM 과 같은 키/백엔드(_creds_ok·_key)를 쓴다."""
+    if os.environ.get("SUBJECT_VLM", "0").strip().lower() not in ("1", "true", "yes"):
+        return None
+    if not _creds_ok():
+        return None
+    try:
+        b64, mime = _to_b64(image)
+        raw = _call(b64, mime, _key(), prompt=_SUBJECT_PROMPT, timeout=30)
+    except Exception as e:
+        print(f"[vision] 주제 분류 실패(CLIP 폴백): {type(e).__name__}: {e}")
+        return None
+    word = re.sub(r"[^a-z]", "", (raw or "").strip().lower())
+    for k, v in _SUBJECT_WORDS.items():
+        if k in word:
+            return v
+    return None
 
 
 def observe_hand(image, runs=2):
