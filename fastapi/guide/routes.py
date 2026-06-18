@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from io import BytesIO
 import json
 import uuid
+import asyncio
 from sqlalchemy import text, bindparam
 
 from guide.stores.db import engine
@@ -134,7 +135,9 @@ def _pipeline(
 
 @router.post("/analyze")
 async def analyze_ep(file: UploadFile, message: str = Form("")):
-    ctx, early = _pipeline(await file.read(), message)
+    file_bytes = await file.read()
+    # 동기 파이프라인(임베딩·손 VLM 등)을 스레드로 오프로드 → 이벤트 루프/헬스체크 비차단
+    ctx, early = await asyncio.to_thread(_pipeline, file_bytes, message)
     if early:
         return early
     dx = ctx[0]
@@ -259,17 +262,10 @@ def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
     _log_observable(user_id, dx.get("measurable", ()), resp.guide_id)
 
 
-@router.post("/guide")
-async def guide_ep(
-    file: UploadFile,
-    message: str = Form(""),
-    user_id: str = Form("anon"),
-    intent: str = Form("open"),
-    track: str = Form(None),
-    medium: str = Form(None),
-    request_id: str = Form(None),
-):
-    ctx, early = _pipeline(await file.read(), message, user_id, intent, track, medium)
+def _guide_blocking(file_bytes, message, user_id, intent, track, medium, request_id):
+    """동기 파이프라인 전체(임베딩·손 VLM·Grok 에이전트/코칭)를 실행.
+    blocking 호출이라 반드시 이벤트 루프 밖(asyncio.to_thread)에서 돌려야 /health 가 안 막힌다."""
+    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         return early
     dx, refs_by_sp, retrieved, tax, growth, intent = ctx
@@ -307,8 +303,8 @@ async def guide_ep(
     return finalize_guide_response(resp, growth_obj=growth_obj)
 
 
-@router.post("/guide/stream")
-async def guide_stream_ep(
+@router.post("/guide")
+async def guide_ep(
     file: UploadFile,
     message: str = Form(""),
     user_id: str = Form("anon"),
@@ -317,13 +313,28 @@ async def guide_stream_ep(
     medium: str = Form(None),
     request_id: str = Form(None),
 ):
-    ctx, early = _pipeline(await file.read(), message, user_id, intent, track, medium)
+    # 파일 읽기(async)만 루프에서 처리하고, 무거운 동기 파이프라인은 스레드로 오프로드.
+    file_bytes = await file.read()
+    return await asyncio.to_thread(
+        _guide_blocking,
+        file_bytes,
+        message,
+        user_id,
+        intent,
+        track,
+        medium,
+        request_id,
+    )
+
+
+def _guide_stream_blocking(
+    file_bytes, message, user_id, intent, track, medium, request_id
+):
+    """/guide/stream 의 동기 부분(파이프라인·에이전트·코칭)을 스레드에서 실행.
+    반환: ("early", payload) | ("ok", payload). 실제 SSE 스트리밍(gen)은 호출부에서 한다."""
+    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
-        body = [
-            f"data: {json.dumps(early, ensure_ascii=False)}\n\n",
-            "data: [DONE]\n\n",
-        ]
-        return StreamingResponse(iter(body), media_type="text/event-stream")
+        return ("early", early)
     dx, refs_by_sp, retrieved, tax, growth, intent = ctx
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
@@ -356,10 +367,39 @@ async def guide_stream_ep(
         growth_obj = growth_from_raw(
             growth_view(user_id, track=track, degraded=resp.degraded), note=_note
         )
+    return ("ok", finalize_guide_response(resp, growth_obj=growth_obj))
+
+
+@router.post("/guide/stream")
+async def guide_stream_ep(
+    file: UploadFile,
+    message: str = Form(""),
+    user_id: str = Form("anon"),
+    intent: str = Form("open"),
+    track: str = Form(None),
+    medium: str = Form(None),
+    request_id: str = Form(None),
+):
+    file_bytes = await file.read()
+    kind, payload = await asyncio.to_thread(
+        _guide_stream_blocking,
+        file_bytes,
+        message,
+        user_id,
+        intent,
+        track,
+        medium,
+        request_id,
+    )
+    if kind == "early":
+        body = [
+            f"data: {json.dumps(payload, ensure_ascii=False)}\n\n",
+            "data: [DONE]\n\n",
+        ]
+        return StreamingResponse(iter(body), media_type="text/event-stream")
 
     def gen():
-        payload = finalize_guide_response(resp, growth_obj=growth_obj)
-        # 점진 렌더용: 블록을 하나씩 흘린 뒤, 마지막에 전체 응답(메타·next_steps 포함)을 보낸다.
+        # payload 는 이미 finalize 된 결과 — gen 은 직렬화만(빠름, LLM 호출 없음).
         for b in payload.get("blocks", []):
             yield f"data: {json.dumps({'type': 'block', 'block': b}, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done', 'guide': payload}, ensure_ascii=False)}\n\n"
