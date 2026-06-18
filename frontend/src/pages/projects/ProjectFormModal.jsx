@@ -44,6 +44,7 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
   const mountTime = useRef(Date.now());
   const finalized = useRef(false); // 정상 종료(생성/취소) 플래그
   const formRef = useRef(form); // form 최신값 mirror (unmount 시 사용)
+  const mouseDownTarget = useRef(null); // 마우스를 누르기 시작한 요소 (드래그 닫힘 방지)
 
   useEffect(() => {
     formRef.current = form;
@@ -138,8 +139,20 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
     onClose();
   };
 
-  // 백드롭 클릭 → abandoned
-  const handleBackdropClick = () => {
+  // 누르기 시작한 요소 기록
+  const handleBackdropMouseDown = (e) => {
+    mouseDownTarget.current = e.target;
+  };
+
+  // 백드롭 mouseup → abandoned
+  // 단, 누르기 시작·떼기 둘 다 백드롭 자체일 때만 닫는다.
+  // (모달 내부에서 누르고 밖에서 떼는 드래그로 모달이 닫히는 문제 방지)
+  const handleBackdropMouseUp = (e) => {
+    const closedOnBackdrop =
+      e.target === e.currentTarget && mouseDownTarget.current === e.currentTarget;
+    mouseDownTarget.current = null;
+    if (!closedOnBackdrop) return;
+
     if (!isEdit) {
       const filled = getFilledFields();
       trackIfCreate("project_create_abandoned", {
@@ -209,8 +222,12 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
   };
 
   return (
-    <div className={styles.backdrop} onClick={handleBackdropClick}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div
+      className={styles.backdrop}
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
+    >
+      <div className={styles.modal}>
         <h2 className={styles.title}>
           {isEdit ? "프로젝트 수정" : "새 프로젝트"}
         </h2>
