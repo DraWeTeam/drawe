@@ -7,6 +7,7 @@ import api from "./api";
 import AuthHeader from "./AuthHeader";
 import { setUserId } from "../../analytics"; // ← 추가
 import { track } from "../../analytics";
+import { useConsent } from "../../auth/ConsentContext";
 
 function getDeviceType() {
   const ua = navigator.userAgent;
@@ -28,6 +29,7 @@ function getUserIdFromToken(token) {
 
 const Login = () => {
   const navigate = useNavigate();
+  const { refresh } = useConsent();
 
   const [form, setForm] = useState({
     email: "",
@@ -106,8 +108,13 @@ const Login = () => {
         time_taken: Date.now() - mountTime,
       });
 
-      // 변경: navigate("/") → redirectAfterLogin()
-      await redirectAfterLogin();
+      // 약관 미동의 사용자는 동의 화면으로, 동의 완료면 기존 플로우대로
+      const agreed = await refresh();
+      if (agreed === false) {
+        navigate("/terms");
+      } else {
+        await redirectAfterLogin();
+      }
     } catch (error) {
       const message =
         error.response?.data?.error?.message || "로그인에 실패했습니다.";
@@ -189,7 +196,7 @@ const Login = () => {
                 계정이 없으신가요?
               </p>
               <Link
-                to="/signup"
+                to="/signup/terms"
                 style={{ margin: "0", fontWeight: "500" }}
                 onClick={() => {
                   track("signup_started", {
