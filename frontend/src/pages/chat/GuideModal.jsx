@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { axisLabel } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
+import OverlayImage from "./OverlayImage";
 import styles from "./GuideModal.module.css";
 
 // guide 서비스 에셋(SVG 도식) 공개 base. 미설정이면 도식 영역 자체를 숨김(빈 박스 금지).
@@ -343,9 +344,10 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
     <>
       {/* 반복 레이아웃에서만 상단 이미지/인트로(최초 레이아웃은 '1.분석' 안으로 들어감) */}
       {hasPractice && drawingPreviewUrl && (
-        <AuthedImage
+        <OverlayImage
           className={styles.userImg}
           src={drawingPreviewUrl}
+          overlay={guide.overlay}
           alt="첨부한 그림"
         />
       )}

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, UploadFile, Form, Request, HTTPException
 from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.concurrency import run_in_threadpool
+import threading
 from pydantic import BaseModel
 from io import BytesIO
 import json
 import uuid
-import asyncio
 from sqlalchemy import text, bindparam
 
 from guide.stores.db import engine
@@ -28,6 +29,11 @@ from guide.pipeline.profiles import resolve_profile
 from guide.pipeline import agent
 from guide.pipeline.asset_index import build_asset_index
 from guide.pipeline.search import search_text, is_miss
+from guide.pipeline.overlay import (
+    select_visual_mode,
+    resolve_anchors,
+    build_overlay,
+)
 from guide.pipeline.mapping import log_miss
 from guide.safety.moderation import screen_upload
 from guide.ml.upload_guard import UploadRejected
@@ -41,6 +47,12 @@ from guide.contract import finalize_guide_response, growth_from_raw
 
 router = APIRouter()
 llm = get_llm()
+
+
+# mediapipe PoseLandmarker / CLIP 추론은 단일 공유 인스턴스라 동시 호출이 스레드-세이프하지 않다.
+# 핸들러를 run_in_threadpool 로 오프로드하면 동시에 돌 수 있으므로 ML 구간만 락으로 직렬화한다
+# (이벤트 루프는 안 막힘). LLM(Grok)·DB 는 락 밖에서 돌아 90초 호출이 서로 겹친다.
+_ML_LOCK = threading.Lock()
 
 
 def _pipeline(
@@ -136,8 +148,12 @@ def _pipeline(
 @router.post("/analyze")
 async def analyze_ep(file: UploadFile, message: str = Form("")):
     file_bytes = await file.read()
-    # 동기 파이프라인(임베딩·손 VLM 등)을 스레드로 오프로드 → 이벤트 루프/헬스체크 비차단
-    ctx, early = await asyncio.to_thread(_pipeline, file_bytes, message)
+    return await run_in_threadpool(_analyze_sync, file_bytes, message)
+
+
+def _analyze_sync(file_bytes, message):
+    with _ML_LOCK:
+        ctx, early = _pipeline(file_bytes, message)
     if early:
         return early
     dx = ctx[0]
@@ -262,10 +278,46 @@ def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
     _log_observable(user_id, dx.get("measurable", ()), resp.guide_id)
 
 
-def _guide_blocking(file_bytes, message, user_id, intent, track, medium, request_id):
-    """동기 파이프라인 전체(임베딩·손 VLM·Grok 에이전트/코칭)를 실행.
-    blocking 호출이라 반드시 이벤트 루프 밖(asyncio.to_thread)에서 돌려야 /health 가 안 막힌다."""
-    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+def _make_overlay(dx, growth):
+    """모드 선택(이론 vs 오버레이) 후 overlay_axes 만 그림 위에 렌더(라우트에서 생성).
+    반환: payload 에 합칠 {overlay(SVG|None), visual_mode{theory_axes, overlay_axes}}."""
+    mode = select_visual_mode(dx.get("observations", []), growth)
+    sel = set(mode["overlay_axes"])
+    obs = [o for o in dx.get("observations", []) if o.get("sub_problem") in sel]
+    tier = dx.get("pose_tier", "fail")
+    w, h = dx.get("image_size") or (0, 0)
+    overlay = None
+    if obs and w and h:
+        anns = resolve_anchors(obs, dx.get("spatial") or {}, tier)
+        overlay = build_overlay(w, h, anns, tier) if anns else None
+    return {
+        "overlay": overlay,
+        "visual_mode": {
+            "theory_axes": mode["theory_axes"],
+            "overlay_axes": mode["overlay_axes"],
+        },
+    }
+
+
+@router.post("/guide")
+async def guide_ep(
+    file: UploadFile,
+    message: str = Form(""),
+    user_id: str = Form("anon"),
+    intent: str = Form("open"),
+    track: str = Form(None),
+    medium: str = Form(None),
+    request_id: str = Form(None),
+):
+    file_bytes = await file.read()
+    return await run_in_threadpool(
+        _guide_sync, file_bytes, message, user_id, intent, track, medium, request_id
+    )
+
+
+def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+    with _ML_LOCK:
+        ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         return early
     dx, refs_by_sp, retrieved, tax, growth, intent = ctx
@@ -300,11 +352,13 @@ def _guide_blocking(file_bytes, message, user_id, intent, track, medium, request
         growth_obj = growth_from_raw(
             growth_view(user_id, track=track, degraded=resp.degraded), note=_note
         )
-    return finalize_guide_response(resp, growth_obj=growth_obj)
+    payload = finalize_guide_response(resp, growth_obj=growth_obj)
+    payload.update(_make_overlay(dx, growth))  # 모드 선택 → overlay_axes 만 렌더
+    return payload
 
 
-@router.post("/guide")
-async def guide_ep(
+@router.post("/guide/stream")
+async def guide_stream_ep(
     file: UploadFile,
     message: str = Form(""),
     user_id: str = Form("anon"),
@@ -313,10 +367,9 @@ async def guide_ep(
     medium: str = Form(None),
     request_id: str = Form(None),
 ):
-    # 파일 읽기(async)만 루프에서 처리하고, 무거운 동기 파이프라인은 스레드로 오프로드.
     file_bytes = await file.read()
-    return await asyncio.to_thread(
-        _guide_blocking,
+    return await run_in_threadpool(
+        _guide_stream_sync,
         file_bytes,
         message,
         user_id,
@@ -327,14 +380,15 @@ async def guide_ep(
     )
 
 
-def _guide_stream_blocking(
-    file_bytes, message, user_id, intent, track, medium, request_id
-):
-    """/guide/stream 의 동기 부분(파이프라인·에이전트·코칭)을 스레드에서 실행.
-    반환: ("early", payload) | ("ok", payload). 실제 SSE 스트리밍(gen)은 호출부에서 한다."""
-    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+    with _ML_LOCK:
+        ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
-        return ("early", early)
+        body = [
+            f"data: {json.dumps(early, ensure_ascii=False)}\n\n",
+            "data: [DONE]\n\n",
+        ]
+        return StreamingResponse(iter(body), media_type="text/event-stream")
     dx, refs_by_sp, retrieved, tax, growth, intent = ctx
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
@@ -367,39 +421,11 @@ def _guide_stream_blocking(
         growth_obj = growth_from_raw(
             growth_view(user_id, track=track, degraded=resp.degraded), note=_note
         )
-    return ("ok", finalize_guide_response(resp, growth_obj=growth_obj))
-
-
-@router.post("/guide/stream")
-async def guide_stream_ep(
-    file: UploadFile,
-    message: str = Form(""),
-    user_id: str = Form("anon"),
-    intent: str = Form("open"),
-    track: str = Form(None),
-    medium: str = Form(None),
-    request_id: str = Form(None),
-):
-    file_bytes = await file.read()
-    kind, payload = await asyncio.to_thread(
-        _guide_stream_blocking,
-        file_bytes,
-        message,
-        user_id,
-        intent,
-        track,
-        medium,
-        request_id,
-    )
-    if kind == "early":
-        body = [
-            f"data: {json.dumps(payload, ensure_ascii=False)}\n\n",
-            "data: [DONE]\n\n",
-        ]
-        return StreamingResponse(iter(body), media_type="text/event-stream")
 
     def gen():
-        # payload 는 이미 finalize 된 결과 — gen 은 직렬화만(빠름, LLM 호출 없음).
+        payload = finalize_guide_response(resp, growth_obj=growth_obj)
+        payload.update(_make_overlay(dx, growth))  # 모드 선택 → 스트림 payload
+        # 점진 렌더용: 블록을 하나씩 흘린 뒤, 마지막에 전체 응답(메타·next_steps 포함)을 보낸다.
         for b in payload.get("blocks", []):
             yield f"data: {json.dumps({'type': 'block', 'block': b}, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done', 'guide': payload}, ensure_ascii=False)}\n\n"

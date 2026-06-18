@@ -38,7 +38,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const [err, setErr] = useState(null);
 
   const imageUploadedAt = useRef(null);
-  const chipSelectedAt = useRef({});  // { [chipContent]: timestamp }
+  const chipSelectedAt = useRef({}); // { [chipContent]: timestamp }
 
   useEffect(
     () => () => {
@@ -76,15 +76,15 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     const isChip = CONCERNS.includes(trimmedMessage);
     const hasChip = isChip;
     const hasTyped = trimmedMessage.length > 0 && !isChip;
-    
+
     let inputMethod;
-    if (hasChip) inputMethod = 'chip_only';
-    else if (hasTyped) inputMethod = 'typed_only';
-    else inputMethod = 'typed_only';  // 기본
-    
+    if (hasChip) inputMethod = "chip_only";
+    else if (hasTyped) inputMethod = "typed_only";
+    else inputMethod = "typed_only"; // 기본
+
     const selectedChipIds = hasChip ? [trimmedMessage] : [];
     const imageStatus = intent === "practice" ? "in_progress" : "completed";
-    
+
     analyticsTrack("prompt_image_with_context_submitted", {
       project_id: projectId,
       image_status: imageStatus,
@@ -102,10 +102,11 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     });
   };
 
+  // eslint-disable-next-line no-unused-vars -- GA4 핸들러: UI 연결 예정(develop)
   const handleIntentSelect = (newIntent) => {
     setIntent(newIntent);
     const imageStatus = newIntent === "practice" ? "in_progress" : "completed";
-    
+
     analyticsTrack("prompt_image_status_selected", {
       project_id: projectId,
       image_status: imageStatus,
@@ -115,37 +116,38 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     });
   };
 
+  // eslint-disable-next-line no-unused-vars -- GA4 핸들러: UI 연결 예정(develop)
   const handleChipClick = (chipContent, position) => {
     const isCurrentlyActive = message === chipContent;
-    
+
     if (isCurrentlyActive) {
       // 같은 칩 다시 클릭 → 해제
       const selectedAt = chipSelectedAt.current[chipContent];
       const timeSelected = selectedAt
         ? Math.round((Date.now() - selectedAt) / 1000)
         : 0;
-      
+
       analyticsTrack("prompt_chip_deselected", {
         project_id: projectId,
-        chip_id: chipContent,  // ID 없으면 content를 ID로 (또는 인덱스)
+        chip_id: chipContent, // ID 없으면 content를 ID로 (또는 인덱스)
         time_selected_sec: timeSelected,
       });
-      
+
       setMessage("");
       delete chipSelectedAt.current[chipContent];
     } else {
       // 새 칩 선택
       const imageStatus = intent === "practice" ? "in_progress" : "completed";
-      
+
       analyticsTrack("prompt_chip_selected", {
         project_id: projectId,
         chip_id: chipContent,
         chip_content: chipContent,
-        chip_position: position + 1,  // 1부터
+        chip_position: position + 1, // 1부터
         chip_count: CONCERNS.length,
         image_status: imageStatus,
       });
-      
+
       // 이전 활성 칩의 deselect 발화 (선택적)
       if (message && CONCERNS.includes(message)) {
         const prevSelectedAt = chipSelectedAt.current[message];
@@ -158,7 +160,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
         });
         delete chipSelectedAt.current[message];
       }
-      
+
       setMessage(chipContent);
       chipSelectedAt.current[chipContent] = Date.now();
     }

@@ -1,0 +1,29 @@
+/* 오버레이 모드 래퍼 — userImg 룩과 일관(테두리/라운드/배경/여백). 핵심은 '그림에 딱 맞기'. */
+.wrap {
+  position: relative;
+  display: inline-block; /* 그림 크기에 hug → 오버레이 정렬 보장 */
+  line-height: 0;
+  max-width: 100%;
+  background: #f6f4f1;
+  border: 1px solid #efeae3;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  width: auto;
+  height: auto; /* object-fit 레터박스 없음 → 좌표 정합 유지 */
+}
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.layer > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
