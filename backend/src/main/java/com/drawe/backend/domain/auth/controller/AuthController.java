@@ -97,6 +97,14 @@ public class AuthController {
     return ApiResponse.success();
   }
 
+  @PostMapping("/agree-terms")
+  public ApiResponse<Void> agreeTerms(
+      @AuthenticationPrincipal PrincipalDetails principalDetails,
+      @Valid @RequestBody AgreeTermsRequest request) {
+    authService.agreeTerms(principalDetails.getUser().getId());
+    return ApiResponse.success();
+  }
+
   @PostMapping("/email/send-code")
   public ApiResponse<Void> sendCode(@Valid @RequestBody SendCodeRequest request) {
     emailVerificationService.sendCode(request.getEmail());

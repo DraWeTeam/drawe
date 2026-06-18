@@ -54,6 +54,15 @@ public class AuthService {
   }
 
   @Transactional
+  public void agreeTerms(Long userId) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    user.agreeTerms(); // 변경 감지로 termsAgreeAt 반영
+  }
+
+  @Transactional
   public AuthResponse login(LoginRequest request) {
     User user =
         userRepository

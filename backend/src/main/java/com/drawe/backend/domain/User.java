@@ -72,4 +72,10 @@ public class User {
     this.provider = provider;
     this.providerId = providerId;
   }
+
+  public void agreeTerms() {
+    if (this.termsAgreeAt == null) { // 이미 동의했으면 최초 동의 시각 유지
+      this.termsAgreeAt = Instant.now();
+    }
+  }
 }
