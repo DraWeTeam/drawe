@@ -35,6 +35,12 @@ variable "guide_hand_vlm" {
   default     = "1" # 해제(ON) — Gemini 손 관찰자 활성. GEMINI_API_KEY 실제값 필요
 }
 
+variable "guide_subject_vlm" {
+  description = "주제 분류 VLM 게이트. CLIP person_p 가 애매(0.35~0.60)할 때만 Gemini 1회로 주제(손/풍경 등) 판정 → 진단 축 오라우팅 교정. GEMINI_API_KEY 필요."
+  type        = string
+  default     = "1" # ON — 애매 케이스만 호출(확신/명시 track 은 호출 0).
+}
+
 # ── ECR ──────────────────────────────────────────────
 resource "aws_ecr_repository" "fastapi_guide" {
   name                 = "${local.name_prefix}-fastapi-guide"
@@ -144,6 +150,7 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         # ── 모델 게이트 ──
         { name = "VLM_BACKEND", value = "aistudio" }, # Gemini(aistudio)
         { name = "HAND_VLM", value = var.guide_hand_vlm }, # 해제(ON): Gemini 손 관찰자
+        { name = "SUBJECT_VLM", value = var.guide_subject_vlm }, # 애매대역만 Gemini 주제 분류(축 오라우팅 교정)
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
 
