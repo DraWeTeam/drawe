@@ -13,7 +13,10 @@
     aws s3 sync /path/to/output s3://my-bucket/poses --acl public-read
 pose_viewer.html은 catalog.json을 읽고 <CDN_BASE>/<path>(원본)·<CDN_BASE>/<thumb>(썸네일)을 띄운다.
 """
-import sys, os, json
+
+import sys
+import os
+import json
 from collections import defaultdict
 
 try:
@@ -25,26 +28,36 @@ THUMB = 256
 
 
 def main(out_dir):
-    rows = [json.loads(l) for l in open(os.path.join(out_dir, "manifest.jsonl"),
-                                        encoding="utf-8") if l.strip()]
+    rows = [
+        json.loads(line)
+        for line in open(os.path.join(out_dir, "manifest.jsonl"), encoding="utf-8")
+        if line.strip()
+    ]
     poses = defaultdict(lambda: {"views": []})
     facets = {"category": set(), "body_type": set(), "gender": set(), "region": set()}
 
     for r in rows:
         p = poses[r["pose_id"]]
-        p.update({
-            "pose_id": r["pose_id"], "clip": r.get("clip"), "frame": r.get("frame"),
-            "category": r.get("category"), "tags": r.get("tags"),
-            "body_type": r.get("body_type"), "gender": r.get("gender"),
-            "material": r.get("material"),
-        })
+        p.update(
+            {
+                "pose_id": r["pose_id"],
+                "clip": r.get("clip"),
+                "frame": r.get("frame"),
+                "category": r.get("category"),
+                "tags": r.get("tags"),
+                "body_type": r.get("body_type"),
+                "gender": r.get("gender"),
+                "material": r.get("material"),
+            }
+        )
         for k in facets:
             v = r.get(k)
             if v:
                 facets[k].add(v)
 
-        thumb_rel = os.path.join("thumbs", r["pose_id"],
-                                 os.path.basename(r["path"]).replace(".png", ".webp"))
+        thumb_rel = os.path.join(
+            "thumbs", r["pose_id"], os.path.basename(r["path"]).replace(".png", ".webp")
+        )
         if Image is not None:
             src = os.path.join(out_dir, r["path"])
             dst = os.path.join(out_dir, thumb_rel)
@@ -54,22 +67,39 @@ def main(out_dir):
                 im.thumbnail((THUMB, THUMB))
                 im.save(dst, "WEBP", quality=82, method=6)
 
-        p["views"].append({
-            "azimuth": r.get("azimuth"), "elevation": r.get("elevation"),
-            "region": r.get("region", "full"),
-            "image": r["path"], "thumb": thumb_rel,
-        })
+        p["views"].append(
+            {
+                "azimuth": r.get("azimuth"),
+                "elevation": r.get("elevation"),
+                "region": r.get("region", "full"),
+                "image": r["path"],
+                "thumb": thumb_rel,
+            }
+        )
 
     for p in poses.values():
         # full(전신)을 먼저, region별·각도순 정렬 → 뷰어에서 전신→디테일 순으로 보기 좋게
-        p["views"].sort(key=lambda v: (v["region"] != "full", v["region"],
-                                       v.get("elevation") or 0, v.get("azimuth") or 0))
+        p["views"].sort(
+            key=lambda v: (
+                v["region"] != "full",
+                v["region"],
+                v.get("elevation") or 0,
+                v.get("azimuth") or 0,
+            )
+        )
 
     catalog = sorted(poses.values(), key=lambda p: p["pose_id"])
     with open(os.path.join(out_dir, "catalog.json"), "w", encoding="utf-8") as f:
-        json.dump({"count": len(catalog),
-                   "facets": {k: sorted(v) for k, v in facets.items()},
-                   "poses": catalog}, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {
+                "count": len(catalog),
+                "facets": {k: sorted(v) for k, v in facets.items()},
+                "poses": catalog,
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
     by_cat = defaultdict(int)
     for p in catalog:

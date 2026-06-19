@@ -17,8 +17,13 @@ persona별 검색어로 카테고리를 고르게 채운다. render_batch(자체
       ※ self_render가 이미 채운 pose/anatomy는 굳이 다시 늘리지 말 것.
         이미지 축(composition/light/color/mood)만 키우는 게 깔끔하다.
 """
-import sys, io, time, requests
+
+import sys
+import io
+import time
+import requests
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from guide.ml.normalize import normalize
 from guide.pipeline.ingest import ingest
@@ -27,27 +32,35 @@ MET = "https://collectionapi.metmuseum.org/public/collection/v1"
 
 # persona → (Met 검색어들, 함께 붙일 personas 태그)
 PERSONA_QUERIES = {
-    "composition": (["landscape painting", "still life composition"],
-                    ["composition", "mood"]),
-    "light":       (["chiaroscuro", "candlelight painting interior"],
-                    ["light", "mood"]),
-    "color":       (["impressionist landscape", "still life flowers color"],
-                    ["color", "mood"]),
-    "mood":        (["romantic landscape", "nocturne night scene"],
-                    ["mood", "color"]),
+    "composition": (
+        ["landscape painting", "still life composition"],
+        ["composition", "mood"],
+    ),
+    "light": (["chiaroscuro", "candlelight painting interior"], ["light", "mood"]),
+    "color": (
+        ["impressionist landscape", "still life flowers color"],
+        ["color", "mood"],
+    ),
+    "mood": (["romantic landscape", "nocturne night scene"], ["mood", "color"]),
     # 포즈/해부 — render_batch 전까지 미술관 figure study로 임시 보강.
     #   self_render가 채워진 지금은 굳이 늘리지 말 것(권위 희석). 호환 위해 남겨둠.
-    "pose":        (["figure study drawing", "standing figure academic"],
-                    ["pose", "anatomy"]),
-    "anatomy":     (["academic nude study", "anatomical figure drawing"],
-                    ["anatomy", "pose"]),
+    "pose": (["figure study drawing", "standing figure academic"], ["pose", "anatomy"]),
+    "anatomy": (
+        ["academic nude study", "anatomical figure drawing"],
+        ["anatomy", "pose"],
+    ),
 }
 
 
 def _seed_query(query, personas, limit):
-    ids = (requests.get(f"{MET}/search",
-                        params={"q": query, "hasImages": "true"}, timeout=30)
-           .json().get("objectIDs") or [])
+    ids = (
+        requests.get(
+            f"{MET}/search", params={"q": query, "hasImages": "true"}, timeout=30
+        )
+        .json()
+        .get("objectIDs")
+        or []
+    )
     n = 0
     for oid in ids[: limit * 4]:
         try:
@@ -59,12 +72,19 @@ def _seed_query(query, personas, limit):
         try:
             img = requests.get(o["primaryImage"], timeout=30).content
             pil = normalize(io.BytesIO(img))
-            ingest(pil, source_type="museum", license="CC0",
-                   attribution=o.get("artistDisplayName") or "The Met (CC0)",
-                   personas=personas,
-                   tags={"query": query, "dept": o.get("department"),
-                         "title": o.get("title")},
-                   commercial_ok=True)
+            ingest(
+                pil,
+                source_type="museum",
+                license="CC0",
+                attribution=o.get("artistDisplayName") or "The Met (CC0)",
+                personas=personas,
+                tags={
+                    "query": query,
+                    "dept": o.get("department"),
+                    "title": o.get("title"),
+                },
+                commercial_ok=True,
+            )
             n += 1
         except Exception as e:
             print("  skip", oid, repr(e)[:60])
@@ -89,10 +109,10 @@ def seed_all(per_query=5):
 
 if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else "all"
-    count = int(sys.argv[2]) if len(sys.argv) > 2 else 5   # 검색어당 장수(선택)
+    count = int(sys.argv[2]) if len(sys.argv) > 2 else 5  # 검색어당 장수(선택)
     if arg == "all":
         seed_all(per_query=count)
     elif arg in PERSONA_QUERIES:
         seed_persona(arg, per_query=count)
-    else:                       # 임의 단일 쿼리(레거시 호환)
+    else:  # 임의 단일 쿼리(레거시 호환)
         _seed_query(arg, ["light", "color", "composition", "mood"], 50)

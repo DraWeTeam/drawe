@@ -24,6 +24,7 @@ concept 은 영어 권장(CLIP ViT-B-32 는 영어 학습). 한국어 caption �
 
 주의: 여기 넣는 이미지의 라이선스/저작권은 본인 책임. 생성형 결과물 정책을 확인하세요.
 """
+
 import sys
 import os
 import json
@@ -31,6 +32,7 @@ import argparse
 import tempfile
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from PIL import Image
 from guide.pipeline.ai_ingest import qc_and_ingest
@@ -70,23 +72,35 @@ def load_manifest(folder):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("folder", help="생성 이미지 폴더(예: /repo/gen_out)")
-    ap.add_argument("--concept", default=None,
-                    help="manifest 없는 파일의 공통 concept(영어 권장)")
-    ap.add_argument("--axes", nargs="*", default=None,
-                    help="manifest 없는 파일의 공통 축(비우면 자동 태깅)")
+    ap.add_argument(
+        "--concept", default=None, help="manifest 없는 파일의 공통 concept(영어 권장)"
+    )
+    ap.add_argument(
+        "--axes",
+        nargs="*",
+        default=None,
+        help="manifest 없는 파일의 공통 축(비우면 자동 태깅)",
+    )
     ap.add_argument("--license", default="CC0")
     ap.add_argument("--attribution", default="AI-generated example (QC-gated)")
-    ap.add_argument("--strict-anatomy", dest="strict", action="store_true", default=False)
-    ap.add_argument("--state", default=os.path.join(tempfile.gettempdir(),
-                                                    "ingest_ai_examples_state.txt"))
+    ap.add_argument(
+        "--strict-anatomy", dest="strict", action="store_true", default=False
+    )
+    ap.add_argument(
+        "--state",
+        default=os.path.join(tempfile.gettempdir(), "ingest_ai_examples_state.txt"),
+    )
     args = ap.parse_args()
 
     if not os.path.isdir(args.folder):
-        print(f"폴더 없음: {args.folder}"); sys.exit(1)
-    files = sorted(f for f in os.listdir(args.folder)
-                   if os.path.splitext(f)[1].lower() in EXTS)
+        print(f"폴더 없음: {args.folder}")
+        sys.exit(1)
+    files = sorted(
+        f for f in os.listdir(args.folder) if os.path.splitext(f)[1].lower() in EXTS
+    )
     if not files:
-        print(f"이미지 없음({sorted(EXTS)}): {args.folder}"); sys.exit(1)
+        print(f"이미지 없음({sorted(EXTS)}): {args.folder}")
+        sys.exit(1)
 
     man = load_manifest(args.folder)
     done = set()
@@ -109,28 +123,43 @@ def main():
             continue
         try:
             pil = flatten(os.path.join(args.folder, fn))
-            res = qc_and_ingest(pil, concept, axes, license=args.license,
-                                attribution=args.attribution, caption=caption,
-                                strict_anatomy=args.strict)
+            res = qc_and_ingest(
+                pil,
+                concept,
+                axes,
+                license=args.license,
+                attribution=args.attribution,
+                caption=caption,
+                strict_anatomy=args.strict,
+            )
             v = res["verdict"]
             if res["accepted"]:
                 n_acc += 1
-                rec = {"file": fn, "ref_id": res["ref_id"], "supports": v["supports"],
-                       "scores": v["scores"]}
-                acc_f.write(json.dumps(rec, ensure_ascii=False) + "\n"); acc_f.flush()
+                rec = {
+                    "file": fn,
+                    "ref_id": res["ref_id"],
+                    "supports": v["supports"],
+                    "scores": v["scores"],
+                }
+                acc_f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                acc_f.flush()
                 print(f"  적재  {fn}  → {v['supports']}  ({res['ref_id']})")
             else:
                 n_rej += 1
                 rec = {"file": fn, "reasons": v["reasons"], "scores": v["scores"]}
-                rej_f.write(json.dumps(rec, ensure_ascii=False) + "\n"); rej_f.flush()
+                rej_f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                rej_f.flush()
                 print(f"  거부  {fn}  → {v['reasons'][:1]}")
-            sf.write(fn + "\n"); sf.flush()
+            sf.write(fn + "\n")
+            sf.flush()
         except Exception as e:
             print(f"  실패  {fn}: {type(e).__name__}: {e}")
 
     print(f"\n완료: 적재 {n_acc} · 거부 {n_rej} · 스킵 {len(done)}")
     print(f"  통과: {os.path.join(args.folder, '_qc_accepted.jsonl')}")
-    print(f"  거부: {os.path.join(args.folder, '_qc_rejected.jsonl')}  (프롬프트/축 교정에 사용)")
+    print(
+        f"  거부: {os.path.join(args.folder, '_qc_rejected.jsonl')}  (프롬프트/축 교정에 사용)"
+    )
     print(f"  상태파일: {args.state}")
 
 

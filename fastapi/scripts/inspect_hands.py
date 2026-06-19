@@ -6,10 +6,15 @@ render_out 안의 손 크롭(예: hand_left_az000.png)을 무작위 표본으로
 실행: docker compose exec -w /app guide python scripts/inspect_hands.py [render_out_경로] [N]
 출력: <render_out>/_hand_contact_sheet.png  → 호스트에서 열어 확인
 """
-import sys, os, random
+
+import sys
+import os
+import random
 from PIL import Image
 
-REGION_PREFIX = "hand_"  # render_poses 의 크롭 파일명: f"{region}_{side}_az{az:03d}.png"
+REGION_PREFIX = (
+    "hand_"  # render_poses 의 크롭 파일명: f"{region}_{side}_az{az:03d}.png"
+)
 
 
 def collect(root):

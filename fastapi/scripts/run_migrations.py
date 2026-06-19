@@ -7,8 +7,10 @@ MySQL은 ADD COLUMN IF NOT EXISTS 가 없으므로, '이미 적용된' 오류
 (1050 table exists / 1060 dup column / 1061 dup key)를 건너뛴다 → 재실행해도 안전.
 그 외 오류는 그대로 올려(raise) 진짜 문제를 숨기지 않는다.
 """
+
 import sys
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, ProgrammingError, IntegrityError
@@ -19,14 +21,15 @@ FILES = [
     "api/schema/migrations/003_practice_log.sql",
     "api/schema/migrations/004_ai_example_source.sql",
 ]
-SKIP_CODES = {1050, 1060, 1061}    # table exists / dup column / dup key
+SKIP_CODES = {1050, 1060, 1061}  # table exists / dup column / dup key
 
 
 def statements(sql):
     for chunk in sql.split(";"):
         # 주석(-- ) 줄 제거 후 남는 게 있으면 한 문장
-        body = "\n".join(l for l in chunk.splitlines()
-                         if not l.strip().startswith("--"))
+        body = "\n".join(
+            line for line in chunk.splitlines() if not line.strip().startswith("--")
+        )
         if body.strip():
             yield body.strip()
 

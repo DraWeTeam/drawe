@@ -14,12 +14,13 @@ manifest 한 줄 스키마(render_poses.write_manifest 기준):
 재개: 적재한 rid 를 상태파일에 기록 → 다시 돌리면 건너뜀.
 주의: 여기 넣는 이미지의 라이선스는 본인 책임. CC0(MakeHuman) 합성 인체 권장, 실제 인물 금지.
 """
+
 import sys
 import os
-import io
 import json
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 # 무거운 의존(PIL / pipeline.ingest→sqlalchemy·qdrant 등)은 사전 점검 뒤 main 안에서 로드한다.
 # → venv 에 백엔드 deps 가 없어도 [점검]은 돌아간다. 실제 적재는 백엔드 컨테이너에서.
@@ -42,6 +43,7 @@ def personas_for(region, category):
 
 def flatten(path):
     from PIL import Image
+
     im = Image.open(path)
     if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
         im = im.convert("RGBA")
@@ -73,9 +75,9 @@ def _resolve(out_dir, rel):
 def _precheck(out_dir, lines):
     """전체를 스캔해 디스크 존재 수를 센다 → 경로/실행위치 불일치를 시작부터 드러낸다."""
     present, first_miss = 0, None
-    for l in lines:
+    for line in lines:
         try:
-            m = json.loads(l)
+            m = json.loads(line)
         except Exception:
             continue
         if _resolve(out_dir, m.get("path") or m.get("rel")):
@@ -88,13 +90,21 @@ def _precheck(out_dir, lines):
     if present == 0:
         print("[경고] 한 장도 디스크에서 못 찾음 — 적재할 이미지가 없습니다. 확인:")
         if first_miss:
-            guess = os.path.normpath(os.path.join(out_dir, first_miss.replace("\\", "/")))
+            guess = os.path.normpath(
+                os.path.join(out_dir, first_miss.replace("\\", "/"))
+            )
             print(f"  · 예상 경로: {guess}")
-            print("    → 이 파일이 실제로 있나요? 없으면 렌더가 부분만 됐거나 매니페스트가 옛 계획을 담음")
+            print(
+                "    → 이 파일이 실제로 있나요? 없으면 렌더가 부분만 됐거나 매니페스트가 옛 계획을 담음"
+            )
         print("  · out_dir 인자가 manifest.jsonl 이 든 바로 그 폴더인가요?")
-        print("  · render_poses 는 렌더를 스킵/실패해도 매니페스트엔 줄을 남깁니다(append)")
+        print(
+            "  · render_poses 는 렌더를 스킵/실패해도 매니페스트엔 줄을 남깁니다(append)"
+        )
     elif present < len(lines):
-        print(f"  (참고: {len(lines) - present}줄은 디스크에 없어 자동 건너뜀 — 존재하는 {present}줄만 적재)")
+        print(
+            f"  (참고: {len(lines) - present}줄은 디스크에 없어 자동 건너뜀 — 존재하는 {present}줄만 적재)"
+        )
     return present
 
 
@@ -108,9 +118,11 @@ def main():
         print(f"manifest 없음: {mf}")
         sys.exit(1)
 
-    lines = [l for l in open(mf, encoding="utf-8") if l.strip()]
+    lines = [line for line in open(mf, encoding="utf-8") if line.strip()]
     if _precheck(out_dir, lines) == 0:
-        print("\n중단: 디스크에서 찾은 이미지가 없어 적재를 진행하지 않습니다(위 확인사항 참고).")
+        print(
+            "\n중단: 디스크에서 찾은 이미지가 없어 적재를 진행하지 않습니다(위 확인사항 참고)."
+        )
         sys.exit(2)
 
     try:
@@ -118,7 +130,9 @@ def main():
     except ModuleNotFoundError as e:
         print(f"\n[점검은 통과] 하지만 적재 의존이 없습니다: {e.name}")
         print("실제 적재는 백엔드 컨테이너에서 실행하세요(DB·Qdrant·S3 연결 필요):")
-        print("  docker compose exec -w /app guide python scripts/ingest_manifest.py /repo/render_out")
+        print(
+            "  docker compose exec -w /app guide python scripts/ingest_manifest.py /repo/render_out"
+        )
         sys.exit(3)
 
     done = load_done()
@@ -146,7 +160,9 @@ def main():
             if img_path is None:
                 n_err += 1
                 if n_miss < 5:
-                    print(f"이미지 없음(건너뜀): {os.path.normpath(os.path.join(out_dir, rel.replace(chr(92), '/')))}")
+                    print(
+                        f"이미지 없음(건너뜀): {os.path.normpath(os.path.join(out_dir, rel.replace(chr(92), '/')))}"
+                    )
                 elif n_miss == 5:
                     print("  ... 이후 '이미지 없음' 로그는 생략(끝에 합계).")
                 n_miss += 1
@@ -155,7 +171,7 @@ def main():
             category = m.get("category")
             try:
                 pil = flatten(img_path)
-                ref_id = ingest(
+                ingest(
                     pil,
                     source_type="self_render",
                     license="CC0",
@@ -163,11 +179,16 @@ def main():
                     tags=m.get("tags", []),
                     attribution="self render (MakeHuman CC0 base)",
                     commercial_ok=True,
-                    render_params={k: m.get(k) for k in
-                                   ("clip", "frame", "azimuth", "elevation", "pose_id")},
-                    payload_extra={"region": region, "category": category,
-                                   "body_type": m.get("body_type"),
-                                   "gender": m.get("gender")},
+                    render_params={
+                        k: m.get(k)
+                        for k in ("clip", "frame", "azimuth", "elevation", "pose_id")
+                    },
+                    payload_extra={
+                        "region": region,
+                        "category": category,
+                        "body_type": m.get("body_type"),
+                        "gender": m.get("gender"),
+                    },
                 )
                 st.write(rid + "\n")
                 st.flush()

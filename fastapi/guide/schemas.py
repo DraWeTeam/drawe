@@ -100,7 +100,9 @@ class GuideResponse(BaseModel):
         None  # 코드가 채움(완성작/이력 있을 때) — 가드레일 뒤 결정적 설정
     )
     growth: Optional[Growth] = None  # §4 성장 흐름(코드가 채움; P2-b)
-    pending_references: list[PendingReference] = []  # 미스 축의 '생성 중' 레퍼런스(코드가 채움)
+    pending_references: list[
+        PendingReference
+    ] = []  # 미스 축의 '생성 중' 레퍼런스(코드가 채움)
     reason: Optional[str] = None  # refused 사유(비-coach)
     next_steps_note: Optional[str] = (
         None  # LLM이 *배열*한 '앞으로 할 것' 자연 문장(가드레일 검증) — 코드가 next_steps.note 로 옮김

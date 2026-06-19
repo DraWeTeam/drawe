@@ -7,9 +7,11 @@
   docker compose exec -w /app guide python scripts/resolve_stale_misses.py --dry   # 미리보기
   docker compose exec -w /app guide python scripts/resolve_stale_misses.py          # 실제 정리
 """
+
 import sys
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from sqlalchemy import text
 from guide.stores.db import engine
@@ -21,8 +23,12 @@ def main():
     dry = "--dry" in sys.argv
 
     with engine.begin() as cx:
-        rows = [(mid, term, ctx) for mid, term, ctx in cx.execute(text(
-            "SELECT id, term, context FROM miss_log WHERE resolved=0"))]
+        rows = [
+            (mid, term, ctx)
+            for mid, term, ctx in cx.execute(
+                text("SELECT id, term, context FROM miss_log WHERE resolved=0")
+            )
+        ]
     if not rows:
         print("미해결 miss 없음.")
         return
@@ -40,8 +46,13 @@ def main():
     ids = [mid for mid, _, _ in stale]
     with engine.begin() as cx:
         from sqlalchemy import bindparam
-        cx.execute(text("UPDATE miss_log SET resolved=1 WHERE id IN :ids")
-                   .bindparams(bindparam("ids", expanding=True)), {"ids": ids})
+
+        cx.execute(
+            text("UPDATE miss_log SET resolved=1 WHERE id IN :ids").bindparams(
+                bindparam("ids", expanding=True)
+            ),
+            {"ids": ids},
+        )
     print(f"\n{len(ids)}개 resolved=1 처리 완료.")
 
 

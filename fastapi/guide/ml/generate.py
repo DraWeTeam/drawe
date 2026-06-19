@@ -25,7 +25,9 @@ from guide.config import settings
 
 log = logging.getLogger("drawe-fastapi.guide")
 
-_TIMEOUT = float(os.environ.get("AI_GEN_TIMEOUT", "20"))  # 초. 인라인 모드에선 더 짧게 권장.
+_TIMEOUT = float(
+    os.environ.get("AI_GEN_TIMEOUT", "20")
+)  # 초. 인라인 모드에선 더 짧게 권장.
 # 생성물은 자료용 일러스트 — 정사각 한 장이면 충분(임베딩·썸네일 친화).
 _SIZE = int(os.environ.get("AI_GEN_SIZE", "768"))
 

@@ -6,10 +6,12 @@
 실행(컨테이너 — search 가 CLIP/Qdrant/MySQL 접근):
     docker compose exec -w /app guide python scripts/corpus_audit.py
 """
+
 import sys
 import json
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from sqlalchemy import text
 from guide.stores.db import engine
@@ -26,8 +28,9 @@ def _load_rows():
     """reference_images → [(personas_list, source_type, region)]."""
     rows = []
     with engine.begin() as cx:
-        for personas_json, st, region in cx.execute(text(
-                "SELECT personas, source_type, region FROM reference_images")):
+        for personas_json, st, region in cx.execute(
+            text("SELECT personas, source_type, region FROM reference_images")
+        ):
             try:
                 ps = json.loads(personas_json) if personas_json else []
             except Exception:
@@ -39,9 +42,15 @@ def _load_rows():
 def _load_miss():
     try:
         with engine.begin() as cx:
-            return [(t, c, ctx) for t, c, ctx in cx.execute(text(
-                "SELECT term, count, context FROM miss_log WHERE resolved=0 "
-                "ORDER BY count DESC LIMIT 50"))]
+            return [
+                (t, c, ctx)
+                for t, c, ctx in cx.execute(
+                    text(
+                        "SELECT term, count, context FROM miss_log WHERE resolved=0 "
+                        "ORDER BY count DESC LIMIT 50"
+                    )
+                )
+            ]
     except Exception as e:
         print(f"[audit] miss_log 조회 실패(무시): {type(e).__name__}: {e}")
         return []
@@ -66,8 +75,10 @@ def main():
         probe = []
 
     print(f"\n총 레퍼런스: {len(rows)}개\n")
-    print(f"{'sub_problem':22}{'persona':10}{'공급':>5}{'bb재료':>7}{'ai':>4}"
-          f"{'museum':>8}{'self':>6}{'topScore':>10}{'hits':>5}{'miss':>6}")
+    print(
+        f"{'sub_problem':22}{'persona':10}{'공급':>5}{'bb재료':>7}{'ai':>4}"
+        f"{'museum':>8}{'self':>6}{'topScore':>10}{'hits':>5}{'miss':>6}"
+    )
     print("-" * 95)
     pmap = {p["axis"]: p for p in probe}
     for axis in tax:
@@ -75,12 +86,16 @@ def main():
         bs = sup.get("by_source", {})
         p = pmap.get(axis, {})
         ts = p.get("top_score")
-        print(f"{axis:22}{(tax[axis]['personas'][0]):10}{sup.get('total',0):>5}"
-              f"{sup.get('backbone_material',0):>7}{bs.get('ai_example',0):>4}"
-              f"{bs.get('museum',0):>8}{bs.get('self_render',0):>6}"
-              f"{(f'{ts:.3f}' if ts is not None else '  -  '):>10}"
-              f"{p.get('n_hits',0):>5}{('MISS' if p.get('miss') else 'ok'):>6}")
-    print("  (bb재료 = self_render 전신 렌더 수 = backbone_3d guide-asset 의 원천. source_type 아님)")
+        print(
+            f"{axis:22}{(tax[axis]['personas'][0]):10}{sup.get('total', 0):>5}"
+            f"{sup.get('backbone_material', 0):>7}{bs.get('ai_example', 0):>4}"
+            f"{bs.get('museum', 0):>8}{bs.get('self_render', 0):>6}"
+            f"{(f'{ts:.3f}' if ts is not None else '  -  '):>10}"
+            f"{p.get('n_hits', 0):>5}{('MISS' if p.get('miss') else 'ok'):>6}"
+        )
+    print(
+        "  (bb재료 = self_render 전신 렌더 수 = backbone_3d guide-asset 의 원천. source_type 아님)"
+    )
 
     # 3) 손 게이트 점검
     rec = CA.hand_gate_recommendation(probe, supply)
@@ -91,8 +106,10 @@ def main():
     if g:
         print("\n비었거나 약한 축(검색 miss 또는 공급 0):")
         for x in g:
-            print(f"  - {x['axis']}: miss={x['miss']} top={x['top_score']} "
-                  f"공급={x['supply_total']} {x['by_source']}")
+            print(
+                f"  - {x['axis']}: miss={x['miss']} top={x['top_score']} "
+                f"공급={x['supply_total']} {x['by_source']}"
+            )
     else:
         print("\n모든 축이 검색 가능 + 공급 있음. 👍")
 
@@ -101,8 +118,10 @@ def main():
     if miss:
         print("\nmiss_log 상위(무엇을 더 렌더/적재할지):")
         for m in miss:
-            print(f"  {m['count']:>4}x  {m['sub_problem'] or '-':22} "
-                  f"top={m['top_score']}  '{m['term'][:48]}'")
+            print(
+                f"  {m['count']:>4}x  {m['sub_problem'] or '-':22} "
+                f"top={m['top_score']}  '{m['term'][:48]}'"
+            )
 
     print("\n→ MISS/공급0 축부터 보강. 손 축이 ready 면 .env 에 HAND_AUTO=1.")
 

@@ -4,6 +4,7 @@
     docker compose exec -w /app guide python scripts/init_db.py
 (DB_DSN 환경변수는 compose env_file로 이미 주입됨. mysql 호스트는 네트워크 내부에서 해석.)
 """
+
 import os
 import sys
 from sqlalchemy import create_engine, text
@@ -34,12 +35,17 @@ def main():
 
     # 마이그레이션: 기존 adoption_log에 sub_problem 없으면 추가(ADD COLUMN IF NOT EXISTS 미지원 우회)
     with engine.begin() as cx:
-        has = cx.execute(text(
-            "SELECT COUNT(*) FROM information_schema.columns "
-            "WHERE table_schema=DATABASE() AND table_name='adoption_log' "
-            "AND column_name='sub_problem'")).scalar()
+        has = cx.execute(
+            text(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_schema=DATABASE() AND table_name='adoption_log' "
+                "AND column_name='sub_problem'"
+            )
+        ).scalar()
         if not has:
-            cx.execute(text("ALTER TABLE adoption_log ADD COLUMN sub_problem VARCHAR(48)"))
+            cx.execute(
+                text("ALTER TABLE adoption_log ADD COLUMN sub_problem VARCHAR(48)")
+            )
             print("migration: adoption_log.sub_problem 추가")
         else:
             print("migration: adoption_log.sub_problem 이미 존재")

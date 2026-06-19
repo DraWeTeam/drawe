@@ -14,8 +14,11 @@ ViT-L/14(768) 재임베딩이 끝난 뒤 실행하면, 새 모델 기준으로:
 임계값을 바꿔 보며 PASS 판정 확인:
     docker compose exec -e MISS_SCORE_MIN=0.18 -w /app guide python scripts/probe_composition.py
 """
-import os, sys
+
+import os
+import sys
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from cache import text_vec
 from guide.stores import vectors as vstore
@@ -26,12 +29,18 @@ MISS = float(os.environ.get("MISS_SCORE_MIN", "0.22"))
 # 정상 적중 기준선용 축 — 코퍼스가 확실한(이전 audit에서 miss 0%) 축들의 실제 reference_query 사용.
 #  - self_render 밀집: weight_balance / foreshortening / proportion / joint_articulation
 #  - museum 이미지축: light_direction / color_harmony
-ANCHOR_AXES = ["weight_balance", "foreshortening", "proportion",
-               "joint_articulation", "light_direction", "color_harmony"]
+ANCHOR_AXES = [
+    "weight_balance",
+    "foreshortening",
+    "proportion",
+    "joint_articulation",
+    "light_direction",
+    "color_harmony",
+]
 
 CANDIDATES = [
-    "composition rule of thirds focal point placement",        # 현재값(기준선)
-    "painting off-center subject open sky negative space",      # 이전 ViT-B/32 우승
+    "composition rule of thirds focal point placement",  # 현재값(기준선)
+    "painting off-center subject open sky negative space",  # 이전 ViT-B/32 우승
     "landscape painting low horizon empty foreground",
     "painting strong focal point empty space around",
     "still life arrangement balanced negative space",
@@ -99,7 +108,9 @@ def main():
         lo, hi = min(anchor_tops), max(anchor_tops)
         suggested = round(lo - 0.02, 3)
         print(f"  anchor 적중 대역: {lo:.3f} ~ {hi:.3f}")
-        print(f"  → MISS_SCORE_MIN 제안: {suggested}  (가장 낮은 정상 적중보다 0.02 아래)")
+        print(
+            f"  → MISS_SCORE_MIN 제안: {suggested}  (가장 낮은 정상 적중보다 0.02 아래)"
+        )
     else:
         suggested = MISS
         print("  anchor 점수 없음 → 재색인/코퍼스 확인 필요. 임계값 제안 보류.")
@@ -110,12 +121,18 @@ def main():
     if pool:
         best = max(pool, key=lambda r: r[1])
         verdict = "넘김 ✓" if best[1] >= suggested else "못넘김 ✗"
-        print(f"  → 최적 composition reference_query:")
-        print(f"       \"{best[0]}\"")
-        print(f"       top={best[1]:.3f}  src={','.join(best[2])}  (제안 임계값 {suggested} 대비 {verdict})")
+        print("  → 최적 composition reference_query:")
+        print(f'       "{best[0]}"')
+        print(
+            f"       top={best[1]:.3f}  src={','.join(best[2])}  (제안 임계값 {suggested} 대비 {verdict})"
+        )
         if not museum_first:
-            print("       ⚠ museum 우세 후보 없음 — 점수는 넘어도 그림이 아닌 self_render를 끌어왔을 수 있음. 코퍼스/문구 재검토.")
-    print("\n위 (A)(B)(C) 블록 전체를 그대로 붙여주시면, 튜닝된 taxonomy.yaml(zip) + 넣을 MISS_SCORE_MIN 을 만들어 드립니다.")
+            print(
+                "       ⚠ museum 우세 후보 없음 — 점수는 넘어도 그림이 아닌 self_render를 끌어왔을 수 있음. 코퍼스/문구 재검토."
+            )
+    print(
+        "\n위 (A)(B)(C) 블록 전체를 그대로 붙여주시면, 튜닝된 taxonomy.yaml(zip) + 넣을 MISS_SCORE_MIN 을 만들어 드립니다."
+    )
 
 
 if __name__ == "__main__":

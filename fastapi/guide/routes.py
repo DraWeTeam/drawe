@@ -457,9 +457,9 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
 @router.get("/ref-job/{job_id}")
 def ref_job(job_id: str):
     """'생성 중' 레퍼런스 폴링. 반환: {status, ref_id, image_path}.
-      - generating : 아직 만드는 중(프런트는 계속 폴링).
-      - ready      : ref_id 사용 가능 → image_path('/guide/image/<ref_id>')로 표시.
-      - failed/unknown : 생성 실패 또는 만료 → 프런트는 폴링 중단, 도식 폴백 유지.
+    - generating : 아직 만드는 중(프런트는 계속 폴링).
+    - ready      : ref_id 사용 가능 → image_path('/guide/image/<ref_id>')로 표시.
+    - failed/unknown : 생성 실패 또는 만료 → 프런트는 폴링 중단, 도식 폴백 유지.
     """
     st = _ref_job_status(job_id)
     out = {"status": st["status"], "ref_id": st.get("ref_id"), "image_path": None}

@@ -11,15 +11,19 @@
     docker compose exec -w /app guide python scripts/qdrant_inventory.py
 로컬에서 직접 돌리려면 QDRANT_URL 등 .env 가 환경에 있어야 한다.
 """
+
 import os
 import sys
 from collections import Counter
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 import yaml
 
-from guide.stores.vectors import iter_all   # 백엔드 중립(qdrant scroll). vectors 어댑터 재사용.
+from guide.stores.vectors import (
+    iter_all,
+)  # 백엔드 중립(qdrant scroll). vectors 어댑터 재사용.
 
 _TAX_PATH = os.path.join("api", "schema", "taxonomy.yaml")
 
@@ -90,11 +94,19 @@ def _print(rep, axes):
     for st, n in sorted(rep["by_source"].items(), key=lambda x: -x[1]):
         print(f"  {st:14} {n:>6}")
 
-    print(f"\ncommercial_ok: True {rep['commercial_ok_true']} / False {rep['commercial_ok_false']}", end="")
-    print("  ⚠️ False 가 있으면 상업-클린 원칙 위반(검색 하드필터로 안 나오지만 정리 권장)"
-          if rep["commercial_ok_false"] else "  ✅")
+    print(
+        f"\ncommercial_ok: True {rep['commercial_ok_true']} / False {rep['commercial_ok_false']}",
+        end="",
+    )
+    print(
+        "  ⚠️ False 가 있으면 상업-클린 원칙 위반(검색 하드필터로 안 나오지만 정리 권장)"
+        if rep["commercial_ok_false"]
+        else "  ✅"
+    )
     if rep["no_persona"]:
-        print(f"  ⚠️ personas 비어 있는 벡터 {rep['no_persona']}개 — 어떤 축에도 안 잡힘(태깅 누락).")
+        print(
+            f"  ⚠️ personas 비어 있는 벡터 {rep['no_persona']}개 — 어떤 축에도 안 잡힘(태깅 누락)."
+        )
 
     print("\n축별 공급(persona 매칭) — 적은/빈 축이 보강 1순위:")
     print(f"  {'axis':24}{'total':>6}{'ai':>5}{'museum':>8}{'self':>6}{'기타':>6}")
@@ -102,31 +114,55 @@ def _print(rep, axes):
     for axis, _ in axes:
         t = rep["axis_total"][axis]
         bs = rep["axis_by_source"][axis]
-        other = t - bs.get("ai_example", 0) - bs.get("museum", 0) - bs.get("self_render", 0)
+        other = (
+            t - bs.get("ai_example", 0) - bs.get("museum", 0) - bs.get("self_render", 0)
+        )
         flag = "  ← 비었음" if t == 0 else ("  ← 적음" if t < 3 else "")
-        print(f"  {axis:24}{t:>6}{bs.get('ai_example',0):>5}{bs.get('museum',0):>8}"
-              f"{bs.get('self_render',0):>6}{other:>6}{flag}")
+        print(
+            f"  {axis:24}{t:>6}{bs.get('ai_example', 0):>5}{bs.get('museum', 0):>8}"
+            f"{bs.get('self_render', 0):>6}{other:>6}{flag}"
+        )
 
     if rep["by_region"]:
-        print("\nregion:", ", ".join(f"{k}={v}" for k, v in sorted(rep["by_region"].items(), key=lambda x: -x[1])))
+        print(
+            "\nregion:",
+            ", ".join(
+                f"{k}={v}"
+                for k, v in sorted(rep["by_region"].items(), key=lambda x: -x[1])
+            ),
+        )
     if rep["by_category"]:
         top = sorted(rep["by_category"].items(), key=lambda x: -x[1])[:12]
         print("category(상위):", ", ".join(f"{k}={v}" for k, v in top))
 
     if rep["empty_axes"]:
-        print(f"\n비어 있는 축({len(rep['empty_axes'])}): {', '.join(rep['empty_axes'])}")
-        print("  → 이 축들이 코칭에 떠도 레퍼런스가 안 붙습니다(가이드 약화). 우선 보강 대상.")
+        print(
+            f"\n비어 있는 축({len(rep['empty_axes'])}): {', '.join(rep['empty_axes'])}"
+        )
+        print(
+            "  → 이 축들이 코칭에 떠도 레퍼런스가 안 붙습니다(가이드 약화). 우선 보강 대상."
+        )
     else:
         print("\n모든 축에 최소 1개 이상 공급 있음. 👍 (적은 축은 위 '← 적음' 참고)")
 
     print("\n다음 행동:")
-    print("  • 검색 점수·miss 까지 보기:  python scripts/corpus_audit.py   (전체 스택 필요)")
+    print(
+        "  • 검색 점수·miss 까지 보기:  python scripts/corpus_audit.py   (전체 스택 필요)"
+    )
     print("  • 노출/CTR 수요 우선순위:    python scripts/coverage_report.py")
     print("  • 비었거나 적은 축 보강:")
-    print("      - AI 예제:   python scripts/bria_generate.py gen_plans/feel_axes.json --out gen_out")
-    print("                   python scripts/ingest_ai_examples.py gen_out   (QC 통과분만)")
-    print("      - 3D 렌더:   python scripts/render_poses.py ...  →  python scripts/render_batch.py ...")
-    print("  • 보강 후:    python scripts/resolve_stale_misses.py  (해결된 miss 닫기) → 다시 이 스크립트")
+    print(
+        "      - AI 예제:   python scripts/bria_generate.py gen_plans/feel_axes.json --out gen_out"
+    )
+    print(
+        "                   python scripts/ingest_ai_examples.py gen_out   (QC 통과분만)"
+    )
+    print(
+        "      - 3D 렌더:   python scripts/render_poses.py ...  →  python scripts/render_batch.py ..."
+    )
+    print(
+        "  • 보강 후:    python scripts/resolve_stale_misses.py  (해결된 miss 닫기) → 다시 이 스크립트"
+    )
 
 
 def main():
@@ -135,7 +171,9 @@ def main():
         points = [(pid, meta) for pid, _vec, meta in iter_all(with_vectors=False)]
     except Exception as e:
         print(f"[inventory] Qdrant 조회 실패: {type(e).__name__}: {e}")
-        print("  QDRANT_URL 이 맞는지, 컬렉션 이름(QDRANT_COLLECTION)이 맞는지 확인하세요.")
+        print(
+            "  QDRANT_URL 이 맞는지, 컬렉션 이름(QDRANT_COLLECTION)이 맞는지 확인하세요."
+        )
         sys.exit(1)
     rep = summarize(points, axes)
     _print(rep, axes)

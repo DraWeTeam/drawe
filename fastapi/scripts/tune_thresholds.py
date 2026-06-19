@@ -7,11 +7,12 @@
   cd artref && python -m pytest 없이:  PYTHONPATH=api python scripts/tune_thresholds.py eval/datasets/signals.json
   (또는 컨테이너)  docker compose exec -w /app guide python scripts/tune_thresholds.py eval/datasets/signals.json
 """
+
 import sys
-import os
 import json
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from guide.pipeline import tuning as T
 from guide.pipeline.diagnose import _DEFAULT_THRESHOLDS
@@ -48,8 +49,10 @@ def main():
     print(f"{'axis':22}{'P':>7}{'R':>7}{'F1':>7}{'tp':>5}{'fp':>5}{'fn':>5}")
     for axis in sorted(m):
         c = m[axis]
-        print(f"{axis:22}{c['precision']:>7}{c['recall']:>7}{c['f1']:>7}"
-              f"{c['tp']:>5}{c['fp']:>5}{c['fn']:>5}")
+        print(
+            f"{axis:22}{c['precision']:>7}{c['recall']:>7}{c['f1']:>7}"
+            f"{c['tp']:>5}{c['fp']:>5}{c['fn']:>5}"
+        )
 
     print("\n== 임계 sweep(F1 최적 제안) ==")
     print(f"{'key':40}{'현재':>8}{'제안':>8}{'F1현재':>8}{'F1제안':>8}")
@@ -57,11 +60,19 @@ def main():
         vals = T.frange(lo, hi, step)
         best, curve = T.best_threshold(cases, key, vals)
         cur = _DEFAULT_THRESHOLDS[key]
-        cur_row = min(curve, key=lambda r: abs(r["value"] - cur)) if curve else {"f1": 0}
+        cur_row = (
+            min(curve, key=lambda r: abs(r["value"] - cur)) if curve else {"f1": 0}
+        )
         flag = "  *" if best and abs(best["value"] - cur) > step else ""
-        print(f"{key:40}{cur:>8.3f}{best['value']:>8.3f}{cur_row['f1']:>8}{best['f1']:>8}{flag}")
-    print("\n*  = 현재값과 다른 임계가 더 나은 F1(검토 후 적용). 적용: DX_THRESHOLDS env(JSON) 또는 _DEFAULT_THRESHOLDS.")
-    print("주의: 위 signals.json 은 부트스트랩(합성)입니다. 실제 그림 라벨(extract_signals.py)로 교체 후 신뢰하세요.")
+        print(
+            f"{key:40}{cur:>8.3f}{best['value']:>8.3f}{cur_row['f1']:>8}{best['f1']:>8}{flag}"
+        )
+    print(
+        "\n*  = 현재값과 다른 임계가 더 나은 F1(검토 후 적용). 적용: DX_THRESHOLDS env(JSON) 또는 _DEFAULT_THRESHOLDS."
+    )
+    print(
+        "주의: 위 signals.json 은 부트스트랩(합성)입니다. 실제 그림 라벨(extract_signals.py)로 교체 후 신뢰하세요."
+    )
 
 
 if __name__ == "__main__":

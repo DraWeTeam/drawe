@@ -18,52 +18,66 @@ render_poses의 상수와 맞춰 필요시 보강한다.
     docker compose exec -w /app guide python scripts/render_queue.py          # 큐 생성
     docker compose exec -w /app guide python scripts/render_queue.py --resolve "<term>"  # 채운 뒤 해제
 """
+
 import json
 import os
 import sys
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from sqlalchemy import text
 from guide.stores.db import engine
 
 # sub_problem → render_poses에 줄 힌트(어떤 각도/크롭/조명이 이 miss를 메우나)
 SP_RENDER_HINT = {
-    "hand_structure":     {"detail_crop": "hand", "views": [0, 135],
-                           "note": "손 평면이 읽히는 정면·3/4 크롭"},
-    "foreshortening":     {"views": [0, 30, 60], "elevations": [12, 35],
-                           "note": "팔/다리가 카메라로 뻗는 단축 각도"},
-    "weight_balance":     {"views": [0, 90, 270], "note": "한 발 체중 이동 포즈"},
+    "hand_structure": {
+        "detail_crop": "hand",
+        "views": [0, 135],
+        "note": "손 평면이 읽히는 정면·3/4 크롭",
+    },
+    "foreshortening": {
+        "views": [0, 30, 60],
+        "elevations": [12, 35],
+        "note": "팔/다리가 카메라로 뻗는 단축 각도",
+    },
+    "weight_balance": {"views": [0, 90, 270], "note": "한 발 체중 이동 포즈"},
     "joint_articulation": {"views": [45, 135], "note": "굽은 관절을 보이는 포즈"},
-    "action_line":        {"note": "동세 큰 포즈 클립 우선"},
-    "proportion":         {"views": [0], "note": "전신 정면 비율 기준컷"},
-    "value_structure":    {"lighting": ["side", "rim"], "note": "명암 폭 큰 조명"},
+    "action_line": {"note": "동세 큰 포즈 클립 우선"},
+    "proportion": {"views": [0], "note": "전신 정면 비율 기준컷"},
+    "value_structure": {"lighting": ["side", "rim"], "note": "명암 폭 큰 조명"},
     "composition_balance": {"note": "미술관 CC0 구도 시드로 보강 가능"},
-    "color_harmony":      {"note": "미술관 CC0 회화 시드로 보강 가능"},
-    "light_direction":    {"lighting": ["side", "rim"], "note": "단일 광원 형태 스터디"},
+    "color_harmony": {"note": "미술관 CC0 회화 시드로 보강 가능"},
+    "light_direction": {"lighting": ["side", "rim"], "note": "단일 광원 형태 스터디"},
 }
 
 
 def build_queue(limit=50):
     rows = []
     with engine.begin() as cx:
-        for term, ctx, cnt in cx.execute(text(
+        for term, ctx, cnt in cx.execute(
+            text(
                 "SELECT term, context, count FROM miss_log "
-                "WHERE resolved = 0 ORDER BY count DESC, id DESC LIMIT :n"), {"n": limit}):
+                "WHERE resolved = 0 ORDER BY count DESC, id DESC LIMIT :n"
+            ),
+            {"n": limit},
+        ):
             try:
                 ctx = json.loads(ctx) if ctx else {}
             except Exception:
                 ctx = {}
             sp = ctx.get("sub_problem")
-            rows.append({
-                "term": term,
-                "count": int(cnt or 1),
-                "sub_problem": sp,
-                "persona": ctx.get("persona"),
-                "measured": ctx.get("measured"),
-                "top_score": ctx.get("top_score"),
-                "render_hint": SP_RENDER_HINT.get(sp, {}),
-            })
+            rows.append(
+                {
+                    "term": term,
+                    "count": int(cnt or 1),
+                    "sub_problem": sp,
+                    "persona": ctx.get("persona"),
+                    "measured": ctx.get("measured"),
+                    "top_score": ctx.get("top_score"),
+                    "render_hint": SP_RENDER_HINT.get(sp, {}),
+                }
+            )
     # 측정된(measured) miss를 동순위에서 앞으로 — 근거 있는 수요가 더 가치 있는 보강 대상.
     rows.sort(key=lambda r: (-(r["count"]), not bool(r["measured"])))
     return rows
@@ -71,8 +85,10 @@ def build_queue(limit=50):
 
 def resolve_term(term):
     with engine.begin() as cx:
-        n = cx.execute(text("UPDATE miss_log SET resolved = 1 WHERE term = :t AND resolved = 0"),
-                       {"t": term}).rowcount
+        n = cx.execute(
+            text("UPDATE miss_log SET resolved = 1 WHERE term = :t AND resolved = 0"),
+            {"t": term},
+        ).rowcount
     print(f"resolved {n} row(s) for term: {term}")
 
 
@@ -90,8 +106,10 @@ def main():
             json.dump(q, f, ensure_ascii=False, indent=2)
         wrote = out
     except OSError as e:
-        print(f"[render_queue] 파일 쓰기 실패({e.strerror}: {out}) → 콘솔 요약만 출력. "
-              f"RENDER_QUEUE_OUT로 쓰기 가능 경로를 지정하세요.")
+        print(
+            f"[render_queue] 파일 쓰기 실패({e.strerror}: {out}) → 콘솔 요약만 출력. "
+            f"RENDER_QUEUE_OUT로 쓰기 가능 경로를 지정하세요."
+        )
     print(f"미해결 miss {len(q)}건" + (f" → {wrote}" if wrote else "") + "\n")
     for r in q[:15]:
         tag = "측정" if r["measured"] else "가설"

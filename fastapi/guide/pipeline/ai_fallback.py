@@ -28,6 +28,7 @@ from guide.pipeline.diagnose import taxonomy
 
 log = logging.getLogger("drawe-fastapi.guide")
 
+
 # 적격 축에만 생성을 시도(인체/포즈/손/비율은 여기 없음 — ai_qc 가 한 번 더 hard-reject 한다).
 def eligible(axis) -> bool:
     return axis in AI_ELIGIBLE_AXES
@@ -51,18 +52,24 @@ def build_concept(axis, *, track=None, medium=None) -> str:
     bits = [base]
     if track in _TRACK_HINT:
         bits.append(_TRACK_HINT[track])
-    bits.append(_MEDIUM_STYLE.get(medium, "instructional art reference, clean illustration"))
+    bits.append(
+        _MEDIUM_STYLE.get(medium, "instructional art reference, clean illustration")
+    )
     # 예시 자료는 사진이 아니라 '그림'이어야 QC(is_illustration)를 통과한다 → 항상 일러스트로 강제.
     return ", ".join(bits)
 
 
 # ── 쿨다운 + 캡(프로세스 로컬, best-effort) ──────────────────────────────────────
-_COOLDOWN_S = float(os.environ.get("AI_FALLBACK_COOLDOWN_S", "3600"))  # 같은 키 재생성 금지 창
+_COOLDOWN_S = float(
+    os.environ.get("AI_FALLBACK_COOLDOWN_S", "3600")
+)  # 같은 키 재생성 금지 창
 _MAX_PER_PROCESS = int(os.environ.get("AI_FALLBACK_MAX", "200"))  # 폭주 방지 총량 캡
 _INLINE = os.environ.get("AI_FALLBACK_INLINE", "0").lower() in ("1", "true", "yes")
 _ENABLED = os.environ.get("AI_FALLBACK", "1").lower() in ("1", "true", "yes")
 
-_JOB_TTL_S = float(os.environ.get("AI_FALLBACK_JOB_TTL_S", "900"))  # 완료 job 보관(폴링 창)
+_JOB_TTL_S = float(
+    os.environ.get("AI_FALLBACK_JOB_TTL_S", "900")
+)  # 완료 job 보관(폴링 창)
 
 _lock = threading.Lock()
 _recent = {}  # key -> last_ts (쿨다운)
@@ -104,9 +111,11 @@ def _run_job(job_id, axis, track, medium, concept):
         return _set(job_id, status="failed")
     try:
         res = qc_and_ingest(
-            pil, concept,
+            pil,
+            concept,
             intended_axes=[axis],  # QC 가 이 축으로 교차검증 + AI_AVOID 면 즉시 reject
-            medium=medium, track=track,
+            medium=medium,
+            track=track,
         )
     except Exception as e:
         log.warning("[ai_fallback] qc_and_ingest 실패: %s: %s", type(e).__name__, e)
@@ -142,8 +151,13 @@ def start_backfill(axis, *, track=None, medium=None, inline=None):
         if now - _recent.get(key, 0) < _COOLDOWN_S:
             return None  # 최근에 시도함(쿨다운) — 재생성 회피
         job_id = uuid.uuid4().hex
-        _jobs[job_id] = {"status": "generating", "ref_id": None, "axis": axis,
-                         "ts": now, "_key": key}
+        _jobs[job_id] = {
+            "status": "generating",
+            "ref_id": None,
+            "axis": axis,
+            "ts": now,
+            "_key": key,
+        }
         _key2job[key] = job_id
         _recent[key] = now
         _count["n"] += 1

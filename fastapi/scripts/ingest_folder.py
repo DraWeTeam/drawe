@@ -12,9 +12,15 @@
 이미지: png/jpg/webp. 투명 PNG는 회색 배경에 합성. 파일명 기준 재개(상태파일).
 주의: 여기 넣는 이미지의 라이선스는 본인 책임. CC0(MakeHuman) 합성 인체 권장, 실제 인물 금지.
 """
-import sys, os, json, argparse, tempfile
+
+import sys
+import os
+import json
+import argparse
+import tempfile
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from PIL import Image
 from guide.pipeline.ingest import ingest
@@ -35,17 +41,27 @@ def flatten(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("folder", help="적재할 이미지 폴더 (예: /repo/my_poses)")
-    ap.add_argument("--personas", nargs="+", default=["pose", "anatomy"],
-                    help="앱 페르소나 어휘: pose anatomy hand light color composition 등")
+    ap.add_argument(
+        "--personas",
+        nargs="+",
+        default=["pose", "anatomy"],
+        help="앱 페르소나 어휘: pose anatomy hand light color composition 등",
+    )
     ap.add_argument("--gender", default=None)
     ap.add_argument("--body-type", dest="body_type", default=None)
     ap.add_argument("--region", default="full", help="full/hand/foot/head")
-    ap.add_argument("--category", default=None, help="rest/locomotion/action/expressive 등")
+    ap.add_argument(
+        "--category", default=None, help="rest/locomotion/action/expressive 등"
+    )
     ap.add_argument("--tags", nargs="*", default=[])
-    ap.add_argument("--no-commercial", dest="commercial_ok", action="store_false", default=True)
+    ap.add_argument(
+        "--no-commercial", dest="commercial_ok", action="store_false", default=True
+    )
     ap.add_argument("--attribution", default="manual pose (MakeHuman CC0 base)")
-    ap.add_argument("--state", default=os.path.join(tempfile.gettempdir(),
-                                                    "ingest_folder_state.jsonl"))
+    ap.add_argument(
+        "--state",
+        default=os.path.join(tempfile.gettempdir(), "ingest_folder_state.jsonl"),
+    )
     args = ap.parse_args()
 
     # 손 부위면 hand 페르소나 자동 보강(코치의 손 검색에 매칭)
@@ -57,17 +73,18 @@ def main():
     if not os.path.isdir(args.folder):
         print(f"폴더 없음: {args.folder}")
         sys.exit(1)
-    files = sorted(f for f in os.listdir(args.folder)
-                   if os.path.splitext(f)[1].lower() in EXTS)
+    files = sorted(
+        f for f in os.listdir(args.folder) if os.path.splitext(f)[1].lower() in EXTS
+    )
     if not files:
         print(f"이미지 없음({sorted(EXTS)}): {args.folder}")
         sys.exit(1)
 
     done = set()
     if os.path.exists(args.state):
-        for l in open(args.state, encoding="utf-8"):
-            if l.strip():
-                done.add(json.loads(l)["file"])
+        for line in open(args.state, encoding="utf-8"):
+            if line.strip():
+                done.add(json.loads(line)["file"])
     sf = open(args.state, "a", encoding="utf-8")
 
     n = 0
@@ -81,12 +98,21 @@ def main():
                 source_type="self_render",
                 license="CC0",
                 personas=personas,
-                tags={"category": args.category, "tokens": args.tags,
-                      "body_type": args.body_type, "gender": args.gender, "file": fn},
+                tags={
+                    "category": args.category,
+                    "tokens": args.tags,
+                    "body_type": args.body_type,
+                    "gender": args.gender,
+                    "file": fn,
+                },
                 attribution=args.attribution,
                 commercial_ok=args.commercial_ok,
-                payload_extra={"body_type": args.body_type, "gender": args.gender,
-                               "region": args.region, "category": args.category},
+                payload_extra={
+                    "body_type": args.body_type,
+                    "gender": args.gender,
+                    "region": args.region,
+                    "category": args.category,
+                },
             )
             sf.write(json.dumps({"file": fn}) + "\n")
             sf.flush()
@@ -94,7 +120,9 @@ def main():
             print("적재:", fn)
         except Exception as e:
             print(f"실패 {fn}: {type(e).__name__}: {e}")
-    print(f"완료: {n}장 적재 (스킵 {len(done)}). personas={personas} region={args.region}")
+    print(
+        f"완료: {n}장 적재 (스킵 {len(done)}). personas={personas} region={args.region}"
+    )
     print(f"상태파일: {args.state}")
 
 

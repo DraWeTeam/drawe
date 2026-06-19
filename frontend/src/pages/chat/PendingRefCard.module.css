@@ -39,21 +39,28 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .spinner {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2.5px solid #e0703a33;   /* 앱 오렌지 톤(연한) */
-  border-top-color: #e0703a;       /* 진한 오렌지 */
+  border: 2.5px solid #e0703a33; /* 앱 오렌지 톤(연한) */
+  border-top-color: #e0703a; /* 진한 오렌지 */
   animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pendingLabel,
@@ -64,7 +71,10 @@
   line-height: 1.35;
 }
 
-.readyLabel { color: #3a3a3a; font-weight: 600; }
+.readyLabel {
+  color: #3a3a3a;
+  font-weight: 600;
+}
 
 .aiBadge {
   position: absolute;

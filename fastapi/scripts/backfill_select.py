@@ -18,12 +18,14 @@
   procedural → 절차적 생성기/tools 로 /tmp/gen_out 채우기(BACKFILL.md)
   적재    → python scripts/ingest_ai_examples.py /tmp/gen_out --state /tmp/gen_out/_ingest_state.txt
 """
+
 import sys
 import os
 import json
 import argparse
 
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from guide.pipeline.diagnose import taxonomy
 from guide.pipeline.search import search_text, is_miss
@@ -36,9 +38,15 @@ def _search_fn(query, persona, filters=None, sub_problem=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("plan", help="태깅된 plan(gen 필드 포함) — 예: gen_plans/coverage_fill.json")
-    ap.add_argument("--threshold", type=float, default=0.30,
-                    help="top_score 이 이 값 미만이면 '약한 축'으로 간주(기본 0.30)")
+    ap.add_argument(
+        "plan", help="태깅된 plan(gen 필드 포함) — 예: gen_plans/coverage_fill.json"
+    )
+    ap.add_argument(
+        "--threshold",
+        type=float,
+        default=0.30,
+        help="top_score 이 이 값 미만이면 '약한 축'으로 간주(기본 0.30)",
+    )
     ap.add_argument("--out", default="gen_plans", help="_todo 파일 출력 폴더")
     args = ap.parse_args()
 
@@ -54,27 +62,32 @@ def main():
         ts = p.get("top_score")
         if p.get("miss") or (ts is not None and ts < args.threshold):
             weak.add(p["axis"])
-    print(f"약한 축({len(weak)}, top_score<{args.threshold} 또는 miss): {sorted(weak) or '없음'}")
+    print(
+        f"약한 축({len(weak)}, top_score<{args.threshold} 또는 miss): {sorted(weak) or '없음'}"
+    )
 
     plan = json.load(open(args.plan, encoding="utf-8-sig"))
     proc, img = [], []
     for it in plan:
         if not (set(it.get("axes", [])) & weak):
-            continue                                  # 이미 충분한 축 → 생성 안 함(중복 방지)
+            continue  # 이미 충분한 축 → 생성 안 함(중복 방지)
         (proc if it.get("gen") == "procedural" else img).append(it)
 
     os.makedirs(args.out, exist_ok=True)
     pp = os.path.join(args.out, "_todo_procedural.json")
     ip = os.path.join(args.out, "_todo_imagen.json")
     json.dump(proc, open(pp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-    json.dump(img,  open(ip, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    json.dump(img, open(ip, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
     def s(x):
         return sum(i.get("n", 1) for i in x)
+
     print(f"절차적 todo: {len(proc)}항목 / {s(proc)}장 → {pp}")
     print(f"Imagen todo: {len(img)}항목 / {s(img)}장 → {ip}")
     if not weak:
-        print("\n약한 축 없음 — 지금은 백필할 필요 없습니다. 👍 (feel 축 topScore 가 충분)")
+        print(
+            "\n약한 축 없음 — 지금은 백필할 필요 없습니다. 👍 (feel 축 topScore 가 충분)"
+        )
 
 
 if __name__ == "__main__":

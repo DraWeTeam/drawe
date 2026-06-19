@@ -7,8 +7,13 @@ source_type="museum"/license="CC0" 로 들어가 같은 검색 코퍼스에 합�
 실행: docker compose exec -w /app guide python scripts/seed_museum_aic.py [per_query]
      (per_query 기본 20 → 4 persona × 3 query × 20 ≈ 240장)
 """
-import sys, io, time, requests
+
+import sys
+import io
+import time
+import requests
 import os as _os  # guide 레이아웃: fastapi/(=guide 패키지 위치)를 import path 에 추가
+
 sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..")))
 from guide.ml.normalize import normalize
 from guide.pipeline.ingest import ingest
@@ -19,27 +24,38 @@ UA = {"AIC-User-Agent": "artcoach-seed (contact: you@example.com)"}
 
 # 이미지 축(빛·색·구도·무드) 위주. 포즈/해부는 self_render가 맡으므로 제외.
 PERSONA_QUERIES = {
-    "composition": (["landscape painting", "still life", "interior scene"],
-                    ["composition", "mood"]),
-    "light":       (["chiaroscuro", "candlelight night interior", "tenebrism"],
-                    ["light", "mood"]),
-    "color":       (["impressionist landscape", "fauvism", "still life flowers"],
-                    ["color", "mood"]),
-    "mood":        (["romantic landscape", "nocturne", "tonalism"],
-                    ["mood", "color"]),
+    "composition": (
+        ["landscape painting", "still life", "interior scene"],
+        ["composition", "mood"],
+    ),
+    "light": (
+        ["chiaroscuro", "candlelight night interior", "tenebrism"],
+        ["light", "mood"],
+    ),
+    "color": (
+        ["impressionist landscape", "fauvism", "still life flowers"],
+        ["color", "mood"],
+    ),
+    "mood": (["romantic landscape", "nocturne", "tonalism"], ["mood", "color"]),
 }
 
 
 def _search(query, limit):
-    params = {"q": query,
-              "query[term][is_public_domain]": "true",
-              "fields": "id,title,image_id,artist_display,is_public_domain",
-              "limit": min(limit * 4, 100)}
+    params = {
+        "q": query,
+        "query[term][is_public_domain]": "true",
+        "fields": "id,title,image_id,artist_display,is_public_domain",
+        "limit": min(limit * 4, 100),
+    }
     try:
-        return requests.get(f"{AIC}/search", params=params, headers=UA,
-                            timeout=30).json().get("data", [])
+        return (
+            requests.get(f"{AIC}/search", params=params, headers=UA, timeout=30)
+            .json()
+            .get("data", [])
+        )
     except Exception as e:
-        print("  search 실패:", repr(e)[:60]); return []
+        print("  search 실패:", repr(e)[:60])
+        return []
 
 
 def _seed_query(query, personas, limit):
@@ -48,14 +64,21 @@ def _seed_query(query, personas, limit):
         if not o.get("is_public_domain") or not o.get("image_id"):
             continue
         try:
-            img = requests.get(IIIF.format(image_id=o["image_id"]),
-                               headers=UA, timeout=30).content
+            img = requests.get(
+                IIIF.format(image_id=o["image_id"]), headers=UA, timeout=30
+            ).content
             pil = normalize(io.BytesIO(img))
-            ingest(pil, source_type="museum", license="CC0",
-                   attribution=(o.get("artist_display") or "Art Institute of Chicago (CC0)")[:480],
-                   personas=personas,
-                   tags={"query": query, "title": o.get("title"), "src": "AIC"},
-                   commercial_ok=True)
+            ingest(
+                pil,
+                source_type="museum",
+                license="CC0",
+                attribution=(
+                    o.get("artist_display") or "Art Institute of Chicago (CC0)"
+                )[:480],
+                personas=personas,
+                tags={"query": query, "title": o.get("title"), "src": "AIC"},
+                commercial_ok=True,
+            )
             n += 1
         except Exception as e:
             print("  skip", o.get("id"), repr(e)[:60])

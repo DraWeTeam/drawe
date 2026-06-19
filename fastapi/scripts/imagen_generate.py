@@ -31,6 +31,7 @@ ingest_ai_examples.py 가 먹는 폴더 규약(이미지 + manifest.jsonl)을 Ve
 멱등성: 파일명은 'img_' 접두(gemini 의 'gen_' 와 충돌 안 함). 같은 폴더에 누적해도 ingest 가 파일명 기준으로
         스킵한다 — 단 ingest 의 --state 는 영속 경로로! (BACKFILL.md '멱등성' 참고)
 """
+
 import os
 import sys
 import json
@@ -58,8 +59,10 @@ def _model():
         return ImageGenerationModel.from_pretrained(name), name
     except Exception as e:
         print(f"Vertex 초기화/모델 로드 실패: {type(e).__name__}: {e}")
-        print("ADC 인증(gcloud auth application-default login) 또는 "
-              "GOOGLE_APPLICATION_CREDENTIALS, 그리고 Vertex AI API 활성화를 확인하세요.")
+        print(
+            "ADC 인증(gcloud auth application-default login) 또는 "
+            "GOOGLE_APPLICATION_CREDENTIALS, 그리고 Vertex AI API 활성화를 확인하세요."
+        )
         sys.exit(2)
 
 
@@ -70,6 +73,7 @@ def _imagen_image(model, prompt):
        확인/수정하면 된다(나머지 파이프라인은 그대로). 아래는 방어적 구현이다.
     """
     from PIL import Image
+
     try:
         resp = model.generate_images(
             prompt=prompt,
@@ -86,22 +90,28 @@ def _imagen_image(model, prompt):
             print("    이미지 0장(안전필터 차단 가능) — 프롬프트를 조정하세요.")
             return None
         gi = imgs[0]
-        pil = getattr(gi, "_pil_image", None)        # vertexai GeneratedImage 내부 PIL
+        pil = getattr(gi, "_pil_image", None)  # vertexai GeneratedImage 내부 PIL
         if pil is not None:
             return pil.convert("RGB")
-        data = getattr(gi, "_image_bytes", None)     # 폴백: 원시 바이트
+        data = getattr(gi, "_image_bytes", None)  # 폴백: 원시 바이트
         if data:
             return Image.open(io.BytesIO(data)).convert("RGB")
     except Exception as e:
         print(f"    응답 파싱 실패: {type(e).__name__}: {e}")
-    print("    이미지 추출 실패 — _imagen_image() 를 현재 SDK 응답 구조에 맞게 수정하세요.")
+    print(
+        "    이미지 추출 실패 — _imagen_image() 를 현재 SDK 응답 구조에 맞게 수정하세요."
+    )
     return None
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("plan", help="계획 JSON(plan.json 또는 coverage_fill_imagen.json)")
-    ap.add_argument("--out", default="gen_out", help="출력 폴더(컨테이너 /repo 읽기전용이면 /tmp/gen_out)")
+    ap.add_argument(
+        "--out",
+        default="gen_out",
+        help="출력 폴더(컨테이너 /repo 읽기전용이면 /tmp/gen_out)",
+    )
     args = ap.parse_args()
 
     plan = json.load(open(args.plan, encoding="utf-8-sig"))
@@ -112,7 +122,7 @@ def main():
 
     made = skipped = 0
     for i, item in enumerate(plan):
-        if item.get("gen") == "procedural":          # 절차적 항목은 이 스크립트 대상 아님
+        if item.get("gen") == "procedural":  # 절차적 항목은 이 스크립트 대상 아님
             skipped += 1
             continue
         concept = item["concept"]
@@ -123,22 +133,27 @@ def main():
             img = _imagen_image(model, concept)
             if img is None:
                 continue
-            fn = f"img_{i:03d}_{j:02d}.png"           # 'img_' 접두 — gemini 'gen_' 와 충돌 방지
+            fn = f"img_{i:03d}_{j:02d}.png"  # 'img_' 접두 — gemini 'gen_' 와 충돌 방지
             img.save(os.path.join(args.out, fn))
             rec = {"file": fn, "concept": concept}
             if axes is not None:
                 rec["axes"] = axes
             if caption:
                 rec["caption"] = caption
-            man.write(json.dumps(rec, ensure_ascii=False) + "\n"); man.flush()
+            man.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            man.flush()
             made += 1
             print(f"  생성  {fn}  ← {concept[:48]}")
 
-    print(f"\n생성 {made}장 → {args.out}/  (manifest.jsonl 포함)"
-          + (f"  · 절차적 {skipped}항목 건너뜀" if skipped else ""))
-    print(f"다음: python scripts/ingest_ai_examples.py {args.out} "
-          f"--state {args.out}/_ingest_state.txt "
-          f"--license \"Vertex-Imagen (Google IP-indemnified)\"")
+    print(
+        f"\n생성 {made}장 → {args.out}/  (manifest.jsonl 포함)"
+        + (f"  · 절차적 {skipped}항목 건너뜀" if skipped else "")
+    )
+    print(
+        f"다음: python scripts/ingest_ai_examples.py {args.out} "
+        f"--state {args.out}/_ingest_state.txt "
+        f'--license "Vertex-Imagen (Google IP-indemnified)"'
+    )
 
 
 if __name__ == "__main__":

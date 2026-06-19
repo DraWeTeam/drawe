@@ -35,42 +35,61 @@ from mathutils import Vector
 CHARACTERS = [
     # {"clips_dir": "/path/to/fbx/female_avg",   "body_type": "female_avg",   "gender": "female"},
     # {"clips_dir": "/path/to/fbx/male_muscular", "body_type": "male_muscular", "gender": "male"},
-    {"clips_dir": "C:/temp/gp/artguide/artref/render_in/female_avg",
-     "body_type": "female_avg", "gender": "female"},
-    {"clips_dir": "C:/temp/gp/artguide/artref/render_in/male_avg",
-     "body_type": "male_avg", "gender": "male"},
+    {
+        "clips_dir": "C:/temp/gp/artguide/artref/render_in/female_avg",
+        "body_type": "female_avg",
+        "gender": "female",
+    },
+    {
+        "clips_dir": "C:/temp/gp/artguide/artref/render_in/male_avg",
+        "body_type": "male_avg",
+        "gender": "male",
+    },
 ]
-OUT_DIR = "C:/temp/gp/artguide/artref/render_out"               # 렌더 + manifest 출력 위치
+OUT_DIR = "C:/temp/gp/artguide/artref/render_out"  # 렌더 + manifest 출력 위치
 
-FRAME_STEP         = 12                    # 클립당 N프레임마다 포즈 1개 샘플
-MAX_POSES_PER_CLIP = 8                     # 동적 클립의 포즈 상한 (None=무제한)
-MAX_POSES_REST     = 2                     # 저운동(idle/rest) 클립: 8프레임이 거의 같은 포즈라 적게 → 중복 희석 방지
-VIEW_ANGLES        = [0, 45, 90, 135, 180, 225, 270, 315]  # 전신 azimuth(도)
-ELEVATIONS         = [12]                  # 기본(정적 클립) 카메라 고도(도)
-ELEVATIONS_DYNAMIC = [-15, 12, 35]         # 동적 클립: 고/저 각 포함 → 단축(foreshortening)이 드러남
-DYNAMIC_CATEGORIES = {"locomotion", "action", "expressive"}  # 단축·무게·동세가 보이는 카테고리
+FRAME_STEP = 12  # 클립당 N프레임마다 포즈 1개 샘플
+MAX_POSES_PER_CLIP = 8  # 동적 클립의 포즈 상한 (None=무제한)
+MAX_POSES_REST = (
+    2  # 저운동(idle/rest) 클립: 8프레임이 거의 같은 포즈라 적게 → 중복 희석 방지
+)
+VIEW_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315]  # 전신 azimuth(도)
+ELEVATIONS = [12]  # 기본(정적 클립) 카메라 고도(도)
+ELEVATIONS_DYNAMIC = [
+    -15,
+    12,
+    35,
+]  # 동적 클립: 고/저 각 포함 → 단축(foreshortening)이 드러남
+DYNAMIC_CATEGORIES = {
+    "locomotion",
+    "action",
+    "expressive",
+}  # 단축·무게·동세가 보이는 카테고리
+
 
 def elevations_for(category):
     """동적 클립만 고/저 고도까지(단축 강조), 정적 클립은 눈높이 하나."""
     return ELEVATIONS_DYNAMIC if category in DYNAMIC_CATEGORIES else ELEVATIONS
 
+
 def max_poses_for(category):
     """저운동 클립은 포즈가 거의 같으니 적게(라이브러리 중복·CLIP 근접중복 방지)."""
     return MAX_POSES_REST if category == "rest" else MAX_POSES_PER_CLIP
 
-RES        = 1024                          # 정사각 렌더 해상도(px)
-SAMPLES    = 16                            # EEVEE 샘플
-CAM_MARGIN = 1.30                          # 프레이밍 여백(1.0=타이트)
 
-CLAY       = True                          # 모든 재질을 무광 클레이로 덮기(형태 읽힘↑)
-CLAY_COLOR = (0.72, 0.70, 0.67)            # 중립 클레이 톤
+RES = 1024  # 정사각 렌더 해상도(px)
+SAMPLES = 16  # EEVEE 샘플
+CAM_MARGIN = 1.30  # 프레이밍 여백(1.0=타이트)
 
-SKIP_EXISTING = True                       # 이미 있는 파일 재렌더 안 함(중단·재개)
+CLAY = True  # 모든 재질을 무광 클레이로 덮기(형태 읽힘↑)
+CLAY_COLOR = (0.72, 0.70, 0.67)  # 중립 클레이 톤
+
+SKIP_EXISTING = True  # 이미 있는 파일 재렌더 안 함(중단·재개)
 
 # --- 디테일 크롭 (손/발/머리) ---
-DETAIL_CROPS       = True
-DETAIL_VIEW_ANGLES = [0, 135]              # 크롭은 각도 적게(정면·3/4 뒤)
-DETAIL_PAD         = 1.8                   # 크롭 프레이밍 여백(작은 부위라 여유)
+DETAIL_CROPS = True
+DETAIL_VIEW_ANGLES = [0, 135]  # 크롭은 각도 적게(정면·3/4 뒤)
+DETAIL_PAD = 1.8  # 크롭 프레이밍 여백(작은 부위라 여유)
 # region -> 본 이름에 포함될 패턴(소문자, 리그마다 다름 → 필요시 보강)
 DETAIL_REGIONS = {
     "hand": ["hand"],
@@ -85,15 +104,40 @@ WORLD_STRENGTH = 0.35
 # 클립명 키워드 -> 거친 카테고리. 자유 확장.
 #   reach/point/pick 은 사지가 뻗는 동적 포즈 → action 으로 둬 동적 고도·프레임을 받게 한다(단축 골밭).
 CATEGORY_MAP = {
-    "run": "locomotion", "walk": "locomotion", "jump": "locomotion", "sprint": "locomotion",
-    "catwalk": "locomotion", "crouch": "locomotion", "march": "locomotion", "step": "locomotion",
+    "run": "locomotion",
+    "walk": "locomotion",
+    "jump": "locomotion",
+    "sprint": "locomotion",
+    "catwalk": "locomotion",
+    "crouch": "locomotion",
+    "march": "locomotion",
+    "step": "locomotion",
     "climb": "locomotion",
-    "sit": "rest", "idle": "rest", "stand": "rest", "lean": "rest", "lie": "rest",
-    "breath": "rest", "listen": "rest", "music": "rest", "kneel": "rest", "wait": "rest",
-    "kick": "action", "punch": "action", "sword": "action", "throw": "action", "fight": "action",
-    "reach": "action", "point": "action", "pick": "action", "aim": "action", "lunge": "action",
+    "sit": "rest",
+    "idle": "rest",
+    "stand": "rest",
+    "lean": "rest",
+    "lie": "rest",
+    "breath": "rest",
+    "listen": "rest",
+    "music": "rest",
+    "kneel": "rest",
+    "wait": "rest",
+    "kick": "action",
+    "punch": "action",
+    "sword": "action",
+    "throw": "action",
+    "fight": "action",
+    "reach": "action",
+    "point": "action",
+    "pick": "action",
+    "aim": "action",
+    "lunge": "action",
     "swing": "action",
-    "dance": "expressive", "spin": "expressive", "wave": "expressive", "twist": "expressive",
+    "dance": "expressive",
+    "spin": "expressive",
+    "wave": "expressive",
+    "twist": "expressive",
 }
 # =========================================================================
 
@@ -105,7 +149,12 @@ def log(msg):
 def clear_scene():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-    for block in (bpy.data.meshes, bpy.data.armatures, bpy.data.lights, bpy.data.cameras):
+    for block in (
+        bpy.data.meshes,
+        bpy.data.armatures,
+        bpy.data.lights,
+        bpy.data.cameras,
+    ):
         for b in list(block):
             if b.users == 0:
                 block.remove(b)
@@ -185,7 +234,7 @@ def place_rig(cam, target, lights, center, radius, az_deg, el_deg):
     for lt, (ox, oy, oz) in zip(lights, offsets):
         rx, ry = _rot_xy(ox, oy, az)
         lt.location = center + Vector((rx, ry, oz)) * radius * 1.6
-        d = (center - lt.location)
+        d = center - lt.location
         lt.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
 
@@ -226,8 +275,9 @@ def _side_of(name):
 
 def detail_groups(armature, patterns):
     """region 패턴에 맞는 본을 side(left/right/center)별로 묶어 (side, [bones]) 반환."""
-    matched = [pb for pb in armature.pose.bones
-               if any(p in pb.name.lower() for p in patterns)]
+    matched = [
+        pb for pb in armature.pose.bones if any(p in pb.name.lower() for p in patterns)
+    ]
     groups = {}
     for pb in matched:
         groups.setdefault(_side_of(pb.name), []).append(pb)
@@ -288,16 +338,46 @@ def radius_for(cam, size, margin):
     return (fit * margin / 2.0) / math.tan(cam.data.angle / 2.0)
 
 
-def write_manifest(mf, *, rid, pose_id, clip, frame, az, el, category, tags,
-                   body_type, gender, region, rel):
-    mf.write(json.dumps({
-        "id": rid, "pose_id": pose_id, "clip": clip, "frame": frame,
-        "azimuth": az, "elevation": el, "category": category, "tags": tags,
-        "body_type": body_type, "gender": gender, "region": region,
-        "material": "clay" if CLAY else "textured",
-        "width": RES, "height": RES, "path": rel,
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-    }, ensure_ascii=False) + "\n")
+def write_manifest(
+    mf,
+    *,
+    rid,
+    pose_id,
+    clip,
+    frame,
+    az,
+    el,
+    category,
+    tags,
+    body_type,
+    gender,
+    region,
+    rel,
+):
+    mf.write(
+        json.dumps(
+            {
+                "id": rid,
+                "pose_id": pose_id,
+                "clip": clip,
+                "frame": frame,
+                "azimuth": az,
+                "elevation": el,
+                "category": category,
+                "tags": tags,
+                "body_type": body_type,
+                "gender": gender,
+                "region": region,
+                "material": "clay" if CLAY else "textured",
+                "width": RES,
+                "height": RES,
+                "path": rel,
+                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+            },
+            ensure_ascii=False,
+        )
+        + "\n"
+    )
     mf.flush()
 
 
@@ -327,8 +407,9 @@ def main():
 
             category, tokens = tags_from_name(clip)
             scene = bpy.context.scene
-            frames = list(range(scene.frame_start, scene.frame_end + 1, FRAME_STEP)) \
-                or [scene.frame_start]
+            frames = list(
+                range(scene.frame_start, scene.frame_end + 1, FRAME_STEP)
+            ) or [scene.frame_start]
             _mx = max_poses_for(category)
             if _mx:
                 frames = frames[:_mx]
@@ -351,10 +432,21 @@ def main():
                         if not (SKIP_EXISTING and os.path.exists(out_png)):
                             place_rig(cam, target, lights, center, radius, az, el)
                             render_view(out_png)
-                        write_manifest(manifest, rid=f"{pose_id}_{view}", pose_id=pose_id,
-                                       clip=clip, frame=f, az=az, el=el, category=category,
-                                       tags=tokens, body_type=body_type, gender=gender,
-                                       region="full", rel=rel)
+                        write_manifest(
+                            manifest,
+                            rid=f"{pose_id}_{view}",
+                            pose_id=pose_id,
+                            clip=clip,
+                            frame=f,
+                            az=az,
+                            el=el,
+                            category=category,
+                            tags=tokens,
+                            body_type=body_type,
+                            gender=gender,
+                            region="full",
+                            rel=rel,
+                        )
 
                 # --- 디테일 크롭 (손/발/머리) ---  ※ Blender에서 프레이밍 확인·조정
                 if DETAIL_CROPS:
@@ -369,19 +461,32 @@ def main():
                                     el = ELEVATIONS[0]
                                     view = f"{region}_{side}_az{az:03d}"
                                     out_png = os.path.join(pose_dir, view + ".png")
-                                    rel = os.path.relpath(out_png, OUT_DIR).replace("\\", "/")
+                                    rel = os.path.relpath(out_png, OUT_DIR).replace(
+                                        "\\", "/"
+                                    )
                                     if not (SKIP_EXISTING and os.path.exists(out_png)):
                                         place_rig(cam, target, lights, rc, rrad, az, el)
                                         render_view(out_png)
                                     # 크롭은 region을 태그에 넣어 적재 시 persona(hand 등) 매핑되게
-                                    write_manifest(manifest, rid=f"{pose_id}_{view}",
-                                                   pose_id=pose_id, clip=clip, frame=f, az=az,
-                                                   el=el, category=category,
-                                                   tags=tokens + [region, side],
-                                                   body_type=body_type, gender=gender,
-                                                   region=region, rel=rel)
+                                    write_manifest(
+                                        manifest,
+                                        rid=f"{pose_id}_{view}",
+                                        pose_id=pose_id,
+                                        clip=clip,
+                                        frame=f,
+                                        az=az,
+                                        el=el,
+                                        category=category,
+                                        tags=tokens + [region, side],
+                                        body_type=body_type,
+                                        gender=gender,
+                                        region=region,
+                                        rel=rel,
+                                    )
                     except Exception as e:
-                        log(f"    detail-crop 건너뜀({pose_id}): {type(e).__name__}: {e}")
+                        log(
+                            f"    detail-crop 건너뜀({pose_id}): {type(e).__name__}: {e}"
+                        )
 
             remove_objects(new_objs)
 
