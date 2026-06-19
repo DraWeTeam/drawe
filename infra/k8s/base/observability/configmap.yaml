@@ -66,31 +66,31 @@ data:
     // ── loki / prometheus → OTLP 변환 ──
     otelcol.receiver.loki "infra" {
       output {
-        logs = [otelcol.processor.attributes.infra.input]
+        logs = [otelcol.processor.resource.infra.input]
       }
     }
     otelcol.receiver.prometheus "infra" {
       output {
-        metrics = [otelcol.processor.attributes.infra.input]
+        metrics = [otelcol.processor.resource.infra.input]
       }
     }
 
-    // ── infra resource attrs ──
-    otelcol.processor.attributes "infra" {
-      action {
-        key = "service.name"
-        value = "infra-daemon"
+    // ── infra resource attrs (service.name 등은 리소스 속성 → resource 프로세서) ──
+    otelcol.processor.resource "infra" {
+      attributes {
         action = "upsert"
+        key    = "service.name"
+        value  = "infra-daemon"
       }
-      action {
-        key = "service.namespace"
-        value = "drawe"
+      attributes {
         action = "upsert"
+        key    = "service.namespace"
+        value  = "drawe"
       }
-      action {
-        key = "deployment.environment"
-        value = sys.env("ALLOY_DEPLOY_ENV")
+      attributes {
         action = "upsert"
+        key    = "deployment.environment"
+        value  = sys.env("ALLOY_DEPLOY_ENV")
       }
       output {
         metrics = [otelcol.processor.batch.default.input]
@@ -119,22 +119,22 @@ data:
         ]
       }
       output {
-        traces  = [otelcol.processor.attributes.app.input]
-        metrics = [otelcol.processor.attributes.app.input]
-        logs    = [otelcol.processor.attributes.app.input]
+        traces  = [otelcol.processor.resource.app.input]
+        metrics = [otelcol.processor.resource.app.input]
+        logs    = [otelcol.processor.resource.app.input]
       }
     }
 
-    otelcol.processor.attributes "app" {
-      action {
-        key = "service.namespace"
-        value = "drawe"
+    otelcol.processor.resource "app" {
+      attributes {
         action = "upsert"
+        key    = "service.namespace"
+        value  = "drawe"
       }
-      action {
-        key = "deployment.environment"
-        value = sys.env("ALLOY_DEPLOY_ENV")
+      attributes {
         action = "upsert"
+        key    = "deployment.environment"
+        value  = sys.env("ALLOY_DEPLOY_ENV")
       }
       output {
         traces  = [otelcol.processor.attributes.redact.input, otelcol.connector.spanmetrics.default.input]
