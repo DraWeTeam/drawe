@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: alloy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alloy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alloy
+      annotations:
+        # config 변경 시 자동 롤링하도록 checksum 을 overlay 에서 주입해도 되고,
+        # ArgoCD 가 ConfigMap 변경을 감지해 동기화한다.
+        checksum/config: replace-on-config-change
+    spec:
+      serviceAccountName: alloy
+      # 모든 노드에서 동작 (taint 있어도)
+      tolerations:
+        - operator: Exists
+      securityContext:
+        runAsUser: 0          # 노드 /proc·/sys 읽기 (node exporter)
+      containers:
+        - name: alloy
+          image: grafana/alloy:latest   # overlay 에서 버전 핀
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --storage.path=/tmp/alloy
+          ports:
+            - name: http-metrics
+              containerPort: 12345
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ALLOY_DEPLOY_ENV
+              value: "dev"          # overlay 에서 환경별 패치
+            - name: ALLOY_SAMPLING_RATE
+              value: "100"          # dev=100% / prod=10
+          # Grafana Cloud 자격증명 (ESO 가 만든 Secret)
+          envFrom:
+            - secretRef:
+                name: alloy-grafana-cloud
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: storage
+              mountPath: /tmp/alloy
+            - name: rootfs
+              mountPath: /host
+              readOnly: true
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-config
+        - name: storage
+          emptyDir: {}
+        - name: rootfs
+          hostPath:
+            path: /
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
