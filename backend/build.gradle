@@ -36,6 +36,7 @@ configurations {
 
 repositories {
     mavenCentral()
+    maven { url 'https://jitpack.io' }   // KOMORAN (com.github.shin285)
 }
 
 dependencies {
@@ -60,6 +61,18 @@ dependencies {
 
     // ── google Gmail SMTP 설정
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // ── AI 파이프라인 트랙 A (드로우 가이드 챗) ──────────────
+    implementation 'com.github.shin285:KOMORAN:3.3.9'                       // 한국어 형태소 키워드 추출
+    implementation 'com.knuddels:jtokkit:1.1.0'                             // 토큰 카운팅(컨텍스트 트리밍)
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0' // 외부 API 서킷·타임아웃(embed/vector)
+    implementation 'org.springframework.boot:spring-boot-starter-aop'       // resilience4j @CircuitBreaker AOP
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310' // Instant JSON 직렬화
+
+    // ── AWS S3 (AI 이미지 저장 + presigned URL) ─────────────
+    implementation platform('software.amazon.awssdk:bom:2.46.7')
+    implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:url-connection-client'
 
     // ── Flyway — DB schema migration ─────────────────────────
     // prod 에서는 JPA_DDL_AUTO=validate 로 Hibernate 가 스키마 만들지 않음.
