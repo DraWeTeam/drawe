@@ -17,6 +17,7 @@ public class UserController {
             user.getUser().getId(),
             user.getUser().getEmail(),
             user.getUser().getNickname(),
-            user.getUser().getPicture()));
+            user.getUser().getPicture(),
+            user.getUser().getTermsAgreeAt() != null));
   }
 }

@@ -85,7 +85,7 @@ resource "aws_s3_bucket_cors_configuration" "bria" {
 
   cors_rule {
     allowed_methods = ["GET", "HEAD"]
-    allowed_origins = [var.frontend_url]
+    allowed_origins = concat([var.frontend_url], var.cors_extra_origins)
     allowed_headers = ["*"]
     max_age_seconds = 3000
   }

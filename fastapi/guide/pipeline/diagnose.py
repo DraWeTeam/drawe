@@ -91,16 +91,51 @@ def _subject_value_range(g):
     return float(p95 - p5)
 
 
+def _subject_centroid(g):
+    """'그림 자국'의 무게중심(정규화 0..1). focus_centeredness 용.
+    배경 모델은 _subject_value_range 와 동일 — 밝은 종이 위 어두운 자국만 신뢰하고,
+    어두운/꽉 찬/거의 빈 화면이면 None(주장 보류). 기존 brightness 가중은 '종이' 무게중심을
+    재던 버그였다(흰 종이에서 방향 뒤집힘)."""
+    h, _ = np.histogram(g.ravel(), bins=32, range=(0.0, 1.0))
+    mode = int(h.argmax())
+    if h[mode] / g.size < 0.30:  # 지배적 배경 없음(피사체가 꽉 참) → 보류
+        return None
+    c = (mode + 0.5) / 32.0  # 배경(종이) 밝기 중심
+    if c < 0.60:  # 어두운 배경 → 보류(값 폭과 동일 정책)
+        return None
+    fw = np.clip(c - g, 0.0, None)  # 종이보다 어두운 만큼 = '자국 무게'
+    wsum = float(fw.sum())
+    if wsum < 1.0:  # 거의 빈 화면 → 무게중심 무의미
+        return None
+    ys, xs = np.mgrid[0 : g.shape[0], 0 : g.shape[1]]
+    cx = float((xs * fw).sum() / wsum / g.shape[1])
+    cy = float((ys * fw).sum() / wsum / g.shape[0])
+    return cx, cy
+
+
+def _is_line_sketch(g):
+    """거의 단조(near-flat)·옅은 그림 추정 — 명암 코칭 보류용. value_std 가 매우 낮으면(톤 변화가
+    거의 없음) '명암 폭을 넓혀라'는 조언이 무의미/오해다(선·옅은 스케치라 셰이딩 단계 전). 임계는
+    평가셋 튜닝 대상. (light_frac 은 image_signals 에서 디버그로 노출 — 추후 '밝은 선화 vs 어두운
+    플랫'을 더 가르려면 함께 쓸 수 있음.)"""
+    return bool(float(g.std()) < 0.08)
+
+
 def image_signals(pil):
     g = np.asarray(pil.convert("L"), float) / 255
-    ys, xs = np.mgrid[0 : g.shape[0], 0 : g.shape[1]]
-    w = g.sum() + 1e-9
-    cx, cy = (xs * g).sum() / w / g.shape[1], (ys * g).sum() / w / g.shape[0]
-    return {
+    out = {
         "value_std": float(g.std()),
         "value_range_robust": _subject_value_range(g),  # 배경-강건(degraded 폴백용)
-        "focus_centeredness": float(1 - 2 * max(abs(cx - 0.5), abs(cy - 0.5))),
+        "line_sketch": _is_line_sketch(g),  # 선/옅은 스케치 → value 축 보류(D)
+        "light_frac": float((g >= 0.78).mean()),  # 디버그/튜닝용(line_sketch 판정 근거)
     }
+    ctr = _subject_centroid(
+        g
+    )  # 잉크 무게중심(밝은 종이에서만) — brightness 가중 버그 수정
+    if ctr is not None:
+        cx, cy = ctr
+        out["focus_centeredness"] = float(1 - 2 * max(abs(cx - 0.5), abs(cy - 0.5)))
+    return out
 
 
 # ── 색/빛/손 신호(Phase: 자동 측정 3종 연결) ──────────────────────────────────────────────
@@ -127,7 +162,9 @@ def light_signals(pil, pose):
     g = np.asarray(pil.convert("L"), float) / 255
     if float(g.std()) < 1e-3:
         return {}
-    mask = _figure_bbox(pose, g.shape) if pose.get("status") == "ok" else None
+    mask = _figure_bbox(
+        pose, g.shape
+    )  # 관절 신뢰 무관 — 형체 bbox만 있으면 광원 램프 측정(하이브리드)
     if mask is None:
         # 형체 미검출(흉상/얼굴): 피사체를 못 가려내면 배경이 ramp 를 왜곡 → '평면 조명'을 잘못 단정하느니
         #   광원 방향은 측정하지 않는다(없는 신호 = scorer 미발화). 명도 폭은 value_range_robust 가 따로 잡는다.
@@ -259,11 +296,76 @@ def _figure_bbox(pose, shape):
     return mask
 
 
+def _figure_bbox_coords(pose):
+    """오버레이 앵커용 인물 bbox 정규화 좌표(x0,y0,x1,y1) 또는 None.
+    _figure_bbox 의 좌표 계산과 동일(그쪽은 mask 반환) — 한쪽 바뀌면 같이 손볼 것."""
+    kp = pose.get("keypoints")
+    if not kp:
+        return None
+    pts = [
+        (x, y)
+        for (x, y, v) in kp
+        if v >= VIS_KP and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0
+    ]
+    if len(pts) < 6:
+        return None
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    pad = 0.08
+    x0, x1 = max(0.0, min(xs) - pad), min(1.0, max(xs) + pad)
+    y0, y1 = max(0.0, min(ys) - pad), min(1.0, max(ys) + pad)
+    if (x1 - x0) < 0.10 or (y1 - y0) < 0.15 or (x1 - x0) * (y1 - y0) > 0.85:
+        return None
+    return (x0, y0, x1, y1)
+
+
+# ── 포즈 신뢰도(불확실성 처리) ──────────────────────────────────────────────────────────
+# extract()는 이미 status(ok/low_confidence/skipped)를 주는데 진단부가 'ok 아니면 전부 degraded'로
+# 뭉갰다. 여기서 (a) 중간 상태(low_confidence)를 LOW 로 살리고, (b) status=ok 이라도 기하가 퇴화면
+# LOW 로 강등한다(가시도가 못 잡는 '자신 있게 틀린 스켈레톤' 방어). LOW = 형체 위치는 믿되 관절은 불신.
+POSE_OK, POSE_LOW, POSE_FAIL = "ok", "low", "fail"
+
+
+def _implausible_skeleton(kp):
+    """퇴화 검출 시그니처만 잡는다(보수적). 좌우 비대칭·역동 포즈는 '진짜 신호'라 건드리지 않는다.
+    단축(foreshortening)은 뼈를 *짧게* 만들 뿐이므로 '길어지는' 마디만 오검출로 본다(신호 보존)."""
+    sh_c = (_xy(kp, L_SH) + _xy(kp, R_SH)) / 2
+    hp_c = (_xy(kp, L_HIP) + _xy(kp, R_HIP)) / 2
+    torso = float(np.linalg.norm(sh_c - hp_c))
+    if torso < 0.04:  # (1) 몸통 붕괴 → 뼈대 의미 없음
+        return True
+    pts = np.array([_xy(kp, i) for i in (L_SH, R_SH, L_HIP, R_HIP, L_AN, R_AN)])
+    if (
+        float(np.linalg.norm(pts.std(axis=0))) < 0.03
+    ):  # (2) 핵심 관절 한 점 뭉침(중앙 덤프)
+        return True
+    for a, b in ((L_SH, L_EL), (R_SH, R_EL), (L_HIP, L_KN), (R_HIP, R_KN)):
+        if (
+            float(np.linalg.norm(_xy(kp, a) - _xy(kp, b))) > 2.5 * torso
+        ):  # (3) 비현실적으로 긴 뼈
+            return True
+    return False
+
+
+def pose_reliability(pose):
+    """3-tier 신뢰도. OK=관절까지 측정(measured=fact), LOW=형체 위치만(하이브리드),
+    FAIL=포즈 없음(이미지 축만). 임계값(0.04/0.03/2.5×)은 대략값 — 실제 그림으로 강등률 튜닝 대상."""
+    if pose.get("status") == "skipped" or not pose.get("keypoints"):
+        return POSE_FAIL
+    if pose.get("status") != "ok":  # low_confidence: 관절 불신
+        return POSE_LOW
+    if _implausible_skeleton(pose["keypoints"]):  # ok 지만 기하 퇴화 → 강등
+        return POSE_LOW
+    return POSE_OK
+
+
 # ── 계측기 버전(성장 비교 연속성) ────────────────────────────────────────────────────────
 # SUBJECT_MASK 처럼 '측정 가능 영역'을 바꾸는 변경은 정확도 개선이 아니라 *계측 장치 변경*이다.
 # 그러면 학생의 "명도 폭이 늘었다"가 실력 변화인지 계측 변화인지 섞인다. practice_log 행에 이 버전을
 # 박아, 성장 비교가 변경 경계를 넘지 않게 한다(읽는 쪽은 추후 버전 경계에서 비교를 끊으면 됨).
-INSTRUMENT_VERSION = "dx-2026.06"
+INSTRUMENT_VERSION = (
+    "dx-2026.08"  # 포즈 3-tier(ok/low/fail) 도입 — 계측 장치 변경, 성장 비교 경계 끊음
+)
 
 
 def _subject_mask_on():
@@ -300,8 +402,13 @@ def region_signals(pil, pose):
       편차마스크에서 구조적 오발화라 제외). eval_harness 검증: 흉상 coverage 8/32→32/32, recall 0.17→0.42.
     - 둘 다 없으면 {} — 값 주장 보류(degraded 정직성 유지)."""
     g = np.asarray(pil.convert("L"), float) / 255
-    if pose.get("status") == "ok":
-        return _figure_value_signals(g, _figure_bbox(pose, g.shape))
+    bbox = _figure_bbox(
+        pose, g.shape
+    )  # 관절 신뢰와 무관 — '형체 위치'만 필요(하이브리드)
+    if bbox is not None:
+        # OK면 bg_contrast(실루엣-배경 섞임)까지, low_confidence면 value_range만(관절 비신뢰 → 보수)
+        with_bg = pose.get("status") == "ok"
+        return _figure_value_signals(g, bbox, with_bg=with_bg)
     if _subject_mask_on():
         try:
             from guide.pipeline.mask import subject_mask
@@ -411,6 +518,10 @@ def s_joint_articulation(s):
 
 def s_value_structure(s):
     """명도 구조 — 국소 측정(인물 명도폭 / 실루엣-배경 분리) 우선, 없으면 전역 value_std 폴백."""
+    if s.get("line_sketch"):
+        return (
+            None  # 선 스케치(선 위주, 명암 전) — shading 코칭 보류, 구조 축에 양보(D)
+        )
     parts, conf = [], 0.0
     fr = s.get("figure_value_range")
     if fr is not None:  # 인물 내부 명도 폭(배경 대비에 속지 않음)
@@ -516,13 +627,15 @@ FOCUS_PROMOTE = 0.05  # 커리큘럼상 '현재 집중' 축 살짝 앞으로
 
 def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=None):
     tax = taxonomy()
-    degraded = pose.get("status") != "ok"
+    tier = pose_reliability(pose)
+    degraded = tier == POSE_FAIL  # 포즈 자체 없음 → 이미지 축 폴백(기존 의미 유지)
+    pose_trusted = tier == POSE_OK  # 관절 신호는 OK일 때만 measured=fact
     eligible = set(
         (profile or {}).get("subproblems") or []
     )  # track 게이팅(비면 전체 허용)
     norms = (profile or {}).get("norms") or {}
     sig = {}
-    if not degraded:
+    if pose_trusted:
         sig.update(pose_signals(pose["keypoints"]))
     sig.update(image_signals(pil))
     sig.update(region_signals(pil, pose))  # Tier-2: 인물/배경 국소 명도(포즈 ok일 때만)
@@ -546,7 +659,7 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         # 흉상/얼굴(degraded=형체 미검출): 포즈 의존 축은 측정 불가 → persona 만으로 빈 관찰을 채우지 않는다.
         #   포즈축 빈 관찰이 새면 "무게중심/단축" 같은 걸 측정한 척 흘려 신뢰를 깎는다. feel 축(명도·구도·빛)만
         #   남겨 정직한 진단으로. 단 사용자가 칩으로 직접 고른 경우(user_terms)는 가설형으로 surface(의도 존중).
-        if degraded and sid in POSE_DEPENDENT and sid not in user_terms:
+        if tier != POSE_OK and sid in POSE_DEPENDENT and sid not in user_terms:
             continue
         if any(p in personas for p in e["personas"]) or sid in user_terms:
             # 측정 근거 없음 → signal 비움(내부 라벨이 사용자 문구로 새지 않게). 프롬프트가 measured=False를 보고
@@ -561,11 +674,20 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                 hits[sid] = (0.25 if e.get("auto") else 0.15, "")
 
     # track 게이팅: 이 track에서 다루지 않는 항목은 제외(풍경에 포즈 항목이 새어 나오지 않게).
-    # 단 사용자가 *직접 물은* 축(user_terms)은 자동 노이즈가 아니라 의도이므로 track 추측을 덮어쓰고 통과.
-    # (예: 손 클로즈업이 '인물 없음'→landscape track으로 잡혀도, "손 봐주세요"면 hand_structure 유지)
+    # 단 통과 예외 둘:
+    #   - user_terms(직접 물은 축): 자동 노이즈가 아니라 의도.
+    #   - 검출돼야만 측정되는 축(POSE_DEPENDENT ∩ measured_ids): HandLandmarker 가 잡은 손,
+    #     포즈 키포인트 등은 '측정=그 대상이 실재' 증거라 track 추측을 덮고 통과한다(손 클로즈업이
+    #     landscape 로 잡혀도 손이 검출되면 hand_structure 가 살아남음). value/atmospheric/composition
+    #     처럼 *주변 픽셀 통계*로 발화하는 축은 검출 증거가 아니므로 track 게이팅을 그대로 따른다
+    #     (안 그러면 손 그림에 풍경 신호인 atmospheric 이 measured 로 새어 들어온다).
     if eligible:
         hits = {
-            sid: v for sid, v in hits.items() if sid in eligible or sid in user_terms
+            sid: v
+            for sid, v in hits.items()
+            if sid in eligible
+            or sid in user_terms
+            or (sid in measured_ids and sid in POSE_DEPENDENT)
         }
 
     ranked = sorted(hits.items(), key=lambda kv: -kv[1][0])
@@ -581,7 +703,7 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                 n -= STEADY_DEMOTE
             if sid in recurring_set:
                 n += RECUR_PROMOTE
-            if sid == focus and not (degraded and sid in POSE_DEPENDENT):
+            if sid == focus and not (tier != POSE_OK and sid in POSE_DEPENDENT):
                 n += FOCUS_PROMOTE
             return n
 
@@ -606,6 +728,13 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                 "recurred": sid in recurring_set,  # 최근에도 반복적으로 떴는가(연속성)
                 "from_user": sid
                 in user_terms,  # 사용자가 칩/문구로 직접 고른 관심(중재 우선순위)
+                # (C) 조건부 우선: 이 축이 '이 그림 맥락에서 말이 되는가'.
+                #   measured(측정됨) 또는 track이 다루는 축(sid in eligible) 또는 track 게이팅 없음(eligible 빔).
+                #   풍경에 "손"을 잘못 말한 경우 → hand는 eligible 밖 → context_ok=False → lead 강제 안 됨(가설로만).
+                #   resolve_profile이 scene(인물 유무)으로 track을 정하므로, eligible이 곧 scene 맥락 신호다.
+                "context_ok": (sid in measured_ids)
+                or (not eligible)
+                or (sid in eligible),
                 "region": REGION_KP.get(sid) if not degraded else None,
                 "what_to_observe": e["what_to_observe"],
                 "reference_query": e["reference_query"],
@@ -615,8 +744,17 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     # measurable: 이번 그림에서 '측정 가능'했던 축(주제 등장). flagged 여부와 무관 — '부재(안 그림)'와
     #   '개선(그렸는데 덜 걸림)'을 roadmap 이 구분하게 하는 관측층 신호. eligible(track) − (degraded면 포즈축).
     measurable = sorted(
-        (eligible or set(ALL_AXES)) - (POSE_DEPENDENT if degraded else set())
+        (eligible or set(ALL_AXES)) - (POSE_DEPENDENT if tier != POSE_OK else set())
     )
+    # 오버레이 생성은 라우트로 이동(모드 선택 후 overlay_axes 만 렌더). 여기선 좌표/메타만 노출.
+    #   spatial.keypoints 등은 서버 내부용 — 최종 클라 payload 에는 안 실린다(라우트가 SVG 만 실음).
+    _g = np.asarray(pil.convert("L"), float) / 255
+    _spatial = {
+        "keypoints": pose.get("keypoints") if tier == POSE_OK else None,
+        "bbox": _figure_bbox_coords(pose) if tier != POSE_FAIL else None,
+        "centroid": _subject_centroid(_g),
+        "horizon_y": sig.get("horizon_y"),
+    }
     return {
         "primary_focus": obs[0]["sub_problem"] if obs else None,
         "observations": obs,
@@ -624,4 +762,7 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         "persona": personas,
         "measurable": measurable,
         "instrument_version": instrument_version(),
+        "pose_tier": tier,
+        "spatial": _spatial,
+        "image_size": (pil.width, pil.height),
     }

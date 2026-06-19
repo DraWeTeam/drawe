@@ -22,6 +22,7 @@ public class AuthService {
   private final RefreshTokenService refreshTokenService;
   private final PasswordEncoder passwordEncoder;
   private final JwtProvider jwtProvider;
+  private final EmailVerificationService emailVerificationService;
 
   @Transactional
   public SignupResponse signup(SignupRequest request) {
@@ -32,11 +33,15 @@ public class AuthService {
       throw new CustomException(ErrorCode.NICKNAME_ALREADY_EXISTS);
     }
 
+    // 모든 중복 검증 통과 후 인증 플래그 소비 (닉네임 충돌로 재인증 강요 방지)
+    emailVerificationService.assertVerifiedAndConsume(request.getEmail());
+
     User user =
         User.builder()
             .email(request.getEmail())
             .password(passwordEncoder.encode(request.getPassword()))
             .nickname(request.getNickname())
+            .termsAgreeAt(Instant.now())
             .build();
 
     userRepository.save(user);
@@ -46,6 +51,15 @@ public class AuthService {
         .email(user.getEmail())
         .nickname(user.getNickname())
         .build();
+  }
+
+  @Transactional
+  public void agreeTerms(Long userId) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    user.agreeTerms(); // 변경 감지로 termsAgreeAt 반영
   }
 
   @Transactional

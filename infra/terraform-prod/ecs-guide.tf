@@ -33,9 +33,21 @@ variable "fastapi_guide_desired_count" {
 }
 
 variable "guide_hand_vlm" {
-  description = "손 VLM 게이트. dev 검증(P9) 통과 후 prod 도 동일 절차로 0→1 해제."
+  description = "손 VLM 게이트. dev 검증(P9) 통과 후 prod 도 동일 절차로 0→1 해제. (현재: 해제됨)"
   type        = string
-  default     = "0"
+  default     = "1" # 해제(ON) — Gemini 손 관찰자 활성. GEMINI_API_KEY 실제값 필요
+}
+
+variable "guide_subject_vlm" {
+  description = "주제 분류 VLM 게이트. CLIP person_p 가 애매(0.35~0.60)할 때만 Gemini 1회로 주제(손/풍경 등) 판정 → 진단 축 오라우팅 교정. dev 검증 후 prod 적용 권장. GEMINI_API_KEY 필요."
+  type        = string
+  default     = "1" # ON — 애매 케이스만 호출(확신/명시 track 은 호출 0). dev-first 원하면 tfvars 로 0.
+}
+
+variable "guide_ai_fallback" {
+  description = "미스(검색 실패)+적격 축(명암·구도·빛·색·대기원근·깊이)에서 Gemini 로 ai_example 이미지를 생성→QC→Qdrant Cloud 적재. 인체/포즈/손은 코드(ai_qc/ai_fallback)가 제외. GEMINI_API_KEY 필요(이미 주입됨). dev 검증 후 prod 적용 권장 — dev-first 원하면 tfvars 로 0."
+  type        = string
+  default     = "1" # ON
 }
 
 # ── ECR ──────────────────────────────────────────────
@@ -146,9 +158,23 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
 
         # ── 모델 게이트 ──
         { name = "VLM_BACKEND", value = "aistudio" }, # Gemini(aistudio)
-        { name = "HAND_VLM", value = var.guide_hand_vlm }, # prod 도 동일 절차 0(다크)→1
+        { name = "HAND_VLM", value = var.guide_hand_vlm }, # 해제(ON): Gemini 손 관찰자
+        { name = "SUBJECT_VLM", value = var.guide_subject_vlm }, # 애매대역만 Gemini 주제 분류(축 오라우팅 교정)
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
+
+        # ── 코칭 에이전트(LLM 선택자/계획자) — 후보 안에서만 선택, validate가 그라운딩 강제 ──
+        # OFF(미설정/0)면 결정적 규칙 모드(추가 LLM 호출 0). 1/true/yes 면 ON(요청당 Grok 호출 추가).
+        { name = "AGENT_LLM_SELECT", value = "1" }, # decide(): 후보 중 무엇을·어떤 순서·톤으로 선택
+        { name = "AGENT_PLAN", value = "1" },       # plan_next(): 다음 단계 학습 경로(Layer 3)
+
+        # ── 미스 시 자동 생성(ai_example) — Gemini 이미지 생성 → QC → Qdrant Cloud 적재 ──
+        #   적격 축(명암·구도·빛·색·대기원근·깊이)만. 인체/포즈/손은 코드(ai_qc/ai_fallback)가 제외.
+        #   GEMINI_API_KEY(아래 secrets) 재사용. 비동기 기본 → 프런트가 /guide/ref-job 으로 폴링·교체.
+        { name = "AI_FALLBACK", value = var.guide_ai_fallback },
+        { name = "AI_GEN_PROVIDER", value = "gemini" },
+        { name = "GEMINI_IMAGE_MODEL", value = "gemini-2.5-flash-image" },
+        { name = "AI_FALLBACK_INLINE", value = "0" }, # 0=비동기('생성 중'→폴링), 1=동기(이번 턴)
 
         # ── 브라우저 출처(CORS) ──
         { name = "CORS_ORIGINS", value = var.frontend_url },
@@ -192,7 +218,7 @@ resource "aws_ecs_service" "fastapi_guide" {
   name            = "${local.name_prefix}-fastapi-guide"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.fastapi_guide.arn
-  desired_count   = var.fastapi_guide_desired_count
+  desired_count   = var.prod_enabled ? var.fastapi_guide_desired_count : 0
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
 
@@ -224,7 +250,7 @@ resource "aws_ecs_service" "fastapi_guide" {
   tags = { Name = "${local.name_prefix}-fastapi-guide-svc" }
 
   lifecycle {
-    ignore_changes = [desired_count, task_definition]
+    ignore_changes = [task_definition]
   }
 }
 

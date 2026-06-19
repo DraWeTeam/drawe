@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from io import BytesIO
 import json
 import uuid
+import asyncio
 from sqlalchemy import text, bindparam
 
 from guide.stores.db import engine
@@ -13,6 +14,7 @@ from guide.ml.scene import analyze
 from guide.ml.pose import extract
 from guide.ml.llm import get_llm
 from guide.pipeline.coach import run_guide
+from guide.schemas import PendingReference
 from guide.pipeline.router import resolve, detect_intent
 from guide.pipeline.diagnose import diagnose, taxonomy, instrument_version
 from guide.pipeline.roadmap import (
@@ -24,10 +26,17 @@ from guide.pipeline.roadmap import (
 )
 from guide.pipeline.growth_stage import apply_cold_start
 from guide.pipeline.profiles import resolve_profile
+from guide.pipeline.subject import resolve_subject
 from guide.pipeline import agent
 from guide.pipeline.asset_index import build_asset_index
 from guide.pipeline.search import search_text, is_miss
+from guide.pipeline.overlay import (
+    select_visual_mode,
+    resolve_anchors,
+    build_overlay,
+)
 from guide.pipeline.mapping import log_miss
+from guide.pipeline.ai_fallback import start_backfill, job_status as _ref_job_status
 from guide.safety.moderation import screen_upload
 from guide.ml.upload_guard import UploadRejected
 from guide._security import (
@@ -40,6 +49,11 @@ from guide.contract import finalize_guide_response, growth_from_raw
 
 router = APIRouter()
 llm = get_llm()
+
+
+# 동기 파이프라인(임베딩·mediapipe·손 VLM·LLM)은 asyncio.to_thread 로 오프로드해 이벤트 루프/헬스체크를
+# 비차단으로 둔다. 전역 락은 두지 않는다 — _pipeline 안에 느린 네트워크 호출(growth_context LLM·손 VLM)이
+# 있어 락을 걸면 그 I/O 동안 모든 동시 요청이 직렬화돼 Spring 타임아웃이 연쇄된다(검증된 develop 동작으로 복귀).
 
 
 def _pipeline(
@@ -75,6 +89,11 @@ def _pipeline(
         }
     # 그림 단계(완성작/연습): 폼 입력 우선, 없으면 메시지 키워드. 압축 이력(growth)을 진단 랭킹에 흘린다.
     intent = detect_intent(message, explicit=intent)
+    # 주제 에스컬레이션: track 없고 CLIP 이 애매할 때만 VLM 1회로 보강(손→hand 축, 풍경→landscape track).
+    #   확신/명시면 호출 안 함(레이턴시 0). extra_terms 는 user_terms 와 같은 의도 경로를 탄다.
+    track, _extra_terms = resolve_subject(scene, pil, track)
+    if _extra_terms:
+        user_terms = set(user_terms) | _extra_terms
     # track 프로파일: 명시 track 우선, 없으면 scene(인물 유무)로 자동. 진단 게이팅·norm과 로드맵 커리큘럼에 동시 적용.
     profile = resolve_profile(track, scene)
     growth = growth_context(
@@ -92,7 +111,7 @@ def _pipeline(
     measured = [o["sub_problem"] for o in dx["observations"] if o.get("measured")]
     growth = apply_cold_start(growth, measured, profile["curriculum"], why_fn=_why)
     tax = taxonomy()
-    refs_by_sp, retrieved = {}, set()
+    refs_by_sp, retrieved, pending_by_sp = {}, set(), {}
     for o in dx["observations"]:
         sp = o["sub_problem"]
         persona_hint = tax[sp]["personas"][0]
@@ -127,14 +146,28 @@ def _pipeline(
                     "top_score": round(float(hits[0][1]), 4) if hits else None,
                 },
             )
+            # AI 적격 축(풍경·명암·구도·빛·색)이면 ai_example 생성 *작업* 시작 → job_id.
+            #   인체/포즈/손 축은 start_backfill 이 None(생성 안 함). 인라인 모드면 그 자리에서 ready 까지.
+            job_id = start_backfill(sp, track=track, medium=medium)
+            if job_id:
+                st = _ref_job_status(job_id)
+                if st["status"] == "ready" and st["ref_id"]:
+                    hits = [(st["ref_id"], 1.0)]  # 인라인: 이번 턴에 바로 노출
+                elif st["status"] == "generating":
+                    pending_by_sp[sp] = job_id  # 비동기: '생성 중' 으로 프런트에 신호
         refs_by_sp[sp] = [(rid, "") for rid, _ in hits]
         retrieved |= {rid for rid, _ in hits}
-    return (dx, refs_by_sp, retrieved, tax, growth, intent), None
+    return (dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp), None
 
 
 @router.post("/analyze")
 async def analyze_ep(file: UploadFile, message: str = Form("")):
-    ctx, early = _pipeline(await file.read(), message)
+    file_bytes = await file.read()
+    return await asyncio.to_thread(_analyze_sync, file_bytes, message)
+
+
+def _analyze_sync(file_bytes, message):
+    ctx, early = _pipeline(file_bytes, message)
     if early:
         return early
     dx = ctx[0]
@@ -259,6 +292,27 @@ def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
     _log_observable(user_id, dx.get("measurable", ()), resp.guide_id)
 
 
+def _make_overlay(dx, growth):
+    """모드 선택(이론 vs 오버레이) 후 overlay_axes 만 그림 위에 렌더(라우트에서 생성).
+    반환: payload 에 합칠 {overlay(SVG|None), visual_mode{theory_axes, overlay_axes}}."""
+    mode = select_visual_mode(dx.get("observations", []), growth)
+    sel = set(mode["overlay_axes"])
+    obs = [o for o in dx.get("observations", []) if o.get("sub_problem") in sel]
+    tier = dx.get("pose_tier", "fail")
+    w, h = dx.get("image_size") or (0, 0)
+    overlay = None
+    if obs and w and h:
+        anns = resolve_anchors(obs, dx.get("spatial") or {}, tier)
+        overlay = build_overlay(w, h, anns, tier) if anns else None
+    return {
+        "overlay": overlay,
+        "visual_mode": {
+            "theory_axes": mode["theory_axes"],
+            "overlay_axes": mode["overlay_axes"],
+        },
+    }
+
+
 @router.post("/guide")
 async def guide_ep(
     file: UploadFile,
@@ -269,10 +323,17 @@ async def guide_ep(
     medium: str = Form(None),
     request_id: str = Form(None),
 ):
-    ctx, early = _pipeline(await file.read(), message, user_id, intent, track, medium)
+    file_bytes = await file.read()
+    return await asyncio.to_thread(
+        _guide_sync, file_bytes, message, user_id, intent, track, medium, request_id
+    )
+
+
+def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         return early
-    dx, refs_by_sp, retrieved, tax, growth, intent = ctx
+    dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp = ctx
     # 에이전트 선택층(grounded): 룰이 낸 후보 중에서 무엇을 먼저·어떤 레퍼런스로 보여줄지 *선택* → 검증 → 적용.
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
@@ -295,6 +356,14 @@ async def guide_ep(
         intent=intent,
         asset_index=asset_index,
     )
+    # '생성 중' 레퍼런스 신호 — 보여줄 블록(sub_problem)에 해당하는 미스 job 만 노출(없으면 빈 리스트).
+    if pending_by_sp:
+        shown = {b.sub_problem for b in resp.blocks}
+        resp.pending_references = [
+            PendingReference(sub_problem=sp, job_id=jid)
+            for sp, jid in pending_by_sp.items()
+            if sp in shown
+        ]
     growth_obj = None
     if resp.mode == "coach":
         resp.guide_id = str(uuid.uuid4())
@@ -304,7 +373,9 @@ async def guide_ep(
         growth_obj = growth_from_raw(
             growth_view(user_id, track=track, degraded=resp.degraded), note=_note
         )
-    return finalize_guide_response(resp, growth_obj=growth_obj)
+    payload = finalize_guide_response(resp, growth_obj=growth_obj)
+    payload.update(_make_overlay(dx, growth))  # 모드 선택 → overlay_axes 만 렌더
+    return payload
 
 
 @router.post("/guide/stream")
@@ -317,14 +388,28 @@ async def guide_stream_ep(
     medium: str = Form(None),
     request_id: str = Form(None),
 ):
-    ctx, early = _pipeline(await file.read(), message, user_id, intent, track, medium)
+    file_bytes = await file.read()
+    return await asyncio.to_thread(
+        _guide_stream_sync,
+        file_bytes,
+        message,
+        user_id,
+        intent,
+        track,
+        medium,
+        request_id,
+    )
+
+
+def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         body = [
             f"data: {json.dumps(early, ensure_ascii=False)}\n\n",
             "data: [DONE]\n\n",
         ]
         return StreamingResponse(iter(body), media_type="text/event-stream")
-    dx, refs_by_sp, retrieved, tax, growth, intent = ctx
+    dx, refs_by_sp, retrieved, tax, growth, intent, _pending = ctx
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
     )
@@ -359,6 +444,7 @@ async def guide_stream_ep(
 
     def gen():
         payload = finalize_guide_response(resp, growth_obj=growth_obj)
+        payload.update(_make_overlay(dx, growth))  # 모드 선택 → 스트림 payload
         # 점진 렌더용: 블록을 하나씩 흘린 뒤, 마지막에 전체 응답(메타·next_steps 포함)을 보낸다.
         for b in payload.get("blocks", []):
             yield f"data: {json.dumps({'type': 'block', 'block': b}, ensure_ascii=False)}\n\n"
@@ -366,6 +452,20 @@ async def guide_stream_ep(
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@router.get("/ref-job/{job_id}")
+def ref_job(job_id: str):
+    """'생성 중' 레퍼런스 폴링. 반환: {status, ref_id, image_path}.
+    - generating : 아직 만드는 중(프런트는 계속 폴링).
+    - ready      : ref_id 사용 가능 → image_path('/guide/image/<ref_id>')로 표시.
+    - failed/unknown : 생성 실패 또는 만료 → 프런트는 폴링 중단, 도식 폴백 유지.
+    """
+    st = _ref_job_status(job_id)
+    out = {"status": st["status"], "ref_id": st.get("ref_id"), "image_path": None}
+    if st["status"] == "ready" and st.get("ref_id"):
+        out["image_path"] = f"/guide/image/{st['ref_id']}"
+    return out
 
 
 @router.get("/image/{ref_id}")

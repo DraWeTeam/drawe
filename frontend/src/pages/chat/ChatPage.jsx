@@ -74,6 +74,7 @@ const ChatPage = () => {
   const [guideError, setGuideError] = useState("");
   const [guidePreview, setGuidePreview] = useState(null);
   const lastGuideArgs = useRef(null);
+  const lastDetectedStage = useRef(null); // 직전 감지 스테이지 (전송 간 비교용)
 
   const [references, setReferences] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
@@ -459,15 +460,7 @@ const ChatPage = () => {
 
     if (isFirstSubmission) {
       // 첫 제출
-      if (sentAttachment) {
-        track("prompt_image_uploaded_submitted", {
-          project_id: projectId,
-          image_format: sentAttachment.format || "unknown",
-          image_size_kb: sentAttachment.sizeKb || 0,
-          prompt_length: text.length,
-          iteration_count: currentIteration,
-        });
-      } else {
+      if (!sentAttachment) {
         track("prompt_submitted", {
           project_id: projectId,
           prompt_length: text.length,
@@ -562,6 +555,20 @@ const ChatPage = () => {
         });
       }
 
+      if (res?.detectedStage) {
+        // 백엔드 응답에 이 필드 와야 함
+        track("prompt_stage_detected", {
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore || null,
+          input_mode: inputMode,
+          prompt_length: text.length,
+          project_id: projectId,
+        });
+        lastDetectedStage.current = res.detectedStage;
+      }
+
       if (action === "NEW_SEARCH" && newRefs.length > 0) {
         setReferences(newRefs);
         setJustUpdated(true);
@@ -577,6 +584,10 @@ const ChatPage = () => {
         reference_count: responseType === "reference" ? newRefs.length : 0,
         generation_time_ms: Date.now() - responseStartTime,
         iteration_count: currentIteration,
+        reference_ids:
+          responseType === "reference"
+            ? newRefs.map((r) => r.id).join(",")
+            : "",
       });
 
       lastResponseTime.current = Date.now();

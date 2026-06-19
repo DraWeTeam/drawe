@@ -88,6 +88,21 @@ export const getGuides = async (projectId) => {
 };
 
 /**
+ * '생성 중' 레퍼런스 폴링. guide.pending_references[].job_id 로 호출.
+ * 반환(정규화): { status: 'generating'|'ready'|'failed'|'unknown', refId, imagePath }
+ * (Spring 이 fastapi /guide/ref-job/{jobId} 를 프록시 — ready 면 refId 로 이미지 표시.)
+ */
+export const getRefJob = async (projectId, jobId) => {
+  const res = await api.get(`/projects/${projectId}/guide/ref-job/${jobId}`);
+  const d = res.data.data || {};
+  return {
+    status: d.status,
+    refId: d.refId ?? d.ref_id ?? null,
+    imagePath: d.imagePath ?? d.image_path ?? null,
+  };
+};
+
+/**
  * 가이드 내 레퍼런스 묶음 피드백(👍 liked / 👎 disliked).
  * 그 가이드가 보여준 레퍼런스(최대 3컷)에 이벤트가 기록된다. best-effort.
  */

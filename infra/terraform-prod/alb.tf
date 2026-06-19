@@ -10,6 +10,10 @@ resource "aws_lb" "main" {
   drop_invalid_header_fields = true
   enable_http2               = true
 
+  # guide 파이프라인은 최대 150s(GuideClient 타임아웃). ALB 기본 60s 면 블로킹 POST /guide 가
+  # 응답 전 유휴로 끊겨 504 → "오래 걸리다가 실패". 백엔드 타임아웃(150s)보다 길게 둔다.
+  idle_timeout = 180
+
   tags = { Name = "${local.name_prefix}-alb" }
 }
 
