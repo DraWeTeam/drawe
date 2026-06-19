@@ -14,6 +14,7 @@ from guide.ml.scene import analyze
 from guide.ml.pose import extract
 from guide.ml.llm import get_llm
 from guide.pipeline.coach import run_guide
+from guide.schemas import PendingReference
 from guide.pipeline.router import resolve, detect_intent
 from guide.pipeline.diagnose import diagnose, taxonomy, instrument_version
 from guide.pipeline.roadmap import (
@@ -35,6 +36,7 @@ from guide.pipeline.overlay import (
     build_overlay,
 )
 from guide.pipeline.mapping import log_miss
+from guide.pipeline.ai_fallback import start_backfill, job_status as _ref_job_status
 from guide.safety.moderation import screen_upload
 from guide.ml.upload_guard import UploadRejected
 from guide._security import (
@@ -109,7 +111,7 @@ def _pipeline(
     measured = [o["sub_problem"] for o in dx["observations"] if o.get("measured")]
     growth = apply_cold_start(growth, measured, profile["curriculum"], why_fn=_why)
     tax = taxonomy()
-    refs_by_sp, retrieved = {}, set()
+    refs_by_sp, retrieved, pending_by_sp = {}, set(), {}
     for o in dx["observations"]:
         sp = o["sub_problem"]
         persona_hint = tax[sp]["personas"][0]
@@ -144,9 +146,18 @@ def _pipeline(
                     "top_score": round(float(hits[0][1]), 4) if hits else None,
                 },
             )
+            # AI 적격 축(풍경·명암·구도·빛·색)이면 ai_example 생성 *작업* 시작 → job_id.
+            #   인체/포즈/손 축은 start_backfill 이 None(생성 안 함). 인라인 모드면 그 자리에서 ready 까지.
+            job_id = start_backfill(sp, track=track, medium=medium)
+            if job_id:
+                st = _ref_job_status(job_id)
+                if st["status"] == "ready" and st["ref_id"]:
+                    hits = [(st["ref_id"], 1.0)]  # 인라인: 이번 턴에 바로 노출
+                elif st["status"] == "generating":
+                    pending_by_sp[sp] = job_id  # 비동기: '생성 중' 으로 프런트에 신호
         refs_by_sp[sp] = [(rid, "") for rid, _ in hits]
         retrieved |= {rid for rid, _ in hits}
-    return (dx, refs_by_sp, retrieved, tax, growth, intent), None
+    return (dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp), None
 
 
 @router.post("/analyze")
@@ -322,7 +333,7 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
     ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         return early
-    dx, refs_by_sp, retrieved, tax, growth, intent = ctx
+    dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp = ctx
     # 에이전트 선택층(grounded): 룰이 낸 후보 중에서 무엇을 먼저·어떤 레퍼런스로 보여줄지 *선택* → 검증 → 적용.
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
@@ -345,6 +356,14 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
         intent=intent,
         asset_index=asset_index,
     )
+    # '생성 중' 레퍼런스 신호 — 보여줄 블록(sub_problem)에 해당하는 미스 job 만 노출(없으면 빈 리스트).
+    if pending_by_sp:
+        shown = {b.sub_problem for b in resp.blocks}
+        resp.pending_references = [
+            PendingReference(sub_problem=sp, job_id=jid)
+            for sp, jid in pending_by_sp.items()
+            if sp in shown
+        ]
     growth_obj = None
     if resp.mode == "coach":
         resp.guide_id = str(uuid.uuid4())
@@ -390,7 +409,7 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
             "data: [DONE]\n\n",
         ]
         return StreamingResponse(iter(body), media_type="text/event-stream")
-    dx, refs_by_sp, retrieved, tax, growth, intent = ctx
+    dx, refs_by_sp, retrieved, tax, growth, intent, _pending = ctx
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
     )
@@ -433,6 +452,20 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@router.get("/ref-job/{job_id}")
+def ref_job(job_id: str):
+    """'생성 중' 레퍼런스 폴링. 반환: {status, ref_id, image_path}.
+      - generating : 아직 만드는 중(프런트는 계속 폴링).
+      - ready      : ref_id 사용 가능 → image_path('/guide/image/<ref_id>')로 표시.
+      - failed/unknown : 생성 실패 또는 만료 → 프런트는 폴링 중단, 도식 폴백 유지.
+    """
+    st = _ref_job_status(job_id)
+    out = {"status": st["status"], "ref_id": st.get("ref_id"), "image_path": None}
+    if st["status"] == "ready" and st.get("ref_id"):
+        out["image_path"] = f"/guide/image/{st['ref_id']}"
+    return out
 
 
 @router.get("/image/{ref_id}")

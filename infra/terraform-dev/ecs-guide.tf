@@ -41,6 +41,12 @@ variable "guide_subject_vlm" {
   default     = "1" # ON — 애매 케이스만 호출(확신/명시 track 은 호출 0).
 }
 
+variable "guide_ai_fallback" {
+  description = "미스(검색 실패)+적격 축(명암·구도·빛·색·대기원근·깊이)에서 Gemini 로 ai_example 이미지를 생성→QC→Qdrant Cloud 적재. 인체/포즈/손은 코드(ai_qc/ai_fallback)가 제외. GEMINI_API_KEY 필요(이미 주입됨). 끄려면 0."
+  type        = string
+  default     = "1" # ON
+}
+
 # ── ECR ──────────────────────────────────────────────
 resource "aws_ecr_repository" "fastapi_guide" {
   name                 = "${local.name_prefix}-fastapi-guide"
@@ -158,6 +164,14 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         # OFF(미설정/0)면 결정적 규칙 모드(추가 LLM 호출 0). 1/true/yes 면 ON(요청당 Grok 호출 추가).
         { name = "AGENT_LLM_SELECT", value = "1" }, # decide(): 후보 중 무엇을·어떤 순서·톤으로 선택
         { name = "AGENT_PLAN", value = "1" },       # plan_next(): 다음 단계 학습 경로(Layer 3)
+
+        # ── 미스 시 자동 생성(ai_example) — Gemini 이미지 생성 → QC → Qdrant Cloud 적재 ──
+        #   적격 축(명암·구도·빛·색·대기원근·깊이)만. 인체/포즈/손은 코드(ai_qc/ai_fallback)가 제외.
+        #   GEMINI_API_KEY(아래 secrets) 재사용. 비동기 기본 → 프런트가 /guide/ref-job 으로 폴링·교체.
+        { name = "AI_FALLBACK", value = var.guide_ai_fallback },
+        { name = "AI_GEN_PROVIDER", value = "gemini" },
+        { name = "GEMINI_IMAGE_MODEL", value = "gemini-2.5-flash-image" },
+        { name = "AI_FALLBACK_INLINE", value = "0" }, # 0=비동기('생성 중'→폴링), 1=동기(이번 턴)
 
         # ── 브라우저 출처(CORS) ──
         { name = "CORS_ORIGINS", value = var.frontend_url },
