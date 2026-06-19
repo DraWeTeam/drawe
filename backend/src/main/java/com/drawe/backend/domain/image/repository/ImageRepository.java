@@ -18,8 +18,8 @@ public interface ImageRepository extends JpaRepository<Image, Long> {
   List<Image> findByIsOnboardingTrue();
 
   /**
-   * 완성작 갤러리 — 특정 유저가 만든 AI 이미지를 최신순 페이징 조회 (source=AI AND created_by_user_id=user).
-   * 정렬은 {@code createdAt DESC, id DESC} — V12 이전 적재분은 createdAt 이 NULL 이라 id 순으로 흐른다.
+   * 완성작 갤러리 — 특정 유저가 만든 AI 이미지를 최신순 페이징 조회 (source=AI AND created_by_user_id=user). 정렬은 {@code
+   * createdAt DESC, id DESC} — V12 이전 적재분은 createdAt 이 NULL 이라 id 순으로 흐른다.
    */
   @Query(
       "SELECT i FROM Image i WHERE i.source = :source AND i.createdBy = :createdBy "

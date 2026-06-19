@@ -58,8 +58,7 @@ class GalleryServiceTest {
     ProjectReference r2 = ref(p2, image(102L, "u102"));
     ProjectReference r3 = ref(p1, image(201L, "u201"));
     // 쿼리는 (project.id DESC, addedAt DESC) 정렬 — p2(20) 먼저, 그 안에서 순서대로.
-    when(projectReferenceRepository.findAllByUserWithImage(user))
-        .thenReturn(List.of(r1, r2, r3));
+    when(projectReferenceRepository.findAllByUserWithImage(user)).thenReturn(List.of(r1, r2, r3));
 
     ReferenceArchiveResponse res = service.getReferenceArchive(user);
 

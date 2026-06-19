@@ -3,23 +3,25 @@ package com.drawe.backend.domain.llm.contract;
 /**
  * 사용자 메시지의 의도를 분류하는 코드.
  *
- * <p>강사님 피드백 #5 (case 코드화) + 외부 리뷰 보강 후 확정.
- * 자세한 결정 근거: {@code docs/decisions/AI-pipeline-review-decisions.md} §5
+ * <p>강사님 피드백 #5 (case 코드화) + 외부 리뷰 보강 후 확정. 자세한 결정 근거: {@code
+ * docs/decisions/AI-pipeline-review-decisions.md} §5
  *
- * <p>현재(S0) 상태: enum 정의만 존재. 실제 런타임 분기는 베타 종료 후 Phase 1에서 도입.
- * 베타 중에는 기존 {@link com.drawe.backend.domain.llm.dto.ExtractionResult.Action} 이 분기를 담당.
+ * <p>현재(S0) 상태: enum 정의만 존재. 실제 런타임 분기는 베타 종료 후 Phase 1에서 도입. 베타 중에는 기존 {@link
+ * com.drawe.backend.domain.llm.dto.ExtractionResult.Action} 이 분기를 담당.
  *
  * <p>{@code ExtractionResult.Action} 과의 매핑 (베타 후 마이그레이션 가이드):
+ *
  * <ul>
- *   <li>{@code NEW_SEARCH}    → {@link #NEW_SEARCH}</li>
- *   <li>{@code KEEP}          → {@link #KEEP}</li>
- *   <li>{@code SKIP}          → {@link #SKIP}</li>
- *   <li>{@code GENERATE_NOW}  → {@link #GENERATE}</li>
+ *   <li>{@code NEW_SEARCH} → {@link #NEW_SEARCH}
+ *   <li>{@code KEEP} → {@link #KEEP}
+ *   <li>{@code SKIP} → {@link #SKIP}
+ *   <li>{@code GENERATE_NOW} → {@link #GENERATE}
  * </ul>
+ *
  * 나머지 코드(001~004, 010~013, 000)는 베타 후 신규 도입.
  *
- * <p>이전 plan에 있던 {@code 009} (N번 이미지 참조)는 의도가 아니라 파라미터로 취급하기로 결정,
- * enum에서 제거하고 별도 앵커 슬롯({@link IntentResult#referencedImages})으로 분리한다.
+ * <p>이전 plan에 있던 {@code 009} (N번 이미지 참조)는 의도가 아니라 파라미터로 취급하기로 결정, enum에서 제거하고 별도 앵커 슬롯({@link
+ * IntentResult#referencedImages})으로 분리한다.
  */
 public enum IntentCode {
 

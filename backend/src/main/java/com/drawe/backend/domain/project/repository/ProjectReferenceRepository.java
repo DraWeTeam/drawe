@@ -15,8 +15,8 @@ public interface ProjectReferenceRepository extends JpaRepository<ProjectReferen
   void deleteByProject(Project project);
 
   /**
-   * 레퍼런스 아카이브 — 한 유저의 모든 프로젝트 레퍼런스를 image 와 함께 한 번에 로드(N+1 방지).
-   * 호출 측이 project 별로 그룹핑한다. 프로젝트 최신순, 그 안에서 추가 최신순(addedAt DESC).
+   * 레퍼런스 아카이브 — 한 유저의 모든 프로젝트 레퍼런스를 image 와 함께 한 번에 로드(N+1 방지). 호출 측이 project 별로 그룹핑한다. 프로젝트 최신순, 그
+   * 안에서 추가 최신순(addedAt DESC).
    */
   @Query(
       "SELECT pr FROM ProjectReference pr "

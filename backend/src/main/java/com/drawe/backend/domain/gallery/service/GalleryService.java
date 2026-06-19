@@ -51,8 +51,7 @@ public class GalleryService {
       Project project = ref.getProject();
       ProjectSection section =
           sections.computeIfAbsent(
-              project.getId(),
-              id -> new ProjectSection(id, project.getName(), new ArrayList<>()));
+              project.getId(), id -> new ProjectSection(id, project.getName(), new ArrayList<>()));
       Image image = ref.getImage();
       section.references().add(new ReferenceImageItem(image.getId(), image.getUrl()));
     }
