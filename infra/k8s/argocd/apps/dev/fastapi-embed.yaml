@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fastapi-embed
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DraWeTeam/drawe.git
+    targetRevision: feature/eks-migration
+    path: infra/k8s/overlays/dev/fastapi-embed
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: drawe-dev
+  # fastapi-embed 는 시크릿이 없어 ESO ignoreDifferences 불필요
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
