@@ -44,3 +44,8 @@ output "valkey_sg_id" {
   description = "Valkey EC2 SG — EKS pods 6379 접근 허용용"
   value       = aws_security_group.valkey.id
 }
+
+output "artref_s3_policy_arn" {
+  description = "artref S3 RW 정책 ARN. 3-platform 이 fastapi-guide SA용 IRSA 롤에 attach."
+  value       = aws_iam_policy.artref_s3_access.arn
+}

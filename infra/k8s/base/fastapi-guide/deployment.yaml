@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-guide
+  labels:
+    app: fastapi-guide
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"   # ExternalSecret(wave 0) 이후 배포
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastapi-guide
+  template:
+    metadata:
+      labels:
+        app: fastapi-guide
+    spec:
+      serviceAccountName: fastapi-guide          # IRSA → artref S3 RW
+      # uvicorn graceful-shutdown 110s + 버퍼 → 130s (spot 2분 통지 시 in-flight 마무리)
+      terminationGracePeriodSeconds: 130
+      containers:
+        - name: fastapi-guide
+          image: drawe-fastapi-guide:latest      # overlay images: 가 실제 ECR 로 치환
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: fastapi-guide-config         # base 고정 env
+            - configMapRef:
+                name: fastapi-guide-env            # overlay 환경별 env
+            - secretRef:
+                name: drawe-guide-secrets          # ESO 가 SSM 에서 동기화
+          # /health: 워밍업 미완 503(loading) → 완료 200(ok), draining 503.
+          #   외부 의존성(DB/Qdrant) 체크 없음 → liveness 안전. 모델 로드 무거움 → startup 넉넉히.
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30                   # 최대 300초 — open_clip+mediapipe 워밍업 여유
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "1500m"
+              memory: "5Gi"                        # ECS guide_memory=5120 과 동일 헤드룸
+            limits:
+              memory: "6Gi"                        # OOM 방지. CPU limit 미설정(추론 스로틀 방지)
