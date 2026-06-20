@@ -17,6 +17,7 @@ resource "aws_eks_addon" "vpc_cni" {
       WARM_PREFIX_TARGET       = var.warm_prefix_target
       WARM_IP_TARGET           = var.warm_ip_target
       ENABLE_POD_ENI           = tostring(var.enable_pod_eni) # Security Groups for Pods
+      POD_SECURITY_GROUP_ENFORCING_MODE = "standard"
     }
   })
 
