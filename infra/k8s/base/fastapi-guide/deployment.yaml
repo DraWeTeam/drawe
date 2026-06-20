@@ -4,8 +4,6 @@ metadata:
   name: fastapi-guide
   labels:
     app: fastapi-guide
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"   # ExternalSecret(wave 0) 이후 배포
 spec:
   replicas: 1
   selector:
