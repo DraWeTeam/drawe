@@ -14,8 +14,9 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: drawe-dev
-  # ── ESO 웹훅이 data[].remoteRef 에 채우는 기본값 필드는 drift 로 보지 않음 ──
-  #   conversionStrategy: Default / decodingStrategy: None / metadataPolicy: None
+  # ── ESO 웹훅이 자동으로 채우는 기본값 필드는 drift 로 보지 않음 ──
+  #   data[].remoteRef: conversionStrategy=Default / decodingStrategy=None / metadataPolicy=None
+  #   target.deletionPolicy: Retain (기본값)
   #   git 매니페스트엔 없고 라이브에만 생겨서 영구 OutOfSync 가 됨 → 무시.
   ignoreDifferences:
     - group: external-secrets.io
@@ -24,6 +25,7 @@ spec:
         - .spec.data[].remoteRef.conversionStrategy
         - .spec.data[].remoteRef.decodingStrategy
         - .spec.data[].remoteRef.metadataPolicy
+        - .spec.target.deletionPolicy
   syncPolicy:
     automated:
       prune: true
