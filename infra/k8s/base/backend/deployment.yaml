@@ -34,6 +34,7 @@ spec:
               path: /actuator/health/liveness
               port: 8080
             periodSeconds: 5
+            timeoutSeconds: 5      # CPU 경합 노드에서 JVM 워밍업 중 1초(기본값) 응답 실패 방지
             failureThreshold: 30   # 최대 150초 대기
           readinessProbe:
             httpGet:
