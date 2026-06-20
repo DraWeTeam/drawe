@@ -38,3 +38,9 @@ output "rds_sg_id" {
   description = "RDS SG ID. 3-platform 이 'pod SG → RDS 3306' 인그레스 규칙을 추가할 때 참조."
   value       = aws_security_group.rds.id
 }
+
+# EKS pod(pods-db SG) 가 Valkey 6379 에 접근하도록 SG id 노출 (3-platform 의 cache_from_pods 가 참조)
+output "valkey_sg_id" {
+  description = "Valkey EC2 SG — EKS pods 6379 접근 허용용"
+  value       = aws_security_group.valkey.id
+}

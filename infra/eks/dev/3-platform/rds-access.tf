@@ -26,3 +26,14 @@ resource "aws_security_group_rule" "rds_from_pods" {
 #   security_group_id        = data.terraform_remote_state.ecs_dev.outputs.valkey_sg_id
 #   source_security_group_id = module.platform.pods_db_security_group_id
 # }
+
+# 캐시(Valkey) 6379 ← pod SG. bridge 가 valkey_sg_id 를 노출해야 동작.
+resource "aws_security_group_rule" "cache_from_pods" {
+  type                     = "ingress"
+  description              = "Valkey/Redis from EKS pods"
+  from_port                = 6379
+  to_port                  = 6379
+  protocol                 = "tcp"
+  security_group_id        = data.terraform_remote_state.ecs_dev.outputs.valkey_sg_id
+  source_security_group_id = module.platform.pods_db_security_group_id
+}

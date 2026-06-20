@@ -47,6 +47,17 @@ resource "aws_iam_role_policy_attachment" "node_ssm" {
 # Karpenter v1 은 instance profile 을 스스로 생성/관리하므로 여기서 만들 필요는 없으나,
 # 명시적으로 두면 디버깅이 쉽다(EC2NodeClass.role 로 role 이름을 넘기면 Karpenter 가 처리).
 
+# ── 1.5) Karpenter 노드를 클러스터에 인가 ─────────────
+# 이게 없으면 Karpenter 가 띄운 인스턴스는 떠도 kubelet 이 API 서버에 등록을
+# 못 한다(Registered=Unknown / NodeNotFound). 매니지드 노드그룹은 EKS 가 자동
+# 인가하지만 Karpenter 노드 롤은 직접 access entry 를 만들어야 한다.
+# EC2_LINUX 타입이 system:bootstrappers/system:nodes 권한을 자동 부여.
+resource "aws_eks_access_entry" "karpenter_node" {
+  cluster_name  = var.cluster_name
+  principal_arn = aws_iam_role.karpenter_node.arn
+  type          = "EC2_LINUX"
+}
+
 # ── 2) Spot interruption queue (SQS) + EventBridge ────
 resource "aws_sqs_queue" "karpenter_interruption" {
   name                      = "${local.name_prefix}-karpenter"
