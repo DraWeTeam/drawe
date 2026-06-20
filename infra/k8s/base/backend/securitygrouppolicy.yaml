@@ -1,0 +1,16 @@
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata:
+  name: backend-rds
+  labels:
+    app: backend
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  securityGroups:
+    groupIds:
+      # [0] pods-db SG → RDS 3306 접근
+      - sg-REPLACE_PODS_DB
+      # [1] 클러스터 SG → DNS/파드간/ALB 등 클러스터 내부 통신 (AWS 권장: 커스텀 SG 와 함께 부여)
+      - sg-REPLACE_CLUSTER_SG
