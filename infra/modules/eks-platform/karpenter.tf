@@ -207,7 +207,9 @@ resource "helm_release" "karpenter" {
     value = "512Mi"
   }
 
-  depends_on = [helm_release.karpenter_crd, aws_iam_role_policy.karpenter_controller]
+  # ALB 컨트롤러의 mutating webhook(mservice.elbv2.k8s.aws)이 모든 Service 생성을
+  # 가로채므로, ALB 컨트롤러가 Ready된 뒤 Karpenter를 설치해 webhook race를 방지.
+  depends_on = [helm_release.karpenter_crd, aws_iam_role_policy.karpenter_controller, helm_release.alb_controller]
 }
 
 # ── 5) EC2NodeClass + NodePool (v1 API) ────────────────
@@ -275,6 +277,10 @@ resource "kubectl_manifest" "nodepool" {
             - key: karpenter.k8s.aws/instance-family
               operator: In
               values: ${jsonencode(var.karpenter_instance_families)}
+            # 인스턴스 size 상한(비용 안전장치). dev=2xlarge까지, prod=넓게.
+            - key: karpenter.k8s.aws/instance-size
+              operator: In
+              values: ${jsonencode(var.karpenter_instance_sizes)}
           # guide 서비스의 graceful 110s 보장 — 노드 종료 전 충분한 드레인 여유
           terminationGracePeriod: 5m0s
           expireAfter: 720h

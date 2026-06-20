@@ -124,3 +124,9 @@ variable "enable_argocd_root_app" {
   type    = bool
   default = false
 }
+
+variable "karpenter_instance_sizes" {
+  description = "허용 인스턴스 size 목록(상한 역할). 기본은 넓게(prod 안전), dev 는 호출부에서 2xlarge까지로 좁힘."
+  type        = list(string)
+  default     = ["small", "medium", "large", "xlarge", "2xlarge", "4xlarge", "8xlarge", "12xlarge", "16xlarge"]
+}

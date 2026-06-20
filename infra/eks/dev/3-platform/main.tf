@@ -2,6 +2,8 @@
 # 3-platform 모듈 호출 — network·cluster output 을 주입
 ############################################################
 module "platform" {
+  karpenter_instance_families = ["t4g", "m6g", "m7g", "c6g", "c7g", "r6g"]
+  karpenter_instance_sizes = ["small", "medium", "large", "xlarge", "2xlarge"]
   source = "../../../modules/eks-platform"
 
   project         = var.project
