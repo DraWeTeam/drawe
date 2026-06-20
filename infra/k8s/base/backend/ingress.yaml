@@ -7,6 +7,7 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: instance      # 노드 NodePort 경유 (pods-db SG 와 호환)
     alb.ingress.kubernetes.io/group.name: drawe-dev       # ALB 공유(앱 늘어도 ALB 1개)
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=180   # guide POST 최대 150s — 기본 60s 면 504
     # ── HTTPS / 리다이렉트 ──
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: '443'
