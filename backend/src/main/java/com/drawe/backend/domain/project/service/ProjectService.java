@@ -49,14 +49,11 @@ public class ProjectService {
 
   @Transactional(readOnly = true)
   public ProjectListResponse getList(
-      User user, String statusParam, ProjectSort sort, int limit, int offset) {
+      User user, String q, String statusParam, ProjectSort sort, int limit, int offset) {
     ProjectStatus status = parseStatus(statusParam);
 
-    List<Project> projects = projectRepository.findPage(user, status, sort, limit, offset);
-    long total =
-        status == null
-            ? projectRepository.countByUser(user)
-            : projectRepository.countByUserAndStatus(user, status);
+    List<Project> projects = projectRepository.findPage(user, status, sort, q, limit, offset);
+    long total = projectRepository.countPage(user, status, q);
 
     List<ProjectListItem> items =
         projects.stream()
