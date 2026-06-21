@@ -65,7 +65,9 @@ class SearchExecutorTest {
         List.of(), // utility
         List.of(), // freeTags
         List.of(), // rawTags
-        "pexels" // source
+        "pexels", // source
+        null, // prompt
+        null // aiDescription
         );
   }
 
@@ -295,7 +297,9 @@ class SearchExecutorTest {
             List.of("reference"), // utility
             List.of("nature", "spring"), // freeTags
             List.of("raw-ignored"), // rawTags (제외됨)
-            "pexels" // source (제외됨)
+            "pexels", // source (제외됨)
+            null, // prompt
+            null // aiDescription
             );
 
     when(searchService.search(any(SearchRequest.class)))
@@ -306,8 +310,11 @@ class SearchExecutorTest {
     StepContext result = sut.execute(newCtxWithKeywords(List.of("watercolor")));
 
     ReferenceImage ref = result.references().get(0);
+    // SCRUM-104: collectTags 는 내용 신호(aiDescription/prompt/rawTags)를 앞에 두고 freeTags·구조화 축을 합산.
+    //   여기선 aiDescription·prompt 가 null 이라 rawTags("raw-ignored")부터. source("pexels")만 제외.
     assertThat(ref.tags())
-        .containsExactly("watercolor", "landscape", "calm", "reference", "nature", "spring");
-    assertThat(ref.tags()).doesNotContain("raw-ignored", "pexels");
+        .containsExactly(
+            "raw-ignored", "nature", "spring", "watercolor", "landscape", "calm", "reference");
+    assertThat(ref.tags()).doesNotContain("pexels");
   }
 }

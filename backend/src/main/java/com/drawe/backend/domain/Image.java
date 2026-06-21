@@ -72,6 +72,13 @@ public class Image {
   @Column(name = "prompt", columnDefinition = "text")
   private String prompt;
 
+  /**
+   * Unsplash 네이티브 AI 캡션(alt-text) — 실제 이미지 내용을 묘사하는 문장. LLM 이 레퍼런스/핀을 픽셀 없이 설명할 때의 근거(할루시네이션 방지).
+   * Unsplash 만 채워지고 AI 이미지는 NULL(그쪽은 prompt 가 동일 역할).
+   */
+  @Column(name = "ai_description", columnDefinition = "text")
+  private String aiDescription;
+
   /** AI 이미지의 생성자. 전체 공개 정책이지만 감사·필터링용으로 보관. */
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "created_by_user_id")

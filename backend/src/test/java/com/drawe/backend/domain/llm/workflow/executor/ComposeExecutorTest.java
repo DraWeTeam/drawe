@@ -22,6 +22,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -275,6 +276,67 @@ class ComposeExecutorTest {
 
       // 이번 턴 refs(1개) 기준이므로 본문에 [2] 가 있었다면 제거됐을 것. citations 는 [1] 만 통과.
       assertThat(captured.get().history().get(0).content()).contains("[1]");
+    }
+  }
+
+  @Nested
+  @DisplayName("핀 제외 — live 핀-aware (레거시 동등, 1..N 재부여)")
+  class PinExclusion {
+
+    @Test
+    @DisplayName("핀된 imageId 는 [N]에서 빠지고 남은 refs 는 1..N 재부여(무결성 1..size 와 정합)")
+    void pinnedExcludedAndReindexed() {
+      AtomicReference<LlmCallContext> captured = new AtomicReference<>();
+      LlmService llm =
+          fakeLlm(
+              LlmProvider.GROK,
+              "{\"message\":\"[1]과 [2] 좋아요\",\"citations\":[1,2],\"offer_generate\":false}",
+              captured);
+      // refs 1·2·3 중 imageId=2 핀 → 남은 1·3 이 [1][2]로 재부여(3→2). [3] 없음, 핀된 ref2 태그도 안 샘.
+      StepContext ctx =
+          ctxWith(LlmProvider.GROK, refs(3), List.of()).withPinnedImageIds(Set.of(2L));
+      StepContext result = executor(llm).execute(ctx);
+
+      String content = captured.get().history().get(0).content();
+      assertThat(content).contains("[1]").contains("[2]");
+      assertThat(content).doesNotContain("[3]");
+      assertThat(content).contains("tag1").contains("tag3"); // 남은 두 ref
+      assertThat(content).doesNotContain("tag2"); // 핀된 ref2 는 빠짐
+      // 재부여 덕에 [1][2] 둘 다 유효 — 무결성 검사가 [2]를 환각으로 제거하지 않는다.
+      assertThat(result.composedOutput().citations()).containsExactly(1, 2);
+      assertThat(result.composedOutput().message()).contains("[1]").contains("[2]");
+    }
+
+    @Test
+    @DisplayName("모든 refs 가 핀이면 '참고 없음' 안내로 폴백")
+    void allPinnedFallsBackToEmptyNotice() {
+      AtomicReference<LlmCallContext> captured = new AtomicReference<>();
+      LlmService llm =
+          fakeLlm(
+              LlmProvider.GROK,
+              "{\"message\":\"자료가 부족해요\",\"citations\":[],\"offer_generate\":true}",
+              captured);
+      StepContext ctx =
+          ctxWith(LlmProvider.GROK, refs(2), List.of()).withPinnedImageIds(Set.of(1L, 2L));
+      executor(llm).execute(ctx);
+
+      assertThat(captured.get().history().get(0).content()).contains("참고 이미지가 없습니다");
+    }
+
+    @Test
+    @DisplayName("핀 미설정이면 모든 refs 그대로 — 회귀 없음")
+    void noPinKeepsAll() {
+      AtomicReference<LlmCallContext> captured = new AtomicReference<>();
+      LlmService llm =
+          fakeLlm(
+              LlmProvider.GROK,
+              "{\"message\":\"[1][2]\",\"citations\":[1,2],\"offer_generate\":false}",
+              captured);
+      executor(llm).execute(ctxWith(LlmProvider.GROK, refs(2), List.of()));
+
+      String content = captured.get().history().get(0).content();
+      assertThat(content).contains("[1]").contains("[2]");
+      assertThat(content).contains("tag1").contains("tag2");
     }
   }
 

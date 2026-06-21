@@ -5,6 +5,7 @@ import com.drawe.backend.domain.llm.dto.GenerateImageResponse;
 import com.drawe.backend.domain.llm.dto.LlmCallContext;
 import com.drawe.backend.domain.llm.output.ComposedOutput;
 import java.util.List;
+import java.util.Set;
 import lombok.With;
 
 /**
@@ -92,13 +93,17 @@ public record StepContext(
     // ComposeExecutor 가 LlmCallResult 에서 그대로 옮겨 담고, ⑤ 메인경로 매핑이 assistantMsg.model·latencyMs·
     // llmMetrics.llmCall 로 흘려보낸다. 레거시 경로의 result.model()/result.latencyMs() 와 동치.
     String composeModel,
-    Integer composeLatencyMs) {
+    Integer composeLatencyMs,
+
+    // ── 입력: 핀 제외용 — live [N] 레퍼런스에서 고정 이미지를 빼 번호 충돌 방지(레거시 동등). nullable. ──
+    Set<Long> pinnedImageIds) {
 
   public StepContext {
     previousReferences = previousReferences == null ? List.of() : List.copyOf(previousReferences);
     keywords = keywords == null ? List.of() : List.copyOf(keywords);
     references = references == null ? List.of() : List.copyOf(references);
     history = history == null ? List.of() : List.copyOf(history);
+    pinnedImageIds = pinnedImageIds == null ? Set.of() : Set.copyOf(pinnedImageIds);
   }
 
   /**
@@ -136,7 +141,8 @@ public record StepContext(
         null,
         null,
         null,
-        null);
+        null,
+        Set.of());
   }
 
   /**
@@ -176,6 +182,7 @@ public record StepContext(
         uploadedImageMimeType,
         provider,
         null,
-        null);
+        null,
+        Set.of());
   }
 }

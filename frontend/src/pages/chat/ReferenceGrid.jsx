@@ -24,13 +24,15 @@ const ReferenceGrid = ({
     const refs = references || [];
     const pins = pinnedRefs || [];
 
-    // 1. 모든 핀들 — 번호 X
-    const pinnedItems = pins.map((p) => ({ ref: p, index: null }));
+    // 1. 모든 핀들 — 고정 슬롯 번호(1~N). 핀 순서 기준이라 검색 갱신/핀 추가에도 안 흔들린다.
+    const pinnedItems = pins.map((p, i) => ({ ref: p, index: null, pinSlot: i + 1 }));
 
-    // 2. references 중 핀과 id 같은 건 배제 — 나머지에 번호 1~N
+    // 2. 검색 번호는 references 내 "원래 위치"(1~N)로 먼저 고정한 뒤 핀된 것만 빼낸다.
+    //    번호를 다시 매기지 않으므로 핀해도 남은 번호가 안 흔들린다(예: 2번 핀 → 1,3 그대로, 2 자리만 비움).
+    //    핀된 이미지는 위 pinnedItems에서 "고정 N"으로 따로 표시되므로 번호 자리에 공백이 생기는 건 정상.
     const refItems = refs
-      .filter((ref) => !pins.some((p) => p.id === ref.id))
-      .map((ref, i) => ({ ref, index: i + 1 }));
+      .map((ref, i) => ({ ref, index: i + 1, pinSlot: null }))
+      .filter((item) => !pins.some((p) => p.id === item.ref.id));
 
     return [...pinnedItems, ...refItems];
   }, [references, pinnedRefs]);
@@ -103,11 +105,12 @@ const ReferenceGrid = ({
         <div className={styles.grid}>
           {columns.map((column, colIdx) => (
             <div key={colIdx} className={styles.column}>
-              {column.map(({ ref, index }) => (
+              {column.map(({ ref, index, pinSlot }) => (
                 <ReferenceCard
                   key={ref.id}
                   reference={ref}
                   index={index}
+                  pinSlot={pinSlot}
                   isPinned={pinnedIds?.has(ref.id) ?? false}
                   onPinToggle={onPinToggle}
                   onClick={() => onCardClick(ref, index)}
@@ -138,6 +141,7 @@ function splitIntoColumns(items, columnCount) {
 const ReferenceCard = ({
   reference,
   index,
+  pinSlot,
   isPinned,
   onPinToggle,
   onClick,
@@ -240,7 +244,11 @@ const ReferenceCard = ({
 
   const label =
     reference.photographerName ||
-    (index !== null ? `이미지 ${index}` : "핀된 이미지");
+    (pinSlot != null
+      ? `고정 이미지 ${pinSlot}`
+      : index !== null
+        ? `이미지 ${index}`
+        : "핀된 이미지");
 
   return (
     <div
@@ -251,9 +259,11 @@ const ReferenceCard = ({
         <img
           src={reference.url}
           alt={
-            index !== null
-              ? `참고 이미지 ${index}`
-              : reference.photographerName || "핀된 참고 이미지"
+            pinSlot != null
+              ? `고정 이미지 ${pinSlot}`
+              : index !== null
+                ? `참고 이미지 ${index}`
+                : reference.photographerName || "핀된 참고 이미지"
           }
           className={styles.image}
           loading="lazy"
@@ -271,7 +281,15 @@ const ReferenceCard = ({
 
       <div className={styles.cardFooter}>
         <span className={styles.cardLabel}>
-          {index !== null && <span className={styles.indexBadge}>{index}</span>}
+          {pinSlot != null ? (
+            <span className={`${styles.indexBadge} ${styles.pinBadge}`}>
+              고정 {pinSlot}
+            </span>
+          ) : (
+            index !== null && (
+              <span className={styles.indexBadge}>{index}</span>
+            )
+          )}
           <span className={styles.labelText}>{label}</span>
         </span>
         <div

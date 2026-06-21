@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -94,8 +95,12 @@ public class ComposeExecutor implements StepExecutor {
     // 그대로 두면 "참고 이미지 없음" 안내가 나가 멀티턴 맥락이 끊긴다. chatViaWorkflow 가 Redis(getOrRestore)
     // 로 실어 보낸 ctx.previousReferences() 를 여기서 LLM 컨텍스트·무결성 기준으로 동등하게 쓴다(SCRUM-88 배선).
     // 단 이 refs 는 응답 노출용이 아니라 합성 컨텍스트용 — 응답 refItems 는 chatViaWorkflow 가 별도로 결정한다.
-    List<ReferenceImage> refs =
+    List<ReferenceImage> base =
         ctx.references().isEmpty() ? ctx.previousReferences() : ctx.references();
+    // 핀된 이미지는 "고정 N"으로만 — [N] 인용 컨텍스트에서 제외(레거시 동등). 제외로 index 에 gap 이 생기면
+    // 무결성 검사(유효범위 1..size)와 어긋나 유효 인용까지 잘리므로, 남은 refs 를 1..N 으로 재부여한다(레거시 i+1 동등).
+    List<ReferenceImage> refs =
+        ctx.pinnedImageIds().isEmpty() ? base : excludePinned(base, ctx.pinnedImageIds());
 
     // 1. references → referenceContext SYSTEM turn 으로 변환해 누적 history 끝에 붙인다(§3.2).
     //    references 가 비면 "참고 없음" 안내 turn 을 붙여 LLM 이 가짜 인용·가짜 결과를 만들지 않게 한다.
@@ -187,6 +192,35 @@ public class ComposeExecutor implements StepExecutor {
   }
 
   /**
+   * 핀된 imageId 를 제외하고 남은 refs 를 1..N 으로 재부여한다. 제외로 index 에 gap 이 생기면 무결성 검사(유효 1..size)·인용과 어긋나므로
+   * 위치 기준으로 번호를 다시 매긴다(레거시 {@code i+1} 동등).
+   */
+  private static List<ReferenceImage> excludePinned(
+      List<ReferenceImage> refs, Set<Long> pinnedIds) {
+    List<ReferenceImage> out = new ArrayList<>(refs.size());
+    int idx = 1;
+    for (ReferenceImage r : refs) {
+      if (pinnedIds.contains(r.imageId())) {
+        continue;
+      }
+      out.add(
+          new ReferenceImage(
+              r.imageId(),
+              idx++,
+              r.url(),
+              r.photographer(),
+              r.score(),
+              r.tags(),
+              r.photographerUsername(),
+              r.technique(),
+              r.subject(),
+              r.mood(),
+              r.source()));
+    }
+    return out;
+  }
+
+  /**
    * references → SYSTEM turn 본문. {@link ReferenceImage} 기준으로 1-based 인덱스·점수·태그를 나열하고 인용 규칙([N])과 가짜
    * 결과 금지 가이드를 동봉한다. references 가 비면 "참고 없음" 안내로 대체한다.
    */
@@ -256,7 +290,8 @@ public class ComposeExecutor implements StepExecutor {
       }
       sb.append("\n");
       if (!ref.tags().isEmpty()) {
-        String topTags = String.join(", ", ref.tags().subList(0, Math.min(10, ref.tags().size())));
+        // collectTags 가 내용 문장(aiDescription/prompt)을 맨 앞에 두므로 top-N 이 핵심 내용 신호를 먼저 담는다.
+        String topTags = String.join(", ", ref.tags().subList(0, Math.min(14, ref.tags().size())));
         sb.append("    태그: ").append(topTags).append("\n");
       }
     }
@@ -265,6 +300,13 @@ public class ComposeExecutor implements StepExecutor {
     sb.append("- 위 참고 이미지를 자연스럽게 언급하며 답변하세요.\n");
     sb.append("- 예: \"[1]번 이미지처럼 부드러운 색감을 표현하려면...\"\n");
     sb.append("- 모든 이미지를 다 언급할 필요는 없습니다. 관련 있는 것만 인용하세요.\n");
+    sb.append(
+        "- 사용자가 \"N번\"·\"레퍼런스/참고 N번\"이라고 하면 위 [N] 참고 이미지를 가리키는 것입니다"
+            + "('고정/핀'이라고 명시하지 않는 한 고정 이미지가 아님).\n");
+    sb.append(
+        "- ⚠️ 위 태그/설명에 적힌 것만 근거로 말하세요. 적혀 있지 않은 시각적 디테일(꽃·배경·특정 사물·인물·"
+            + "장소 등)은 지어내지 마세요 — 너는 이미지를 직접 보는 게 아니라 태그만 받습니다. 확실치 않으면 단정하지"
+            + " 말고 태그에 있는 범위에서만 언급하세요.\n");
     sb.append("- 태그 정보를 활용해 구체적인 조언을 해주세요.\n");
     sb.append(
         "- 네가 직접 추가 이미지를 만들어왔다고 말하지 마세요 "

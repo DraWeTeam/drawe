@@ -71,7 +71,9 @@ class CritiqueUploadExecutorTest {
         List.of(),
         List.of(),
         List.of(),
-        "UNSPLASH");
+        "UNSPLASH",
+        null,
+        null);
   }
 
   @Test
