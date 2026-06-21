@@ -18,7 +18,7 @@ configMapGenerator:
     literals:
       - DB_HOST=drawe-prod-mysql.cds86q4oy48b.ap-northeast-2.rds.amazonaws.com
       - REDIS_HOST=master.drawe-prod-valkey.c0hrlm.apn2.cache.amazonaws.com
-      - REDIS_SSL=true                                       # prod ElastiCache = TLS
+      - REDIS_TLS=true                                       # prod ElastiCache = TLS
       - S3_BUCKET=drawe-prod-bria-ai
       - S3_REGION=ap-northeast-2
       - SPRING_PROFILES_ACTIVE=s3
