@@ -25,7 +25,11 @@ const ReferenceGrid = ({
     const pins = pinnedRefs || [];
 
     // 1. 모든 핀들 — 고정 슬롯 번호(1~N). 핀 순서 기준이라 검색 갱신/핀 추가에도 안 흔들린다.
-    const pinnedItems = pins.map((p, i) => ({ ref: p, index: null, pinSlot: i + 1 }));
+    const pinnedItems = pins.map((p, i) => ({
+      ref: p,
+      index: null,
+      pinSlot: i + 1,
+    }));
 
     // 2. 검색 번호는 references 내 "원래 위치"(1~N)로 먼저 고정한 뒤 핀된 것만 빼낸다.
     //    번호를 다시 매기지 않으므로 핀해도 남은 번호가 안 흔들린다(예: 2번 핀 → 1,3 그대로, 2 자리만 비움).
@@ -286,9 +290,7 @@ const ReferenceCard = ({
               고정 {pinSlot}
             </span>
           ) : (
-            index !== null && (
-              <span className={styles.indexBadge}>{index}</span>
-            )
+            index !== null && <span className={styles.indexBadge}>{index}</span>
           )}
           <span className={styles.labelText}>{label}</span>
         </span>

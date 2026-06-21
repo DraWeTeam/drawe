@@ -392,7 +392,7 @@ public class ChatLlmService {
       }
 
       // 핀된 이미지는 "고정 N"으로만 노출 — 응답 [N] 그리드에서도 제외(레거시 동등, 번호 충돌 방지).
-      List<ReferenceImage> refs =
+      final List<ReferenceImage> refs =
           pinnedIds.isEmpty()
               ? finalCtx.references()
               : finalCtx.references().stream()
@@ -1118,16 +1118,6 @@ public class ChatLlmService {
     return s != null && !s.isBlank();
   }
 
-  /**
-   * 보드에 고정(핀)한 레퍼런스를 SYSTEM 맥락으로 주입한다 — 사용자가 "고정 1번"처럼 지칭할 수 있게.
-   *
-   * <p>번호는 {@code project.pinnedImageIds} 슬롯 순서(1~3)로, 프론트 그리드 배지와 동일 출처라 사용자가 보는 번호와 항상 일치한다. 핀
-   * 순서(영속)가 단일 출처이므로 session 에 따로 들고 있지 않고 매 턴 fresh 로 읽어 주입한다. 검색 참고이미지 {@code [1][2]} 와 충돌하지 않도록
-   * "고정 N" 네임스페이스로 분리한다.
-   *
-   * <p>픽셀이 아니라 태그(기법/주제/분위기)만 주므로, 보이지 않는 디테일을 지어내지 않도록 가이드한다. 핀이 없으면 아무것도 주입하지 않는다(빈 블록 노이즈 방지).
-   * 부가 맥락이라 조회 실패는 삼키고 대화는 계속한다.
-   */
   /** 프로젝트 고정(핀) 목록 안전 로드(실패 시 빈 목록). 고정맥락 주입 + 레퍼런스 핀 제외에 함께 쓴다. */
   private List<PinItem> loadPinsQuietly(User user, Long projectId) {
     try {
@@ -1138,6 +1128,16 @@ public class ChatLlmService {
     }
   }
 
+  /**
+   * 보드에 고정(핀)한 레퍼런스를 SYSTEM 맥락으로 주입한다 — 사용자가 "고정 1번"처럼 지칭할 수 있게.
+   *
+   * <p>번호는 {@code project.pinnedImageIds} 슬롯 순서(1~3)로, 프론트 그리드 배지와 동일 출처라 사용자가 보는 번호와 항상 일치한다. 핀
+   * 순서(영속)가 단일 출처이므로 session 에 따로 들고 있지 않고 매 턴 fresh 로 읽어 주입한다. 검색 참고이미지 {@code [1][2]} 와 충돌하지 않도록
+   * "고정 N" 네임스페이스로 분리한다.
+   *
+   * <p>픽셀이 아니라 태그(기법/주제/분위기)만 주므로, 보이지 않는 디테일을 지어내지 않도록 가이드한다. 핀이 없으면 아무것도 주입하지 않는다(빈 블록 노이즈 방지).
+   * 부가 맥락이라 조회 실패는 삼키고 대화는 계속한다.
+   */
   private void appendPinnedContext(List<LlmCallContext.Turn> history, List<PinItem> pins) {
     if (pins.isEmpty()) {
       return;
@@ -1178,9 +1178,15 @@ public class ChatLlmService {
       p.freeTags().stream().filter(this::notBlank).forEach(parts::add);
     }
     // 구조화 축(보조)
-    if (notBlank(p.subject())) parts.add(p.subject());
-    if (notBlank(p.technique())) parts.add(p.technique());
-    if (notBlank(p.mood())) parts.add(p.mood());
+    if (notBlank(p.subject())) {
+      parts.add(p.subject());
+    }
+    if (notBlank(p.technique())) {
+      parts.add(p.technique());
+    }
+    if (notBlank(p.mood())) {
+      parts.add(p.mood());
+    }
     String desc = String.join(" · ", parts);
     if (notBlank(p.photographerName())) {
       desc =
