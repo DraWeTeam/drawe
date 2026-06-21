@@ -48,9 +48,13 @@ const GENERATING_MESSAGES = [
 const pickGeneratingMsg = () =>
   GENERATING_MESSAGES[Math.floor(Math.random() * GENERATING_MESSAGES.length)];
 
-const GENERATE_INTENT_PATTERN = /만들|그려|생성|AI|이미지/i;
+// 백엔드 RulePreRouter.GENERATE(그려줘/만들어줘 어미) 미러 + 단어 단위(만들/그려/생성/AI)도 폭넓게 매칭.
+// 방법 질문("어떻게 그려?")은 HOW_QUESTION 으로 제외. '이미지'는 검색 대부분에 들어가 오탐이 커서 뺐다.
+const GENERATE_INTENT_PATTERN =
+  /(그려|그리|만들어|만들|생성|제작)\s*(해)?\s*(줘|줄래|주세요|주라)|만들|그려|생성|AI|generate|draw it|make it|create an image/i;
+const HOW_QUESTION = /어떻게|어떡|어케|방법|how\s+to/i;
 const looksLikeGenerateRequest = (text) =>
-  !!text && GENERATE_INTENT_PATTERN.test(text);
+  !!text && GENERATE_INTENT_PATTERN.test(text) && !HOW_QUESTION.test(text);
 
 const ChatPage = () => {
   const { projectId } = useParams();

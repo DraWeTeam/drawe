@@ -11,8 +11,11 @@ import com.drawe.backend.global.client.FastApiClient;
 import com.drawe.backend.global.client.PineconeClient;
 import com.drawe.backend.global.client.dto.PineconeMatch;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,7 @@ public class SearchService {
   private final PineconeClient pineconeClient;
   private final ImageRepository imageRepository;
   private final ImageDraweTagRepository imageDraweTagRepository;
+  private final TagIdfIndex tagIdfIndex;
 
   /**
    * 텍스트 쿼리(검색어)를 받아 유사도 검색 결과를 반환
@@ -83,8 +87,11 @@ public class SearchService {
    */
   private SearchResponse searchByVectorInternal(
       List<Float> vector, int topK, String logCtx, String echoQuery) {
-    // 2. 벡터 -> Pinecone 검색
-    List<PineconeMatch> matches = pineconeClient.queryByVector(vector, topK);
+    // 2. 벡터 -> Pinecone 검색. 텍스트 검색이면 BROAD_K 로 넓게 뽑아 태그 rerank 후 topK 로 자른다(overfetch).
+    //    CLIP 이 하위로 민 '태그-강한' 이미지를 보이는 set 으로 끌어올리기 위함(순수 reorder 의 한계 보완).
+    boolean willRerank = echoQuery != null && !echoQuery.isBlank();
+    int fetchK = willRerank ? Math.max(topK, BROAD_K) : topK;
+    List<PineconeMatch> matches = pineconeClient.queryByVector(vector, fetchK);
     if (matches.isEmpty()) {
       log.info("검색 결과 없음: {}", logCtx);
       return new SearchResponse(List.of(), 0, echoQuery);
@@ -130,12 +137,84 @@ public class SearchService {
                       tag != null ? tag.getUtility() : null,
                       tag != null ? tag.getFreeTags() : null,
                       img.getRawTags() != null ? img.getRawTags() : Collections.emptyList(),
-                      img.getSource() != null ? img.getSource().name() : null);
+                      img.getSource() != null ? img.getSource().name() : null,
+                      img.getPrompt(),
+                      img.getAiDescription());
                 })
             .filter(r -> r != null)
             .toList();
 
-    log.info("검색 완료: {}, 반환={}개", logCtx, results.size());
-    return new SearchResponse(results, results.size(), echoQuery);
+    // 하이브리드 재정렬: dense(CLIP) 점수 위에 '태그 매칭(IDF 가중)' 소프트 점수를 얹어 다시 정렬 후 topK 로 자른다.
+    // 우리가 풍부히 달아둔 태그(특히 Unsplash 원본 rawTags)가 쿼리 키워드와 겹칠수록 위로 올린다.
+    // 흔한 태그(실사 "photo" 등)는 IDF 가 낮아 자동 약화, 희귀·변별 태그가 순위를 가른다.
+    // ImageResult.score(raw CLIP) 는 보존 — 점수 가드(avg/max)·표시는 dense 점수 그대로, '순서'만 보정.
+    List<ImageResult> ranked = rerankByTagOverlap(results, echoQuery);
+    if (ranked.size() > topK) {
+      ranked = ranked.subList(0, topK); // overfetch 분 잘라 호출자 계약(topK) 유지
+    }
+
+    log.info("검색 완료: {}, 반환={}개", logCtx, ranked.size());
+    return new SearchResponse(ranked, ranked.size(), echoQuery);
+  }
+
+  // ── 태그 기반 하이브리드 재정렬 (dense CLIP + sparse 태그 IDF 매칭) ────────────────
+
+  /** Overfetch 폭 — 텍스트 검색 시 이만큼 넓게 뽑아 태그 rerank 후 topK 로 자른다. */
+  private static final int BROAD_K = 40;
+
+  /**
+   * Σidf 에 곱하는 스케일 / 가산 상한. CLIP 후보 변별폭(실측 ≈0.02~0.09)에 cap 을 맞춰, 태그가 CLIP 을 통째로 덮어쓰지 않고 '동률 보정·오답
+   * 교정' 역할만 하게 한다(cap 0.12 는 CLIP 을 지배 → 0.05 로 낮춤, 데모 검증).
+   */
+  private static final double IDF_BOOST_SCALE = 0.015;
+
+  private static final double IDF_BOOST_CAP = 0.05;
+
+  /**
+   * dense(CLIP) 순위에 태그 매칭(IDF 가중) 소프트 점수를 더해 재정렬한다(하이브리드 retrieval 의 rerank 부).
+   *
+   * <p>쿼리 토큰이 이미지 태그(기법/주제/분위기/용도 · freeTags · <b>Unsplash 원본 rawTags</b>)에 겹치면 그 토큰의 IDF 만큼 가산한다 —
+   * 흔한 태그는 IDF≈0 으로 자동 무력화, 희귀·변별 태그가 순위를 가른다. 가산 동률이면 기존 Pinecone 순서 유지(stable). 쿼리가 비었거나(=이미지
+   * 벡터검색·010 self-critique) 결과 1개 이하면 그대로 둔다.
+   *
+   * <p>{@code ImageResult.score}(raw CLIP) 는 보존 — 점수 가드·표시 유사도는 dense 그대로, 순서만 보정(가드 회귀 없음).
+   */
+  private List<ImageResult> rerankByTagOverlap(List<ImageResult> results, String query) {
+    Set<String> queryTokens = TagIdfIndex.tokensOf(query);
+    if (queryTokens.isEmpty() || results.size() < 2) {
+      return results;
+    }
+    return results.stream()
+        .sorted(
+            Comparator.comparingDouble(
+                    (ImageResult r) -> r.score().doubleValue() + tagBoost(r, queryTokens))
+                .reversed())
+        .toList();
+  }
+
+  /** 쿼리 토큰이 이미지 태그에 겹친 토큰들의 IDF 합 × 스케일(상한 캡). 태그가 없으면 0. */
+  private double tagBoost(ImageResult r, Set<String> queryTokens) {
+    Set<String> tags = tagTokens(r);
+    if (tags.isEmpty()) {
+      return 0.0;
+    }
+    double sum = 0.0;
+    for (String token : queryTokens) {
+      if (tags.contains(token)) {
+        sum += tagIdfIndex.idf(token);
+      }
+    }
+    return Math.min(IDF_BOOST_CAP, IDF_BOOST_SCALE * sum);
+  }
+
+  /** 이미지의 모든 태그를 토큰 집합으로. 구조화 태그(기법/주제/분위기/용도) + freeTags + rawTags(Unsplash 원본). */
+  private static Set<String> tagTokens(ImageResult r) {
+    Set<String> tokens = new HashSet<>(TagIdfIndex.tokensOf(r.technique(), r.subject(), r.mood()));
+    tokens.addAll(TagIdfIndex.tokensOf(r.utility()));
+    tokens.addAll(TagIdfIndex.tokensOf(r.freeTags()));
+    tokens.addAll(TagIdfIndex.tokensOf(r.rawTags()));
+    tokens.addAll(TagIdfIndex.tokensOf(r.prompt())); // AI 이미지: raw_tags 없음 → 영문 프롬프트가 내용 신호
+    tokens.addAll(TagIdfIndex.tokensOf(r.aiDescription())); // Unsplash: 네이티브 AI 캡션(문장)도 내용 신호
+    return tokens;
   }
 }

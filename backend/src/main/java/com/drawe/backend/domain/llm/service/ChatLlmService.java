@@ -29,7 +29,9 @@ import com.drawe.backend.domain.llm.session.SessionService;
 import com.drawe.backend.domain.llm.workflow.WorkflowService;
 import com.drawe.backend.domain.log.SearchLogService;
 import com.drawe.backend.domain.onboarding.UserPrefSummaryService;
+import com.drawe.backend.domain.project.dto.PinItem;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
+import com.drawe.backend.domain.project.service.PinService;
 import com.drawe.backend.domain.search.dto.ImageResult;
 import com.drawe.backend.domain.search.dto.SearchRequest;
 import com.drawe.backend.domain.search.dto.SearchResponse;
@@ -80,6 +82,7 @@ public class ChatLlmService {
   private final ImageUrlSigner imageUrlSigner;
   private final WorkflowComposeProperties workflowComposeProperties;
   private final SessionService sessionService;
+  private final PinService pinService;
 
   @Transactional
   public ChatResponse chat(User user, Long projectId, ChatRequest request) {
@@ -96,6 +99,12 @@ public class ChatLlmService {
 
     List<LlmMessage> all = llmMessageRepository.findByChatSessionOrderByCreatedAtAsc(session);
     List<LlmCallContext.Turn> history = trimHistory(all, llmProperties.getMaxHistory());
+
+    // 보드에 고정(핀)한 레퍼런스를 "고정 N번"으로 지칭할 수 있도록 SYSTEM 맥락으로 주입한다(모든 compose 경로 공유).
+    // 핀은 한 번만 로드해 ① 고정맥락 주입 + ② 아래 [N] 레퍼런스에서 핀 제외(번호 충돌·중복 인용 방지)에 함께 쓴다.
+    List<PinItem> pinnedItems = loadPinsQuietly(user, projectId);
+    Set<Long> pinnedIds = pinnedItems.stream().map(PinItem::id).collect(Collectors.toSet());
+    appendPinnedContext(history, pinnedItems);
 
     // 검색 결정: 결정론적 룰 프리라우터 먼저 → 미스면 Grok 풀 분류로 폴백.
     // 명확한 기능 신호(인사·감사·명시적 생성)는 LLM 콜 없이 룰로 끝낸다 (S1' 트랙 A).
@@ -117,7 +126,7 @@ public class ChatLlmService {
       llmMetrics.ruleHit("out_of_domain", IntentCode.OUT_OF_DOMAIN.code());
       List<LlmCallContext.Turn> rejectHistory = new ArrayList<>(history);
       rejectHistory.add(new LlmCallContext.Turn(MessageRole.SYSTEM, OUT_OF_DOMAIN_GUIDE));
-      return chatViaWorkflow(user, project, session, request, image, rejectHistory, ood);
+      return chatViaWorkflow(user, project, session, request, image, rejectHistory, ood, pinnedIds);
     }
 
     // 010 SELF_CRITIQUE (S3' 트랙 A): 업로드 이미지 + 비평 요청 신호 → 멀티모달 비평 경로.
@@ -128,7 +137,7 @@ public class ChatLlmService {
         && workflowComposeProperties.isLive(IntentCode.SELF_CRITIQUE)) {
       IntentResult critique = intentResultAdapter.adaptSelfCritique(List.of());
       llmMetrics.ruleHit("self_critique", IntentCode.SELF_CRITIQUE.code());
-      return chatViaWorkflow(user, project, session, request, image, history, critique);
+      return chatViaWorkflow(user, project, session, request, image, history, critique, pinnedIds);
     }
 
     // ⑤ 메인경로 전환(shadow→live): 의도가 live 플래그에 켜져 있으면 레거시 직접 합성 대신
@@ -136,13 +145,19 @@ public class ChatLlmService {
     IntentResult intent =
         intentResultAdapter.adapt(decision, routed.ruleDecided(), List.of(), image.hasImage());
     if (workflowComposeProperties.isLive(intent.code())) {
-      return chatViaWorkflow(user, project, session, request, image, history, intent);
+      return chatViaWorkflow(user, project, session, request, image, history, intent, pinnedIds);
     }
 
     List<ImageResult> references =
         handleSearchDecision(user, project, session.getId(), request.message(), routed);
 
-    // 검색은 시도했지만 적합한 레퍼런스가 없을 때 AI 이미지 생성을 제안한다.
+    // 핀된 이미지는 "고정 N"으로만 보여주므로 [N] 레퍼런스/그리드에서 제외한다(번호 충돌·중복 인용 방지).
+    // 백엔드 [N]과 프론트 그리드 번호가 같은 리스트에서 나오므로, 핀 제외 후에도 둘이 일치한다.
+    if (!pinnedIds.isEmpty()) {
+      references = references.stream().filter(r -> !pinnedIds.contains(r.id())).toList();
+    }
+
+    // 검색은 시도했지만 적합한 레퍼런스가 없을 때 AI 이미지 생성을 제안한다(핀 제외 후 '보여줄 새 레퍼런스' 기준).
     boolean offerGenerate =
         decision.action() == ExtractionResult.Action.NEW_SEARCH && references.isEmpty();
 
@@ -318,7 +333,8 @@ public class ChatLlmService {
       ChatRequest request,
       ImageInputResolver.Resolved image,
       List<LlmCallContext.Turn> history,
-      IntentResult intent) {
+      IntentResult intent,
+      Set<Long> pinnedIds) {
 
     log.warn(
         "⚙️ COMPOSE live 경로: code={} session={} — 점수가드·검색/결정 analytics 재현됨, "
@@ -335,18 +351,19 @@ public class ChatLlmService {
 
     StepContext initial =
         StepContext.startForCompose(
-            user.getId(),
-            project.getId(),
-            session.getId(),
-            request.message(),
-            request.message(),
-            intent,
-            request.imageUrl(),
-            previousReferences, // ② List.of() → 직전 턴 레퍼런스 (KEEP 시 ComposeExecutor 가 재사용)
-            history,
-            image.bytes(),
-            image.mimeType(),
-            provider);
+                user.getId(),
+                project.getId(),
+                session.getId(),
+                request.message(),
+                request.message(),
+                intent,
+                request.imageUrl(),
+                previousReferences, // ② List.of() → 직전 턴 레퍼런스 (KEEP 시 ComposeExecutor 가 재사용)
+                history,
+                image.bytes(),
+                image.mimeType(),
+                provider)
+            .withPinnedImageIds(pinnedIds);
 
     // 사용자 메시지 저장 (레거시와 동일 — 합성 성공 여부와 무관하게 사용자 입력은 남긴다).
     LlmMessage userMsg = new LlmMessage();
@@ -374,7 +391,13 @@ public class ChatLlmService {
         throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
       }
 
-      final List<ReferenceImage> refs = finalCtx.references();
+      // 핀된 이미지는 "고정 N"으로만 노출 — 응답 [N] 그리드에서도 제외(레거시 동등, 번호 충돌 방지).
+      final List<ReferenceImage> refs =
+          pinnedIds.isEmpty()
+              ? finalCtx.references()
+              : finalCtx.references().stream()
+                  .filter(r -> !pinnedIds.contains(r.imageId()))
+                  .toList();
 
       // SEARCH analytics(SEARCH_EXECUTED/BLOCKED) — Executor 가 아니라 여기서 발사한다(갭 닫기).
       // SearchExecutor 가 점수가드 판정·통계를 finalCtx.searchStats() 로 실어 줬다. shadow 경로는 이 메서드를
@@ -1095,6 +1118,85 @@ public class ChatLlmService {
     return s != null && !s.isBlank();
   }
 
+  /** 프로젝트 고정(핀) 목록 안전 로드(실패 시 빈 목록). 고정맥락 주입 + 레퍼런스 핀 제외에 함께 쓴다. */
+  private List<PinItem> loadPinsQuietly(User user, Long projectId) {
+    try {
+      return pinService.getPins(user, projectId).pins();
+    } catch (RuntimeException e) {
+      log.warn("핀 로드 실패(무시): projectId={}, error={}", projectId, e.getMessage());
+      return List.of();
+    }
+  }
+
+  /**
+   * 보드에 고정(핀)한 레퍼런스를 SYSTEM 맥락으로 주입한다 — 사용자가 "고정 1번"처럼 지칭할 수 있게.
+   *
+   * <p>번호는 {@code project.pinnedImageIds} 슬롯 순서(1~3)로, 프론트 그리드 배지와 동일 출처라 사용자가 보는 번호와 항상 일치한다. 핀
+   * 순서(영속)가 단일 출처이므로 session 에 따로 들고 있지 않고 매 턴 fresh 로 읽어 주입한다. 검색 참고이미지 {@code [1][2]} 와 충돌하지 않도록
+   * "고정 N" 네임스페이스로 분리한다.
+   *
+   * <p>픽셀이 아니라 태그(기법/주제/분위기)만 주므로, 보이지 않는 디테일을 지어내지 않도록 가이드한다. 핀이 없으면 아무것도 주입하지 않는다(빈 블록 노이즈 방지).
+   * 부가 맥락이라 조회 실패는 삼키고 대화는 계속한다.
+   */
+  private void appendPinnedContext(List<LlmCallContext.Turn> history, List<PinItem> pins) {
+    if (pins.isEmpty()) {
+      return;
+    }
+
+    StringBuilder sb = new StringBuilder("[고정한 이미지]\n");
+    sb.append("사용자가 보드에 고정(핀)해 둔 레퍼런스입니다. 사용자는 이를 \"고정 1번\"처럼 부를 수 있습니다.\n\n");
+    for (int i = 0; i < pins.size(); i++) {
+      sb.append("고정 ").append(i + 1).append("번: ").append(describePin(pins.get(i))).append('\n');
+    }
+    sb.append("\n응답 가이드:\n")
+        .append("- 사용자가 \"고정 N번\"을 가리키면 위 해당 항목으로 답하세요.\n")
+        .append("- 위 태그(기법/주제/분위기)에 근거해서만 설명하고, 보이지 않는 디테일은 지어내지 마세요.\n")
+        .append("- 검색 참고이미지 [1][2] 와는 별개입니다. 고정한 이미지는 \"고정 N번\"으로만 부르세요.\n")
+        .append(
+            "- \"고정 N번\"·\"핀 N번\"처럼 '고정/핀'을 명시할 때만 위 고정 이미지를 가리킵니다."
+                + " 접두어 없는 \"N번\"이나 \"레퍼런스 N번\"은 [N] 참고 이미지로 해석하세요.\n");
+    history.add(new LlmCallContext.Turn(MessageRole.SYSTEM, sb.toString()));
+  }
+
+  /**
+   * 핀 1건을 설명으로 — 검색 IDF rerank 와 동일한 풍부한 신호를 쓴다: 변별력 큰 내용 키워드(Unsplash=rawTags, AI=prompt) +
+   * freeTags 를 우선, 구조화 축(주제/기법/분위기)은 보조. 픽셀이 없으므로 이 텍스트만으로 설명한다.
+   */
+  private String describePin(PinItem p) {
+    List<String> parts = new ArrayList<>();
+    // 내용 신호(변별력 큼): Unsplash AI 캡션(문장, 최우선) / 키워드 / AI 프롬프트 / freeTags
+    if (notBlank(p.aiDescription())) {
+      parts.add(p.aiDescription());
+    }
+    if (p.rawTags() != null) {
+      p.rawTags().stream().filter(this::notBlank).limit(8).forEach(parts::add);
+    }
+    if (notBlank(p.prompt())) {
+      parts.add(p.prompt());
+    }
+    if (p.freeTags() != null) {
+      p.freeTags().stream().filter(this::notBlank).forEach(parts::add);
+    }
+    // 구조화 축(보조)
+    if (notBlank(p.subject())) {
+      parts.add(p.subject());
+    }
+    if (notBlank(p.technique())) {
+      parts.add(p.technique());
+    }
+    if (notBlank(p.mood())) {
+      parts.add(p.mood());
+    }
+    String desc = String.join(" · ", parts);
+    if (notBlank(p.photographerName())) {
+      desc =
+          desc.isEmpty()
+              ? "작가 " + p.photographerName()
+              : desc + " (작가 " + p.photographerName() + ")";
+    }
+    return desc.isEmpty() ? "(설명 태그 없음)" : desc;
+  }
+
   /**
    * 000 OUT_OF_DOMAIN 거절 톤 가이드 (S3' 트랙 A). 페르소나 v2 도메인 락이 이미 거절을 하지만, 룰이 000 으로 단정한 경우 COMPOSE 가
    * 확실히 "부드럽게 거절 + 그림으로 복귀" 톤을 내도록 SYSTEM turn 으로 한 번 더 못박는다. references 없는 거절이라 [N] 인용 금지(무결성 체커가
@@ -1256,9 +1358,22 @@ public class ChatLlmService {
         sb.append("    용도: ").append(String.join(", ", ref.utility())).append("\n");
       }
 
+      // Unsplash AI 캡션(문장) — 실제 이미지 내용 묘사. 픽셀 없는 LLM 의 핵심 근거(할루시네이션 방지).
+      if (notBlank(ref.aiDescription())) {
+        sb.append("    설명: ").append(ref.aiDescription()).append("\n");
+      }
+
       if (ref.rawTags() != null && !ref.rawTags().isEmpty()) {
         String topTags = ref.rawTags().stream().limit(10).collect(Collectors.joining(", "));
         sb.append("    태그: ").append(topTags).append("\n");
+      }
+
+      // 검색 IDF rerank 와 동일 신호 — freeTags(설명태그) + AI prompt(생성설명)도 함께 주입(이미지 변별력 보강).
+      if (ref.freeTags() != null && !ref.freeTags().isEmpty()) {
+        sb.append("    설명태그: ").append(String.join(", ", ref.freeTags())).append("\n");
+      }
+      if (notBlank(ref.prompt())) {
+        sb.append("    생성설명: ").append(ref.prompt()).append("\n");
       }
     }
 
@@ -1266,6 +1381,13 @@ public class ChatLlmService {
     sb.append("- 위 참고 이미지를 자연스럽게 언급하며 답변하세요.\n");
     sb.append("- 예: \"[1]번 이미지처럼 부드러운 색감을 표현하려면...\"\n");
     sb.append("- 모든 이미지를 다 언급할 필요는 없습니다. 관련 있는 것만 인용하세요.\n");
+    sb.append(
+        "- 사용자가 \"N번\"·\"레퍼런스/참고 N번\"이라고 하면 위 [N] 참고 이미지를 가리키는 것입니다"
+            + "('고정/핀'이라고 명시하지 않는 한 고정 이미지가 아님).\n");
+    sb.append(
+        "- ⚠️ 위 태그/설명에 적힌 것만 근거로 말하세요. 적혀 있지 않은 시각적 디테일(꽃·배경·특정 사물·인물·"
+            + "장소 등)은 지어내지 마세요 — 너는 이미지를 직접 보는 게 아니라 태그만 받습니다. 확실치 않으면 단정하지"
+            + " 말고 태그에 있는 범위에서만 언급하세요.\n");
     sb.append("- 태그 정보를 활용해 구체적인 조언을 해주세요.\n");
     sb.append(
         "- 네가 직접 추가 이미지를 만들어왔다고 말하지 마세요 "
