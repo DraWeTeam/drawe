@@ -49,6 +49,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // 멀티 파드 공유 세션(Valkey) — OAuth2 authorization request(state)를 파드 간 공유.
+    // EKS replica 2+ 에서 인증 시작/콜백이 다른 파드로 가도 세션 유지(없으면 /login?error).
+    implementation 'org.springframework.session:spring-session-data-redis'
 
     // ── Observability — Actuator + Micrometer ───────────────
     // 클라우드 배포용. health probe (liveness/readiness) + metrics endpoint (/actuator/prometheus)
