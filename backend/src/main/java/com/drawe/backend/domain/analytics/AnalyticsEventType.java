@@ -32,6 +32,12 @@ public final class AnalyticsEventType {
   /** 키워드 추출 결정: 검색 불필요. */
   public static final String DECISION_SKIP = "decision_skip";
 
+  /** 키워드 추출 결정: 직전 답변에 대한 부연·후속 질문 (012 FOLLOWUP). 검색 없이 직전 답변을 이어서 설명. */
+  public static final String DECISION_FOLLOWUP = "decision_followup";
+
+  /** 키워드 추출 결정: 이미 맥락에 있는 대상 비교 (013 COMPARE). 검색·생성 없이 비교·대조 설명. */
+  public static final String DECISION_COMPARE = "decision_compare";
+
   // ── 이미지 생성 ────────────────────────────────────
   /**
    * AI 이미지 생성(Bria 호출) 1건 완료. payload: prompt_length, image_id.
@@ -48,4 +54,15 @@ public final class AnalyticsEventType {
   // ── 가이드 ────────────────────────────────────────
   /** LLM 가이드 응답 완성 (chat_success와 같이 발송, 가이드 품질 분석용). */
   public static final String GUIDE_COMPLETED = "guide_completed";
+
+  // ── 의도 분류 (S1' 트랙 A 룰 프리라우터) ───────────
+  /**
+   * 룰 프리라우터가 LLM 콜 없이 의도를 결정. payload: rule_id, action.
+   *
+   * <p>룰 적중률(ADR §4 DoD ≥ 30%) = RULE_HIT / (RULE_HIT + RULE_MISS).
+   */
+  public static final String INTENT_RULE_HIT = "intent_rule_hit";
+
+  /** 룰 미스 → Grok 풀 분류로 폴백. payload: message_length. */
+  public static final String INTENT_RULE_MISS = "intent_rule_miss";
 }

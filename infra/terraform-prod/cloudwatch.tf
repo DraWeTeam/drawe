@@ -187,7 +187,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
-  threshold           = 5368709120   # 5 GB
+  threshold           = 5368709120 # 5 GB
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.main.identifier
@@ -198,7 +198,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
 
 # ── ElastiCache CPU high ──────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "valkey_cpu_high" {
-  count = var.prod_enabled ? 1 : 0
+  count               = var.prod_enabled ? 1 : 0
   alarm_name          = "${local.name_prefix}-valkey-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
@@ -227,7 +227,7 @@ resource "aws_cloudwatch_metric_alarm" "nat_egress_spike_a" {
   namespace           = "AWS/EC2"
   period              = 60
   statistic           = "Sum"
-  threshold           = 1073741824   # 1 GB
+  threshold           = 1073741824 # 1 GB
 
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.nat_a.name

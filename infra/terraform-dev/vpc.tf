@@ -14,6 +14,11 @@ resource "aws_subnet" "public_a" {
   availability_zone       = var.az_a
   map_public_ip_on_launch = true
   tags                    = { Name = "${local.name_prefix}-pub-a" }
+
+  # EKS(3-platform)가 추가하는 디스커버리 태그(kubernetes.io/role/elb 등) 보존
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_subnet" "public_c" {
@@ -22,6 +27,11 @@ resource "aws_subnet" "public_c" {
   availability_zone       = var.az_c
   map_public_ip_on_launch = true
   tags                    = { Name = "${local.name_prefix}-pub-c" }
+
+  # EKS(3-platform)가 추가하는 디스커버리 태그 보존
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_subnet" "private_a" {
@@ -29,6 +39,11 @@ resource "aws_subnet" "private_a" {
   cidr_block        = "10.0.10.0/24"
   availability_zone = var.az_a
   tags              = { Name = "${local.name_prefix}-priv-a" }
+
+  # EKS(3-platform)가 추가하는 디스커버리 태그(karpenter.sh/discovery 등) 보존
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_subnet" "private_c" {
@@ -36,6 +51,11 @@ resource "aws_subnet" "private_c" {
   cidr_block        = "10.0.11.0/24"
   availability_zone = var.az_c
   tags              = { Name = "${local.name_prefix}-priv-c" }
+
+  # EKS(3-platform)가 추가하는 디스커버리 태그 보존
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 # Internet Gateway

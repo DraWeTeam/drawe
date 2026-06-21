@@ -99,6 +99,50 @@
   color: #ff8534;
 }
 
+.codeInputWrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.codeInputWrap .input {
+  padding-right: 52px;
+}
+
+.codeTimer {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 500;
+  color: #ff5b37;
+  pointer-events: none;
+}
+
+.verifySendBtn {
+  width: 100%;
+  height: 40px;
+  margin-top: 10px;
+  border-radius: 12px;
+  border: 1px solid #ff8534;
+  background: #fff;
+  color: #ff8534;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.verifySendBtn:hover:not(:disabled) {
+  background: #fff6f0;
+}
+
+.verifySendBtn:disabled {
+  border-color: rgba(0, 0, 0, 0.15);
+  color: rgba(0, 0, 0, 0.35);
+  cursor: not-allowed;
+}
+
 .helperOk {
   color: #2c7a4b;
   font-size: 13px;

@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: drawe-dev
+
+resources:
+  - ../../../base/fastapi-guide
+
+# placeholder 이미지 → 실제 dev ECR (Dockerfile.guide 빌드)
+images:
+  - name: drawe-fastapi-guide
+    newName: 570515227314.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-dev-fastapi-guide
+    newTag: latest
+
+# 환경별 env (fastapi-guide-env). 이름 고정 → Deployment envFrom 참조
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: fastapi-guide-env
+    literals:
+      - S3_BUCKET=drawe-dev-artref
+      - QDRANT_COLLECTION=reference_images_dev
+      - CORS_ORIGINS=https://develop.drawe.pages.dev          # ← FILL: 프론트 URL
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=dev,service.namespace=drawe
+
+patches:
+  # IRSA 롤 ARN (3-platform output: fastapi_guide_irsa_role_arn)
+  - target:
+      kind: ServiceAccount
+      name: fastapi-guide
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::570515227314:role/drawe-dev-fastapi-guide
+  # SGP 실제 SG id (pods-db + 클러스터 SG) — backend 와 동일
+  - target:
+      kind: SecurityGroupPolicy
+      name: fastapi-guide-rds
+    patch: |-
+      - op: replace
+        path: /spec/securityGroups/groupIds
+        value:
+          - sg-01fdf9d4b49779c9e        # drawe-dev-pods-db
+          - sg-070529272670ccb6a        # 클러스터 SG

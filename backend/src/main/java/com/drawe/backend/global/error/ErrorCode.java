@@ -17,7 +17,11 @@ public enum ErrorCode {
   INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
   AI_SERVICE_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "AI 서비스가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요."),
   INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요."),
-  PIN_SLOT_FULL(HttpStatus.CONFLICT, "핀 슬롯이 가득 찼습니다. 기존 핀을 풀고 다시 시도해주세요.");
+  PIN_SLOT_FULL(HttpStatus.CONFLICT, "핀 슬롯이 가득 찼습니다. 기존 핀을 풀고 다시 시도해주세요."),
+  EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "이메일 인증이 완료되지 않았습니다."),
+  VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "인증번호가 일치하지 않습니다."),
+  VERIFICATION_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "인증번호가 만료되었거나 발급되지 않았습니다."),
+  EMAIL_SEND_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "잠시 후 다시 시도해주세요.");
 
   private final HttpStatus status;
   private final String message;

@@ -10,4 +10,5 @@ public class MyProfileResponse {
   private String email;
   private String nickname;
   private String picture;
+  private boolean termsAgreed; // 약관 동의 완료 여부 (termsAgreeAt != null)
 }

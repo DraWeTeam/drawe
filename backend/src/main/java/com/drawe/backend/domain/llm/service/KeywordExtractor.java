@@ -2,6 +2,7 @@ package com.drawe.backend.domain.llm.service;
 
 import com.drawe.backend.domain.enums.LlmProvider;
 import com.drawe.backend.domain.enums.MessageRole;
+import com.drawe.backend.domain.llm.contract.IntentCode;
 import com.drawe.backend.domain.llm.dto.ExtractionResult;
 import com.drawe.backend.domain.llm.dto.LlmCallContext;
 import com.drawe.backend.domain.llm.dto.LlmCallResult;
@@ -21,7 +22,7 @@ public class KeywordExtractor {
           You are a search decision system for a drawing reference image search.
 
           Read the user's message AND recent conversation history.
-          Decide ONE of four actions:
+          Decide ONE of five actions:
 
           ## 1. NEW_SEARCH: <english keywords>
 
@@ -86,6 +87,23 @@ public class KeywordExtractor {
           - "[N]번 같은 거 더" → NEW_SEARCH (anchor pattern)
           - "[N]번 어떻게 그려" → KEEP (technique question)
 
+          ### KEEP art-intent label (REQUIRED when KEEP)
+
+          When you decide KEEP, also classify the art intent of the question into
+          exactly ONE of these labels, output as "KEEP: <LABEL>":
+          - COMPOSITION — 구도/배치/시점/프레이밍 (layout, pose framing, perspective, balance)
+          - LIGHTING    — 빛/명암/그림자/하이라이트 (light source, shadow, highlight, value)
+          - COLOR       — 색감/색상/팔레트/채도 (hue, palette, saturation, color harmony)
+          - TECHNIQUE   — 그리는 방법/도구/매체/붓질 (how-to, brushwork, medium, rendering)
+
+          If the question fits none clearly or is ambiguous, output bare "KEEP" (no label).
+          Examples:
+          - "이 구도 어떻게 잡아요?"        → KEEP: COMPOSITION
+          - "그림자를 어떻게 넣어요?"        → KEEP: LIGHTING
+          - "이 색감 어떻게 만들어요?"       → KEEP: COLOR
+          - "수채화 번지는 기법 알려줘"       → KEEP: TECHNIQUE
+          - "더 자세히 알려줘"              → KEEP   (ambiguous, no label)
+
           ## 3. SKIP
 
           No visual reference needed at all.
@@ -120,13 +138,58 @@ public class KeywordExtractor {
           Include subject, style, mood, lighting if implied by context.
           Use project/conversation context to make the prompt vivid.
 
+          ## 5. FOLLOWUP
+
+          User reacts to YOUR (the assistant's) most recent answer and wants you to
+          continue, expand, re-explain, or evaluate what you JUST said — NOT new images.
+          No search, no generation: pick up your previous answer and carry it forward.
+
+          Signals (almost always SHORT, and only make sense against the previous turn):
+          - "더 설명", "더 설명해줘", "자세히", "계속", "그래서?"  (asking you to expand your last answer)
+          - "말로 설명", "말로 해줘", "말을 하라고", "말좀해", "말!"  (user wants a WORDED answer, not an image)
+          - "어때?", "어떻게 생각해?", "이거 어색하지 않아?", "그 외는?", "피드백해줘"  (asking you to evaluate / give an opinion)
+          - "왜?", "왜 그래?", "다시 설명"  (asking you to justify / restate your last point)
+          - "가이드를 해라", "그럼 어떻게 해" following your own previous guidance
+
+          CRITICAL — FOLLOWUP vs the others (the previous turn decides):
+          - It refers to YOUR last answer, not to a reference image or a new subject.
+          - It does NOT ask for images ("보여줘"/"레퍼런스"/"더 줘" → NEW_SEARCH).
+          - It does NOT ask to make an image ("만들어줘"/"그려줘" → GENERATE_NOW).
+          - It is NOT a greeting/thanks/abstract-theory (those → SKIP).
+          - A bare "더" after images were shown → NEW_SEARCH; but "더 설명"/"더 말해" → FOLLOWUP.
+          When the user is clearly pressing you to TALK / EXPLAIN / JUDGE your own prior
+          message (often repeating or getting frustrated), choose FOLLOWUP — never fall
+          back to offering an AI image.
+
+          ## 6. COMPARE
+
+          User asks you to COMPARE / CONTRAST things that are ALREADY in the conversation —
+          two reference images that were shown ("[1]과 [2] 중 뭐가 더 나아?"), or options you
+          already described. No search, no generation: weigh what is already on the table and
+          explain the differences. The cousin of FOLLOWUP — both reuse existing context, but
+          COMPARE specifically asks "which / what is the difference between A and B".
+
+          Signals (a comparison between TWO-OR-MORE things already shown / mentioned):
+          - "[1]이랑 [2] 중 뭐가 더 나아?", "1번하고 2번 비교해줘", "둘 중 어느 게 좋아?"
+          - "이 둘 차이가 뭐야?", "뭐가 달라?", "어느 쪽이 더 나아?", "장단점 비교해줘"
+          - "A랑 B 중에 골라줘", "which is better", "compare these two", "what's the difference"
+
+          CRITICAL — COMPARE vs the others:
+          - It compares TWO-OR-MORE things ALREADY in context (refs/options you showed).
+          - "보색이 뭐야?"/"RGB와 CMYK 차이가 뭐야?" → abstract theory, not about shown items → SKIP.
+          - "다른 거 보여줘"/"비슷한 거 더 줘" → wants NEW images → NEW_SEARCH.
+          - If only ONE thing is referenced (e.g. "1번 어때?") → FOLLOWUP/KEEP, not COMPARE.
+          - Never offer an AI image: the user wants your judgment on existing items.
+
           ---
 
           Output format: EXACTLY one line, no quotes, no extra text.
           - NEW_SEARCH: cherry blossoms spring landscape
-          - KEEP
+          - KEEP: COMPOSITION     (KEEP with art-intent label; or bare "KEEP" if ambiguous)
           - SKIP
           - GENERATE_NOW: a cheerful golden retriever walking in soft sunlight, watercolor style
+          - FOLLOWUP
+          - COMPARE
 
           ---
 
@@ -204,8 +267,7 @@ public class KeywordExtractor {
           User: "RGB와 CMYK 차이가 뭐야?"
           → SKIP
 
-          History (assistant said): "[1]번 이미지처럼 수채화로 부드러운 색감을 표현하시면 좋습니다.
-          [2]번은 잉크 풍 강한 대비가 특징이고, [3]번은 정물화 따뜻한 분위기예요."
+          History (assistant said): "[1]번 이미지처럼 수채화로 부드러운 색감을 표현하시면 좋습니다. [2]번은 잉크 풍 강한 대비가 특징이고, [3]번은 정물화 따뜻한 분위기예요."
           User: "1번 같은 거 더 보여줘"
           → NEW_SEARCH: watercolor soft pastel portrait
 
@@ -223,6 +285,71 @@ public class KeywordExtractor {
 
           User: "1번 어떻게 그려?"  ← guide question
           → KEEP
+
+          ## FOLLOWUP examples (react to YOUR previous answer; no images, no generation)
+
+          History (assistant gave anatomy guidance): "어깨에서 손목까지 각도를 조금 낮추고, 팔꿈치가 더 자연스럽게 접히게 해보는 건 어때요?"
+          User: "더 설명"
+          → FOLLOWUP
+
+          History (assistant just explained a fix in words)
+          User: "말로 설명"
+          → FOLLOWUP
+
+          History (assistant suggested a pose change)
+          User: "포즈가 다르잖아. 아니면 말로 설명해"
+          → FOLLOWUP
+
+          History (assistant evaluated the user's drawing)
+          User: "그 외는?"
+          → FOLLOWUP
+
+          History (user keeps asking for an opinion on their own drawing, assistant kept deflecting)
+          User: "아니 어떻냐고 어색하진 않냐고"
+          → FOLLOWUP
+
+          User: "말좀해"        ← pressing you to talk, not asking for images
+          → FOLLOWUP
+
+          User: "말을 하라고"     ← same
+          → FOLLOWUP
+
+          User: "피드백해줘"      ← asking your opinion on the current work
+          → FOLLOWUP
+
+          History (assistant gave guidance)
+          User: "왜 그렇게 해?"   ← asking you to justify your last point
+          → FOLLOWUP
+
+          Contrast (do NOT confuse with FOLLOWUP):
+          User: "더 보여줘"       → NEW_SEARCH (wants more images)
+          User: "다른 거 보여줘"   → NEW_SEARCH
+          User: "고마워"          → SKIP
+          User: "보색이 뭐야?"     → SKIP (abstract theory, not about your last answer)
+          User: "그렇게 만들어줘"   → GENERATE_NOW
+
+          ## COMPARE examples (weigh TWO-OR-MORE things already in context; no images, no generation)
+
+          History (3 references shown): "[1] 수채화 인물, [2] 잉크 강한 대비, [3] 정물화"
+          User: "1번이랑 2번 중 뭐가 더 나아?"
+          → COMPARE
+
+          History (two references shown earlier)
+          User: "둘 중에 어느 쪽이 초보한테 좋아?"
+          → COMPARE
+
+          History (assistant described two pose options)
+          User: "두 개 차이가 뭐야?"
+          → COMPARE
+
+          History (references [1] [2] shown)
+          User: "1번하고 2번 장단점 비교해줘"
+          → COMPARE
+
+          Contrast (do NOT confuse with COMPARE):
+          User: "1번 어때?"        → FOLLOWUP/KEEP (only one item, not a comparison)
+          User: "RGB와 CMYK 차이가 뭐야?" → SKIP (abstract theory, not shown items)
+          User: "다른 거랑 비교되게 더 보여줘" → NEW_SEARCH (wants new images)
         """;
 
   private final List<LlmService> llmServices;
@@ -281,9 +408,30 @@ public class KeywordExtractor {
       return ExtractionResult.generateNow(prompt);
     }
 
+    if (output.startsWith("KEEP:")) {
+      String label = output.substring("KEEP:".length()).trim();
+      IntentCode artIntent = parseArtIntent(label);
+      if (artIntent == null) {
+        log.debug("이전 references 유지 (KEEP, 미술 의도 라벨 미인식: '{}')", label);
+        return ExtractionResult.keep();
+      }
+      log.debug("이전 references 유지 (KEEP, art_intent={})", artIntent.code());
+      return ExtractionResult.keep(artIntent);
+    }
+
     if ("KEEP".equalsIgnoreCase(output)) {
-      log.debug("이전 references 유지 (KEEP)");
+      log.debug("이전 references 유지 (KEEP, 미분류)");
       return ExtractionResult.keep();
+    }
+
+    if ("FOLLOWUP".equalsIgnoreCase(output)) {
+      log.debug("직전 답변 부연 (FOLLOWUP, 012)");
+      return ExtractionResult.followup();
+    }
+
+    if ("COMPARE".equalsIgnoreCase(output)) {
+      log.debug("맥락 대상 비교 (COMPARE, 013)");
+      return ExtractionResult.compare();
     }
 
     if ("SKIP".equalsIgnoreCase(output)) {
@@ -293,6 +441,23 @@ public class KeywordExtractor {
 
     log.warn("판단 결과 형식 오류, SKIP 처리: output_length={}", output.length());
     return ExtractionResult.skip();
+  }
+
+  /**
+   * KEEP 라벨(COMPOSITION/LIGHTING/COLOR/TECHNIQUE)을 미술 의도 {@link IntentCode}(001~004)로 매핑. 인식 불가면
+   * null → 호출 측이 미분류 KEEP(006) 으로 폴백.
+   */
+  private IntentCode parseArtIntent(String label) {
+    if (label == null || label.isBlank()) {
+      return null;
+    }
+    return switch (label.trim().toUpperCase()) {
+      case "COMPOSITION" -> IntentCode.COMPOSITION; // 001
+      case "LIGHTING" -> IntentCode.LIGHTING; // 002
+      case "COLOR" -> IntentCode.COLOR; // 003
+      case "TECHNIQUE" -> IntentCode.TECHNIQUE; // 004
+      default -> null;
+    };
   }
 
   private LlmService pickService(LlmProvider provider) {

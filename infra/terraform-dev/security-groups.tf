@@ -138,6 +138,12 @@ resource "aws_security_group" "rds" {
   }
 
   tags = { Name = "${local.name_prefix}-rds-sg" }
+
+  # EKS(3-platform)가 별도 aws_security_group_rule 로 추가하는 pods-db 3306 ingress 보존.
+  # (인라인 ingress 와 외부 rule 혼용 시 terraform-dev apply 가 외부 rule 을 지우는 것 방지)
+  lifecycle {
+    ignore_changes = [ingress]
+  }
 }
 
 # Valkey EC2
@@ -168,4 +174,10 @@ resource "aws_security_group" "valkey" {
   }
 
   tags = { Name = "${local.name_prefix}-valkey-sg" }
+
+  # 외부(3-platform)의 aws_security_group_rule 과 공존: ingress 드리프트 무시.
+  # 인라인 ingress 와 별도 rule 을 섞으면 apply 마다 서로 지우므로 필수.
+  lifecycle {
+    ignore_changes = [ingress]
+  }
 }

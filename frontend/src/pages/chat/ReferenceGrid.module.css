@@ -259,6 +259,12 @@
   font-weight: 500;
 }
 
+/* 고정(핀) 슬롯 번호 — 검색 번호와 구분되도록 핀 강조색. */
+.pinBadge {
+  color: #e8590c;
+  font-weight: 600;
+}
+
 .labelText {
   overflow: hidden;
   text-overflow: ellipsis;

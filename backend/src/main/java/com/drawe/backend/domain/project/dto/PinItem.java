@@ -13,4 +13,7 @@ public record PinItem(
     String technique,
     String subject,
     String mood,
-    List<String> rawTags) {}
+    List<String> rawTags,
+    List<String> freeTags,
+    String prompt,
+    String aiDescription) {}

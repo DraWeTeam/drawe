@@ -1,0 +1,15 @@
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata:
+  name: fastapi-guide-rds
+  labels:
+    app: fastapi-guide
+spec:
+  podSelector:
+    matchLabels:
+      app: fastapi-guide
+  securityGroups:
+    groupIds:
+      # overlay 가 실제 SG id 로 patch (pods-db + 클러스터 SG)
+      - sg-REPLACE_PODS_DB
+      - sg-REPLACE_CLUSTER_SG

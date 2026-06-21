@@ -34,3 +34,5 @@ Thumbs.db
 logs/
 
 resp.json
+
+tests/eval_axis/

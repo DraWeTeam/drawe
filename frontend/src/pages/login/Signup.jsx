@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { checkEmail, checkNickname, signup, login } from "./authApi";
+import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
+import {
+  checkEmail,
+  checkNickname,
+  signup,
+  login,
+  sendEmailCode,
+  verifyEmailCode,
+} from "./authApi";
 import styles from "./Signup.module.css";
 import AuthHeader from "./AuthHeader";
 import { useEffect } from "react";
@@ -16,6 +23,9 @@ const Signup = () => {
     });
   }, []);
   const navigate = useNavigate();
+  const location = useLocation();
+  // 약관 동의 화면(/signup/terms)에서 전달받은 동의 내역
+  const agreements = location.state?.agreements;
   const handleFieldFocus = (e) => {
     if (e.target.dataset.tracked) return;
     e.target.dataset.tracked = "true";
@@ -35,14 +45,130 @@ const Signup = () => {
     status: "idle",
     message: "",
   });
+  // 이메일 인증 (TODO: 인증 UI 확정되면 디자인 교체)
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [emailVerify, setEmailVerify] = useState({
+    status: "idle",
+    message: "",
+  });
+  // 인증번호 유효시간(5분=300s) / 재발송 쿨다운(60s) — 백엔드 TTL과 동일
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [resendLeft, setResendLeft] = useState(0);
+  // 인증번호 입력 가능 횟수 (백엔드 MAX_ATTEMPTS=5)
+  const MAX_ATTEMPTS = 5;
+  const [attemptsLeft, setAttemptsLeft] = useState(0);
+  const [sendingCode, setSendingCode] = useState(false); // 발송 요청 진행 중
+
+  // 1초마다 두 타이머 감소
+  const timerActive = secondsLeft > 0 || resendLeft > 0;
+  useEffect(() => {
+    if (!timerActive) return undefined;
+    const id = setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+      setResendLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerActive]);
+
+  // 유효시간 만료 처리: 코드가 실제로 발송된(=sent) 뒤 카운트다운이 0이 됐을 때만
+  useEffect(() => {
+    if (emailVerify.status === "sent" && secondsLeft === 0) {
+      setEmailVerify({
+        status: "error",
+        message: "인증번호가 만료됐어요. 재발송해주세요.",
+      });
+    }
+  }, [secondsLeft, emailVerify.status]);
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    if (name === "email") setEmailCheck({ status: "idle", message: "" });
+    if (name === "email") {
+      setEmailCheck({ status: "idle", message: "" });
+      // 이메일이 바뀌면 인증 상태/타이머 초기화
+      setCodeSent(false);
+      setCode("");
+      setEmailVerify({ status: "idle", message: "" });
+      setSecondsLeft(0);
+      setResendLeft(0);
+      setAttemptsLeft(0);
+    }
     if (name === "nickname") setNicknameCheck({ status: "idle", message: "" });
+  };
+
+  const handleSendCode = async () => {
+    if (!emailRegex.test(form.email)) {
+      setEmailVerify({
+        status: "error",
+        message: "이메일 형식이 올바르지 않아요.",
+      });
+      return;
+    }
+    // 낙관적 표시: 클릭 즉시 입력 칸을 띄우고, 발송 결과는 아래에서 처리
+    setSendingCode(true);
+    setCodeSent(true);
+    setCode("");
+    setSecondsLeft(0); // 발송 성공 전까지는 타이머 미시작 (입력 비활성)
+    setResendLeft(0);
+    setEmailVerify({
+      status: "sending",
+      message: "인증번호를 보내는 중이에요...",
+    });
+    try {
+      await sendEmailCode(form.email);
+      setSecondsLeft(300); // 코드 유효시간 5분
+      setResendLeft(60); // 재발송 쿨다운 60초
+      setAttemptsLeft(MAX_ATTEMPTS); // 시도 횟수 초기화
+      setEmailVerify({
+        status: "sent",
+        message: "인증번호를 메일로 보냈어요.",
+      });
+    } catch (err) {
+      const message =
+        err.response?.data?.error?.message || "인증번호 발송에 실패했어요.";
+      // 발송 실패 → 코드 없음. 입력 칸은 비활성 상태로 두고 재발송 유도
+      setEmailVerify({ status: "error", message });
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!code.trim()) {
+      setEmailVerify({ status: "error", message: "인증번호를 입력해주세요." });
+      return;
+    }
+    try {
+      await verifyEmailCode(form.email, code.trim());
+      setEmailVerify({ status: "ok", message: "이메일 인증이 완료됐어요." });
+      setSecondsLeft(0); // 인증 완료 → 유효시간 카운트다운 종료
+    } catch (err) {
+      const errorCode = err.response?.data?.error?.code;
+      // 인증번호 불일치만 시도 횟수 차감 (만료/기타는 제외)
+      if (errorCode === "VERIFICATION_CODE_MISMATCH") {
+        const remaining = Math.max(0, attemptsLeft - 1);
+        setAttemptsLeft(remaining);
+        if (remaining <= 0) {
+          setSecondsLeft(0); // 5회 초과 → 코드 폐기됨, 재발송 필요
+          setEmailVerify({
+            status: "error",
+            message: "인증 횟수를 초과했어요. 인증번호를 재발송해주세요.",
+          });
+        } else {
+          setEmailVerify({
+            status: "error",
+            message: `인증번호가 일치하지 않아요. (남은 시도 ${remaining}회)`,
+          });
+        }
+        return;
+      }
+      const message =
+        err.response?.data?.error?.message || "인증번호 확인에 실패했어요.";
+      setEmailVerify({ status: "error", message });
+    }
   };
 
   const trackValidationError = (errorType, fieldName, message) => {
@@ -188,6 +314,15 @@ const Signup = () => {
       setErrorMessage("닉네임 중복 확인을 진행해주세요.");
       return;
     }
+    if (emailVerify.status !== "ok") {
+      trackValidationError(
+        "email_verification_required",
+        "email",
+        "이메일 인증을 완료해주세요.",
+      );
+      setErrorMessage("이메일 인증을 완료해주세요.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -195,6 +330,9 @@ const Signup = () => {
         email: form.email,
         password: form.password,
         nickname: trimmedNickname,
+        agreeTerms: !!agreements.agreeTerms,
+        agreePrivacy: !!agreements.agreePrivacy,
+        agreeAge: !!agreements.agreeAge,
       });
 
       // 자동 로그인
@@ -221,6 +359,11 @@ const Signup = () => {
       setSubmitting(false);
     }
   };
+
+  // 약관 동의를 거치지 않고 직접 진입한 경우 약관 화면으로 돌려보냄
+  if (!agreements) {
+    return <Navigate to="/signup/terms" replace />;
+  }
 
   return (
     <div className={styles.page}>
@@ -262,6 +405,74 @@ const Signup = () => {
                   }
                 >
                   {emailCheck.message}
+                </p>
+              )}
+
+              {/* 이메일 인증 (임시 UI — 확정 디자인 나오면 교체) */}
+              {(() => {
+                const verified = emailVerify.status === "ok";
+                // 코드가 발송됐지만 유효시간이 끝났거나 시도 횟수를 모두 소진 → 재발송 필요
+                const codeDead = codeSent && !verified && secondsLeft === 0;
+                const fmt = (s) =>
+                  `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+                return (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.verifySendBtn}
+                      onClick={handleSendCode}
+                      disabled={verified || resendLeft > 0 || sendingCode}
+                    >
+                      {sendingCode
+                        ? "발송 중..."
+                        : !codeSent
+                          ? "인증번호 받기"
+                          : resendLeft > 0
+                            ? `재발송 (${resendLeft}초 후 가능)`
+                            : "인증번호 재발송"}
+                    </button>
+                    {codeSent && (
+                      <div className={styles.row} style={{ marginTop: 8 }}>
+                        <div className={styles.codeInputWrap}>
+                          <input
+                            type="text"
+                            name="code"
+                            inputMode="numeric"
+                            className={styles.input}
+                            placeholder="인증번호 6자리"
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
+                            disabled={verified || codeDead}
+                            maxLength={6}
+                          />
+                          {!verified && secondsLeft > 0 && (
+                            <span className={styles.codeTimer}>
+                              {fmt(secondsLeft)}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.checkBtn}
+                          onClick={handleVerifyCode}
+                          disabled={verified || codeDead}
+                        >
+                          인증 확인
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+              {emailVerify.message && (
+                <p
+                  className={
+                    emailVerify.status === "error"
+                      ? styles.helperError
+                      : styles.helperOk
+                  }
+                >
+                  {emailVerify.message}
                 </p>
               )}
             </div>

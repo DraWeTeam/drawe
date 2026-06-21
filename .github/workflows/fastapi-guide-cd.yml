@@ -1,10 +1,9 @@
 name: FastAPI Guide CD
 
+# [eks-gitops-reform] dev(develop)=EKS ArgoCD GitOps / prod(main)=ECS(유지)
 on:
   push:
     branches: [develop, main]
-    # guide 서비스(Dockerfile.guide)가 COPY 하는 것만: guide/ · assets/ · Dockerfile.guide · requirements.guide.txt.
-    # embed(fastapi-cd.yml)와 트리거가 겹치지 않게 분리한다.
     paths:
       - "fastapi/guide/**"
       - "fastapi/assets/**"
@@ -21,7 +20,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   resolve-env:
@@ -81,13 +80,34 @@ jobs:
           docker buildx build \
               --platform linux/arm64 \
               -f Dockerfile.guide \
+              --build-arg HF_TOKEN="${{ secrets.HF_TOKEN }}" \
               -t $REGISTRY/$REPO:$TAG \
               -t $REGISTRY/$REPO:latest \
               --push \
               .
           echo "image_uri=$REGISTRY/$REPO:$TAG" >> $GITHUB_OUTPUT
 
+      # ───────── DEV: EKS GitOps (ArgoCD) ─────────
+      - name: "[dev] Bump overlay newTag → commit (ArgoCD GitOps)"
+        if: env.ENV_NAME == 'dev'
+        env:
+          OVERLAY: infra/k8s/overlays/dev/fastapi-guide/kustomization.yaml
+          SHA: ${{ github.sha }}
+        run: |
+          sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\1${SHA}|" "$OVERLAY"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OVERLAY"
+          if git diff --cached --quiet; then
+            echo "newTag 이미 ${SHA} — 커밋 없음"; exit 0
+          fi
+          git commit -m "ci(dev): bump fastapi-guide image -> ${SHA} [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "✅ overlay 갱신 푸시 — ArgoCD(develop 추적)가 롤아웃합니다."
+
+      # ───────── PROD: ECS (유지) ─────────
       - name: Register new task definition with SHA tag
+        if: env.ENV_NAME == 'prod'
         id: register-td
         env:
           SERVICE: drawe-${{ env.ENV_NAME }}-fastapi-guide
@@ -114,6 +134,7 @@ jobs:
           echo "✅ New TD registered: $NEW_TD_ARN"
 
       - name: Update ECS service to new task definition
+        if: env.ENV_NAME == 'prod'
         run: |
           aws ecs update-service \
               --cluster drawe-${{ env.ENV_NAME }}-cluster \
@@ -122,9 +143,8 @@ jobs:
               --region $AWS_REGION
 
       - name: Wait for deployment to stabilize
+        if: env.ENV_NAME == 'prod'
         run: |
-          # aws ecs wait services-stable 는 10분(40x15s) 고정 한계.
-          # 큰 이미지 pull·롤링으로 12분+ 걸릴 수 있어, 1차 타임아웃 시 한 번 더 대기(최대 ~20분).
           ecs_wait() {
             aws ecs wait services-stable \
               --cluster drawe-${{ env.ENV_NAME }}-cluster \

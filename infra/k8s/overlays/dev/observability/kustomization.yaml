@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+resources:
+  - ../../../base/observability
+# dev 는 base 값(ALLOY_DEPLOY_ENV=dev, 샘플링 100%)을 그대로 사용.
+# 운영 전 Alloy 버전 핀 권장 (Docker Hub: grafana/alloy 태그 확인 후 주석 해제):
+# images:
+#   - name: grafana/alloy
+#     newTag: v1.10.0

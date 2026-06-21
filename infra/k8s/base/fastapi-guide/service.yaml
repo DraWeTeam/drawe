@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-guide                  # backend 가 http://fastapi-guide:8000 으로 호출 → 이름 고정
+  labels:
+    app: fastapi-guide
+spec:
+  type: ClusterIP                      # 내부 전용
+  selector:
+    app: fastapi-guide
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP

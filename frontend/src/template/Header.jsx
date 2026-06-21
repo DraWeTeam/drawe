@@ -3,7 +3,13 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../pages/login/api";
 import styles from "./Header.module.css";
 
-const HIDDEN_PATHS = ["/login", "/signup", "/oauth/callback"];
+const HIDDEN_PATHS = [
+  "/login",
+  "/signup",
+  "/signup/terms",
+  "/terms",
+  "/oauth/callback",
+];
 
 const Header = () => {
   const location = useLocation();

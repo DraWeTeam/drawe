@@ -1,0 +1,11 @@
+# eks/prod/2-cluster — 환경별 값 (선택). 기본값으로도 동작하지만 prod 권장:
+#
+# 1) kubectl 퍼블릭 엔드포인트를 팀 공인 IP 로 제한 (보안 권장)
+#    본인 공인 IP:  curl -s https://checkip.amazonaws.com
+# public_access_cidrs = ["1.2.3.4/32", "5.6.7.8/32"]
+#
+# 2) 추가 cluster-admin IAM principal (팀원/CI role). 비우면 클러스터 생성자만 admin.
+# cluster_admin_principal_arns = [
+#   "arn:aws:iam::933832340498:role/your-ci-role",
+#   "arn:aws:iam::933832340498:user/teammate",
+# ]

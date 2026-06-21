@@ -18,6 +18,12 @@ resource "aws_subnet" "public_a" {
   availability_zone       = var.az_a
   map_public_ip_on_launch = true
   tags                    = { Name = "${local.name_prefix}-pub-a" }
+
+  lifecycle {
+    # EKS(3-platform)가 aws_ec2_tag 로 덧붙이는 디스커버리 태그
+    # (kubernetes.io/role/elb, karpenter.sh/discovery 등) 를 ECS apply 가 지우지 않게 보존
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_subnet" "public_c" {
@@ -26,6 +32,12 @@ resource "aws_subnet" "public_c" {
   availability_zone       = var.az_c
   map_public_ip_on_launch = true
   tags                    = { Name = "${local.name_prefix}-pub-c" }
+
+  lifecycle {
+    # EKS(3-platform)가 aws_ec2_tag 로 덧붙이는 디스커버리 태그
+    # (kubernetes.io/role/elb, karpenter.sh/discovery 등) 를 ECS apply 가 지우지 않게 보존
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_subnet" "private_a" {
@@ -33,6 +45,12 @@ resource "aws_subnet" "private_a" {
   cidr_block        = "10.10.10.0/24"
   availability_zone = var.az_a
   tags              = { Name = "${local.name_prefix}-priv-a" }
+
+  lifecycle {
+    # EKS(3-platform)가 aws_ec2_tag 로 덧붙이는 디스커버리 태그
+    # (kubernetes.io/role/elb, karpenter.sh/discovery 등) 를 ECS apply 가 지우지 않게 보존
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_subnet" "private_c" {
@@ -40,6 +58,12 @@ resource "aws_subnet" "private_c" {
   cidr_block        = "10.10.11.0/24"
   availability_zone = var.az_c
   tags              = { Name = "${local.name_prefix}-priv-c" }
+
+  lifecycle {
+    # EKS(3-platform)가 aws_ec2_tag 로 덧붙이는 디스커버리 태그
+    # (kubernetes.io/role/elb, karpenter.sh/discovery 등) 를 ECS apply 가 지우지 않게 보존
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 ############################################################

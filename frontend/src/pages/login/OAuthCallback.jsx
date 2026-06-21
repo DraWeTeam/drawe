@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 // 온보딩 비활성화: import { getOnboardingStatus } from "../onboarding/api";
 import { track, setUserId } from "../../analytics";
+import { useConsent } from "../../auth/ConsentContext";
 
 function getUserIdFromToken(token) {
   try {
@@ -13,6 +14,7 @@ function getUserIdFromToken(token) {
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
+  const { refresh } = useConsent();
   const hasRun = useRef(false);
 
   useEffect(() => {
@@ -71,9 +73,15 @@ const OAuthCallback = () => {
       time_taken: 0,
     });
 
-    // 온보딩 상태 체크 → 분기
-    checkOnboardingAndRedirect();
-  }, [navigate]);
+    // 약관 미동의(구글 신규 가입 등)면 동의 화면으로, 아니면 기존 분기
+    refresh().then((agreed) => {
+      if (agreed === false) {
+        navigate("/terms");
+      } else {
+        checkOnboardingAndRedirect();
+      }
+    });
+  }, [navigate, refresh]);
   return null;
 };
 

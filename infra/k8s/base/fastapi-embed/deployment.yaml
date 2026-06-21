@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-embed
+  labels:
+    app: fastapi-embed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastapi-embed
+  template:
+    metadata:
+      labels:
+        app: fastapi-embed
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: fastapi-embed
+          image: drawe-fastapi:latest          # overlay images: 가 실제 ECR 로 치환
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: fastapi-embed-config       # base 고정 env
+            - configMapRef:
+                name: fastapi-embed-env          # overlay(dev) 환경별 env
+          # /health 는 CLIP 모델 로드 후 200 (DB/캐시 등 외부 의존성 없음) → liveness 안전.
+          # 모델은 이미지에 baking 돼 있어 다운로드 없음 (로드 30~60초, arm64 콜드는 더).
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30                 # 최대 300초 — CLIP-L 로드 여유
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "750m"
+              memory: "2Gi"                      # CLIP-L(fp32) — ECS 1536 보다 여유(OOM 방지)
+            limits:
+              memory: "3Gi"                      # CPU limit 미설정(추론 스로틀 방지)

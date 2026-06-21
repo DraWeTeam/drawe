@@ -1,1 +1,8 @@
 .secrets/
+drawe-beta-extract/
+apply_*.py
+*.sh
+
+# 로컬 타임스탬프 백업 파일 (예: routes.py.bak.20260617-011411)
+*.bak
+*.bak.*

@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend
+  annotations:
+    # ── ALB 기본 ──
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance      # 노드 NodePort 경유 (pods-db SG 와 호환)
+    alb.ingress.kubernetes.io/group.name: drawe-dev       # ALB 공유(앱 늘어도 ALB 1개)
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=180   # guide POST 최대 150s — 기본 60s 면 504
+    # ── HTTPS / 리다이렉트 ──
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # certificate-arn 미지정 → 컨트롤러가 host(api-dev.drawe.xyz) 매칭되는 ACM 인증서 자동 탐색.
+    # 명시하려면 아래 주석 해제 후 ARN 입력:
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:570515227314:certificate/XXXX
+    # ── 헬스체크 ──
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/success-codes: '200'
+spec:
+  ingressClassName: alb
+  rules:
+    - host: api-dev.drawe.xyz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8080

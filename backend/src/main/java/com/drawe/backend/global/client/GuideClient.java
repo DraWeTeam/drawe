@@ -80,12 +80,19 @@ public class GuideClient {
               .body(BodyInserters.fromMultipartData(b.build()))
               .retrieve()
               .bodyToMono(GuideResponse.class)
-              .timeout(Duration.ofSeconds(60)) // 코칭(LLM) 지연 고려
-              // 연결/타임아웃 등 일시 오류만 재시도(같은 request_id → fastapi 가 부작용 디둡).
-              // HTTP 4xx/5xx(WebClientResponseException)는 재시도하지 않는다.
+              // reasoning LLM(grok ×2) + 손 VLM(Gemini) 순차 호출의 실측 지연에 맞춘다.
+              // 이전 60s 는 정상 응답도 타임아웃 → 재시도 폭주를 유발했다.
+              .timeout(Duration.ofSeconds(150))
+              // 연결 establishment 실패만 재시도(같은 request_id → fastapi 가 부작용 디둡).
+              // HTTP 4xx/5xx(WebClientResponseException)와 읽기 타임아웃(TimeoutException)은
+              // 재시도하지 않는다 — 느린(정상) 파이프라인을 재시도하면 시간만 2배로 낭비하고
+              // guide 서비스 부하만 늘려 연쇄 타임아웃을 키운다.
               .retryWhen(
                   Retry.backoff(2, Duration.ofMillis(500))
-                      .filter(ex -> !(ex instanceof WebClientResponseException)))
+                      .filter(
+                          ex ->
+                              !(ex instanceof WebClientResponseException)
+                                  && !(ex instanceof java.util.concurrent.TimeoutException)))
               .block();
 
       if (resp == null || resp.mode() == null) {
@@ -98,7 +105,15 @@ public class GuideClient {
           resp.blocks() == null ? 0 : resp.blocks().size());
       return resp;
     } catch (Exception e) {
-      log.error("FastAPI guide 호출 실패: bytes={}, error={}", imageBytes.length, e.getMessage());
+      // 근본 원인을 함께 남긴다 — e.getMessage() 만으로는 "Retries exhausted" 래퍼만 보여
+      // 타임아웃인지 연결 거부인지 구분이 안 된다(장애 분류 불가).
+      Throwable cause = org.springframework.core.NestedExceptionUtils.getMostSpecificCause(e);
+      log.error(
+          "FastAPI guide 호출 실패: bytes={}, error={}, cause={}: {}",
+          imageBytes.length,
+          e.getMessage(),
+          cause.getClass().getSimpleName(),
+          cause.getMessage());
       throw new RuntimeException("가이드 생성 실패: " + e.getMessage(), e);
     }
   }
@@ -127,11 +142,10 @@ public class GuideClient {
   }
 
   /**
-   * 가이드 자산 프록시. 내부 guide 서비스의 {@code path}(예: {@code /image/<uuid>},
-   * {@code /guide-asset/...})로 GET 하여 응답을 그대로 흘려보낸다. WebClient 는 리다이렉트를 따라가지
-   * 않으므로(기본값) guide 의 302(presigned S3)를 잡아 그대로 브라우저에 반환한다 — presigned 는 만료가
-   * 있어 캐시 금지(no-store). 인라인 SVG 등 2xx 본문은 Content-Type 과 함께 전달한다. 실패는 502 로 매핑하여
-   * 이미지 태그가 깨진 이미지로 자연 degrade 하게 둔다.
+   * 가이드 자산 프록시. 내부 guide 서비스의 {@code path}(예: {@code /image/<uuid>}, {@code /guide-asset/...})로 GET
+   * 하여 응답을 그대로 흘려보낸다. WebClient 는 리다이렉트를 따라가지 않으므로(기본값) guide 의 302(presigned S3)를 잡아 그대로 브라우저에
+   * 반환한다 — presigned 는 만료가 있어 캐시 금지(no-store). 인라인 SVG 등 2xx 본문은 Content-Type 과 함께 전달한다. 실패는 502 로
+   * 매핑하여 이미지 태그가 깨진 이미지로 자연 degrade 하게 둔다.
    */
   public ResponseEntity<byte[]> fetchAsset(String path) {
     if (path == null || path.contains("..")) {

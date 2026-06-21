@@ -57,7 +57,16 @@ def _deterministic(ctx):
     cand = ctx["candidates"]
     obs = ctx["obs_by_sp"]
     appl = [sp for sp in cand if _applicable(sp, ctx)]
-    stated = [sp for sp in appl if obs.get(sp, {}).get("from_user")]
+    # (C) 조건부 우선: 사용자가 *직접 물은* 축(from_user)이라도, 그 축이 이 그림 맥락에서
+    #   말이 될 때(context_ok: measured 또는 track이 다루는 축)만 리드로 강제한다.
+    #   - 진짜 손 그림 + "손" → hand가 figure track의 eligible → context_ok=True → 손이 리드(측정이면 단정, 아니면 가설형)
+    #   - 풍경 + "손" 오발화 → hand가 eligible 밖 → context_ok=False → stated에서 빠짐 → 측정된 축(명암 등)이 리드,
+    #       hand는 후보(가설)로만 남음. degraded(포즈 미검출)와 무관 — '맥락'이지 '측정능력'이 아니다.
+    stated = [
+        sp
+        for sp in cand
+        if obs.get(sp, {}).get("from_user") and obs.get(sp, {}).get("context_ok", True)
+    ]
     measured = [sp for sp in appl if obs.get(sp, {}).get("measured")]
     recurring = [sp for sp in appl if sp in ctx["recurring"]]
     if stated:
@@ -161,7 +170,15 @@ def decide(diagnosis, refs_by_sp, growth, intent="open", track=None, llm=None):
         "true",
         "yes",
     )
-    if use_llm:
+    # 사용자가 직접 물은 축이 *이 맥락에서 말이 될 때*(context_ok)만 LLM 선택을 건너뛴다.
+    #   의도는 판정 대상이 아니라 불변식 — 단, 풍경에 "손" 오발화 같은 off-context는 강제하지 않는다.
+    #   (현 _llm_select 프롬프트는 from_user를 모르므로, 켜두면 "손 물었는데 명암"이 재발한다.)
+    stated_present = any(
+        ctx["obs_by_sp"].get(sp, {}).get("from_user")
+        and ctx["obs_by_sp"].get(sp, {}).get("context_ok", True)
+        for sp in ctx["candidates"]
+    )
+    if use_llm and not stated_present:
         try:
             v = validate(_llm_select(ctx, llm), ctx)
             # LLM 선택도 적용가능성 존중: 리드가 비적용(degraded 포즈축)이면 결정적으로 폴백

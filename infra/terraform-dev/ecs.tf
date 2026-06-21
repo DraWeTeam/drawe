@@ -371,6 +371,8 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "BRIA_BASE_URL",    valueFrom = aws_ssm_parameter.bria_base_url.arn },
         { name = "ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.admin_password.arn },
         { name = "GA4_SA_KEY_JSON", valueFrom = aws_ssm_parameter.ga4_sa_key.arn },
+        { name = "SMTP_USERNAME", valueFrom = aws_ssm_parameter.smtp_username.arn },
+        { name = "SMTP_PASSWORD", valueFrom = aws_ssm_parameter.smtp_password.arn },
       ]
 
       logConfiguration = {

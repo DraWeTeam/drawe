@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fastapi-guide
+  labels:
+    app: fastapi-guide
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: fastapi-guide

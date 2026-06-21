@@ -33,7 +33,7 @@ resource "aws_ecr_lifecycle_policy" "backend" {
         description  = "Keep last 10 tagged images"
         selection = {
           tagStatus      = "tagged"
-          tagPatternList = ["*"]   # 모든 tag 패턴
+          tagPatternList = ["*"] # 모든 tag 패턴
           countType      = "imageCountMoreThan"
           countNumber    = 10
         }

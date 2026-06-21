@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -44,6 +45,13 @@ public class SecurityConfig {
         .formLogin(AbstractHttpConfigurer::disable)
         .sessionManagement(
             session -> session.sessionCreationPolicy((SessionCreationPolicy.IF_REQUIRED)))
+        // 인증 성공 컨텍스트(principal)를 세션에 영속하지 않음 — 요청 범위로만 유지.
+        // 이 앱은 로그인 후 JWT(stateless)로 인증하므로 세션에 SecurityContext 가 불필요하고,
+        // Spring Session(Valkey) 직렬화 대상에서 PrincipalDetails(JPA User 보유)를 제외해 500 회피.
+        // OAuth2 authorization request 는 별도 저장소(session 기반)라 cross-pod 공유는 그대로 유지됨.
+        .securityContext(
+            context ->
+                context.securityContextRepository(new RequestAttributeSecurityContextRepository()))
         .exceptionHandling(
             ex ->
                 ex.authenticationEntryPoint(jwtAuthenticationEntryPoint)
@@ -69,6 +77,8 @@ public class SecurityConfig {
                         "/auth/signup",
                         "/auth/login",
                         "/auth/refresh",
+                        "/auth/email/send-code",
+                        "/auth/email/verify-code",
                         "/search/**")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/image/**", "/guide-asset/**")
