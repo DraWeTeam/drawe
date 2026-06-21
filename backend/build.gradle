@@ -34,6 +34,14 @@ configurations {
     }
 }
 
+configurations.all {
+    // AWS SDK 2.46.x 는 기본 동기 HTTP 구현으로 apache5-client 를 끌어온다. 그게 요구하는
+    // Apache HttpClient5(org.apache.hc.client5...TlsSocketStrategy)가 classpath 에 없어,
+    // IRSA 자격증명 해석이 내부 생성하는 STS 클라이언트(와 S3Presigner)가 NoClassDefFoundError.
+    // 앱은 url-connection-client 를 쓰므로 apache5-client 를 제거해 그게 유일한 SdkHttpService 가 되게 한다.
+    exclude group: 'software.amazon.awssdk', module: 'apache5-client'
+}
+
 repositories {
     mavenCentral()
     maven { url 'https://jitpack.io' }   // KOMORAN (com.github.shin285)
