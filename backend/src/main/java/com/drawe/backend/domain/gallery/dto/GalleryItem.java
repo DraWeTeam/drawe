@@ -9,7 +9,6 @@ import java.time.Instant;
 public record GalleryItem(Long id, String url, String prompt, Instant createdAt) {
 
   public static GalleryItem of(Image image) {
-    return new GalleryItem(
-        image.getId(), image.getUrl(), image.getPrompt(), image.getCreatedAt());
+    return new GalleryItem(image.getId(), image.getUrl(), image.getPrompt(), image.getCreatedAt());
   }
 }

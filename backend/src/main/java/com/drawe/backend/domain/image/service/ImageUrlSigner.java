@@ -85,6 +85,18 @@ public class ImageUrlSigner {
     return PATH_PREFIX + id + "?exp=" + exp + "&sig=" + sig;
   }
 
+  private String sign(long id, long exp) {
+    try {
+      Mac mac = Mac.getInstance(HMAC_ALGO);
+      mac.init(key);
+      byte[] raw = mac.doFinal((id + "|" + exp).getBytes(StandardCharsets.UTF_8));
+      return Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
+    } catch (Exception e) {
+      // 키가 정상 초기화된 이상 발생하지 않는다. 발생 시 서명 불가이므로 명시적으로 실패시킨다.
+      throw new IllegalStateException("이미지 URL 서명 실패", e);
+    }
+  }
+
   /**
    * S3 객체 키를 presigned GET URL 로 변환한다. {@code s3} 프로파일에서만 호출 가능 — presigner/properties 가 없으면(프로파일
    * 꺼짐) 변환할 수 없으므로 원본을 그대로 반환한다(방어). 정상 운영에선 s3:{key} 저장과 presigner 빈이 함께 켜지므로 이 폴백은 발생하지 않는다.
@@ -120,18 +132,6 @@ public class ImageUrlSigner {
     // 타이밍 공격 회피용 상수시간 비교.
     return MessageDigest.isEqual(
         expected.getBytes(StandardCharsets.UTF_8), sig.getBytes(StandardCharsets.UTF_8));
-  }
-
-  private String sign(long id, long exp) {
-    try {
-      Mac mac = Mac.getInstance(HMAC_ALGO);
-      mac.init(key);
-      byte[] raw = mac.doFinal((id + "|" + exp).getBytes(StandardCharsets.UTF_8));
-      return Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
-    } catch (Exception e) {
-      // 키가 정상 초기화된 이상 발생하지 않는다. 발생 시 서명 불가이므로 명시적으로 실패시킨다.
-      throw new IllegalStateException("이미지 URL 서명 실패", e);
-    }
   }
 
   /** {@code /images/{id}} 에서 id 추출. 쿼리스트링·접두 mismatch 는 null. */
