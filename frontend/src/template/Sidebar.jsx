@@ -157,7 +157,11 @@ const Sidebar = () => {
             </Link>
           );
           return collapsed ? (
-            <Tooltip label="프로젝트" placement="right" className={styles.navTip}>
+            <Tooltip
+              label="프로젝트"
+              placement="right"
+              className={styles.navTip}
+            >
               {projectLink}
             </Tooltip>
           ) : (

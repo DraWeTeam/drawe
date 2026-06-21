@@ -10,14 +10,26 @@ function bubbleStyle(rect, placement) {
   const cy = rect.top + rect.height / 2;
   switch (placement) {
     case "top":
-      return { top: rect.top - GAP, left: cx, transform: "translate(-50%, -100%)" };
+      return {
+        top: rect.top - GAP,
+        left: cx,
+        transform: "translate(-50%, -100%)",
+      };
     case "right":
       return { top: cy, left: rect.right + GAP, transform: "translateY(-50%)" };
     case "left":
-      return { top: cy, left: rect.left - GAP, transform: "translate(-100%, -50%)" };
+      return {
+        top: cy,
+        left: rect.left - GAP,
+        transform: "translate(-100%, -50%)",
+      };
     case "bottom":
     default:
-      return { top: rect.bottom + GAP, left: cx, transform: "translateX(-50%)" };
+      return {
+        top: rect.bottom + GAP,
+        left: cx,
+        transform: "translateX(-50%)",
+      };
   }
 }
 
