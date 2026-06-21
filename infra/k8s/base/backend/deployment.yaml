@@ -14,6 +14,7 @@ spec:
       labels:
         app: backend
     spec:
+      serviceAccountName: backend   # IRSA → bria-ai S3 (/images 서빙·업로드)
       # 그레이스풀 종료: Spring 이 in-flight 요청 마무리할 시간
       terminationGracePeriodSeconds: 60
       containers:

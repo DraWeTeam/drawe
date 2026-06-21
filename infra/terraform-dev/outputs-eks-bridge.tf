@@ -49,3 +49,8 @@ output "artref_s3_policy_arn" {
   description = "artref S3 RW 정책 ARN. 3-platform 이 fastapi-guide SA용 IRSA 롤에 attach."
   value       = aws_iam_policy.artref_s3_access.arn
 }
+
+output "bria_s3_policy_arn" {
+  description = "bria-ai S3 RW 정책 ARN. 3-platform 이 backend SA용 IRSA 롤에 attach."
+  value       = aws_iam_policy.bria_s3_access.arn
+}

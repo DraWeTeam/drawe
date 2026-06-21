@@ -39,3 +39,12 @@ patches:
         value:
           - sg-01fdf9d4b49779c9e        # ← FILL: drawe-dev-pods-db
           - sg-070529272670ccb6a     # ← FILL: 클러스터 SG
+  # backend IRSA 롤 (3-platform output: backend_irsa_role_arn)
+  - target:
+      kind: ServiceAccount
+      name: backend
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::570515227314:role/drawe-dev-backend
