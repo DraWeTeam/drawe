@@ -11,6 +11,7 @@ import com.drawe.backend.domain.guide.dto.ResolvedReference;
 import com.drawe.backend.domain.guide.repository.GuideFeedbackRepository;
 import com.drawe.backend.domain.guide.repository.GuideRepository;
 import com.drawe.backend.domain.image.repository.ImageBlobRepository;
+import com.drawe.backend.domain.image.service.DbImageStorage;
 import com.drawe.backend.domain.image.service.ImageStorage;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.client.GuideClient;
@@ -44,7 +45,9 @@ public class GuideService {
   private final GuideRepository guideRepository;
   private final GuideFeedbackRepository guideFeedbackRepository;
   private final ProjectRepository projectRepository;
-  private final ImageStorage imageStorage;
+  // 가이드 업로드 썸네일은 MySQL(/images/{id})에 저장해야 uploadUrl 서빙이 성립한다.
+  // s3 프로파일에선 ImageStorage 의 @Primary 가 S3ImageStorage(id=null)라, 구체 타입으로 DB 구현을 주입.
+  private final DbImageStorage imageStorage;
   private final ImageBlobRepository imageBlobRepository;
 
   /** 레퍼런스 이미지의 '브라우저 도달용' base(/image/{ref_id}). prod 도달성은 P5 인프라에서 확정. */
