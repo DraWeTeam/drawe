@@ -76,6 +76,9 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.46.7')
     implementation 'software.amazon.awssdk:s3'
     implementation 'software.amazon.awssdk:url-connection-client'
+    // EKS IRSA: WebIdentityTokenFileCredentialsProvider 가 STS AssumeRoleWithWebIdentity 로
+    // 자격증명을 얻으려면 sts 모듈이 classpath 에 필요. ECS(ContainerCredentialsProvider)에선 불필요했음.
+    implementation 'software.amazon.awssdk:sts'
 
     // ── Flyway — DB schema migration ─────────────────────────
     // prod 에서는 JPA_DDL_AUTO=validate 로 Hibernate 가 스키마 만들지 않음.
