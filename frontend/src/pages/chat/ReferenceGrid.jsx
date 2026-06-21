@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../login/api";
+import Tooltip from "../../components/Tooltip";
 import styles from "./ReferenceGrid.module.css";
 import { track } from "../../analytics";
 
@@ -18,7 +19,7 @@ const ReferenceGrid = ({
 }) => {
   const hasReferences = references && references.length > 0;
   const totalCount = (references || []).length;
-  const columnCount = expanded ? 4 : 2;
+  const columnCount = expanded ? 3 : 2;
 
   const displayItems = useMemo(() => {
     const refs = references || [];
@@ -299,15 +300,17 @@ const ReferenceCard = ({
           ref={menuRef}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            type="button"
-            className={styles.menuBtn}
-            onClick={handleMenuClick}
-            aria-label="더보기"
-            ref={menuBtnRef}
-          >
-            <DotsIcon />
-          </button>
+          <Tooltip label="옵션 보기" placement="bottom">
+            <button
+              type="button"
+              className={styles.menuBtn}
+              onClick={handleMenuClick}
+              aria-label="옵션 보기"
+              ref={menuBtnRef}
+            >
+              <DotsIcon />
+            </button>
+          </Tooltip>
           {menuOpen && (
             <div className={styles.menuPopup}>
               <button
@@ -414,9 +417,9 @@ const PinOutlineIcon = ({ size = 18 }) => (
 
 const DotsIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="5" cy="12" r="1.5" />
+    <circle cx="12" cy="5" r="1.5" />
     <circle cx="12" cy="12" r="1.5" />
-    <circle cx="19" cy="12" r="1.5" />
+    <circle cx="12" cy="19" r="1.5" />
   </svg>
 );
 

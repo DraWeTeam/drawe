@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../pages/login/api";
+import Tooltip from "../components/Tooltip";
 import styles from "./Sidebar.module.css";
 import logo from "../assets/drawe_logo.png";
 
@@ -91,15 +92,19 @@ const Sidebar = () => {
             </span>
           </Link>
         )}
-        <button
-          type="button"
-          className={styles.toggleBtn}
-          onClick={() => setCollapsed((c) => !c)}
-          aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-          title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+        <Tooltip
+          label={collapsed ? "사이드바 열기" : "사이드바 닫기"}
+          placement={collapsed ? "right" : "bottom"}
         >
-          <PanelIcon />
-        </button>
+          <button
+            type="button"
+            className={styles.toggleBtn}
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "사이드바 열기" : "사이드바 닫기"}
+          >
+            <PanelIcon />
+          </button>
+        </Tooltip>
       </div>
 
       <div className={styles.line}></div>
@@ -107,17 +112,18 @@ const Sidebar = () => {
       {/* 검색 (UI only) */}
       <div className={styles.searchArea}>
         {collapsed ? (
-          <button
-            type="button"
-            className={`${styles.menuItem} ${styles.iconOnly}`}
-            disabled
-            title="검색 (준비 중)"
-            aria-label="검색"
-          >
-            <span className={styles.menuIcon}>
-              <SearchIcon />
-            </span>
-          </button>
+          <Tooltip label="검색" placement="right" className={styles.navTip}>
+            <button
+              type="button"
+              className={`${styles.menuItem} ${styles.iconOnly}`}
+              disabled
+              aria-label="검색"
+            >
+              <span className={styles.menuIcon}>
+                <SearchIcon />
+              </span>
+            </button>
+          </Tooltip>
         ) : (
           <div className={styles.searchBox}>
             <span className={styles.searchIcon}>
@@ -136,30 +142,42 @@ const Sidebar = () => {
       {/* 메뉴 */}
       <nav className={styles.nav}>
         {/* 프로젝트 */}
-        <Link
-          to="/projects"
-          className={`${styles.menuItem} ${
-            isProjectActive ? styles.active : ""
-          } ${collapsed ? styles.iconOnly : ""}`}
-        >
-          <span className={styles.menuIcon}>
-            <ProjectIcon />
-          </span>
-          {!collapsed && <span className={styles.menuLabel}>프로젝트</span>}
-        </Link>
+        {(() => {
+          const projectLink = (
+            <Link
+              to="/projects"
+              className={`${styles.menuItem} ${
+                isProjectActive ? styles.active : ""
+              } ${collapsed ? styles.iconOnly : ""}`}
+            >
+              <span className={styles.menuIcon}>
+                <ProjectIcon />
+              </span>
+              {!collapsed && <span className={styles.menuLabel}>프로젝트</span>}
+            </Link>
+          );
+          return collapsed ? (
+            <Tooltip label="프로젝트" placement="right" className={styles.navTip}>
+              {projectLink}
+            </Tooltip>
+          ) : (
+            projectLink
+          );
+        })()}
 
         {/* 아카이브 */}
         {collapsed ? (
-          <button
-            type="button"
-            className={`${styles.menuItem} ${styles.iconOnly}`}
-            disabled
-            title="아카이브 (준비 중)"
-          >
-            <span className={styles.menuIcon}>
-              <ArchiveIcon />
-            </span>
-          </button>
+          <Tooltip label="아카이브" placement="right" className={styles.navTip}>
+            <button
+              type="button"
+              className={`${styles.menuItem} ${styles.iconOnly}`}
+              disabled
+            >
+              <span className={styles.menuIcon}>
+                <ArchiveIcon />
+              </span>
+            </button>
+          </Tooltip>
         ) : (
           <>
             <button
@@ -235,16 +253,18 @@ const Sidebar = () => {
 
         {user ? (
           collapsed ? (
-            <button
-              type="button"
-              className={styles.avatarOnlyBtn}
-              onClick={() => setUserMenuOpen((o) => !o)}
-              aria-label="유저 메뉴"
-            >
-              <div className={styles.avatar}>
-                <UserIcon />
-              </div>
-            </button>
+            <Tooltip label="로그인" placement="right">
+              <button
+                type="button"
+                className={styles.avatarOnlyBtn}
+                onClick={() => setUserMenuOpen((o) => !o)}
+                aria-label="유저 메뉴"
+              >
+                <div className={styles.avatar}>
+                  <UserIcon />
+                </div>
+              </button>
+            </Tooltip>
           ) : (
             <button
               type="button"

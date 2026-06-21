@@ -149,6 +149,18 @@
   width: auto;
   align-items: center;
   gap: 12px;
+  /* 우측 툴팁이 사이드바 밖으로 나갈 수 있도록 클리핑 해제 (접힘 메뉴는 짧아 스크롤 불필요) */
+  overflow: visible;
+}
+
+/* 접힘 상태 아이콘 버튼을 감싸는 툴팁 래퍼 — 기존 풀폭 레이아웃 유지 */
+.navTip {
+  display: flex;
+  width: 100%;
+}
+
+.navTip > :first-child {
+  flex: 1;
 }
 
 .menuItem {
