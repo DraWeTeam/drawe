@@ -48,7 +48,7 @@ resource "cloudflare_record" "api" {
   zone_id = var.cloudflare_zone_id
   name    = var.domain_name           # FQDN — CF 가 알아서 zone 매칭
   type    = "CNAME"
-  content = var.api_alb_dns_override != "" ? var.api_alb_dns_override : aws_lb.main.dns_name # ECS ALB(기본) ↔ EKS ALB(override)
+  content = local.api_target_alb_dns # 우선순위: override > EKS 컷오버(태그탐색) > ECS ALB — cutover-eks.tf
   ttl     = var.cloudflare_proxied ? 1 : 300   # proxied=true 면 ttl 무시 (1=auto)
   proxied = var.cloudflare_proxied
   comment = "Managed by Terraform — DraWe dev API"

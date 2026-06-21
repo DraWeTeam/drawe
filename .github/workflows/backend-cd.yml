@@ -1,18 +1,6 @@
 name: Backend CD
 
-# 트리거:
-#   develop 브랜치 push        → dev 환경 자동 배포
-#   main    브랜치 push        → prod 환경 자동 배포 (GitHub Environment Required reviewers 통과 후)
-#   workflow_dispatch (수동)   → environment 입력값으로 명시 선택
-#                                ⚠ prod 선택해도 main 외 브랜치에서 trigger 시 IAM trust 단계에서 거부됨
-#                                  (terraform-prod 의 OIDC trust 가 refs/heads/main 만 허용)
-#
-# 배포 흐름:
-#   1. JAR 빌드
-#   2. Docker 이미지 빌드 & ECR push (SHA + latest 두 태그)
-#   3. 현재 active TD 조회 → image 만 새 SHA 로 갱신 → 새 TD revision 등록
-#   4. ECS service 를 새 TD 로 업데이트
-#   5. services-stable 대기 — Circuit Breaker 가 헬스체크 실패 감지 시 자동 롤백
+# [eks-gitops-reform] dev(develop)=EKS ArgoCD GitOps / prod(main)=ECS(유지)
 on:
   push:
     branches: [develop, main]
@@ -27,14 +15,10 @@ on:
         default: dev
 
 permissions:
-  id-token: write       # AWS OIDC 토큰 발급용
-  contents: read
+  id-token: write   # AWS OIDC
+  contents: write   # [dev] GitOps: overlay 태그 커밋·푸시
 
 jobs:
-  # ── ENV_NAME 결정 ──
-  # workflow_dispatch:    inputs.environment 가 우선
-  # push to main:         prod
-  # push to develop:      dev
   resolve-env:
     runs-on: ubuntu-latest
     outputs:
@@ -108,7 +92,27 @@ jobs:
               .
           echo "image_uri=$REGISTRY/$REPO:$TAG" >> $GITHUB_OUTPUT
 
+      # ───────── DEV: EKS GitOps (ArgoCD) ─────────
+      - name: "[dev] Bump overlay newTag → commit (ArgoCD GitOps)"
+        if: env.ENV_NAME == 'dev'
+        env:
+          OVERLAY: infra/k8s/overlays/dev/backend/kustomization.yaml
+          SHA: ${{ github.sha }}
+        run: |
+          sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\1${SHA}|" "$OVERLAY"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OVERLAY"
+          if git diff --cached --quiet; then
+            echo "newTag 이미 ${SHA} — 커밋 없음"; exit 0
+          fi
+          git commit -m "ci(dev): bump backend image -> ${SHA} [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "✅ overlay 갱신 푸시 — ArgoCD(develop 추적)가 롤아웃합니다."
+
+      # ───────── PROD: ECS (유지) ─────────
       - name: Register new task definition with SHA tag
+        if: env.ENV_NAME == 'prod'
         id: register-td
         env:
           SERVICE: drawe-${{ env.ENV_NAME }}-backend
@@ -135,6 +139,7 @@ jobs:
           echo "✅ New TD registered: $NEW_TD_ARN"
 
       - name: Update ECS service to new task definition
+        if: env.ENV_NAME == 'prod'
         run: |
           aws ecs update-service \
               --cluster drawe-${{ env.ENV_NAME }}-cluster \
@@ -143,6 +148,7 @@ jobs:
               --region $AWS_REGION
 
       - name: Wait for deployment to stabilize
+        if: env.ENV_NAME == 'prod'
         run: |
           aws ecs wait services-stable \
               --cluster drawe-${{ env.ENV_NAME }}-cluster \

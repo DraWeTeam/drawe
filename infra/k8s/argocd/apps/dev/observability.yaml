@@ -10,7 +10,7 @@ spec:
   source:
     # ★ 본인 GitOps 레포 URL 로 교체
     repoURL: https://github.com/DraWeTeam/drawe.git
-    targetRevision: feature/eks-migration
+    targetRevision: develop
     # 레포 내 overlay 경로. 별도 infra repo 면 k8s/..., 모노레포면 infra/k8s/...
     path: infra/k8s/overlays/dev/observability
   destination:

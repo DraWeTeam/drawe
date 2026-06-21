@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/DraWeTeam/drawe.git
-    targetRevision: feature/eks-migration
+    targetRevision: develop
     path: infra/k8s/overlays/dev/backend
   destination:
     server: https://kubernetes.default.svc
