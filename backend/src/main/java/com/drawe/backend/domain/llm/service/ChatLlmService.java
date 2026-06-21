@@ -978,6 +978,11 @@ public class ChatLlmService {
         messages.stream().filter(m -> m.getRole() != MessageRole.SYSTEM).toList();
     llmMessageRepository.deleteAll(nonSystem);
     session.setLastActive(Instant.now());
+
+    // Redis 단기메모리(previousReferences/intent)도 비운다. 안 비우면 초기화 후 첫 메시지의 getOrRestore 가
+    // Redis HIT 으로 옛 레퍼런스를 부활시켜 "초기화가 안 된" 것처럼 보인다(SessionService.clear Javadoc 의 의도).
+    // DB 메시지(위에서 삭제)와 Redis 단기메모리 둘 다 비워야 이전 대화 턴·레퍼런스가 모두 주입되지 않는다.
+    sessionService.clear(user.getId(), projectId);
   }
 
   @Transactional(readOnly = true)
