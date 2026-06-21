@@ -26,7 +26,7 @@
 # ── fck-nat AMI (ARM64) ─────────────────────────────────
 data "aws_ami" "fck_nat" {
   most_recent = true
-  owners      = ["568608671756"]   # fck-nat publisher account
+  owners      = ["568608671756"] # fck-nat publisher account
 
   filter {
     name   = "name"

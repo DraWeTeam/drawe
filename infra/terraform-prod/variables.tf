@@ -17,7 +17,7 @@ variable "aws_region" {
 # VPC / Network
 ############################################################
 variable "vpc_cidr" {
-  default = "10.10.0.0/16"   # dev (10.0/16) 와 분리
+  default = "10.10.0.0/16" # dev (10.0/16) 와 분리
 }
 
 variable "az_a" {
@@ -33,14 +33,14 @@ variable "az_c" {
 ############################################################
 variable "ecs_instance_type" {
   description = "prod ECS 인스턴스 - observability stack 까지 올리므로 t4g.xlarge"
-  default     = "t4g.large"   # 2 vCPU / 8 GB
+  default     = "t4g.large" # 2 vCPU / 8 GB
 }
 
 # Spot 분산용 인스턴스 타입 목록 (모두 ARM64 · 2 vCPU / 8GB 동급)
 variable "ecs_instance_types" {
   description = "ECS ASG Spot 분산용 인스턴스 타입 목록 (베이스 t4g.large=8GB 에 맞춤)"
   type        = list(string)
-  default     = ["t4g.large", "m6g.large", "m7g.large"]   # 모두 8GB
+  default     = ["t4g.large", "m6g.large", "m7g.large"] # 모두 8GB
 }
 
 # prod: 항상 On-Demand 로 유지할 base 인스턴스 수 (기준선 1대)
@@ -74,29 +74,29 @@ variable "prod_enabled" {
 }
 
 # ── Backend ──
-variable "backend_cpu"           { default = 1024 }
-variable "backend_memory"        { default = 2048 }
+variable "backend_cpu" { default = 1024 }
+variable "backend_memory" { default = 2048 }
 variable "backend_desired_count" { default = 2 }
-variable "backend_min_capacity"  { default = 2 }
-variable "backend_max_capacity"  { default = 8 }
+variable "backend_min_capacity" { default = 2 }
+variable "backend_max_capacity" { default = 8 }
 
 # ── FastAPI ──
-variable "fastapi_cpu"           { default = 1024 }
-variable "fastapi_memory"        { default = 2048 }
+variable "fastapi_cpu" { default = 1024 }
+variable "fastapi_memory" { default = 2048 }
 variable "fastapi_desired_count" { default = 2 }
-variable "fastapi_min_capacity"  { default = 2 }
-variable "fastapi_max_capacity"  { default = 6 }
+variable "fastapi_min_capacity" { default = 2 }
+variable "fastapi_max_capacity" { default = 6 }
 
 # ── Alloy sidecar ──
-variable "alloy_sidecar_cpu"    { default = 256 }
+variable "alloy_sidecar_cpu" { default = 256 }
 variable "alloy_sidecar_memory" { default = 512 }
 
 # ── Self-host Observability stack ──
-variable "loki_cpu"     { default = 512 }
-variable "loki_memory"  { default = 1024 }
-variable "tempo_cpu"    { default = 512 }
+variable "loki_cpu" { default = 512 }
+variable "loki_memory" { default = 1024 }
+variable "tempo_cpu" { default = 512 }
 variable "tempo_memory" { default = 1024 }
-variable "grafana_cpu"    { default = 256 }
+variable "grafana_cpu" { default = 256 }
 variable "grafana_memory" { default = 512 }
 
 ############################################################
@@ -123,7 +123,7 @@ variable "db_username" {
 }
 
 variable "db_backup_retention_days" {
-  default = 30   # prod 는 30일 보유
+  default = 30 # prod 는 30일 보유
 }
 
 variable "rds_multi_az" {
@@ -139,8 +139,8 @@ variable "rds_multi_az" {
     AWS 가 in-place 로 standby 생성 + 동기 복제 셋업.
     데이터 마이그레이션 / endpoint 변경 없음.
   EOT
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
 }
 
 variable "db_password" {
@@ -195,9 +195,9 @@ variable "cloudflare_api_token" {
       Cloudflare → My Profile → API Tokens → Create Token
       → "Edit zone DNS" 템플릿 → 해당 zone 선택
   EOT
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "cloudflare_zone_id" {

@@ -45,7 +45,7 @@ resource "aws_db_instance" "main" {
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  multi_az            = var.rds_multi_az   # ⌁ default false (비용 절감), 나중에 in-place 로 toggle 가능
+  multi_az            = var.rds_multi_az # ⌁ default false (비용 절감), 나중에 in-place 로 toggle 가능
   publicly_accessible = false
 
   backup_retention_period = var.db_backup_retention_days
@@ -95,7 +95,7 @@ resource "aws_db_parameter_group" "main" {
 
   parameter {
     name  = "long_query_time"
-    value = "1"   # prod 는 1초 이상 모두 slow 로 기록
+    value = "1" # prod 는 1초 이상 모두 slow 로 기록
   }
 
   parameter {

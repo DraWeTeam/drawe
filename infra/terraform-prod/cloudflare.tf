@@ -27,11 +27,11 @@ locals {
 ############################################################
 resource "cloudflare_record" "api" {
   zone_id = var.cloudflare_zone_id
-  name    = var.api_domain        # FQDN - CF 가 알아서 zone 매칭
+  name    = var.api_domain # FQDN - CF 가 알아서 zone 매칭
   type    = "CNAME"
   content = aws_lb.main.dns_name
-  ttl     = 1                      # 1 = "Auto" (proxied 면 무시됨)
-  proxied = true                   # orange cloud - TLS 종단 + WAF
+  ttl     = 1    # 1 = "Auto" (proxied 면 무시됨)
+  proxied = true # orange cloud - TLS 종단 + WAF
   comment = "Managed by Terraform - DraWe prod API"
 }
 

@@ -157,8 +157,8 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         { name = "REFERENCE_DIR", value = "/app/assets/reference" },
 
         # ── 모델 게이트 ──
-        { name = "VLM_BACKEND", value = "aistudio" }, # Gemini(aistudio)
-        { name = "HAND_VLM", value = var.guide_hand_vlm }, # 해제(ON): Gemini 손 관찰자
+        { name = "VLM_BACKEND", value = "aistudio" },            # Gemini(aistudio)
+        { name = "HAND_VLM", value = var.guide_hand_vlm },       # 해제(ON): Gemini 손 관찰자
         { name = "SUBJECT_VLM", value = var.guide_subject_vlm }, # 애매대역만 Gemini 주제 분류(축 오라우팅 교정)
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
@@ -186,7 +186,7 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         { name = "DB_DSN", valueFrom = aws_ssm_parameter.artref_db_dsn.arn }, # drawe_guide DSN
         { name = "QDRANT_URL", valueFrom = aws_ssm_parameter.qdrant_url.arn },
         { name = "QDRANT_API_KEY", valueFrom = aws_ssm_parameter.qdrant_api_key.arn },
-        { name = "XAI_API_KEY", valueFrom = aws_ssm_parameter.grok_api_key.arn },     # 코칭 LLM(xAI/Grok)
+        { name = "XAI_API_KEY", valueFrom = aws_ssm_parameter.grok_api_key.arn },      # 코칭 LLM(xAI/Grok)
         { name = "GEMINI_API_KEY", valueFrom = aws_ssm_parameter.gemini_api_key.arn }, # 손 VLM(aistudio)
       ]
 
@@ -215,10 +215,10 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
 
 # ── ECS Service — fastapi-guide (내부 전용, spot + on-demand 베이스라인) ──
 resource "aws_ecs_service" "fastapi_guide" {
-  name            = "${local.name_prefix}-fastapi-guide"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.fastapi_guide.arn
-  desired_count   = var.prod_enabled ? var.fastapi_guide_desired_count : 0
+  name                               = "${local.name_prefix}-fastapi-guide"
+  cluster                            = aws_ecs_cluster.main.id
+  task_definition                    = aws_ecs_task_definition.fastapi_guide.arn
+  desired_count                      = var.prod_enabled ? var.fastapi_guide_desired_count : 0
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
 

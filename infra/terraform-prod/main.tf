@@ -26,11 +26,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "drawe-tfstate-933832340498"
-    key            = "drawe/prod/terraform.tfstate"
-    region         = "ap-northeast-2"
-    use_lockfile   = true
-    encrypt        = true
+    bucket       = "drawe-tfstate-933832340498"
+    key          = "drawe/prod/terraform.tfstate"
+    region       = "ap-northeast-2"
+    use_lockfile = true
+    encrypt      = true
   }
 }
 

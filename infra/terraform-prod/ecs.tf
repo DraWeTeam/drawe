@@ -160,9 +160,9 @@ resource "aws_service_discovery_service" "fastapi" {
 ############################################################
 locals {
   alloy_sidecar = {
-    name      = "alloy"
-    image     = "grafana/alloy:v1.9.0"
-    essential = false
+    name       = "alloy"
+    image      = "grafana/alloy:v1.9.0"
+    essential  = false
     entryPoint = ["/bin/sh", "-c"]
     command = [
       "echo $ALLOY_CONFIG_B64 | base64 -d | gunzip > /tmp/config.alloy && exec /bin/alloy run /tmp/config.alloy --stability.level=public-preview"
@@ -193,12 +193,12 @@ locals {
 
   # prod alloy env - Grafana Cloud 가 아닌 self-host endpoint 들
   alloy_env = [
-    { name = "ALLOY_DEPLOY_ENV",         value = var.env },
-    { name = "ALLOY_SAMPLING_RATE",      value = var.otel_sampling_rate },
-    { name = "AMP_REMOTE_WRITE_URL",     value = "${aws_prometheus_workspace.main.prometheus_endpoint}api/v1/remote_write" },
-    { name = "AWS_REGION",               value = var.aws_region },
-    { name = "LOKI_URL",                 value = "http://loki.${local.name_prefix}.local:3100" },
-    { name = "TEMPO_OTLP_ENDPOINT",      value = "tempo.${local.name_prefix}.local:4317" },
+    { name = "ALLOY_DEPLOY_ENV", value = var.env },
+    { name = "ALLOY_SAMPLING_RATE", value = var.otel_sampling_rate },
+    { name = "AMP_REMOTE_WRITE_URL", value = "${aws_prometheus_workspace.main.prometheus_endpoint}api/v1/remote_write" },
+    { name = "AWS_REGION", value = var.aws_region },
+    { name = "LOKI_URL", value = "http://loki.${local.name_prefix}.local:3100" },
+    { name = "TEMPO_OTLP_ENDPOINT", value = "tempo.${local.name_prefix}.local:4317" },
   ]
 
   alloy_secrets = [
@@ -229,13 +229,13 @@ resource "aws_ecs_task_definition" "alloy_daemon" {
     ]
 
     environment = [
-      { name = "ALLOY_SERVICE_NAME",   value = "infra-daemon" },
-      { name = "ALLOY_DEPLOY_ENV",     value = var.env },
-      { name = "ALLOY_SAMPLING_RATE",  value = "100" },
+      { name = "ALLOY_SERVICE_NAME", value = "infra-daemon" },
+      { name = "ALLOY_DEPLOY_ENV", value = var.env },
+      { name = "ALLOY_SAMPLING_RATE", value = "100" },
       { name = "AMP_REMOTE_WRITE_URL", value = "${aws_prometheus_workspace.main.prometheus_endpoint}api/v1/remote_write" },
-      { name = "AWS_REGION",           value = var.aws_region },
-      { name = "LOKI_URL",             value = "http://loki.${local.name_prefix}.local:3100" },
-      { name = "TEMPO_OTLP_ENDPOINT",  value = "tempo.${local.name_prefix}.local:4317" },
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "LOKI_URL", value = "http://loki.${local.name_prefix}.local:3100" },
+      { name = "TEMPO_OTLP_ENDPOINT", value = "tempo.${local.name_prefix}.local:4317" },
     ]
 
     secrets = [
@@ -277,7 +277,7 @@ resource "aws_ecs_service" "alloy_daemon" {
   cluster             = aws_ecs_cluster.main.id
   task_definition     = aws_ecs_task_definition.alloy_daemon.arn
   scheduling_strategy = "DAEMON"
-  launch_type         = "EC2"   # ← 이 줄 추가 (cluster default capacity provider strategy 우회)
+  launch_type         = "EC2" # ← 이 줄 추가 (cluster default capacity provider strategy 우회)
 
   deployment_circuit_breaker {
     enable   = true
@@ -328,8 +328,8 @@ resource "aws_ecs_task_definition" "backend" {
         # ⌁ prod: ElastiCache primary endpoint (single primary 또는 reader endpoint)
         { name = "REDIS_HOST", value = try(aws_elasticache_replication_group.main[0].primary_endpoint_address, "") },
         { name = "REDIS_PORT", value = "6379" },
-        { name = "REDIS_TLS", value = "true" },              # ElastiCache transit encryption
-        { name = "JPA_DDL_AUTO", value = "validate" },        # ⌁ prod: validate (Flyway 사용)
+        { name = "REDIS_TLS", value = "true" },        # ElastiCache transit encryption
+        { name = "JPA_DDL_AUTO", value = "validate" }, # ⌁ prod: validate (Flyway 사용)
         { name = "JPA_SHOW_SQL", value = "false" },
         { name = "LOG_LEVEL_SQL", value = "warn" },
         { name = "APP_CORS_ALLOWED_ORIGINS", value = join(",", concat([var.frontend_url], var.cors_extra_origins)) },
@@ -340,23 +340,23 @@ resource "aws_ecs_task_definition" "backend" {
         # 레퍼런스 이미지 브라우저 도달용 base. 현재 내부 주소(=서버 도달). 공개 노출은 후속(ALB 경로/프록시).
         { name = "FASTAPI_GUIDE_PUBLIC_URL", value = "https://${var.api_domain}" },
         { name = "OTEL_SERVICE_NAME", value = "backend" },
-      ], local.otel_env, local.s3_env)  # ← S3 env (S3_BUCKET/S3_REGION[, SPRING_PROFILES_ACTIVE=s3]). 정의: s3-bria.tf
+      ], local.otel_env, local.s3_env) # ← S3 env (S3_BUCKET/S3_REGION[, SPRING_PROFILES_ACTIVE=s3]). 정의: s3-bria.tf
 
       secrets = [
-        { name = "DB_USERNAME",          valueFrom = aws_ssm_parameter.db_username.arn },
-        { name = "DB_PASSWORD",          valueFrom = aws_ssm_parameter.db_password.arn },
-        { name = "REDIS_PASSWORD",       valueFrom = aws_ssm_parameter.redis_password.arn },
-        { name = "JWT_SECRET",           valueFrom = aws_ssm_parameter.jwt_secret.arn },
-        { name = "GROK_API_KEY",         valueFrom = aws_ssm_parameter.grok_api_key.arn },
-        { name = "CLAUDE_API_KEY",       valueFrom = aws_ssm_parameter.claude_api_key.arn },
-        { name = "GEMINI_API_KEY",       valueFrom = aws_ssm_parameter.gemini_api_key.arn },
-        { name = "GOOGLE_CLIENT_ID",     valueFrom = aws_ssm_parameter.google_client_id.arn },
+        { name = "DB_USERNAME", valueFrom = aws_ssm_parameter.db_username.arn },
+        { name = "DB_PASSWORD", valueFrom = aws_ssm_parameter.db_password.arn },
+        { name = "REDIS_PASSWORD", valueFrom = aws_ssm_parameter.redis_password.arn },
+        { name = "JWT_SECRET", valueFrom = aws_ssm_parameter.jwt_secret.arn },
+        { name = "GROK_API_KEY", valueFrom = aws_ssm_parameter.grok_api_key.arn },
+        { name = "CLAUDE_API_KEY", valueFrom = aws_ssm_parameter.claude_api_key.arn },
+        { name = "GEMINI_API_KEY", valueFrom = aws_ssm_parameter.gemini_api_key.arn },
+        { name = "GOOGLE_CLIENT_ID", valueFrom = aws_ssm_parameter.google_client_id.arn },
         { name = "GOOGLE_CLIENT_SECRET", valueFrom = aws_ssm_parameter.google_client_secret.arn },
-        { name = "PINECONE_API_KEY",     valueFrom = aws_ssm_parameter.pinecone_api_key.arn },
-        { name = "PINECONE_HOST",        valueFrom = aws_ssm_parameter.pinecone_host.arn },
-        { name = "PINECONE_INDEX",       valueFrom = aws_ssm_parameter.pinecone_index.arn },
-        { name = "BRIA_API_KEY",     valueFrom = aws_ssm_parameter.bria_api_key.arn },
-        { name = "BRIA_BASE_URL",    valueFrom = aws_ssm_parameter.bria_base_url.arn },
+        { name = "PINECONE_API_KEY", valueFrom = aws_ssm_parameter.pinecone_api_key.arn },
+        { name = "PINECONE_HOST", valueFrom = aws_ssm_parameter.pinecone_host.arn },
+        { name = "PINECONE_INDEX", valueFrom = aws_ssm_parameter.pinecone_index.arn },
+        { name = "BRIA_API_KEY", valueFrom = aws_ssm_parameter.bria_api_key.arn },
+        { name = "BRIA_BASE_URL", valueFrom = aws_ssm_parameter.bria_base_url.arn },
         { name = "ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.admin_password.arn },
         { name = "GA4_SA_KEY_JSON", valueFrom = aws_ssm_parameter.ga4_sa_key.arn },
         { name = "SMTP_USERNAME", valueFrom = aws_ssm_parameter.smtp_username.arn },
@@ -415,14 +415,14 @@ resource "aws_ecs_task_definition" "fastapi" {
 
       environment = concat([
         { name = "PORT", value = "8000" },
-        { name = "WORKERS", value = "2" },   # unused — Dockerfile CMD 가 결정
+        { name = "WORKERS", value = "2" }, # unused — Dockerfile CMD 가 결정
         # ── CLIP 모델 설정 (main.py 의 env 변수와 매칭) ──
         { name = "CLIP_MODEL_NAME", value = "openai/clip-vit-large-patch14" },
         { name = "DEVICE", value = "cpu" },
         { name = "OTEL_SERVICE_NAME", value = "ai-server" },
-      ], local.otel_env, local.qdrant_env, local.artref_env)  # ← Qdrant + artref(기본 off). 정의: ssm-qdrant.tf / ssm-artref-fastapi.tf
+      ], local.otel_env, local.qdrant_env, local.artref_env) # ← Qdrant + artref(기본 off). 정의: ssm-qdrant.tf / ssm-artref-fastapi.tf
 
-      secrets = concat(local.qdrant_secrets, local.artref_secrets)  # Qdrant + (플래그 on 시) Pinecone/DB_DSN
+      secrets = concat(local.qdrant_secrets, local.artref_secrets) # Qdrant + (플래그 on 시) Pinecone/DB_DSN
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -449,14 +449,14 @@ resource "aws_ecs_task_definition" "fastapi" {
 # ECS Services
 ############################################################
 resource "aws_ecs_service" "backend" {
-  name            = "${local.name_prefix}-backend"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.backend.arn
-  desired_count   = var.backend_desired_count
+  name                               = "${local.name_prefix}-backend"
+  cluster                            = aws_ecs_cluster.main.id
+  task_definition                    = aws_ecs_task_definition.backend.arn
+  desired_count                      = var.backend_desired_count
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
 
-  enable_execute_command = true   # ECS Exec - debug shell
+  enable_execute_command = true # ECS Exec - debug shell
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name

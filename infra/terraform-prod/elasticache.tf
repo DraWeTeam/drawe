@@ -34,7 +34,7 @@ resource "aws_elasticache_replication_group" "main" {
   port                 = 6379
   parameter_group_name = "default.valkey8"
 
-  num_cache_clusters         = 1 + var.elasticache_replicas   # primary + replicas
+  num_cache_clusters         = 1 + var.elasticache_replicas # primary + replicas
   automatic_failover_enabled = var.elasticache_replicas > 0
   multi_az_enabled           = var.elasticache_replicas > 0
 
@@ -46,7 +46,7 @@ resource "aws_elasticache_replication_group" "main" {
   auth_token                 = local.valkey_auth_token
 
   snapshot_retention_limit = 7
-  snapshot_window          = "18:00-19:00"   # KST 03:00~04:00
+  snapshot_window          = "18:00-19:00" # KST 03:00~04:00
   maintenance_window       = "sun:19:00-sun:20:00"
 
   apply_immediately = false
@@ -54,6 +54,6 @@ resource "aws_elasticache_replication_group" "main" {
   tags = { Name = "${local.name_prefix}-valkey" }
 
   lifecycle {
-    ignore_changes = [auth_token]   # 회전은 별도 절차로
+    ignore_changes = [auth_token] # 회전은 별도 절차로
   }
 }

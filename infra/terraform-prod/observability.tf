@@ -55,13 +55,13 @@ resource "aws_ecs_task_definition" "loki" {
     command = ["-config.file=/etc/loki/loki-config.yaml", "-target=all"]
 
     portMappings = [
-      { containerPort = 3100, protocol = "tcp" },   # HTTP
-      { containerPort = 9095, protocol = "tcp" },   # gRPC
+      { containerPort = 3100, protocol = "tcp" }, # HTTP
+      { containerPort = 9095, protocol = "tcp" }, # gRPC
     ]
 
     environment = [
       { name = "LOKI_S3_BUCKET", value = aws_s3_bucket.loki.id },
-      { name = "AWS_REGION",     value = var.aws_region },
+      { name = "AWS_REGION", value = var.aws_region },
     ]
 
     secrets = [
@@ -147,14 +147,14 @@ resource "aws_ecs_task_definition" "tempo" {
     memory    = var.tempo_memory
 
     portMappings = [
-      { containerPort = 3200, protocol = "tcp" },   # HTTP / query
-      { containerPort = 4317, protocol = "tcp" },   # OTLP gRPC
-      { containerPort = 4318, protocol = "tcp" },   # OTLP HTTP
+      { containerPort = 3200, protocol = "tcp" }, # HTTP / query
+      { containerPort = 4317, protocol = "tcp" }, # OTLP gRPC
+      { containerPort = 4318, protocol = "tcp" }, # OTLP HTTP
     ]
 
     environment = [
       { name = "TEMPO_S3_BUCKET", value = aws_s3_bucket.tempo.id },
-      { name = "AWS_REGION",      value = var.aws_region },
+      { name = "AWS_REGION", value = var.aws_region },
     ]
 
     secrets = [
@@ -243,24 +243,24 @@ resource "aws_ecs_task_definition" "grafana" {
     environment = [
       { name = "GF_SERVER_ROOT_URL", value = "https://grafana.${var.root_domain}" },
       # RDS MySQL 사용 ===
-      { name = "GF_DATABASE_TYPE",   value = "mysql" },
-      { name = "GF_DATABASE_HOST",   value = "${aws_db_instance.main.address}:3306" },
-      { name = "GF_DATABASE_NAME",   value = "grafana" },
-      { name = "GF_DATABASE_USER",   value = aws_db_instance.main.username },
+      { name = "GF_DATABASE_TYPE", value = "mysql" },
+      { name = "GF_DATABASE_HOST", value = "${aws_db_instance.main.address}:3306" },
+      { name = "GF_DATABASE_NAME", value = "grafana" },
+      { name = "GF_DATABASE_USER", value = aws_db_instance.main.username },
       { name = "GF_AUTH_ANONYMOUS_ENABLED", value = "false" },
-      { name = "GF_USERS_ALLOW_SIGN_UP",    value = "false" },
-      { name = "GF_INSTALL_PLUGINS",        value = "grafana-x-ray-datasource" },
+      { name = "GF_USERS_ALLOW_SIGN_UP", value = "false" },
+      { name = "GF_INSTALL_PLUGINS", value = "grafana-x-ray-datasource" },
       # Datasource provisioning 은 SSM 으로 주입
-      { name = "AWS_REGION",    value = var.aws_region },
+      { name = "AWS_REGION", value = var.aws_region },
       { name = "AMP_QUERY_URL", value = aws_prometheus_workspace.main.prometheus_endpoint },
-      { name = "LOKI_URL",      value = "http://loki.${local.name_prefix}.local:3100" },
-      { name = "TEMPO_URL",     value = "http://tempo.${local.name_prefix}.local:3200" },
+      { name = "LOKI_URL", value = "http://loki.${local.name_prefix}.local:3100" },
+      { name = "TEMPO_URL", value = "http://tempo.${local.name_prefix}.local:3200" },
       { name = "GF_AUTH_SIGV4_AUTH_ENABLED", value = "true" },
     ]
 
     secrets = [
       { name = "GF_SECURITY_ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.grafana_admin_password.arn },
-      { name = "GF_DATABASE_PASSWORD",       valueFrom = aws_ssm_parameter.db_password.arn },
+      { name = "GF_DATABASE_PASSWORD", valueFrom = aws_ssm_parameter.db_password.arn },
     ]
 
     healthCheck = {

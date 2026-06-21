@@ -16,7 +16,7 @@ resource "aws_s3_bucket" "loki" {
 resource "aws_s3_bucket_versioning" "loki" {
   bucket = aws_s3_bucket.loki.id
   versioning_configuration {
-    status = "Disabled"   # log chunks 는 immutable, versioning 불필요
+    status = "Disabled" # log chunks 는 immutable, versioning 불필요
   }
 }
 

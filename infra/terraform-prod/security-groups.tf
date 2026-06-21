@@ -107,10 +107,10 @@ resource "aws_security_group" "ecs_observability" {
 
   # Loki HTTP - app Alloy sidecar 가 push
   ingress {
-    description     = "Loki HTTP from app tasks"
-    from_port       = 3100
-    to_port         = 3100
-    protocol        = "tcp"
+    description = "Loki HTTP from app tasks"
+    from_port   = 3100
+    to_port     = 3100
+    protocol    = "tcp"
     security_groups = [
       aws_security_group.ecs_backend.id,
       aws_security_group.ecs_fastapi.id,
@@ -180,14 +180,14 @@ resource "aws_security_group" "rds" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "MySQL from backend"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
+    description = "MySQL from backend"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
     security_groups = [
       aws_security_group.ecs_backend.id,
       aws_security_group.ecs_instance.id,
-      aws_security_group.ecs_fastapi.id,    # fastapi-guide (MySQL access)
+      aws_security_group.ecs_fastapi.id, # fastapi-guide (MySQL access)
     ]
   }
 
@@ -207,6 +207,12 @@ resource "aws_security_group" "rds" {
   }
 
   tags = { Name = "${local.name_prefix}-rds-sg" }
+
+  lifecycle {
+    # EKS(3-platform)가 별도 aws_security_group_rule 로 추가하는 pod SG ingress 보존.
+    # 인라인 ingress 와 외부 rule 을 섞으면 apply 마다 서로 지우므로 필수.
+    ignore_changes = [ingress]
+  }
 }
 
 ############################################################
@@ -233,6 +239,12 @@ resource "aws_security_group" "valkey" {
   }
 
   tags = { Name = "${local.name_prefix}-valkey-sg" }
+
+  lifecycle {
+    # EKS(3-platform)가 별도 aws_security_group_rule 로 추가하는 pod SG ingress 보존.
+    # 인라인 ingress 와 외부 rule 을 섞으면 apply 마다 서로 지우므로 필수.
+    ignore_changes = [ingress]
+  }
 }
 
 ############################################################
