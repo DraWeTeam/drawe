@@ -232,3 +232,17 @@ locals {
   }
   name_prefix = "${var.project}-${var.env}"
 }
+
+# EKS 마이그레이션: prod_enabled 와 무관하게 켜는 공유자원 분리 스위치. default=false(동작 보존).
+variable "nat_enabled" {
+  description = "true 면 prod_enabled 무관 NAT 유지(EKS 노드 egress)."
+  type        = bool
+  default     = false
+}
+
+# EKS 마이그레이션: prod_enabled 와 무관하게 켜는 공유자원 분리 스위치. default=false(동작 보존).
+variable "cache_enabled" {
+  description = "true 면 prod_enabled 무관 ElastiCache 유지(백엔드 세션)."
+  type        = bool
+  default     = false
+}

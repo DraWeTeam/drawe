@@ -6,6 +6,7 @@
 # ArgoCD 가 선언적으로 동기화한다(Terraform 은 앱을 관리하지 않음).
 ############################################################
 resource "helm_release" "argocd" {
+  depends_on = [helm_release.alb_controller]
   name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"

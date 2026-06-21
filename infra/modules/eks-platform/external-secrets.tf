@@ -5,6 +5,7 @@
 # 앱 매니페스트(k8s/base/*)의 ExternalSecret 이 이 store 를 참조한다.
 ############################################################
 resource "helm_release" "external_secrets" {
+  depends_on = [helm_release.alb_controller]
   name             = "external-secrets"
   repository       = "https://charts.external-secrets.io"
   chart            = "external-secrets"

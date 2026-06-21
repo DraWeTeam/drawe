@@ -6,6 +6,7 @@
 !**/*.tfvars.example
 **/crash.log
 **/.terraform.lock.hcl
+**/.build/
 
 # IDE
 .idea/
@@ -30,3 +31,4 @@ Thumbs.db
 *.sql
 beta_snapshot
 extract_beta_snapshot.py
+*.bak-*

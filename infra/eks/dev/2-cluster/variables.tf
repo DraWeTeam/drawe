@@ -13,7 +13,7 @@ variable "aws_region" {
 
 variable "k8s_version" {
   type    = string
-  default = "1.33"
+  default = "1.35"
 }
 
 # 추가 cluster-admin (팀원/CI IAM role ARN). 비워두면 생성자만 admin.

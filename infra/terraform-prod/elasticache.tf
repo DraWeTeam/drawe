@@ -23,7 +23,7 @@ locals {
 }
 
 resource "aws_elasticache_replication_group" "main" {
-  count = var.prod_enabled ? 1 : 0
+  count = (var.prod_enabled || var.cache_enabled) ? 1 : 0
 
   replication_group_id = "${local.name_prefix}-valkey"
   description          = "Valkey for ${local.name_prefix}"

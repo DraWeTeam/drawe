@@ -1,0 +1,5 @@
+# prod 3-platform 변수 예시 (보통 기본값으로 충분)
+# gitops_repo_url        = "https://github.com/<org>/team-monorepo.git"
+# gitops_repo_path       = "k8s/overlays/prod"
+# gitops_target_revision = "main"
+# enable_argocd_root_app = false   # overlays/prod 올린 뒤 true
