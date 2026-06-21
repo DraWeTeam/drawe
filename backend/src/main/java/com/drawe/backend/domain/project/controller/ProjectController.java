@@ -49,7 +49,8 @@ public class ProjectController {
       @RequestParam(defaultValue = "RECENT") ProjectSort sort,
       @RequestParam(defaultValue = "20") @Min(1) int limit,
       @RequestParam(defaultValue = "0") @Min(0) int offset) {
-    return ApiResponse.success(projectService.getList(principal.getUser(), status, sort, limit, offset));
+    return ApiResponse.success(
+        projectService.getList(principal.getUser(), status, sort, limit, offset));
   }
 
   @GetMapping("/{projectId}")

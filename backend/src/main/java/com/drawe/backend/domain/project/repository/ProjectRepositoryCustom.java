@@ -8,6 +8,6 @@ import java.util.List;
 
 public interface ProjectRepositoryCustom {
 
-  List<Project> findPage(User user, ProjectStatus statusOrNull, ProjectSort sort, int limit, int offset);
-
+  List<Project> findPage(
+      User user, ProjectStatus statusOrNull, ProjectSort sort, int limit, int offset);
 }

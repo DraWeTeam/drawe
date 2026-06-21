@@ -48,7 +48,8 @@ public class ProjectService {
   }
 
   @Transactional(readOnly = true)
-  public ProjectListResponse getList(User user, String statusParam, ProjectSort sort, int limit, int offset) {
+  public ProjectListResponse getList(
+      User user, String statusParam, ProjectSort sort, int limit, int offset) {
     ProjectStatus status = parseStatus(statusParam);
 
     List<Project> projects = projectRepository.findPage(user, status, sort, limit, offset);
