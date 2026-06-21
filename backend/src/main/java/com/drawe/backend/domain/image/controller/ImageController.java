@@ -1,6 +1,7 @@
 package com.drawe.backend.domain.image.controller;
 
 import com.drawe.backend.domain.image.dto.ImageUploadResponse;
+import com.drawe.backend.domain.image.service.DbImageStorage;
 import com.drawe.backend.domain.image.service.ImageStorage;
 import com.drawe.backend.domain.image.service.ImageUploadService;
 import com.drawe.backend.global.error.CustomException;
@@ -26,7 +27,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class ImageController {
 
   private final ImageUploadService imageUploadService;
-  private final ImageStorage imageStorage;
+  // /images/{id} 바이트 서빙(load)은 MySQL 전용 — s3 프로파일의 @Primary(S3ImageStorage.load=throw) 회피.
+  private final DbImageStorage imageStorage;
 
   @PostMapping("/upload")
   public ApiResponse<ImageUploadResponse> upload(
