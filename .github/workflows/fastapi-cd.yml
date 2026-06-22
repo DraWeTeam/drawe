@@ -1,6 +1,6 @@
 name: FastAPI CD
 
-# [eks-gitops-reform] dev(develop)=EKS ArgoCD GitOps / prod(main)=ECS(유지)
+# [eks-gitops-reform] dev(develop)=EKS ArgoCD GitOps / prod(main)=EKS ArgoCD GitOps
 on:
   push:
     branches: [develop, main]
@@ -104,51 +104,20 @@ jobs:
           git push origin "HEAD:${{ github.ref_name }}"
           echo "✅ overlay 갱신 푸시 — ArgoCD(develop 추적)가 롤아웃합니다."
 
-      # ───────── PROD: ECS (유지) ─────────
-      - name: Register new task definition with SHA tag
+      # ───────── PROD: EKS GitOps (ArgoCD) ─────────
+      - name: "[prod] Bump overlay newTag → commit (ArgoCD GitOps)"
         if: env.ENV_NAME == 'prod'
-        id: register-td
         env:
-          SERVICE: drawe-${{ env.ENV_NAME }}-fastapi
-          CONTAINER_NAME: drawe-${{ env.ENV_NAME }}-fastapi
-          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+          OVERLAY: infra/k8s/overlays/prod/fastapi-embed/kustomization.yaml
+          SHA: ${{ github.sha }}
         run: |
-          aws ecs describe-task-definition \
-              --task-definition $SERVICE \
-              --region $AWS_REGION \
-              --query 'taskDefinition' > td.json
-
-          jq --arg img "$IMAGE_URI" --arg name "$CONTAINER_NAME" \
-              '.containerDefinitions |= map(if .name == $name then .image = $img else . end) |
-               del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
-                   .compatibilities, .registeredAt, .registeredBy)' \
-              td.json > td-new.json
-
-          NEW_TD_ARN=$(aws ecs register-task-definition \
-              --cli-input-json file://td-new.json \
-              --region $AWS_REGION \
-              --query 'taskDefinition.taskDefinitionArn' --output text)
-
-          echo "td_arn=$NEW_TD_ARN" >> $GITHUB_OUTPUT
-          echo "✅ New TD registered: $NEW_TD_ARN"
-
-      - name: Update ECS service to new task definition
-        if: env.ENV_NAME == 'prod'
-        run: |
-          aws ecs update-service \
-              --cluster drawe-${{ env.ENV_NAME }}-cluster \
-              --service drawe-${{ env.ENV_NAME }}-fastapi \
-              --task-definition ${{ steps.register-td.outputs.td_arn }} \
-              --region $AWS_REGION
-
-      - name: Wait for deployment to stabilize
-        if: env.ENV_NAME == 'prod'
-        run: |
-          ecs_wait() {
-            aws ecs wait services-stable \
-              --cluster drawe-${{ env.ENV_NAME }}-cluster \
-              --services drawe-${{ env.ENV_NAME }}-fastapi \
-              --region "$AWS_REGION"
-          }
-          ecs_wait || ecs_wait
-          echo "✅ Deployment stable. New revision: ${{ steps.register-td.outputs.td_arn }}"
+          sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\1${SHA}|" "$OVERLAY"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OVERLAY"
+          if git diff --cached --quiet; then
+            echo "newTag 이미 ${SHA} — 커밋 없음"; exit 0
+          fi
+          git commit -m "ci(prod): bump fastapi-embed image -> ${SHA} [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "✅ overlay 갱신 푸시 — ArgoCD(main 추적)가 롤아웃합니다."
