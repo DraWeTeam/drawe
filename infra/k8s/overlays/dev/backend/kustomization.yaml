@@ -37,8 +37,8 @@ patches:
       - op: replace
         path: /spec/securityGroups/groupIds
         value:
-          - sg-01fdf9d4b49779c9e        # ← FILL: drawe-dev-pods-db
-          - sg-070529272670ccb6a     # ← FILL: 클러스터 SG
+          - sg-0c844f5cdf5f0791b        # ← FILL: drawe-dev-pods-db
+          - sg-0359b5783a7ee85dd     # ← FILL: 클러스터 SG
   # backend IRSA 롤 (3-platform output: backend_irsa_role_arn)
   - target:
       kind: ServiceAccount
