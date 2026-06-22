@@ -35,8 +35,8 @@ patches:
       - op: replace
         path: /spec/securityGroups/groupIds
         value:
-          - sg-0dc549447f3f250e0        # drawe-prod-pods-db (3-platform output)
-          - sg-06605355a962f4e56        # 클러스터 SG (2-cluster output)
+          - sg-0965a23d1a6d38fef        # drawe-prod-pods-db (3-platform output)
+          - sg-01cd9b17e6765c840        # 클러스터 SG (2-cluster output)
   - target:
       kind: ServiceAccount
       name: backend
