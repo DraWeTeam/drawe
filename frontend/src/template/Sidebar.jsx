@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../pages/login/api";
 import Tooltip from "../components/Tooltip";
+import SearchModal from "./SearchModal";
 import styles from "./Sidebar.module.css";
 import logo from "../assets/drawe_logo.png";
 
@@ -21,6 +22,7 @@ const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const userMenuRef = useRef(null);
 
   const hidden = HIDDEN_PATHS.includes(location.pathname);
@@ -81,227 +83,237 @@ const Sidebar = () => {
   const isProjectActive = location.pathname.startsWith("/projects");
 
   return (
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ""}`}>
-      {/* 상단: 로고 + 토글 */}
-      <div className={styles.top}>
-        {!collapsed && (
-          <Link to="/projects" className={styles.logo}>
-            <img className={styles.logoIcon} src={logo} />
-            <span className={styles.logoText}>
-              <span className={styles.logoHighlight}>Dra</span>We
-            </span>
-          </Link>
-        )}
-        <Tooltip
-          label={collapsed ? "사이드바 열기" : "사이드바 닫기"}
-          placement={collapsed ? "right" : "bottom"}
-        >
-          <button
-            type="button"
-            className={styles.toggleBtn}
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? "사이드바 열기" : "사이드바 닫기"}
-          >
-            <PanelIcon />
-          </button>
-        </Tooltip>
-      </div>
-
-      <div className={styles.line}></div>
-
-      {/* 검색 (UI only) */}
-      <div className={styles.searchArea}>
-        {collapsed ? (
-          <Tooltip label="검색" placement="right" className={styles.navTip}>
-            <button
-              type="button"
-              className={`${styles.menuItem} ${styles.iconOnly}`}
-              disabled
-              aria-label="검색"
-            >
-              <span className={styles.menuIcon}>
-                <SearchIcon />
+    <>
+      <aside
+        className={`${styles.sidebar} ${collapsed ? styles.collapsed : ""}`}
+      >
+        {/* 상단: 로고 + 토글 */}
+        <div className={styles.top}>
+          {!collapsed && (
+            <Link to="/projects" className={styles.logo}>
+              <img className={styles.logoIcon} src={logo} />
+              <span className={styles.logoText}>
+                <span className={styles.logoHighlight}>Dra</span>We
               </span>
-            </button>
-          </Tooltip>
-        ) : (
-          <div className={styles.searchBox}>
-            <span className={styles.searchIcon}>
-              <SearchIcon />
-            </span>
-            <input
-              type="text"
-              placeholder="검색"
-              className={styles.searchInput}
-              disabled
-            />
-          </div>
-        )}
-      </div>
-
-      {/* 메뉴 */}
-      <nav className={styles.nav}>
-        {/* 프로젝트 */}
-        {(() => {
-          const projectLink = (
-            <Link
-              to="/projects"
-              className={`${styles.menuItem} ${
-                isProjectActive ? styles.active : ""
-              } ${collapsed ? styles.iconOnly : ""}`}
-            >
-              <span className={styles.menuIcon}>
-                <ProjectIcon />
-              </span>
-              {!collapsed && <span className={styles.menuLabel}>프로젝트</span>}
             </Link>
-          );
-          return collapsed ? (
-            <Tooltip
-              label="프로젝트"
-              placement="right"
-              className={styles.navTip}
-            >
-              {projectLink}
-            </Tooltip>
-          ) : (
-            projectLink
-          );
-        })()}
-
-        {/* 아카이브 */}
-        {collapsed ? (
-          <Tooltip label="아카이브" placement="right" className={styles.navTip}>
-            <button
-              type="button"
-              className={`${styles.menuItem} ${styles.iconOnly}`}
-              disabled
-            >
-              <span className={styles.menuIcon}>
-                <ArchiveIcon />
-              </span>
-            </button>
-          </Tooltip>
-        ) : (
-          <>
-            <button
-              type="button"
-              className={styles.menuItem}
-              onClick={() => setArchiveOpen((o) => !o)}
-            >
-              <span className={styles.menuIcon}>
-                <ArchiveIcon />
-              </span>
-              <span className={styles.menuLabel}>아카이브</span>
-              <span
-                className={`${styles.chevron} ${
-                  archiveOpen ? styles.chevronOpen : ""
-                }`}
-              >
-                <ChevronIcon />
-              </span>
-            </button>
-            {archiveOpen && (
-              <div className={styles.submenu}>
-                <button
-                  type="button"
-                  className={styles.submenuItem}
-                  disabled
-                  title="준비 중"
-                >
-                  <span>레퍼런스</span>
-                  <span className={styles.count}>0</span>
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </nav>
-
-      {/* 하단: 유저 카드 */}
-      <div className={styles.bottom} ref={userMenuRef}>
-        {userMenuOpen && (
-          <div
-            className={`${styles.userMenu} ${
-              collapsed ? styles.userMenuCollapsed : ""
-            }`}
+          )}
+          <Tooltip
+            label={collapsed ? "사이드바 열기" : "사이드바 닫기"}
+            placement={collapsed ? "right" : "bottom"}
           >
             <button
               type="button"
-              className={styles.userMenuItem}
-              disabled
-              title="준비 중"
+              className={styles.toggleBtn}
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? "사이드바 열기" : "사이드바 닫기"}
             >
-              <SettingsIcon />
-              <span>환경설정</span>
+              <PanelIcon />
             </button>
-            <button
-              type="button"
-              className={styles.userMenuItem}
-              disabled
-              title="준비 중"
-            >
-              <BillingIcon />
-              <span>요금제 보기</span>
-            </button>
-            <button
-              type="button"
-              className={`${styles.userMenuItem} ${styles.logoutItem}`}
-              onClick={handleLogout}
-            >
-              <LogoutIcon />
-              <span>로그아웃</span>
-            </button>
-          </div>
-        )}
+          </Tooltip>
+        </div>
 
-        {user ? (
-          collapsed ? (
-            <Tooltip label="로그인" placement="right">
+        <div className={styles.line}></div>
+
+        {/* 검색 — 클릭 시 검색 모달 */}
+        <div className={styles.searchArea}>
+          {collapsed ? (
+            <Tooltip label="검색" placement="right" className={styles.navTip}>
               <button
                 type="button"
-                className={styles.avatarOnlyBtn}
-                onClick={() => setUserMenuOpen((o) => !o)}
-                aria-label="유저 메뉴"
+                className={`${styles.menuItem} ${styles.iconOnly}`}
+                onClick={() => setSearchOpen(true)}
+                aria-label="검색"
               >
-                <div className={styles.avatar}>
-                  <UserIcon />
-                </div>
+                <span className={styles.menuIcon}>
+                  <SearchIcon />
+                </span>
               </button>
             </Tooltip>
           ) : (
             <button
               type="button"
-              className={styles.userCard}
-              onClick={() => setUserMenuOpen((o) => !o)}
+              className={styles.searchBox}
+              onClick={() => setSearchOpen(true)}
             >
-              <div className={styles.avatar}>
-                <UserIcon />
-              </div>
-              <div className={styles.userInfo}>
-                <div className={styles.nickname}>{user.nickname}</div>
-                <div className={styles.email}>{user.email}</div>
-              </div>
-              <span className={styles.cardDots}>
-                <DotsIcon />
+              <span className={styles.searchIcon}>
+                <SearchIcon />
               </span>
+              <span className={styles.searchPlaceholder}>검색</span>
             </button>
-          )
-        ) : (
-          !collapsed && (
-            <Link to="/login" className={styles.userCard}>
-              <div className={styles.avatar}>
-                <UserIcon />
-              </div>
-              <div className={styles.userInfo}>
-                <div className={styles.nickname}>로그인</div>
-                <div className={styles.email}>로그인이 필요해요.</div>
-              </div>
-            </Link>
-          )
-        )}
-      </div>
-    </aside>
+          )}
+        </div>
+
+        {/* 메뉴 */}
+        <nav className={styles.nav}>
+          {/* 프로젝트 */}
+          {(() => {
+            const projectLink = (
+              <Link
+                to="/projects"
+                className={`${styles.menuItem} ${
+                  isProjectActive ? styles.active : ""
+                } ${collapsed ? styles.iconOnly : ""}`}
+              >
+                <span className={styles.menuIcon}>
+                  <ProjectIcon />
+                </span>
+                {!collapsed && (
+                  <span className={styles.menuLabel}>프로젝트</span>
+                )}
+              </Link>
+            );
+            return collapsed ? (
+              <Tooltip
+                label="프로젝트"
+                placement="right"
+                className={styles.navTip}
+              >
+                {projectLink}
+              </Tooltip>
+            ) : (
+              projectLink
+            );
+          })()}
+
+          {/* 아카이브 */}
+          {collapsed ? (
+            <Tooltip
+              label="아카이브"
+              placement="right"
+              className={styles.navTip}
+            >
+              <button
+                type="button"
+                className={`${styles.menuItem} ${styles.iconOnly}`}
+                disabled
+              >
+                <span className={styles.menuIcon}>
+                  <ArchiveIcon />
+                </span>
+              </button>
+            </Tooltip>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.menuItem}
+                onClick={() => setArchiveOpen((o) => !o)}
+              >
+                <span className={styles.menuIcon}>
+                  <ArchiveIcon />
+                </span>
+                <span className={styles.menuLabel}>아카이브</span>
+                <span
+                  className={`${styles.chevron} ${
+                    archiveOpen ? styles.chevronOpen : ""
+                  }`}
+                >
+                  <ChevronIcon />
+                </span>
+              </button>
+              {archiveOpen && (
+                <div className={styles.submenu}>
+                  <button
+                    type="button"
+                    className={styles.submenuItem}
+                    disabled
+                    title="준비 중"
+                  >
+                    <span>레퍼런스</span>
+                    <span className={styles.count}>0</span>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </nav>
+
+        {/* 하단: 유저 카드 */}
+        <div className={styles.bottom} ref={userMenuRef}>
+          {userMenuOpen && (
+            <div
+              className={`${styles.userMenu} ${
+                collapsed ? styles.userMenuCollapsed : ""
+              }`}
+            >
+              <button
+                type="button"
+                className={styles.userMenuItem}
+                disabled
+                title="준비 중"
+              >
+                <SettingsIcon />
+                <span>환경설정</span>
+              </button>
+              <button
+                type="button"
+                className={styles.userMenuItem}
+                disabled
+                title="준비 중"
+              >
+                <BillingIcon />
+                <span>요금제 보기</span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.userMenuItem} ${styles.logoutItem}`}
+                onClick={handleLogout}
+              >
+                <LogoutIcon />
+                <span>로그아웃</span>
+              </button>
+            </div>
+          )}
+
+          {user ? (
+            collapsed ? (
+              <Tooltip label="로그인" placement="right">
+                <button
+                  type="button"
+                  className={styles.avatarOnlyBtn}
+                  onClick={() => setUserMenuOpen((o) => !o)}
+                  aria-label="유저 메뉴"
+                >
+                  <div className={styles.avatar}>
+                    <UserIcon />
+                  </div>
+                </button>
+              </Tooltip>
+            ) : (
+              <button
+                type="button"
+                className={styles.userCard}
+                onClick={() => setUserMenuOpen((o) => !o)}
+              >
+                <div className={styles.avatar}>
+                  <UserIcon />
+                </div>
+                <div className={styles.userInfo}>
+                  <div className={styles.nickname}>{user.nickname}</div>
+                  <div className={styles.email}>{user.email}</div>
+                </div>
+                <span className={styles.cardDots}>
+                  <DotsIcon />
+                </span>
+              </button>
+            )
+          ) : (
+            !collapsed && (
+              <Link to="/login" className={styles.userCard}>
+                <div className={styles.avatar}>
+                  <UserIcon />
+                </div>
+                <div className={styles.userInfo}>
+                  <div className={styles.nickname}>로그인</div>
+                  <div className={styles.email}>로그인이 필요해요.</div>
+                </div>
+              </Link>
+            )
+          )}
+        </div>
+      </aside>
+      {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+    </>
   );
 };
 

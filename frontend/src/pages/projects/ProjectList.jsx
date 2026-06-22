@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   createProject,
   deleteProject,
@@ -37,6 +37,7 @@ const formatDate = (iso) => {
 
 const ProjectList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -74,6 +75,16 @@ const ProjectList = () => {
     // 최초 1회 로드 (정렬 변경은 handleSortChange에서 직접 호출)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 검색 모달의 "새 프로젝트 만들기"로 진입 시 생성 모달 자동 오픈
+  useEffect(() => {
+    if (location.state?.openCreate) {
+      setCreateOpen(true);
+      track("project_create_clicked");
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
 
   const handleSortChange = (value) => {
     setSortOpen(false);
