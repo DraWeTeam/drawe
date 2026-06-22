@@ -1,0 +1,243 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 15, 15, 0.35);
+  z-index: 3000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 14vh 16px 16px;
+  box-sizing: border-box;
+  animation: fadeIn 0.12s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  padding: 20px 20px 12px;
+  box-sizing: border-box;
+  animation: popIn 0.14s ease;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 검색 입력 줄 */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 16px;
+}
+
+.searchIcon {
+  display: flex;
+  color: #888685;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 16px;
+  color: #24221f;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: #aaa8a6;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888685;
+  padding: 4px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.closeBtn:hover {
+  background: #f5f5f5;
+  color: #4a4846;
+}
+
+/* 필터 칩 */
+.filters {
+  display: flex;
+  gap: 8px;
+  padding: 0 4px 12px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 7px 14px;
+  border: 1px solid #e3e1df;
+  border-radius: 999px;
+  background: #fff;
+  color: #888685;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.chip:hover:not(:disabled):not(.chipActive) {
+  border-color: #d3d1cf;
+  color: #4a4846;
+}
+
+.chipActive {
+  border-color: #4a4846;
+  color: #24221f;
+  font-weight: 600;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 본문 */
+.bodyArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 4px;
+}
+
+.sectionLabel {
+  margin: 8px 4px 4px;
+  font-size: 12px;
+  color: #a3a1a0;
+}
+
+/* divider 뒤에 오는 라벨 — 위 여백 제거해 divider 간격(아카이브~divider)과 맞춤 */
+.sectionLabelTight {
+  margin-top: 0;
+}
+
+.empty {
+  margin: 12px 4px;
+  font-size: 14px;
+  color: #888685;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: #24221f;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.row:hover:not(:disabled) {
+  background: #f6f5f4;
+}
+
+.row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rowIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffe9d5;
+  color: #ff8534;
+  flex-shrink: 0;
+}
+
+.rowIconArchive {
+  background: #ffe9d5;
+  color: #ff8534;
+}
+
+.rowText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowChevron {
+  display: flex;
+  color: #c4c2c0;
+  flex-shrink: 0;
+}
+
+.rowRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c4c2c0;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.rowRemove:hover {
+  color: #4a4846;
+  background: #ececea;
+}
+
+.divider {
+  height: 1px;
+  background: #f0eeec;
+  /* 위(아카이브~divider)/아래(divider~최근검색어) 간격을 동일하게 */
+  margin: 16px 4px;
+}
