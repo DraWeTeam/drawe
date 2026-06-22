@@ -447,7 +447,7 @@ prod observability stack 은 자체 호스팅 (Loki on ECS / Tempo on ECS / AWS 
 **조심해야 할 사고 (dormant 상태의 함정)**:
 누가 실수로 `prod_enabled=true` 로 켜면 ECS 가 부활하면서 EKS 와 같은 ALB target group attach 시도 → 충돌. 그래서:
 - `terraform-prod/variables.tf` 의 `prod_enabled` description 에 경고 명시 (예정)
-- `infra/runbooks/ecs_emergency_rollback.md` 에 진짜 rollback 시 절차 별도 문서 (예정)
+- `infra/runbooks/ecs_emergency_rollback.md` 에 진짜 rollback 시 절차 별도 문서 (완료, 2026-06)
 
 **나중에 변경할 일이 생기면**:
 - ECS 완전 종료가 정말 결정되면 (한 달 이상 EKS 안정 + 팀 합의) 그때 별도 작업 트랙으로 정리.
