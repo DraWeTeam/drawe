@@ -17,5 +17,4 @@
 
 ## 내부 문서
 - `docs/SDS/` — 본 설계 문서 세트.
-- `backend/scripts/backfill/README.md` — ai_description 백필 가이드.
 - 데이터셋: Unsplash Research Dataset Lite (이미지·키워드).

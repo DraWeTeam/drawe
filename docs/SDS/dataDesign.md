@@ -32,6 +32,5 @@
 - `V1`(baseline) ~ `V13`. 주요: `V5`(이미지 AI 메타), `V12`(created_at), **`V13`(ai_description 컬럼)**.
 - prod: `JPA_DDL_AUTO=validate` + Flyway가 실제 DDL. dev: `update`.
 
-## 10.5 데이터 적재 / 백필
-- 이미지·태그·벡터: 외부(Colab) 파이프라인 → MySQL/Pinecone 적재(24K+).
-- **`ai_description`**: 외부 CSV → RDS **수동 백필 1회**(`source_id` 조인). 컬럼은 V13 자동 생성. 미적재 시 NULL → 태그 폴백(앱 안 깨짐).
+## 10.5 데이터 적재
+- 이미지·태그·벡터: 외부(Colab) 파이프라인 → MySQL/Pinecone 적재(24K+). 가이드 레퍼런스는 Qdrant 적재.

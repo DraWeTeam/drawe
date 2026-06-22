@@ -35,5 +35,4 @@
 
 ## 11.6 운영
 - **배포**: GitOps(EKS). dev → prod 순.
-- **데이터 백필**: `images.ai_description` RDS 수동 1회(스크립트 제공), 컬럼은 Flyway 자동.
 - **관측**: OTEL → Alloy, 내부 메트릭(검색 점수·환각 인용·세션 캐시 hit 등).
