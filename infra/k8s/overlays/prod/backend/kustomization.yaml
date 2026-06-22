@@ -26,6 +26,7 @@ configMapGenerator:
       - APP_OAUTH2_REDIRECT_URI=https://drawe.xyz/oauth/callback
       - FASTAPI_GUIDE_PUBLIC_URL=https://api.drawe.xyz
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,service.namespace=drawe
+      - WORKFLOW_COMPOSE_LIVE_INTENTS=NEW_SEARCH,KEEP,SKIP,COMPOSITION,LIGHTING,COLOR,TECHNIQUE,FOLLOWUP,COMPARE,OUT_OF_DOMAIN,SELF_CRITIQUE
 
 patches:
   - target:
