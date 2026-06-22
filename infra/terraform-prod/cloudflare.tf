@@ -29,7 +29,7 @@ resource "cloudflare_record" "api" {
   zone_id = var.cloudflare_zone_id
   name    = var.api_domain # FQDN - CF 가 알아서 zone 매칭
   type    = "CNAME"
-  content = aws_lb.main.dns_name
+  content = local.api_target_alb_dns # 컷오버: cutover-eks.tf 우선순위
   ttl     = 1    # 1 = "Auto" (proxied 면 무시됨)
   proxied = true # orange cloud - TLS 종단 + WAF
   comment = "Managed by Terraform - DraWe prod API"
