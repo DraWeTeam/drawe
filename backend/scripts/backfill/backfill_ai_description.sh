@@ -40,7 +40,7 @@ echo "백필 시작 → ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}  CSV=${CSV}"
 mysql --local-infile=1 -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<SQL
 -- (컬럼이 없으면 — 즉 Flyway V13 배포 전이면 — 아래 UPDATE 가 "Unknown column 'i.ai_description'" 로 명확히 실패한다.)
 CREATE TEMPORARY TABLE _ai_desc (
-  source_id VARCHAR(100),
+  source_id VARCHAR(100) COLLATE utf8mb4_0900_ai_ci,
   ai_description TEXT,
   INDEX idx_src (source_id)
 );
