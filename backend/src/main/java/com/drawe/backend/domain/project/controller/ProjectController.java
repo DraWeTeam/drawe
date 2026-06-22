@@ -1,5 +1,6 @@
 package com.drawe.backend.domain.project.controller;
 
+import com.drawe.backend.domain.enums.ProjectSort;
 import com.drawe.backend.domain.project.dto.CreateProjectRequest;
 import com.drawe.backend.domain.project.dto.ProjectDetailResponse;
 import com.drawe.backend.domain.project.dto.ProjectListResponse;
@@ -44,10 +45,13 @@ public class ProjectController {
   @GetMapping
   public ApiResponse<ProjectListResponse> list(
       @AuthenticationPrincipal PrincipalDetails principal,
+      @RequestParam(required = false) String q,
       @RequestParam(required = false) String status,
+      @RequestParam(defaultValue = "RECENT") ProjectSort sort,
       @RequestParam(defaultValue = "20") @Min(1) int limit,
       @RequestParam(defaultValue = "0") @Min(0) int offset) {
-    return ApiResponse.success(projectService.getList(principal.getUser(), status, limit, offset));
+    return ApiResponse.success(
+        projectService.getList(principal.getUser(), q, status, sort, limit, offset));
   }
 
   @GetMapping("/{projectId}")

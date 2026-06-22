@@ -109,7 +109,10 @@ public class PinService {
         tag != null ? tag.getTechnique() : null,
         tag != null ? tag.getSubject() : null,
         tag != null ? tag.getMood() : null,
-        img.getRawTags() != null ? img.getRawTags() : Collections.emptyList());
+        img.getRawTags() != null ? img.getRawTags() : Collections.emptyList(),
+        tag != null ? tag.getFreeTags() : null,
+        img.getPrompt(),
+        img.getAiDescription());
   }
 
   private Project loadAuthorized(User user, Long projectId) {

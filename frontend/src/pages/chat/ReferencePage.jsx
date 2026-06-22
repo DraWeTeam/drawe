@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import api from "../login/api";
+import Tooltip from "../../components/Tooltip";
 import styles from "./ReferencePage.module.css";
 import { track } from "../../analytics";
 
@@ -187,21 +188,25 @@ const ReferencePage = () => {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <button
-          className={styles.backBtn}
-          onClick={handleBack}
-          aria-label="뒤로 가기"
-        >
-          <BackIcon />
-        </button>
-        <div className={styles.topActions}>
+        <Tooltip label="뒤로가기" placement="bottom">
           <button
-            className={styles.iconBtn}
-            onClick={handleDownload}
-            aria-label="이미지 다운로드"
+            className={styles.backBtn}
+            onClick={handleBack}
+            aria-label="뒤로가기"
           >
-            <DownloadIcon />
+            <BackIcon />
           </button>
+        </Tooltip>
+        <div className={styles.topActions}>
+          <Tooltip label="다운로드" placement="bottom">
+            <button
+              className={styles.iconBtn}
+              onClick={handleDownload}
+              aria-label="다운로드"
+            >
+              <DownloadIcon />
+            </button>
+          </Tooltip>
           <button className={styles.saveBtn} onClick={handleSave}>
             저장
           </button>
@@ -257,28 +262,32 @@ const ReferencePage = () => {
           )}
 
           <div className={styles.feedback}>
-            <button
-              className={`${styles.feedbackBtn} ${
-                userFeedback === "LIKE" ? styles.active : ""
-              }`}
-              onClick={handleLike}
-              disabled={feedbackLoading || feedbackSubmitting}
-              aria-label="좋아요"
-              aria-pressed={userFeedback === "LIKE"}
-            >
-              <ThumbsUpIcon />
-            </button>
-            <button
-              className={`${styles.feedbackBtn} ${
-                userFeedback === "DISLIKE" ? styles.active : ""
-              }`}
-              onClick={handleDislike}
-              disabled={feedbackLoading || feedbackSubmitting}
-              aria-label="싫어요"
-              aria-pressed={userFeedback === "DISLIKE"}
-            >
-              <ThumbsDownIcon />
-            </button>
+            <Tooltip label="마음에 들어요" placement="bottom">
+              <button
+                className={`${styles.feedbackBtn} ${
+                  userFeedback === "LIKE" ? styles.active : ""
+                }`}
+                onClick={handleLike}
+                disabled={feedbackLoading || feedbackSubmitting}
+                aria-label="마음에 들어요"
+                aria-pressed={userFeedback === "LIKE"}
+              >
+                <ThumbsUpIcon />
+              </button>
+            </Tooltip>
+            <Tooltip label="관심 없어요" placement="bottom">
+              <button
+                className={`${styles.feedbackBtn} ${
+                  userFeedback === "DISLIKE" ? styles.active : ""
+                }`}
+                onClick={handleDislike}
+                disabled={feedbackLoading || feedbackSubmitting}
+                aria-label="관심 없어요"
+                aria-pressed={userFeedback === "DISLIKE"}
+              >
+                <ThumbsDownIcon />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>

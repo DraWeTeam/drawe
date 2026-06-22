@@ -5,9 +5,17 @@ export const createProject = async (payload) => {
   return res.data.data;
 };
 
-export const getProjects = async ({ status, limit = 20, offset = 0 } = {}) => {
+export const getProjects = async ({
+  q,
+  status,
+  sort,
+  limit = 20,
+  offset = 0,
+} = {}) => {
   const params = { limit, offset };
+  if (q) params.q = q;
   if (status) params.status = status;
+  if (sort) params.sort = sort;
   const res = await api.get("/projects", { params });
   return res.data.data;
 };

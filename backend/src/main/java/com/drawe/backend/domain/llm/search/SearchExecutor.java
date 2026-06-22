@@ -188,6 +188,20 @@ public class SearchExecutor implements StepExecutor {
 
   private static List<String> collectTags(ImageResult r) {
     List<String> tags = new ArrayList<>();
+    // 검색 IDF rerank 와 동일 신호. 내용 문장을 맨 앞에 둔다 — 변별력이 가장 크고, ComposeExecutor 의 top-14 cap
+    //   에서 (rawTags 가 많아도) 살아남아야 한다: Unsplash = aiDescription(네이티브 AI 캡션), AI = prompt(영문 프롬프트).
+    if (r.aiDescription() != null && !r.aiDescription().isBlank()) {
+      tags.add(r.aiDescription());
+    }
+    if (r.prompt() != null && !r.prompt().isBlank()) {
+      tags.add(r.prompt());
+    }
+    if (r.rawTags() != null) {
+      tags.addAll(r.rawTags());
+    }
+    if (r.freeTags() != null) {
+      tags.addAll(r.freeTags());
+    }
     if (r.technique() != null) {
       tags.add(r.technique());
     }
@@ -199,9 +213,6 @@ public class SearchExecutor implements StepExecutor {
     }
     if (r.utility() != null) {
       tags.addAll(r.utility());
-    }
-    if (r.freeTags() != null) {
-      tags.addAll(r.freeTags());
     }
     return tags;
   }

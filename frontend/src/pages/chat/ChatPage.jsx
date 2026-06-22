@@ -30,6 +30,7 @@ import { axisLabel } from "./guideLabels";
 import { downloadGuidePdf } from "./guidePdf";
 import AuthedImage from "./AuthedImage";
 import TutorialCoachmark from "./TutorialCoachmark";
+import Tooltip from "../../components/Tooltip";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 import { track } from "../../analytics";
@@ -48,9 +49,13 @@ const GENERATING_MESSAGES = [
 const pickGeneratingMsg = () =>
   GENERATING_MESSAGES[Math.floor(Math.random() * GENERATING_MESSAGES.length)];
 
-const GENERATE_INTENT_PATTERN = /만들|그려|생성|AI|이미지/i;
+// 백엔드 RulePreRouter.GENERATE(그려줘/만들어줘 어미) 미러 + 단어 단위(만들/그려/생성/AI)도 폭넓게 매칭.
+// 방법 질문("어떻게 그려?")은 HOW_QUESTION 으로 제외. '이미지'는 검색 대부분에 들어가 오탐이 커서 뺐다.
+const GENERATE_INTENT_PATTERN =
+  /(그려|그리|만들어|만들|생성|제작)\s*(해)?\s*(줘|줄래|주세요|주라)|만들|그려|생성|AI|generate|draw it|make it|create an image/i;
+const HOW_QUESTION = /어떻게|어떡|어케|방법|how\s+to/i;
 const looksLikeGenerateRequest = (text) =>
-  !!text && GENERATE_INTENT_PATTERN.test(text);
+  !!text && GENERATE_INTENT_PATTERN.test(text) && !HOW_QUESTION.test(text);
 
 const ChatPage = () => {
   const { projectId } = useParams();
@@ -813,26 +818,28 @@ const ChatPage = () => {
     <div className={styles.layout}>
       {/* 페이지 헤더 — 상단 전체 */}
       <header className={styles.pageHeader}>
-        <button
-          type="button"
-          className={styles.iconBtn}
-          onClick={() => navigate("/projects")}
-          aria-label="목록"
-          title="목록"
-        >
-          <BackIcon />
-        </button>
+        <Tooltip label="뒤로가기" placement="bottom">
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={() => navigate("/projects")}
+            aria-label="뒤로가기"
+          >
+            <BackIcon />
+          </button>
+        </Tooltip>
         <h1 className={styles.pageTitle}>{project?.name ?? "..."}</h1>
-        <button
-          type="button"
-          className={styles.iconBtn}
-          onClick={handleReset}
-          disabled={!sessionId}
-          aria-label="대화 초기화"
-          title="대화 초기화"
-        >
-          <DotsIcon />
-        </button>
+        <Tooltip label="대화 초기화" placement="bottom">
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={handleReset}
+            disabled={!sessionId}
+            aria-label="대화 초기화"
+          >
+            <DotsIcon />
+          </button>
+        </Tooltip>
       </header>
 
       {/* 본문 — 좌/우 분할 */}
@@ -887,32 +894,38 @@ const ChatPage = () => {
             <div className={styles.chatTop}>
               {mode === "split" && (
                 <>
-                  <button
-                    className={styles.iconBtn}
-                    onClick={goToChatFull}
-                    title="전체화면"
-                  >
-                    <ExpandIcon />
-                  </button>
-                  <button
-                    className={styles.iconBtn}
-                    onClick={goToRefFull}
-                    title="채팅 최소화"
-                  >
-                    <MinimizeIcon />
-                  </button>
+                  <Tooltip label="전체화면 보기" placement="bottom">
+                    <button
+                      className={styles.iconBtn}
+                      onClick={goToChatFull}
+                      aria-label="전체화면 보기"
+                    >
+                      <ExpandIcon />
+                    </button>
+                  </Tooltip>
+                  <Tooltip label="닫기" placement="bottom">
+                    <button
+                      className={styles.iconBtn}
+                      onClick={goToRefFull}
+                      aria-label="닫기"
+                    >
+                      <MinimizeIcon />
+                    </button>
+                  </Tooltip>
                 </>
               )}
               {mode === "chatFull" && (
                 <>
                   <span />
-                  <button
-                    className={styles.iconBtn}
-                    onClick={goToSplit}
-                    title="분할 보기"
-                  >
-                    <CollapseIcon />
-                  </button>
+                  <Tooltip label="분할 보기" placement="bottom">
+                    <button
+                      className={styles.iconBtn}
+                      onClick={goToSplit}
+                      aria-label="분할 보기"
+                    >
+                      <CollapseIcon />
+                    </button>
+                  </Tooltip>
                 </>
               )}
             </div>
@@ -1190,17 +1203,22 @@ const ChatPage = () => {
       </div>
 
       {/* FAB — 항상 mount, 클래스로 토글 */}
-      <button
-        type="button"
-        className={`${styles.fab} ${
-          mode === "refFull" ? styles.fabVisible : ""
+      <div
+        className={`${styles.fabTip} ${
+          mode === "refFull" ? styles.fabTipVisible : ""
         }`}
-        onClick={goToSplit}
-        aria-label="채팅 열기"
-        title="채팅 열기"
       >
-        <img className={styles.fabIcon} src={logo} alt="" />
-      </button>
+        <Tooltip label="DraWe에게 질문하기" placement="top">
+          <button
+            type="button"
+            className={styles.fab}
+            onClick={goToSplit}
+            aria-label="DraWe에게 질문하기"
+          >
+            <img className={styles.fabIcon} src={logo} alt="" />
+          </button>
+        </Tooltip>
+      </div>
 
       {/* 첫 프로젝트 진입 튜토리얼 */}
       {showTutorial && (
