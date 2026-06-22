@@ -217,6 +217,21 @@ resource "helm_release" "karpenter" {
     name  = "controller.resources.requests.memory"
     value = "512Mi"
   }
+  # 시스템 NG 의 CriticalAddonsOnly:NoSchedule taint 허용
+  # (modules/eks-cluster/system-nodegroup.tf 의 SGP 보호 taint)
+  set {
+    name  = "tolerations[0].key"
+    value = "CriticalAddonsOnly"
+  }
+  set {
+    name  = "tolerations[0].operator"
+    value = "Exists"
+  }
+  set {
+    name  = "tolerations[0].effect"
+    value = "NoSchedule"
+  }
+
 
   # ALB 컨트롤러의 mutating webhook(mservice.elbv2.k8s.aws)이 모든 Service 생성을
   # 가로채므로, ALB 컨트롤러가 Ready된 뒤 Karpenter를 설치해 webhook race를 방지.

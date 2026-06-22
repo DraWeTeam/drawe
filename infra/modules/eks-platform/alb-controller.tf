@@ -43,5 +43,20 @@ resource "helm_release" "alb_controller" {
     value = "arm64"
   }
 
+  # 시스템 NG 의 CriticalAddonsOnly:NoSchedule taint 허용
+  # (modules/eks-cluster/system-nodegroup.tf 의 SGP 보호 taint)
+  set {
+    name  = "tolerations[0].key"
+    value = "CriticalAddonsOnly"
+  }
+  set {
+    name  = "tolerations[0].operator"
+    value = "Exists"
+  }
+  set {
+    name  = "tolerations[0].effect"
+    value = "NoSchedule"
+  }
+
   depends_on = [aws_iam_role_policy_attachment.alb_controller]
 }

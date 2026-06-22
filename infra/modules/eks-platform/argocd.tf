@@ -23,6 +23,20 @@ resource "helm_release" "argocd" {
     name  = "configs.params.server\\.insecure"
     value = "true" # ALB 가 TLS 종단 → argocd-server 는 평문(내부). Ingress 는 k8s 매니페스트에서.
   }
+  # 모든 sub-chart (controller / server / repoServer / applicationSet / dex / redis) 에 전파
+  set {
+    name  = "global.tolerations[0].key"
+    value = "CriticalAddonsOnly"
+  }
+  set {
+    name  = "global.tolerations[0].operator"
+    value = "Exists"
+  }
+  set {
+    name  = "global.tolerations[0].effect"
+    value = "NoSchedule"
+  }
+
 }
 
 # Root Application — app-of-apps. overlays/<env> 디렉터리(여러 앱 Application 포함)를 동기화.
