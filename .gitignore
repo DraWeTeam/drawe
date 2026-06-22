@@ -4,6 +4,7 @@ apply_*.py
 *.sh
 !infra/scripts/
 !infra/scripts/*.sh
+*.csv
 
 # 로컬 타임스탬프 백업 파일 (예: routes.py.bak.20260617-011411)
 *.bak

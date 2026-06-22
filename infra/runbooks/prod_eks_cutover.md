@@ -354,11 +354,34 @@ rsync -av \
 
 **해결**: 컷오버 6 번 단계에서 SG id 갱신 후 반드시 main push. dev 라면 develop 으로 — prod 와 다름.
 
-### 9. main CD 가 ECS 를 가리킴 (현재 상태, 임시)
+### 9. main CD 가 ECS 를 가리켰던 임시 상태 (Phase B3 에서 해소)
 
-**현재**: main push 가 `backend-cd.yml` 의 ECS task definition update 단계까지 트리거. `prod_enabled=false` 라 무해하지만 잡음.
+**과거 상태 (컷오버 직후)**: main push → `backend-cd.yml` 의 ECS task definition update 단계까지 도달. `prod_enabled=false` 라 무해하지만 잡음.
 
-**정상화 작업 (Phase B)**: `backend-cd.yml` 의 prod 분기를 EKS GitOps 로 전환 — "ECR push 후 overlay 의 newTag 를 SHA 로 bump → commit → ArgoCD 가 동기화" 패턴. dev 와 동일.
+**해소 (Phase B3)**: `backend-cd.yml` / `fastapi-cd.yml` / `fastapi-guide-cd.yml` 의 prod 분기를 EKS GitOps 로 전환. ECR push 후 overlay 의 `newTag` 를 SHA 로 bump → commit/push → ArgoCD 자동 sync. dev 와 동일 패턴.
+
+검증된 흐름: main push → backend-cd 발동 → ECR push → workflow 가 `ci(prod): bump ... [skip ci]` 자동 커밋 → ArgoCD 가 1~3 분 안에 sync → backend 파드 롤링.
+
+### 10. ArgoCD 가 configmap 변경을 자동 sync 안 하는 경우
+
+**증상**: overlay 의 `configMapGenerator.literals` 에 환경변수 추가하고 push 했는데 파드 env 에 안 들어옴.
+
+**원인**: `disableNameSuffixHash: true` 라 configmap 이름이 바뀌지 않음. ArgoCD 의 main watch 주기·diff 비교에서 가끔 누락되는 케이스 있음. selfHeal 만으로는 부족할 때가 있다.
+
+**해결**:
+```bash
+# 1) ArgoCD 강제 hard refresh + sync
+kubectl patch app backend -n argocd --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+kubectl patch app backend -n argocd --type merge -p '{"operation":{"sync":{}}}'
+
+# 2) configmap 갱신 확인
+kubectl get configmap backend-env -n drawe-prod -o yaml | grep <새 키>
+
+# 3) configmap 만 갱신되면 파드 자동 재시작 안 되므로 수동 rollout
+kubectl rollout restart deploy/backend -n drawe-prod
+```
+
+**향후 개선**: argocd Application 에 `syncOptions: ServerSideApply=true` 또는 configmap 에 hash suffix 켜기 (`disableNameSuffixHash: false`) — 다만 후자는 deployment 가 새 이름을 자동 참조하도록 kustomize generator 가 처리해 줘서 자동 롤링 트리거 효과도 있음. 현재는 hash 끈 채로 운영, 수동 rollout 절차 인지.
 
 ## 결정 기록
 
@@ -369,10 +392,44 @@ rsync -av \
 | 2026-06 | k8s overlay 에 SG id 하드코딩 | kustomize 의 변수 주입 제한적. 빠른 컷오버 우선 |
 | 2026-06 | Karpenter t4g 제외 (prod 만) | SGP 가 t4g 미지원 → 사고 영구 방지. dev 는 비용 위해 t4g 유지 |
 | 2026-06 | argocd.targetRevision = main | prod 환경 main 머지 = 배포 게이트. develop 은 dev 전용 |
+| 2026-06 | prod CD 도 EKS GitOps (Phase B3) | dev 와 동일 패턴. main 머지 = ECR push + overlay bump + ArgoCD sync. ECS 분기 흔적 0. |
+| 2026-06 | configMapGenerator.disableNameSuffixHash=true 유지 | envFrom 가 고정 이름 참조 (kustomize 자동 rename 없이 단순). 트레이드오프: configmap 변경 시 수동 rollout 필요 (함정 10) |
 
 ## 컷오버 후 남은 작업
 
-- observability (Alloy DaemonSet) prod overlay
-- prod CD 를 EKS GitOps 로 전환 (overlay newTag SHA bump)
-- terraform 코드 위생 (versions.tf, partial backend, 죽은 코드 정리, tfvars.example 대칭)
-- ECS 결합 종착지 결정 + ECS 리소스 정리 (RDS/Redis/SSM 은 절대 건드리지 말 것)
+### Phase B (워크플로 정상화) — 완료
+
+- [x] **B3 — prod CD EKS GitOps 전환** (2026-06): backend-cd / fastapi-cd / fastapi-guide-cd 의 prod 분기를 ECS task def update → overlay newTag SHA bump 으로 교체. 검증 통과.
+- [x] **B2 — AI description 백필** (2026-06): develop→main 머지 → Flyway V13 자동 적용 → `images.ai_description` 컬럼 생성 → CSV 24,637 행 백필. `backend/scripts/backfill/backfill_ai_description.sh` 재사용 가능.
+- [x] **WORKFLOW_COMPOSE_LIVE_INTENTS 활성화** (2026-06): 11 개 의도 (NEW_SEARCH, KEEP, SKIP, COMPOSITION, LIGHTING, COLOR, TECHNIQUE, FOLLOWUP, COMPARE, OUT_OF_DOMAIN, SELF_CRITIQUE) live 워크플로로 전환. `WorkflowComposeProperties` 부팅 검증 통과.
+
+### Phase B-observability (별도 트랙, 2~3 주)
+
+prod observability stack 은 자체 호스팅 (Loki on ECS / Tempo on ECS / AWS AMP / Grafana on ECS). 현재 desired=0 으로 꺼져 있음. EKS 로 이전 결정 (A-2-1):
+
+- [ ] Loki StatefulSet (S3 backend 그대로 유지)
+- [ ] Tempo StatefulSet (S3 backend 그대로 유지)
+- [ ] Grafana Deployment + ingress (`grafana.drawe.xyz` Cloudflare 레코드 EKS ALB 로 이전)
+- [ ] Alloy DaemonSet (`infra/configs/alloy-daemon-prod.alloy` configmap 으로)
+- [ ] IRSA — Loki/Tempo S3 액세스, Alloy AMP `aws_sigv4`
+- [ ] 검증: 로그·트레이스·메트릭 흐름, Grafana 대시보드 복구
+- [ ] ECS observability 코드 정리 (terraform-prod 에서 ECS observability 블록 제거)
+
+현재 backend 로그에 `alloy.observability.svc.cluster.local: UnknownHostException` 가 5 초마다 찍힘 — Alloy 가 없어서 OTel exporter 실패. 무해하니 그대로 두고 위 트랙 시작하면 자동 해소.
+
+### Phase C (코드 위생)
+
+- [ ] **DB collation 통일**: `collation_database=utf8mb4_unicode_ci` vs `images.source_id=utf8mb4_0900_ai_ci` 불일치. Flyway 마이그레이션이 collation 명시 안 해서 RDS 기본값 따라간 결과. dev 에서 ALTER 검증 후 prod 적용. 백필 스크립트는 임시로 컬럼에 직접 `COLLATE utf8mb4_0900_ai_ci` 박아둠.
+- [ ] **CRLF 정규화 일괄**: `git add --renormalize .` 한 번. `.gitattributes` 의 LF 강제가 새 파일에 적용 안 된 케이스 종종 발생 (예: backfill 스크립트가 처음에 `bash\r` 에러). 정규화 후 한 번에 커밋.
+- [ ] **terraform 코드 위생**: versions.tf 추가, partial backend config, 죽은 코드 정리, tfvars.example 대칭 (prod/dev)
+- [ ] **ArgoCD sync 정책 검토** (함정 10 참조): ServerSideApply 또는 disableNameSuffixHash 변경 가능성 검토
+
+### Phase D (ECS 정리)
+
+- [ ] **ECS 결합 종착지 결정**: terraform-prod 에서 ECS 정의 (backend / fastapi / fastapi-guide / loki / tempo / grafana / alloy-daemon task def + service) 코드 제거. **RDS / ElastiCache / SSM 은 절대 건드리지 말 것.**
+- [ ] ECR repository 는 EKS 가 계속 쓰니까 유지
+- [ ] 컷오버 전후 1 회용 산출물 정리 (`patch-prod-cutover.sh` 등은 이미 제거됨)
+
+### Phase E (개발 환경 동기화)
+
+- [x] **dev EKS 재생성 + 백필** (2026-06): prod 와 같은 절차로 dev 도 ai_description 컬럼 + 백필 적용. dev 백필 후 EKS 다시 꺼두는 선택은 비용·일정 따라.
