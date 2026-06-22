@@ -3,3 +3,14 @@
 # gitops_repo_path       = "k8s/overlays/prod"
 # gitops_target_revision = "main"
 # enable_argocd_root_app = false   # overlays/prod 올린 뒤 true
+
+# ── GitOps (ArgoCD root app 용) ──────────────────────────
+# 매니페스트 레포 URL. 모노레포면 k8s/ 디렉토리가 있는 그 레포.
+gitops_repo_url        = "https://github.com/DraWeTeam/drawe.git"
+gitops_repo_path       = "infra/k8s/overlays/prod"
+gitops_target_revision = "main"
+
+# ArgoCD root app(app-of-apps)을 자동 등록할지.
+# false: kubectl apply -f argocd/apps/prod/ 로 수동 등록 (현재 운영 방식)
+# true:  3-platform apply 가 root app 까지 생성 → 그 root 가 apps/prod 디렉토리 watch
+# enable_argocd_root_app = false
