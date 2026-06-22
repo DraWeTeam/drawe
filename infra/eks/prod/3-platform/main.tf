@@ -23,7 +23,7 @@ module "platform" {
   # Karpenter (prod: on-demand 우선 + spot 허용, dev 보다 넉넉한 상한)
   karpenter_capacity_types    = ["on-demand", "spot"]
   karpenter_cpu_limit         = "600"
-  karpenter_instance_families = ["t4g", "m6g", "m7g", "c6g", "c7g", "r6g"]
+  karpenter_instance_families = ["m6g", "m7g", "c6g", "c7g", "r6g"]
   karpenter_instance_sizes    = ["small", "medium", "large", "xlarge", "2xlarge", "4xlarge"]
 
   # GitOps

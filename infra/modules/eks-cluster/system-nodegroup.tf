@@ -64,8 +64,11 @@ resource "aws_eks_node_group" "system" {
     # 직접 지정하는 것을 거부하므로 여기서 넣지 않는다.
   }
 
-  # taint 는 일부러 안 검. 플랫폼 헬름 차트들이 별도 toleration 없이도 스케줄되도록.
-  # (엄격 분리가 필요하면 추후 CriticalAddonsOnly taint + toleration 추가)
+  taint {
+    key    = "CriticalAddonsOnly"
+    value  = "true"
+    effect = "NO_SCHEDULE"
+  }
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-system-ng" })
 
