@@ -394,6 +394,7 @@ kubectl rollout restart deploy/backend -n drawe-prod
 | 2026-06 | argocd.targetRevision = main | prod 환경 main 머지 = 배포 게이트. develop 은 dev 전용 |
 | 2026-06 | prod CD 도 EKS GitOps (Phase B3) | dev 와 동일 패턴. main 머지 = ECR push + overlay bump + ArgoCD sync. ECS 분기 흔적 0. |
 | 2026-06 | configMapGenerator.disableNameSuffixHash=true 유지 | envFrom 가 고정 이름 참조 (kustomize 자동 rename 없이 단순). 트레이드오프: configmap 변경 시 수동 rollout 필요 (함정 10) |
+| 2026-06 | ECS 코드 영구 dormant (Phase D = "정리 안 함") | desired=0 으로 비용 0. `prod_enabled=true` 토글로 즉시 부활. 이력 증거는 git+runbook 이 담당. 새 워크로드·staging 재활용 가능 |
 
 ## 컷오버 후 남은 작업
 
@@ -424,11 +425,33 @@ prod observability stack 은 자체 호스팅 (Loki on ECS / Tempo on ECS / AWS 
 - [ ] **terraform 코드 위생**: versions.tf 추가, partial backend config, 죽은 코드 정리, tfvars.example 대칭 (prod/dev)
 - [ ] **ArgoCD sync 정책 검토** (함정 10 참조): ServerSideApply 또는 disableNameSuffixHash 변경 가능성 검토
 
-### Phase D (ECS 정리)
+### Phase D (ECS 코드 운명) — 영구 dormant 결정 (2026-06)
 
-- [ ] **ECS 결합 종착지 결정**: terraform-prod 에서 ECS 정의 (backend / fastapi / fastapi-guide / loki / tempo / grafana / alloy-daemon task def + service) 코드 제거. **RDS / ElastiCache / SSM 은 절대 건드리지 말 것.**
-- [ ] ECR repository 는 EKS 가 계속 쓰니까 유지
-- [ ] 컷오버 전후 1 회용 산출물 정리 (`patch-prod-cutover.sh` 등은 이미 제거됨)
+**결정**: ECS 정의를 제거하지 않고 `prod_enabled=false` 로 dormant 유지한다. **Phase D 의 "정리" 는 없다.**
+
+**왜 dormant 인가**:
+- ECS task definition + service 는 desired=0 이면 자원 생성·과금 0. 코드만 차지함.
+- `prod_enabled=true` 한 줄로 즉시 부활 가능 — EKS 장애 시 5 분 내 ECS 복귀 카드.
+- 같은 VPC/RDS/Cache/SSM 을 공유하므로 별도 셋업 없이 ECS·EKS 공존 가능 (현재 그 상태).
+- 새 워크로드 (cron job, staging 환경, 부하 테스트 등) 만들 때 ECS 코드 그대로 재활용 가능.
+- 이력·증거는 `git log -- infra/terraform-prod/ecs.tf` 와 본 runbook 의 결정 기록이 담당. 코드 자체를 증거로 둘 필요 없음.
+
+**유지 항목 (영구)**:
+- `infra/terraform-prod/ecs.tf` (520 lines) — backend / fastapi-embed task def + service
+- `infra/terraform-prod/ecs-guide.tf` (260 lines) — fastapi-guide task def + service
+- `infra/terraform-prod/appautoscaling.tf` (68 lines) — ECS service autoscaling
+- `infra/terraform-prod/observability.tf` (320 lines) — Loki / Tempo / Grafana / Alloy ECS task def + Cloud Map
+- `infra/terraform-prod/cutover-eks.tf` — `eks_cutover` 토글 (비상 롤백 카드, 영구 유지)
+- `infra/terraform-prod/outputs-eks-bridge.tf` — EKS 가 read-only 로 참조. **절대 제거 금지**.
+
+**조심해야 할 사고 (dormant 상태의 함정)**:
+누가 실수로 `prod_enabled=true` 로 켜면 ECS 가 부활하면서 EKS 와 같은 ALB target group attach 시도 → 충돌. 그래서:
+- `terraform-prod/variables.tf` 의 `prod_enabled` description 에 경고 명시 (예정)
+- `infra/runbooks/ecs_emergency_rollback.md` 에 진짜 rollback 시 절차 별도 문서 (예정)
+
+**나중에 변경할 일이 생기면**:
+- ECS 완전 종료가 정말 결정되면 (한 달 이상 EKS 안정 + 팀 합의) 그때 별도 작업 트랙으로 정리.
+- 그게 아니라면 현 상태가 가장 운영 부담 적고 유연함.
 
 ### Phase E (개발 환경 동기화)
 
