@@ -88,7 +88,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | PromptTranslator | `class` | public | 한국어 채팅 메시지를 Bria 가 잘 이해하는 영문 image-generation prompt 로 변환. 고정 모델(Grok) 사용 — 단순·짧아 저렴한 모델로 충분하고 비용·응답시간 예측성 확보. |
-| **Attributes** | llmServices | `List&lt;LlmService&gt;` | private | provider 가 `GROK` 인 서비스를 골라 쓴다(`pickService`). <br> objectMapper | `ObjectMapper` | private | `{"prompt": "..."}` JSON 파싱. <br> translationLogRepository | `PromptTranslationLogRepository` | private | 변환 결과를 `prompt_translation_logs` 에 기록. |
+| **Attributes** | llmServices | `List<LlmService>` | private | provider 가 `GROK` 인 서비스를 골라 쓴다(`pickService`). <br> objectMapper | `ObjectMapper` | private | `{"prompt": "..."}` JSON 파싱. <br> translationLogRepository | `PromptTranslationLogRepository` | private | 변환 결과를 `prompt_translation_logs` 에 기록. |
 | **Operations** | translate | `String` | public | 프로젝트의 subject/technique/mood 를 함께 반영해 영문 프롬프트 1개를 반환. LLM 호출 실패·빈 결과·정제 실패 시 원문(`userPrompt`) 으로 fallback. JSON 파싱 실패 시 `sanitize` fallback. |
 
 ## BriaClient 클래스 정보

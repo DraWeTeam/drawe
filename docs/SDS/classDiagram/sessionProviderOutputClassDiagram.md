@@ -192,12 +192,12 @@ classDiagram
 | **class** | SessionData | record | public | 프로젝트 단위 휘발성 대화 컨텍스트(Redis 저장). 멀티턴 효율을 위해 직전 검색 결과·의도·키워드를 보관. KEEP 의도 시 `previousReferences` 가 SYSTEM 블록으로 주입된다. |
 | **Attributes** | userId | Long | private | 사용자 ID. |
 | **Attributes** | projectId | Long | private | 프로젝트 ID. |
-| **Attributes** | previousReferences | List&lt;ReferenceImage&gt; | private | 직전 검색 결과 — KEEP 멀티턴의 핵심. null 이면 빈 리스트. |
+| **Attributes** | previousReferences | `List<ReferenceImage>` | private | 직전 검색 결과 — KEEP 멀티턴의 핵심. null 이면 빈 리스트. |
 | **Attributes** | lastIntent | IntentCode | private | 직전 의도 — 후속 분류 보조. MySQL 복원 시에는 null. |
-| **Attributes** | lastKeywords | List&lt;String&gt; | private | 직전 추출 키워드 — 디버깅·메트릭. |
+| **Attributes** | lastKeywords | `List<String>` | private | 직전 추출 키워드 — 디버깅·메트릭. |
 | **Attributes** | lastUpdatedAt | Instant | private | 마지막 활동 시각(null 이면 now). |
 | **Operations** | start | (userId: Long, projectId: Long): SessionData | public static | 빈 세션 시작(메시지 없는 새 프로젝트). |
-| **Operations** | withSearchResult | (intent: IntentCode, keywords: List&lt;String&gt;, references: List&lt;ReferenceImage&gt;): SessionData | public | NEW_SEARCH 후 새 검색 결과로 갱신. |
+| **Operations** | withSearchResult | (intent: IntentCode, keywords: `List<String>`, references: `List<ReferenceImage>`): SessionData | public | NEW_SEARCH 후 새 검색 결과로 갱신. |
 | **Operations** | withKeep | (intent: IntentCode): SessionData | public | KEEP 의도 — references 유지, 의도만 갱신. |
 | **Operations** | withIntent | (intent: IntentCode): SessionData | public | SKIP/GENERATE 등 — references 유지, 의도·시각 갱신. |
 
@@ -271,7 +271,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | LlmCallContext | record | public | LLM 구현체에 넘길 호출 컨텍스트(히스토리 + 새 입력). `responseSchemaName` 이 있으면 구현체가 네이티브 스키마 모드를 요청(COMPOSE 전용). |
-| **Attributes** | history | List&lt;Turn&gt; | private | 직전 대화 턴들(role+content). |
+| **Attributes** | history | `List<Turn>` | private | 직전 대화 턴들(role+content). |
 | **Attributes** | newPrompt | String | private | 이번 턴 새 user 프롬프트. |
 | **Attributes** | imageBytes | byte[] | private | 첨부 이미지 바이트(없으면 null). |
 | **Attributes** | imageMimeType | String | private | 이미지 MIME 타입. |
@@ -299,7 +299,7 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | OutputIntegrityChecker | Component | public | 결정론적 참조 무결성 검사 — **LLM 재호출 없음**. 유효 인덱스 집합은 `{1 .. refs.size()}` 이고, 본문 `[N]` 토큰·`citations` 슬롯 양쪽에서 이 범위 밖(=환각) 인용만 제거한다. refs 가 비면 모든 인용이 환각. 유효 토큰은 보존(번호↔references 표시 순서 매칭), 토큰 삭제로 생긴 잉여 공백만 정리. |
 | **Attributes** | CITATION_TOKEN | Pattern | private | 본문 인용 토큰 정규식 `\[(\d+)\]`. |
-| **Operations** | check | (raw: ComposedOutput, refs: List&lt;ReferenceImage&gt;): IntegrityResult | public | `1..refs.size()` 밖 인용 제거 후 정정본 + 위반 카운트 반환. refs null/empty 면 전부 제거(noRefs=true). |
+| **Operations** | check | (raw: ComposedOutput, refs: `List<ReferenceImage>`): IntegrityResult | public | `1..refs.size()` 밖 인용 제거 후 정정본 + 위반 카운트 반환. refs null/empty 면 전부 제거(noRefs=true). |
 | **Operations** | tidyAfterRemoval | (s: String): String | private static | 환각 토큰 삭제 후 가로 공백·문장부호 직전 공백 정리(줄바꿈 보존). |
 
 <br>
@@ -310,7 +310,7 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | ComposedOutput | record | public | COMPOSE 단계의 구조화 응답. `OutputParser` 가 Grok `draw_guide_response` 스키마를 옮기고, `OutputIntegrityChecker` 가 환각 제거 후 정정본을 다시 이 DTO 로 돌려준다. |
 | **Attributes** | message | String | private | 사용자에게 보일 가이드 본문(검사 후 정정본). |
-| **Attributes** | citations | List&lt;Integer&gt; | private | 본문이 실제 인용한 references 1-based 인덱스(검사 후 생존분, 오름차순·중복 제거). null 이면 빈 리스트. |
+| **Attributes** | citations | `List<Integer>` | private | 본문이 실제 인용한 references 1-based 인덱스(검사 후 생존분, 오름차순·중복 제거). null 이면 빈 리스트. |
 | **Attributes** | offerGenerate | boolean | private | LLM 의 생성 제안 의견(보조 신호). 최종 버튼 노출은 시스템 결정. |
 
 <br>

@@ -273,8 +273,8 @@ classDiagram
 | **class** | ImageController | - | public | `/images` 이미지 업로드/서빙 REST 컨트롤러. 바이트 서빙(load)은 MySQL 전용이라 `DbImageStorage`를 직접 주입한다(s3 프로파일의 `@Primary` `S3ImageStorage.load`=throw 회피). |
 | **Attributes** | imageUploadService | ImageUploadService | private | 업로드 검증/저장 위임 서비스 |
 | **Attributes** | imageStorage | DbImageStorage | private | 바이트 서빙용 MySQL 스토리지(소유자 검증 포함) |
-| **Operations** | upload | ApiResponse&lt;ImageUploadResponse&gt; | public | 이미지 업로드 (POST /images/upload). 인증 사용자의 파일을 저장하고 `imageId`+`url` 반환 |
-| **Operations** | view | ResponseEntity&lt;byte[]&gt; | public | 이미지 서빙 (GET /images/{id}). 소유자 검증 후 바이트 반환. `download=true`면 `Content-Disposition: attachment`로 파일 다운로드 유도 |
+| **Operations** | upload | `ApiResponse<ImageUploadResponse>` | public | 이미지 업로드 (POST /images/upload). 인증 사용자의 파일을 저장하고 `imageId`+`url` 반환 |
+| **Operations** | view | `ResponseEntity<byte[]>` | public | 이미지 서빙 (GET /images/{id}). 소유자 검증 후 바이트 반환. `download=true`면 `Content-Disposition: attachment`로 파일 다운로드 유도 |
 
 <br>
 
@@ -284,9 +284,9 @@ classDiagram
 |------|------|------|------------|-------------|
 | **class** | ImageFeedbackController | - | public | `/images/{imageId}/feedback` 좋아요/싫어요 피드백 REST 컨트롤러 |
 | **Attributes** | feedbackService | ImageFeedbackService | private | 피드백 조회/저장/삭제 위임 서비스 |
-| **Operations** | getFeedback | ResponseEntity&lt;ApiResponse&lt;FeedbackResponse&gt;&gt; | public | 피드백 조회 (GET /images/{imageId}/feedback). 없으면 `type=null` 반환 |
-| **Operations** | saveFeedback | ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; | public | 피드백 저장 (POST /images/{imageId}/feedback). 기존 있으면 갱신, 없으면 생성 (upsert) |
-| **Operations** | removeFeedback | ResponseEntity&lt;ApiResponse&lt;Void&gt;&gt; | public | 피드백 삭제 (DELETE /images/{imageId}/feedback) |
+| **Operations** | getFeedback | `ResponseEntity<ApiResponse<FeedbackResponse>>` | public | 피드백 조회 (GET /images/{imageId}/feedback). 없으면 `type=null` 반환 |
+| **Operations** | saveFeedback | `ResponseEntity<ApiResponse<Void>>` | public | 피드백 저장 (POST /images/{imageId}/feedback). 기존 있으면 갱신, 없으면 생성 (upsert) |
+| **Operations** | removeFeedback | `ResponseEntity<ApiResponse<Void>>` | public | 피드백 삭제 (DELETE /images/{imageId}/feedback) |
 
 <br>
 
@@ -295,7 +295,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
 | **class** | ImageUploadService | - | public | 업로드 파일 검증(비어있음/크기/MIME) 후 `ImageStorage`에 위임하는 서비스 |
-| **Attributes** | ALLOWED_MIMES | Set&lt;String&gt; | private static | 허용 MIME (image/jpeg, image/png, image/webp, image/gif) |
+| **Attributes** | ALLOWED_MIMES | `Set<String>` | private static | 허용 MIME (image/jpeg, image/png, image/webp, image/gif) |
 | **Attributes** | imageStorage | ImageStorage | private | 저장소 추상화(프로파일에 따라 Db 또는 S3) |
 | **Attributes** | maxSizeBytes | long | private | 최대 허용 바이트 (`app.image.max-size-bytes`, 기본 10MB) |
 | **Operations** | upload | ImageStorage.Stored | public | 검증 통과 시 바이트를 저장하고 `Stored(id, url)` 반환. 위반 시 `INVALID_INPUT`, IO 실패 시 `INTERNAL_SERVER_ERROR` |
@@ -412,11 +412,11 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
 | **class** | ImageRepository | - | public | `JpaRepository<Image, Long>`. AI/Unsplash 이미지 메타 영속화 |
-| **Operations** | findBySourceIdIn | List&lt;Image&gt; | public | 여러 sourceId 이미지 일괄 조회(Pinecone 결과 → MySQL 매핑) |
-| **Operations** | findByIsOnboardingTrue | List&lt;Image&gt; | public | 온보딩 시드 이미지 조회 |
-| **Operations** | findAllRawTagsJson | List&lt;String&gt; | public | 태그 IDF 색인용 — 모든 raw_tags JSON 텍스트 스캔(native) |
-| **Operations** | findAllPrompts | List&lt;String&gt; | public | 태그 IDF 색인용 — AI 영문 프롬프트 스캔(native) |
-| **Operations** | findCompletedGallery | Page&lt;Image&gt; | public | 완성작 갤러리 — (source=AI, createdBy=user) 최신순(createdAt DESC, id DESC) 페이징 |
+| **Operations** | findBySourceIdIn | `List<Image>` | public | 여러 sourceId 이미지 일괄 조회(Pinecone 결과 → MySQL 매핑) |
+| **Operations** | findByIsOnboardingTrue | `List<Image>` | public | 온보딩 시드 이미지 조회 |
+| **Operations** | findAllRawTagsJson | `List<String>` | public | 태그 IDF 색인용 — 모든 raw_tags JSON 텍스트 스캔(native) |
+| **Operations** | findAllPrompts | `List<String>` | public | 태그 IDF 색인용 — AI 영문 프롬프트 스캔(native) |
+| **Operations** | findCompletedGallery | `Page<Image>` | public | 완성작 갤러리 — (source=AI, createdBy=user) 최신순(createdAt DESC, id DESC) 페이징 |
 
 <br>
 
@@ -433,7 +433,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
 | **class** | ImageDraweTagRepository | - | public | `JpaRepository<ImageDraweTag, Long>`. DraWe 자체 태그(주제/기법/분위기) CRUD |
-| **Operations** | findByImageIdIn | List&lt;ImageDraweTag&gt; | public | 여러 imageId의 태그 일괄 조회 |
+| **Operations** | findByImageIdIn | `List<ImageDraweTag>` | public | 여러 imageId의 태그 일괄 조회 |
 
 <br>
 
@@ -442,7 +442,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
 | **class** | ImageFeedbackRepository | - | public | `JpaRepository<ImageFeedback, Long>`. 사용자별 이미지 피드백 CRUD |
-| **Operations** | findByUserAndImage | Optional&lt;ImageFeedback&gt; | public | (user, image) 유니크 기준 단건 조회(upsert/삭제용) |
+| **Operations** | findByUserAndImage | `Optional<ImageFeedback>` | public | (user, image) 유니크 기준 단건 조회(upsert/삭제용) |
 
 <br>
 
@@ -460,7 +460,7 @@ classDiagram
 | **Attributes** | photographerName | String | private | Unsplash 작가 이름 |
 | **Attributes** | isOnboarding | Boolean | private | 온보딩 시드 여부 (기본 false) |
 | **Attributes** | isTagged | Boolean | private | DraWe 태그 부여 여부 (기본 false) |
-| **Attributes** | rawTags | List&lt;String&gt; | private | 원본 태그 JSON |
+| **Attributes** | rawTags | `List<String>` | private | 원본 태그 JSON |
 | **Attributes** | prompt | String | private | 외부 모델에 보낸 영문 프롬프트 (AI 전용) |
 | **Attributes** | aiDescription | String | private | Unsplash AI 캡션(alt-text). Unsplash 전용 |
 | **Attributes** | createdBy | User | private | AI 이미지 생성자 (FK, ON DELETE SET NULL) |
@@ -493,8 +493,8 @@ classDiagram
 | **Attributes** | technique | String | private | 기법 태그 (max 30, 인덱스) |
 | **Attributes** | subject | String | private | 주제 태그 (max 30, 인덱스) |
 | **Attributes** | mood | String | private | 분위기 태그 (max 30, 인덱스) |
-| **Attributes** | utility | List&lt;String&gt; | private | 활용 태그 JSON |
-| **Attributes** | freeTags | List&lt;String&gt; | private | 자유 태그 JSON |
+| **Attributes** | utility | `List<String>` | private | 활용 태그 JSON |
+| **Attributes** | freeTags | `List<String>` | private | 자유 태그 JSON |
 | **Attributes** | taggedBy | String | private | 태그 부여 주체 (예: "AI", max 20) |
 | **Attributes** | taggedAt | Instant | private | 태그 부여 시각 |
 

@@ -234,11 +234,11 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | ProjectChatController | `<<Controller>>` | public | `/projects/{projectId}/chat` 진입점. ChatLlmService 로 위임. |
 | **Attributes** | chatLlmService | ChatLlmService | private | 채팅 오케스트레이션 서비스 의존성. |
-| **Operations** | chat | `ApiResponse&lt;ChatResponse&gt;` | public | **POST `/projects/{projectId}/chat`** — 메인 대화 엔드포인트. `chatLlmService.chat()` 호출. |
-| **Operations** | history | `ApiResponse&lt;ChatHistoryResponse&gt;` | public | **GET `/projects/{projectId}/chat/{sessionId}/history`** — 세션 대화 이력 조회. |
-| **Operations** | reset | `ApiResponse&lt;Map&gt;` | public | **POST `/projects/{projectId}/chat/{sessionId}/reset`** — 세션 메시지·Redis 단기메모리 초기화. |
-| **Operations** | generateImage | `ApiResponse&lt;GenerateImageResponse&gt;` | public | **POST `/projects/{projectId}/chat/{sessionId}/generate`** — "AI 이미지 생성" 버튼 처리(Bria). |
-| **Operations** | getLatestSession | `ApiResponse&lt;Map&gt;` | public | **GET `/projects/{projectId}/chat/latest-session`** — 최근 세션 id 반환. |
+| **Operations** | chat | `ApiResponse<ChatResponse>` | public | **POST `/projects/{projectId}/chat`** — 메인 대화 엔드포인트. `chatLlmService.chat()` 호출. |
+| **Operations** | history | `ApiResponse<ChatHistoryResponse>` | public | **GET `/projects/{projectId}/chat/{sessionId}/history`** — 세션 대화 이력 조회. |
+| **Operations** | reset | `ApiResponse<Map>` | public | **POST `/projects/{projectId}/chat/{sessionId}/reset`** — 세션 메시지·Redis 단기메모리 초기화. |
+| **Operations** | generateImage | `ApiResponse<GenerateImageResponse>` | public | **POST `/projects/{projectId}/chat/{sessionId}/generate`** — "AI 이미지 생성" 버튼 처리(Bria). |
+| **Operations** | getLatestSession | `ApiResponse<Map>` | public | **GET `/projects/{projectId}/chat/latest-session`** — 최근 세션 id 반환. |
 
 <br>
 
@@ -255,11 +255,11 @@ classDiagram
 | **Attributes** | sessionService | SessionService | private | Redis 단기메모리(이전 레퍼런스 복원/저장). |
 | **Attributes** | imageInputResolver | ImageInputResolver | private | 업로드 이미지 URL → bytes/mimeType 해석. |
 | **Attributes** | workflowComposeProperties | WorkflowComposeProperties | private | 의도별 live 게이트(`isLive(code)`) — 켜진 의도만 워크플로로. |
-| **Attributes** | llmServices | `List&lt;LlmService&gt;` | private | provider(GROK/CLAUDE)별 LLM 서비스 풀(legacy 합성용). |
+| **Attributes** | llmServices | `List<LlmService>` | private | provider(GROK/CLAUDE)별 LLM 서비스 풀(legacy 합성용). |
 | **Operations** | chat | ChatResponse | public | **대화 진입점** — 세션 로드/생성 → 핀 맥락 주입 → `routeIntent` 의도분류 → GENERATE_NOW 단락 → OUT_OF_DOMAIN/SELF_CRITIQUE 게이트 → live 게이트 분기 → legacy 직접 합성·세션저장·응답조립. |
 | **Operations** | chatViaWorkflow | ChatResponse | private | **live 경로** — Redis 복원 → `StepContext.startForCompose` → `workflowService.run()` → `ComposedOutput` 추출 → 핀 제외·세션메시지 저장·단기메모리 반영·SEARCH/DECISION analytics 재현·ChatResponse 조립. |
 | **Operations** | handleGenerateNow | ChatResponse | private | **GENERATE_NOW 단락** — live 게이트보다 먼저 동작. 검색·LLM 답변을 모두 건너뛰고 추출 프롬프트로 즉시 Bria 생성, 고정 문구 + `generatedImage` 로 응답. |
-| **Operations** | handleSearchDecision | `List&lt;ImageResult&gt;` | private | **legacy 검색 결정** — action(NEW_SEARCH/KEEP/SKIP/FOLLOWUP/COMPARE)별 분기. NEW_SEARCH 면 검색+점수가드(avg<0.2 AND max<0.24 차단)·analytics·shadow 워크플로 실행. |
+| **Operations** | handleSearchDecision | `List<ImageResult>` | private | **legacy 검색 결정** — action(NEW_SEARCH/KEEP/SKIP/FOLLOWUP/COMPARE)별 분기. NEW_SEARCH 면 검색+점수가드(avg<0.2 AND max<0.24 차단)·analytics·shadow 워크플로 실행. |
 | **Operations** | routeIntent | RoutedIntent | private | **의도분류** — 룰 프리라우터 먼저, 미스면 Grok 폴백. 룰 히트/미스 analytics·메트릭(latency) 집계. |
 | **Operations** | shadowWorkflow | void | private | legacy 검색 결과는 그대로 두고 Komoran 경로를 병렬 1회 실행해 ref id 겹침(match/partial/miss)만 비교·메트릭. 응답에 무영향, 예외 삼킴. |
 | **Operations** | persistSessionMemory | void | private | live 경로 종료 시 이번 턴 결과를 Redis 단기메모리에 반영(NEW_SEARCH 면 덮어쓰기, KEEP/SKIP 면 직전 유지). |
@@ -277,7 +277,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | WorkflowService | `<<Service>>` | public | AI 파이프라인 오케스트레이터. `IntentRouting.ROUTING` 의 step 시퀀스를 순서 실행(정적 전략 맵 패턴). |
-| **Attributes** | executors | `Map&lt;StepType, StepExecutor&gt;` | private | StepExecutor 빈을 `type()` 키로 묶은 맵(스프링 자동 수집). |
+| **Attributes** | executors | `Map<StepType, StepExecutor>` | private | StepExecutor 빈을 `type()` 키로 묶은 맵(스프링 자동 수집). |
 | **Attributes** | meterRegistry | MeterRegistry | private | step 별 latency·outcome 메트릭. |
 | **Operations** | WorkflowService | (생성자) | public | StepExecutor 빈 리스트를 `type()` 키로 EnumMap 구성. 같은 StepType 중복 빈이면 `IllegalStateException`. |
 | **Operations** | run | StepContext | public | `intent.code()` 로 ROUTING lookup → step 시퀀스를 순회하며 각 executor 실행, 누적 컨텍스트 반환. 미등록 step 은 건너뜀. |
@@ -289,7 +289,7 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
-| **class** | StepExecutor | `<<interface>>` | public | 파이프라인 한 step 의 실행 단위. 스프링이 모든 구현 빈을 수집해 `Map&lt;StepType, StepExecutor&gt;` 로 주입. |
+| **class** | StepExecutor | `<<interface>>` | public | 파이프라인 한 step 의 실행 단위. 스프링이 모든 구현 빈을 수집해 `Map<StepType, StepExecutor>` 로 주입. |
 | **Operations** | type | StepType | public | 이 Executor 가 처리하는 step 종류(빈 맵의 키). |
 | **Operations** | execute | StepContext | public | step 실행 후 갱신된 `StepContext` 반환. 가급적 예외 대신 폴백 컨텍스트 반환(파이프라인 보호). |
 
@@ -324,7 +324,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | ComposeExecutor | `<<Executor>>` | public | **합성 종착 단계** — 페르소나+레퍼런스 컨텍스트로 최종 가이드 응답을 LLM 으로 생성(순수 합성, 저장·analytics 는 호출부 책임). |
-| **Attributes** | llmServices | `Map&lt;LlmProvider, LlmService&gt;` | private | provider별 LLM 서비스(structured output 호출). |
+| **Attributes** | llmServices | `Map<LlmProvider, LlmService>` | private | provider별 LLM 서비스(structured output 호출). |
 | **Attributes** | outputParser | OutputParser | private | LLM JSON 응답 파싱(깨지면 안전 템플릿 폴백). |
 | **Attributes** | integrityChecker | OutputIntegrityChecker | private | 참조 무결성 검사 — 범위 밖/환각 `[N]` 인용 제거. |
 | **Attributes** | llmMetrics | LlmMetrics | private | 구조 위반·환각 인용 DoD 메트릭. |
@@ -345,7 +345,7 @@ classDiagram
 | **Attributes** | CRITIQUE_TOP_K | int | private | 비평용 유사 레퍼런스 개수(4). |
 | **Operations** | type | StepType | public | `CRITIQUE_UPLOAD` 반환. |
 | **Operations** | execute | StepContext | public | 유사 레퍼런스(있으면)·비평 가이드 SYSTEM turn 을 history 에 싣는다. 이미지 없으면 통과, 검색 실패해도 텍스트 비평으로 폴백. |
-| **Operations** | findSimilarReferences | `List&lt;ReferenceImage&gt;` | private | 임베딩 → 벡터검색 → 점수가드 → `ReferenceImage` 변환. 실패·저점수 시 빈 리스트(비평 자체는 진행). |
+| **Operations** | findSimilarReferences | `List<ReferenceImage>` | private | 임베딩 → 벡터검색 → 점수가드 → `ReferenceImage` 변환. 실패·저점수 시 빈 리스트(비평 자체는 진행). |
 
 <br>
 
@@ -367,16 +367,16 @@ classDiagram
 | **class** | StepContext | `<<record>>` | public | 파이프라인 전체가 거쳐가는 **불변 누적 컨텍스트**. 각 Executor 가 `with*` 위더로 일부 필드를 채워 새 record 반환. |
 | **Attributes** | rawMessage / cleanedMessage | String | public | 입력 원문 / 앵커 제거·정규화된 메시지. |
 | **Attributes** | intent | IntentResult | public | 분류 결과(ROUTING lookup 키). |
-| **Attributes** | previousReferences | `List&lt;ReferenceImage&gt;` | public | Redis 복원 직전 턴 레퍼런스(KEEP 재사용). |
-| **Attributes** | keywords | `List&lt;String&gt;` | public | EXTRACT_KEYWORDS 가 채우는 검색 키워드. |
-| **Attributes** | references | `List&lt;ReferenceImage&gt;` | public | SEARCH/CRITIQUE 가 채우는 검색 결과. |
+| **Attributes** | previousReferences | `List<ReferenceImage>` | public | Redis 복원 직전 턴 레퍼런스(KEEP 재사용). |
+| **Attributes** | keywords | `List<String>` | public | EXTRACT_KEYWORDS 가 채우는 검색 키워드. |
+| **Attributes** | references | `List<ReferenceImage>` | public | SEARCH/CRITIQUE 가 채우는 검색 결과. |
 | **Attributes** | searchStats | SearchStats | public | SEARCH 점수통계·차단판정(analytics 재현용). |
-| **Attributes** | history | `List&lt;Turn&gt;` | public | persona·userPrefs·핀 맥락 포함 누적 history(COMPOSE 입력). |
+| **Attributes** | history | `List<Turn>` | public | persona·userPrefs·핀 맥락 포함 누적 history(COMPOSE 입력). |
 | **Attributes** | uploadedImageBytes / MimeType | byte[] / String | public | 멀티모달 입력(비평·비전). |
 | **Attributes** | provider | LlmProvider | public | 합성에 쓸 LLM provider. |
 | **Attributes** | composedOutput | ComposedOutput | public | **합성 진실의 원천** — 정정된 본문·citations·offerGenerate. |
 | **Attributes** | composeModel / composeLatencyMs | String / Integer | public | COMPOSE LLM 콜 트랜스포트 메타. |
-| **Attributes** | pinnedImageIds | `Set&lt;Long&gt;` | public | 핀 제외용(번호 충돌 방지). |
+| **Attributes** | pinnedImageIds | `Set<Long>` | public | 핀 제외용(번호 충돌 방지). |
 | **Operations** | start | StepContext | public static | 8-인자 기본 시작 컨텍스트(shadow·테스트용, COMPOSE 정보 없음). |
 | **Operations** | startForCompose | StepContext | public static | live 메인 경로 시작 컨텍스트(history·이미지·provider 포함). |
 | **Operations** | withKeywords / withReferences / withComposedOutput | StepContext | public | Lombok `@With` 자동 생성 위더(불변 누적). |
@@ -393,7 +393,7 @@ classDiagram
 | **class** | ComposedOutput | `<<record>>` | public | COMPOSE 합성 결과. `message`·`citations`·`offerGenerate`. |
 | **class** | StepType | `<<enumeration>>` | public | step 종류 — EXTRACT_KEYWORDS, SEARCH, TRANSLATE, GENERATE_IMAGE, CRITIQUE_UPLOAD, COMPOSE. |
 | **class** | IntentCode | `<<enumeration>>` | public | 의도 코드(000~013) — OUT_OF_DOMAIN, NEW_SEARCH, KEEP, SKIP, GENERATE, SELF_CRITIQUE, FOLLOWUP, COMPARE 등. |
-| **class** | IntentRouting | `<<static>>` | public | `ROUTING: Map&lt;IntentCode, List&lt;StepType&gt;&gt;` 정적 라우팅 맵. 예: NEW_SEARCH → [EXTRACT_KEYWORDS, SEARCH, COMPOSE], SELF_CRITIQUE → [CRITIQUE_UPLOAD, COMPOSE], GENERATE → [TRANSLATE, GENERATE_IMAGE]. |
+| **class** | IntentRouting | `<<static>>` | public | `ROUTING: Map<IntentCode, List<StepType>>` 정적 라우팅 맵. 예: NEW_SEARCH → [EXTRACT_KEYWORDS, SEARCH, COMPOSE], SELF_CRITIQUE → [CRITIQUE_UPLOAD, COMPOSE], GENERATE → [TRANSLATE, GENERATE_IMAGE]. |
 
 <br>
 

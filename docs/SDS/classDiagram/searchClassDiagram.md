@@ -140,7 +140,7 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | SearchController | `<<Controller>>` | public | 이미지 검색 REST 엔드포인트(`/search`). 텍스트 쿼리로 유사 이미지를 찾는 베타 직접 경로 — 인증 사용자(`PrincipalDetails`)가 호출. 워크플로 채팅 경로는 컨트롤러를 거치지 않고 `SearchExecutor`가 `SearchService`를 내부 호출한다 |
 | **Attributes** | searchService | SearchService | private | CLIP+IDF 하이브리드 검색 서비스 |
-| **Operations** | searchImages | ApiResponse&lt;SearchResponse&gt; | public | 이미지 검색(POST /search/images). `@Valid SearchRequest`(query 필수) 받아 `searchService.search` 위임, 결과를 `ApiResponse`로 래핑 |
+| **Operations** | searchImages | `ApiResponse<SearchResponse>` | public | 이미지 검색(POST /search/images). `@Valid SearchRequest`(query 필수) 받아 `searchService.search` 위임, 결과를 `ApiResponse`로 래핑 |
 
 <br>
 
@@ -160,9 +160,9 @@ classDiagram
 | **Operations** | search | SearchResponse | public | 텍스트 쿼리 검색. embedText로 벡터화 후 `searchByVectorInternal`로 공통 경로 진입. `REQUIRES_NEW` 트랜잭션 |
 | **Operations** | searchByVector | SearchResponse | public | 이미지/임의 벡터 검색(010 self-critique의 "내 작업물과 비슷한 레퍼런스"). 텍스트 임베딩만 건너뛰고 동일 CLIP 공간·조립 경로 공유. `echoQuery`가 빈 문자열이라 rerank 미적용 |
 | **Operations** | searchByVectorInternal | SearchResponse | private | 벡터→Pinecone(overfetch)→MySQL 메타·태그 조인→Pinecone 순위 유지 ImageResult 조립→`rerankByTagOverlap`→topK 절단 공통 경로 |
-| **Operations** | rerankByTagOverlap | List&lt;ImageResult&gt; | private | dense(CLIP) 점수 위에 태그 매칭 소프트 점수(tagBoost)를 더해 재정렬. 쿼리 비었거나 결과<2면 그대로(stable, 동률 시 Pinecone 순서 유지) |
+| **Operations** | rerankByTagOverlap | `List<ImageResult>` | private | dense(CLIP) 점수 위에 태그 매칭 소프트 점수(tagBoost)를 더해 재정렬. 쿼리 비었거나 결과<2면 그대로(stable, 동률 시 Pinecone 순서 유지) |
 | **Operations** | tagBoost | double | private | 쿼리 토큰∩이미지 태그 토큰의 IDF 합 × scale, cap으로 클램프. 태그 없으면 0 |
-| **Operations** | tagTokens | Set&lt;String&gt; | private | 이미지의 모든 태그(구조화+freeTags+rawTags+prompt+aiDescription)를 토큰 집합으로 |
+| **Operations** | tagTokens | `Set<String>` | private | 이미지의 모든 태그(구조화+freeTags+rawTags+prompt+aiDescription)를 토큰 집합으로 |
 
 <br>
 
@@ -173,12 +173,12 @@ classDiagram
 | **class** | TagIdfIndex | `<<Component>>` | public | 태그 IDF(역문서빈도) 색인 — rerank의 '태그 변별력' 가중치 원천. 코퍼스(Image.rawTags JSON + AI prompt + ImageDraweTag 자동태깅)를 1회 스캔해 토큰별 IDF 맵 생성. 기동 완료(`ApplicationReadyEvent`) 후 데몬 스레드로 비차단 빌드, 빌드 전/실패 시 빈 맵→idf=0→rerank가 순수 CLIP으로 자연 폴백. 토큰화 규칙(소문자·비영숫자 분할·2자 이상·한글 유지)을 검색 rerank와 단일 출처로 공유 |
 | **Attributes** | imageRepository | ImageRepository | private | rawTags JSON·prompt 코퍼스 스캔 |
 | **Attributes** | imageDraweTagRepository | ImageDraweTagRepository | private | 자동태깅 구조화 축 코퍼스 스캔 |
-| **Attributes** | idfMap | Map&lt;String, Double&gt; | private volatile | 토큰→IDF. volatile로 빌드 중에도 일관된 스냅샷 원자 교체 |
+| **Attributes** | idfMap | `Map<String, Double>` | private volatile | 토큰→IDF. volatile로 빌드 중에도 일관된 스냅샷 원자 교체 |
 | **Operations** | buildOnStartup | void | public | `@EventListener(ApplicationReadyEvent)` — 기동 후 데몬 스레드로 `refresh` 1회(부팅 비차단) |
 | **Operations** | idf | double | public | 토큰의 IDF(모르는 토큰=0 → 가산 없음) |
 | **Operations** | refresh | void | public | 코퍼스 스캔 → df 집계 → `ln((N+1)/(df+1))` IDF 재계산(음수 0 클램프) → 원자 교체. 실패 시 빈 맵 유지 |
-| **Operations** | tokensOf | Set&lt;String&gt; | public static | 가변인자(String...) 토큰화. 소문자화 후 비영숫자 분할, 2자 미만 제거 |
-| **Operations** | tokensOf | Set&lt;String&gt; | public static | List&lt;String&gt; 오버로드 토큰화 |
+| **Operations** | tokensOf | `Set<String>` | public static | 가변인자(String...) 토큰화. 소문자화 후 비영숫자 분할, 2자 미만 제거 |
+| **Operations** | tokensOf | `Set<String>` | public static | `List<String>` 오버로드 토큰화 |
 
 <br>
 
@@ -188,7 +188,7 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | PineconeClient | `<<Client>>` | public | Pinecone 벡터 DB HTTP 클라이언트(WebClient). `${pinecone.host}` baseUrl + Api-Key 헤더 + API 버전 2024-07. dense 유사도 검색과 AI 이미지 적재(upsert) 담당 |
 | **Attributes** | webClient | WebClient | private | Pinecone 호스트 baseUrl WebClient(헤더 사전 설정) |
-| **Operations** | queryByVector | List&lt;PineconeMatch&gt; | public | `POST /query` — 주어진 768차원 벡터와 가장 유사한 top-K 이미지 (id, score)를 유사도 순으로 반환. 응답 null이면 빈 리스트, 호출 실패는 RuntimeException("벡터 검색 실패") |
+| **Operations** | queryByVector | `List<PineconeMatch>` | public | `POST /query` — 주어진 768차원 벡터와 가장 유사한 top-K 이미지 (id, score)를 유사도 순으로 반환. 응답 null이면 빈 리스트, 호출 실패는 RuntimeException("벡터 검색 실패") |
 | **Operations** | upsert | void | public | `POST /vectors/upsert` — L2 정규화 768차원 CLIP 벡터 1건을 메타와 함께 적재(AI 이미지 인덱싱용, id=Image.sourceId) |
 
 <br>
@@ -199,8 +199,8 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | FastApiClient | `<<Client>>` | public | FastAPI 임베딩 서비스 HTTP 클라이언트(WebClient). `${fastapi.url}` baseUrl. 텍스트·이미지를 동일 CLIP 모델(openai/clip-vit-large-patch14)·동일 정규화로 임베딩해 같은 벡터 공간에서 비교 가능 |
 | **Attributes** | webClient | WebClient | private | FastAPI baseUrl WebClient(기본 JSON, multipart는 호출 시 덮어씀) |
-| **Operations** | embedText | List&lt;Float&gt; | public | `POST /embed/text` — 텍스트→768차원 CLIP 벡터. 응답 비면 IllegalState, 호출 실패는 RuntimeException("임베딩 변환 실패") |
-| **Operations** | embedImage | List&lt;Float&gt; | public | `POST /embed/image`(multipart/form-data, field="image") — 이미지 바이트→768차원 CLIP 벡터. `searchByVector`(010 self-critique)가 소비 |
+| **Operations** | embedText | `List<Float>` | public | `POST /embed/text` — 텍스트→768차원 CLIP 벡터. 응답 비면 IllegalState, 호출 실패는 RuntimeException("임베딩 변환 실패") |
+| **Operations** | embedImage | `List<Float>` | public | `POST /embed/image`(multipart/form-data, field="image") — 이미지 바이트→768차원 CLIP 벡터. `searchByVector`(010 self-critique)가 소비 |
 
 <br>
 
@@ -217,7 +217,7 @@ classDiagram
 | **Operations** | execute | StepContext | public | keywords로 SearchRequest 빌드→search 호출→avg/max/min 통계→점수 가드 판정→통과 시 `toReferenceImage` 변환·SearchStats와 함께 컨텍스트 갱신 |
 | **Operations** | buildRequest | SearchRequest | private | 키워드 space-join을 query로, topK=DEFAULT_TOP_K(10)로 SearchRequest 생성 |
 | **Operations** | toReferenceImage | ReferenceImage | private | ImageResult→ReferenceImage 어댑터(1-based index, score는 Float→BigDecimal, 표시 필드·collectTags 합산) |
-| **Operations** | collectTags | List&lt;String&gt; | private | aiDescription·prompt(내용 문장 우선)+rawTags+freeTags+기법/주제/분위기+utility 합산, null 필터 |
+| **Operations** | collectTags | `List<String>` | private | aiDescription·prompt(내용 문장 우선)+rawTags+freeTags+기법/주제/분위기+utility 합산, null 필터 |
 
 <br>
 
@@ -237,7 +237,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | SearchResponse | `<<DTO>>` | public | 검색 응답 record. Pinecone 순위 유지(태그 rerank 반영) 결과 묶음 |
-| **Attributes** | results | List&lt;ImageResult&gt; | public | 정렬된 결과 리스트(최대 topK) |
+| **Attributes** | results | `List<ImageResult>` | public | 정렬된 결과 리스트(최대 topK) |
 | **Attributes** | total | int | public | 반환 개수 |
 | **Attributes** | query | String | public | 에코된 쿼리(벡터 검색이면 빈 문자열) |
 
@@ -257,9 +257,9 @@ classDiagram
 | **Attributes** | technique | String | public | 기법 자동태그 |
 | **Attributes** | subject | String | public | 주제 자동태그 |
 | **Attributes** | mood | String | public | 분위기 자동태그 |
-| **Attributes** | utility | List&lt;String&gt; | public | 용도 태그 |
-| **Attributes** | freeTags | List&lt;String&gt; | public | 자유 태그 |
-| **Attributes** | rawTags | List&lt;String&gt; | public | Unsplash 원본 키워드(고변별 신호) |
+| **Attributes** | utility | `List<String>` | public | 용도 태그 |
+| **Attributes** | freeTags | `List<String>` | public | 자유 태그 |
+| **Attributes** | rawTags | `List<String>` | public | Unsplash 원본 키워드(고변별 신호) |
 | **Attributes** | source | String | public | ImageSource enum 이름("UNSPLASH"\|"AI", 프론트 AI 배지) |
 | **Attributes** | prompt | String | public | AI 이미지 영문 생성 프롬프트(Unsplash는 null) — rerank의 AI 내용 신호 |
 | **Attributes** | aiDescription | String | public | Unsplash 네이티브 AI 캡션(AI 이미지는 null) — 내용 신호 |
@@ -276,7 +276,7 @@ classDiagram
 | **Attributes** | url | String | public | 이미지 URL |
 | **Attributes** | photographer | String | public | 사진작가 이름(없으면 null) |
 | **Attributes** | score | BigDecimal | public | 검색 점수(CLIP 유사도, Score Guard 판정 결과 그대로) |
-| **Attributes** | tags | List&lt;String&gt; | public | 태그 목록(collectTags 합산, null이면 빈 리스트로 정규화) |
+| **Attributes** | tags | `List<String>` | public | 태그 목록(collectTags 합산, null이면 빈 리스트로 정규화) |
 | **Attributes** | photographerUsername | String | public | 사진작가 username(표시용, 없으면 null) |
 | **Attributes** | technique | String | public | 기법(표시용) |
 | **Attributes** | subject | String | public | 주제(표시용) |

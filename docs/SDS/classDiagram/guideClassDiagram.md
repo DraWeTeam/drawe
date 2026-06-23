@@ -161,10 +161,10 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | GuideController | `<<Controller>>` | public | 이미지 가이딩(한 끗 가이드) 전용 엔드포인트. 클립📎 업로드 모달이 호출. 멀티파트 file(필수) + message/intent/track/medium(선택), 멱등은 Idempotency-Key 헤더로. 베이스 경로 `/projects/{projectId}/guide` |
 | **Attributes** | guideService | GuideService | private | 가이드 오케스트레이션 서비스 |
-| **Operations** | list | ApiResponse&lt;List&lt;GuideResult&gt;&gt; | public | 가이드 이력 조회 (GET /projects/{id}/guide). 채팅 재진입 시 가이드 카드 복원용 — 프로젝트의 가이드 히스토리(오래된→최신) |
-| **Operations** | guide | ApiResponse&lt;GuideResult&gt; | public | 그림 업로드→가이드 (POST /projects/{id}/guide, multipart). file 업로드 후 외부 비전/코칭 파이프라인 결과 반환 |
-| **Operations** | guideFeedback | ApiResponse&lt;Void&gt; | public | 가이드 피드백 (POST /projects/{id}/guide/{guideId}/feedback). body `{"feedback":"like"\|"dislike"\|null}`, null은 토글 해제 |
-| **Operations** | referenceFeedback | ApiResponse&lt;Void&gt; | public | 추천 레퍼런스 피드백 (POST .../{guideId}/references/feedback). body `{"event":"liked"\|"disliked"}` — 본 레퍼런스(최대 3컷)에 묶음 기록 |
+| **Operations** | list | `ApiResponse<List<GuideResult>>` | public | 가이드 이력 조회 (GET /projects/{id}/guide). 채팅 재진입 시 가이드 카드 복원용 — 프로젝트의 가이드 히스토리(오래된→최신) |
+| **Operations** | guide | `ApiResponse<GuideResult>` | public | 그림 업로드→가이드 (POST /projects/{id}/guide, multipart). file 업로드 후 외부 비전/코칭 파이프라인 결과 반환 |
+| **Operations** | guideFeedback | `ApiResponse<Void>` | public | 가이드 피드백 (POST /projects/{id}/guide/{guideId}/feedback). body `{"feedback":"like"\|"dislike"\|null}`, null은 토글 해제 |
+| **Operations** | referenceFeedback | `ApiResponse<Void>` | public | 추천 레퍼런스 피드백 (POST .../{guideId}/references/feedback). body `{"event":"liked"\|"disliked"}` — 본 레퍼런스(최대 3컷)에 묶음 기록 |
 
 <br>
 
@@ -174,8 +174,8 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | GuideAssetProxyController | `<<Controller>>` | public | 가이드 자산(레퍼런스 이미지·도식) 공개 프록시. 내부(Service Connect) guide ECS를 브라우저가 직접 못 열기에 백엔드가 `/image`·`/guide-asset`로 포워딩(presigned 302는 그대로 흘려보냄). 인증 불필요(이미지 태그는 토큰을 못 실음) |
 | **Attributes** | guideClient | GuideClient | private | 내부 guide 서비스 자산 프록시 클라이언트 |
-| **Operations** | image | ResponseEntity&lt;byte[]&gt; | public | 레퍼런스 이미지 프록시 (GET /image/{refId}) → 내부 guide `/image` 포워딩 |
-| **Operations** | guideAsset | ResponseEntity&lt;byte[]&gt; | public | 도식/자산 슬롯 프록시 (GET /guide-asset/{*refId}) → 내부 guide `/guide-asset` 포워딩. refId가 슬래시/콜론을 포함할 수 있어 와일드카드 |
+| **Operations** | image | `ResponseEntity<byte[]>` | public | 레퍼런스 이미지 프록시 (GET /image/{refId}) → 내부 guide `/image` 포워딩 |
+| **Operations** | guideAsset | `ResponseEntity<byte[]>` | public | 도식/자산 슬롯 프록시 (GET /guide-asset/{*refId}) → 내부 guide `/guide-asset` 포워딩. refId가 슬래시/콜론을 포함할 수 있어 와일드카드 |
 
 <br>
 
@@ -193,15 +193,15 @@ classDiagram
 | **Attributes** | imageBlobRepository | ImageBlobRepository | private | 저장된 ImageBlob 프록시 조회 |
 | **Attributes** | guidePublicUrl | String | private | 레퍼런스 이미지 브라우저 도달용 base(`/image/{ref_id}`) |
 | **Operations** | guide | GuideResult | public | 업로드→가이드 핵심 흐름: 권한 확인 → 멱등 키 결정/dedup → bytes 추출 → (TX 밖) `guideClient.guideImage` 호출 → coach면 `persistGuide` → 결과 빌드 |
-| **Operations** | list | List&lt;GuideResult&gt; | public | 프로젝트 내 내 가이드 히스토리(DESC 조회 후 오래된→최신으로 뒤집음). 저장 payload로 레퍼런스 URL 재보강. `@Transactional(readOnly=true)` |
+| **Operations** | list | `List<GuideResult>` | public | 프로젝트 내 내 가이드 히스토리(DESC 조회 후 오래된→최신으로 뒤집음). 저장 payload로 레퍼런스 URL 재보강. `@Transactional(readOnly=true)` |
 | **Operations** | adoptReferences | void | public | 레퍼런스 묶음 피드백(liked/disliked) → 페이로드 ref 풀 화이트리스트 필터(없으면 top-3 폴백) 후 guide `/adopt`로 best-effort 적재. `@Transactional(readOnly=true)` |
 | **Operations** | setGuideFeedback | void | public | 가이드 전체 피드백 업서트(like/dislike) / null·빈값이면 토글 해제(삭제). (user_id, guide_id) UNIQUE로 사용자별 1행. `@Transactional` |
 | **Operations** | persistGuide | Guide | private | coach 가이드 영속. request_id UNIQUE 경합(동시 중복 제출) 시 DataIntegrityViolation 삼키고 null 반환 |
 | **Operations** | storeUploadQuietly | ImageBlob | private | 업로드 원본을 image_blobs에 저장(히스토리 썸네일용). 실패는 non-fatal — null 반환 |
-| **Operations** | allReferenceIds | Set&lt;String&gt; | private | 페이로드 전체 블록 reference_ids 합집합(피드백 대상 화이트리스트) |
+| **Operations** | allReferenceIds | `Set<String>` | private | 페이로드 전체 블록 reference_ids 합집합(피드백 대상 화이트리스트) |
 | **Operations** | buildResult | GuideResult | private | GuideResponse + resolveReferences + createdAt + uploadUrl 조립 |
 | **Operations** | uploadUrl | String | private | 저장 업로드 원본 internal URL(`/images/{id}`), 없으면 null |
-| **Operations** | resolveReferences | List&lt;ResolvedReference&gt; | private | 전체 블록 reference_ids 등장 순서 dedupe → 최대 3컷, 순번 + URL 보강 |
+| **Operations** | resolveReferences | `List<ResolvedReference>` | private | 전체 블록 reference_ids 등장 순서 dedupe → 최대 3컷, 순번 + URL 보강 |
 | **Operations** | referenceUrl | String | private | guidePublicUrl 기반 `/image/{refId}` URL 생성 |
 | **Operations** | loadProjectAuthorized | Project | private | 프로젝트 로드 + 소유자 검증(NOT_FOUND / FORBIDDEN) |
 
@@ -215,7 +215,7 @@ classDiagram
 | **Attributes** | webClient | WebClient | private | `${fastapi.guide.url}` baseUrl WebClient |
 | **Operations** | guideImage | GuideResponse | public | `POST /guide` 멀티파트(file + message/user_id/intent/track/medium/request_id). 외부 비전/코칭 파이프라인 호출, GuideResponse 역직렬화 |
 | **Operations** | adopt | void | public | `POST /adopt`(guide_id/reference_id/event) → adoption_log 적재. 실패는 삼키고 로그만(best-effort, 5s 타임아웃) |
-| **Operations** | fetchAsset | ResponseEntity&lt;byte[]&gt; | public | 자산 프록시. 내부 guide path로 GET, 302(presigned S3)는 그대로 반환(no-store), 2xx 본문은 Content-Type과 전달. 실패는 502 매핑. 경로탈출(`..`) 차단 |
+| **Operations** | fetchAsset | `ResponseEntity<byte[]>` | public | 자산 프록시. 내부 guide path로 GET, 302(presigned S3)는 그대로 반환(no-store), 2xx 본문은 Content-Type과 전달. 실패는 502 매핑. 경로탈출(`..`) 차단 |
 
 <br>
 
@@ -228,7 +228,7 @@ classDiagram
 | **Attributes** | guideId | String | public | FastAPI 발급 guide_id(coach 모드). 비-coach면 null |
 | **Attributes** | primaryFocus | String | public | 대표 초점 축 id |
 | **Attributes** | degraded | boolean | public | 파이프라인 degrade 여부 |
-| **Attributes** | blocks | List&lt;GuideBlock&gt; | public | 코칭 블록(subProblem/observation/effect/direction/referenceIds/confidence/guideAsset) |
+| **Attributes** | blocks | `List<GuideBlock>` | public | 코칭 블록(subProblem/observation/effect/direction/referenceIds/confidence/guideAsset) |
 | **Attributes** | synthesis | String | public | 종합 코멘트 |
 | **Attributes** | oneThing | String | public | 한 끗(가장 중요한 한 가지) |
 | **Attributes** | message | String | public | 비-coach 모드 안내 메시지 |
@@ -277,7 +277,7 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | GuideResult | `<<record>>` | public | 가이드 API 응답 = FastAPI GuideResponse(변형 없이) + Spring 보강 |
 | **Attributes** | guide | GuideResponse | public | FastAPI 응답 그대로(blocks 안에 reference_ids) |
-| **Attributes** | references | List&lt;ResolvedReference&gt; | public | 전체 블록 reference_ids 등장 순서 dedupe → 최대 3컷(순번 + URL 보강) |
+| **Attributes** | references | `List<ResolvedReference>` | public | 전체 블록 reference_ids 등장 순서 dedupe → 최대 3컷(순번 + URL 보강) |
 | **Attributes** | createdAt | Instant | public | 가이드 생성/저장 시각 |
 | **Attributes** | uploadUrl | String | public | 업로드 원본 썸네일 URL(`/images/{id}`), 없으면 null |
 
@@ -309,4 +309,4 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | ReferenceFeedbackRequest | `<<DTO>>` | public | 가이드 내 레퍼런스 묶음 피드백 요청 |
 | **Attributes** | event | String | public | "liked" \| "disliked" |
-| **Attributes** | referenceIds | List&lt;String&gt; | public | 사용자가 실제로 본 레퍼런스 id 목록(페이로드 ref 풀로 화이트리스트 필터, 없으면 top-3 폴백) |
+| **Attributes** | referenceIds | `List<String>` | public | 사용자가 실제로 본 레퍼런스 id 목록(페이로드 ref 풀로 화이트리스트 필터, 없으면 top-3 폴백) |
