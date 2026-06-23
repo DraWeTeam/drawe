@@ -15,6 +15,30 @@ DraWe의 핵심은 **한국어 자유 요청 → 정확한 레퍼런스 추천·
 - **설계 근거**: 매 요청을 LLM에 보내면 비용·지연이 크므로, 규칙으로 거를 수 있는 건 거른다.
 - 의도별로 후속 단계(검색/유지/합성/생성/거절)가 갈린다.
 
+### 6.2.1 전체 의도 라우팅 (IntentRouting.ROUTING)
+12개 의도 → 실행할 StepExecutor 시퀀스의 정적 매핑. **흐름 그림([README](./README.md))은 대표 분기(검색 vs 재사용)만 보이고, 전체 의도는 아래 표가 정본이다.**
+
+| 의도(IntentCode) | 라우팅(Step 시퀀스) | 설명 |
+|---|---|---|
+| **NEW_SEARCH** | EXTRACT_KEYWORDS → SEARCH → COMPOSE | 신규 레퍼런스 검색(②~⑥ 전체) |
+| **KEEP** | COMPOSE | 직전 레퍼런스 유지·이어보기(재사용) |
+| **FOLLOWUP** | COMPOSE | 직전 답변 부연(검색 없음, 베타 빈도 1위 29%) |
+| **COMPARE** | COMPOSE | 맥락 내 레퍼런스 비교(`[1]` vs `[2]`) |
+| **SKIP** | COMPOSE | 추천 없이 대화 진행 |
+| **COMPOSITION** | COMPOSE | 구도 조언(검색 없이 조언) |
+| **LIGHTING** | COMPOSE | 명암·조명 조언 |
+| **COLOR** | COMPOSE | 색감 조언 |
+| **TECHNIQUE** | COMPOSE | 기법 조언 |
+| **OUT_OF_DOMAIN** | COMPOSE | 도메인 밖 요청 — 정중한 안내/거절 |
+| **GENERATE** | TRANSLATE → GENERATE_IMAGE | AI 이미지 생성(Bria), COMPOSE 미종착 |
+| **SELF_CRITIQUE** | CRITIQUE_UPLOAD → COMPOSE | 업로드 그림 자기비평 |
+
+- **검색 그룹**: NEW_SEARCH 1개만 ②~⑤(키워드·임베딩·검색·re-rank)를 탄다.
+- **재사용/조언 그룹(COMPOSE 종착)**: KEEP·FOLLOWUP·COMPARE·SKIP·COMPOSITION·LIGHTING·COLOR·TECHNIQUE·OUT_OF_DOMAIN — 검색 없이 직전 레퍼런스(Redis)·맥락만으로 ⑥ 합성.
+- **별도 흐름**: GENERATE(이미지 생성), SELF_CRITIQUE(업로드 비평)는 검색 파이프라인과 다른 트랙.
+- **Live 게이트**: live는 **COMPOSE 종착 의도만 허용**(§6.9) — GENERATE처럼 COMPOSE로 끝나지 않는 의도는 부팅 검증에서 막힌다.
+- LEARNING_PATH(학습 경로)는 베타 빈도가 낮아 **보류**(가장 가까운 기존 코드로 매핑).
+
 ## 6.3 키워드 추출
 - **문제**: 한국어 요청은 검색 신호로 바로 못 씀. 범용 형태소 분석기는 "수채화풍" 같은 복합어를 쪼개거나 "그려줘" 같은 요청 동사를 키워드로 섞는다.
 - **해결**: Komoran 형태소 → **미술 사용자 사전(ArtTerms) KO→EN 매핑** → 사전 미스율이 임계(>30%)면 **Grok LLM 폴백**.
