@@ -28,7 +28,7 @@
 - **FastAPI·embed**(CLIP ViT-L/14) → 임베딩 → Pinecone, **FastAPI·guide**(OpenCLIP) → 이미지 가이드(Qdrant·`drawe_guide` RDS·S3).
 - 배포: **AWS ECS · EC2 Graviton(ARM64)**.
 
-## 3. 핵심 — AI 추천 파이프라인 ⭐
+## 3. 핵심 ① — AI 추천 파이프라인 ⭐
 
 ![AI 추천 파이프라인](./img/reference-search-pipeline.svg)
 
@@ -36,7 +36,17 @@
 - **하이브리드 검색**: CLIP 유사도에 태그 IDF 가중치를 더해 변별력 보강.
 - **할루시네이션 완화**: LLM이 태그가 아닌 **실제 내용 캡션(ai_description)** 에 근거해 설명.
 
-## 4. 기술 스택
+## 4. 핵심 ② — 이미지 기반 가이드 ⭐
+
+단순 레퍼런스 검색을 넘어, **사용자가 그린 그림을 비전으로 진단·코칭**한다. 백엔드(`GuideService`)는 오케스트레이션만 하고, 실제 비전 분석·코칭은 `fastapi-guide` 서비스가 수행한다(별도 코퍼스 **Qdrant**·`drawe_guide` RDS).
+
+![이미지 기반 가이드 파이프라인](./img/guide-pipeline.svg)
+
+- **검색 도구 → AI 코치**: 내가 그린 그림을 진단·코칭(우리 1번 차별점).
+- **성장 중심 맞춤**: `growth`(user_id 단위 진척)로 약점·이력을 반영해 개인화.
+- **오케스트레이션 분리**: 백엔드는 권한·멱등·영속만, 비전 파이프라인(OpenCLIP·mediapipe·Qdrant·LLM)은 `fastapi-guide`가 담당. `coach` 모드만 이력으로 저장.
+
+## 5. 기술 스택
 
 | 영역 | 기술 |
 |---|---|
@@ -45,14 +55,6 @@
 | AI 서비스 | FastAPI, CLIP (ViT-L/14), mediapipe, Gemini VLM |
 | 데이터 | MySQL 8, Redis · Valkey, Pinecone |
 | 인프라 | AWS ECS (EC2 Graviton ARM64), Cloudflare, ALB, GitHub Actions CI/CD |
-
-## 5. 주요 설계 포인트
-
-1. **키워드 추출 파이프라인** — 형태소 분석(Komoran) + 미술 사용자 사전(93→247 확장) + 사전 미스 시 LLM 폴백. 복합어 보존, 요청 동사 불용어 처리.
-2. **태그 IDF 하이브리드 re-rank** — `score = CLIP + min(cap, scale·Σ IDF(matched tags))`. CLIP을 덮지 않게 cap 튜닝.
-3. **ai_description 캡션 보강** — 픽셀 없는 LLM에게 실제 내용 문장을 줘 추천·설명 정확도 향상(할루 완화).
-4. **레거시 ↔ Live 게이트** — `workflow.compose.live-intents`로 의도별 점진 전환(COMPOSE 종착 의도만 허용, 부팅 검증).
-5. **멀티턴 단기메모리** — Redis로 직전 레퍼런스 재사용, 초기화 시 DB+Redis 동시 정리.
 
 ## 6. 문서 구성 (SDS 인덱스)
 
