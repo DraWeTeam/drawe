@@ -1,10 +1,10 @@
-# 3. System Architecture
+# 2. System Architecture
 
 ![DraWe System Architecture](./img/systemArchitecture.png)
 
 > 정식 아키텍처/배포 다이어그램(인프라 팀 제공). 아래는 구성요소·통신·배포·운영 설명.
 
-## 3.1 구성요소
+## 2.1 구성요소
 
 | 영역 | 구성요소 | 책임 |
 |---|---|---|
@@ -21,18 +21,18 @@
 | | **Qdrant Cloud** | 가이드 레퍼런스 벡터 |
 | | LLM Providers | Grok·Claude·Gemini |
 
-## 3.2 통신
+## 2.2 통신
 - **Client → Edge → Backend**: Cloudflare → ALB → Backend. REST(JSON) + JWT.
 - **Backend → fastapi-embed/guide**: 컴퓨트 내부 호출.
 - **Backend → Pinecone / LLM**, **fastapi-guide → Qdrant Cloud**: 외부 HTTPS. Resilience4j(서킷브레이커·리트라이)로 격리.
 
-## 3.3 배포
+## 2.3 배포
 - **AWS ECS on EC2 (Graviton ARM64)**.
 - **CI/CD**: GitHub Actions → Amazon ECR → **ECS rolling deploy**.
 - **IaC**: Terraform.
 - **설정**: `application.properties`(env-var) ← **SSM Parameter Store**(비밀). 로컬은 gitignore 프로필이 덮음.
 
-## 3.4 제어 / 운영 (Control Plane)
+## 2.4 제어 / 운영 (Control Plane)
 - **Secrets**: SSM Parameter Store.
 - **Observability**: alloy-daemon → **Alloy → Grafana Cloud**(dev/prod), OTEL 메트릭·트레이스.
 - **Alerts**: SNS → Lambda → **Discord** 알림.

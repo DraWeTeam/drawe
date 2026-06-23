@@ -61,16 +61,16 @@
 | # | 섹션 | 내용 | 상태 |
 |---|---|---|---|
 | 1 | [introduction](./introduction.md) | 개요·목적·범위 | ✅ |
-| 2 | [glossary](./glossary.md) | 용어 정의 | ✅ |
-| 3 | [systemArchitecture](./systemArchitecture.md) | 컴포넌트·배포·데이터흐름 | ✅ |
-| 4 | [usecaseAnalysis](./usecaseAnalysis.md) | 유스케이스 | ✅ |
-| 5 | [userInterfacePrototype](./userInterfacePrototype.md) | UI 목업 | ✅ |
-| 6 | [aiPipelineDesign](./aiPipelineDesign.md) | AI 파이프라인 설계 근거 ⭐ | ✅ |
-| 7 | [classDiagram](./classDiagram.md) | 도메인별 클래스 다이어그램 | ✅ |
-| 8 | [sequenceDiagram](./sequenceDiagram.md) | 기능별 시퀀스 다이어그램 | ✅ |
-| 9 | [stateMachineDiagram](./stateMachineDiagram.md) | 상태 전이(의도·세션·프로젝트) | ✅ |
-| 10 | [dataDesign](./dataDesign.md) | MySQL · Pinecone 데이터 설계 | ✅ |
-| 11 | [implementationRequirements](./implementationRequirements.md) | 기술스택·배포·복원력·보안 | ✅ |
+| 2 | [systemArchitecture](./systemArchitecture.md) | 컴포넌트·배포·데이터흐름 | ✅ |
+| 3 | [usecaseAnalysis](./usecaseAnalysis.md) | 유스케이스 | ✅ |
+| 4 | [userInterfacePrototype](./userInterfacePrototype.md) | UI 목업 | ✅ |
+| 5 | [aiPipelineDesign](./aiPipelineDesign.md) | AI 파이프라인 설계 근거 ⭐ | ✅ |
+| 6 | [classDiagram](./classDiagram.md) | 도메인별 클래스 다이어그램 | ✅ |
+| 7 | [sequenceDiagram](./sequenceDiagram.md) | 도메인별 시퀀스 다이어그램 | ✅ |
+| 8 | [stateMachineDiagram](./stateMachineDiagram.md) | 전체·도메인 상태 머신 | ✅ |
+| 9 | [dataDesign](./dataDesign.md) | MySQL · Redis · Pinecone · Qdrant · S3 | ✅ |
+| 10 | [implementationRequirements](./implementationRequirements.md) | 기술스택·배포·복원력·보안 | ✅ |
+| 11 | [glossary](./glossary.md) | 용어 정의 | ✅ |
 | 12 | [references](./references.md) | 참고 자료 | ✅ |
 
 ## 7. 도메인 모듈 (백엔드)

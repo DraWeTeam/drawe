@@ -1,4 +1,4 @@
-# 8. Sequence Diagram
+# 7. Sequence Diagram
 
 도메인별로 핵심 흐름을 시퀀스 다이어그램으로 정리한다(GameMatch 방식). 각 문서는 **상세 mermaid sequenceDiagram**(Controller → Service → Repository → DB, 실제 메서드·파라미터, `alt`/`opt` 분기, 반환)과 **흐름 요약 표**(항목/흐름 요약/핵심 비즈니스 로직)를 담는다.
 
@@ -13,4 +13,4 @@
 | **이미지** | [imageSequenceDiagram](./sequenceDiagram/imageSequenceDiagram.md) | 업로드·서빙 · 좋아요/싫어요 피드백 |
 | **갤러리 · 아카이브** | [gallerySequenceDiagram](./sequenceDiagram/gallerySequenceDiagram.md) | 완성작 갤러리(AI 생성) · 레퍼런스 아카이브 |
 
-> 채팅 도메인의 의도 라우팅 정본은 [aiPipelineDesign §6.2.1](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.
+> 채팅 도메인의 의도 라우팅 정본은 [aiPipelineDesign §5.2.1](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.
