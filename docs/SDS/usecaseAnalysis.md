@@ -29,37 +29,9 @@
 
 ## 4.4 유스케이스 다이어그램
 
-> Mermaid flowchart로 표현(액터 — 유스케이스 — 시스템 경계). 정식 UML PNG로 교체 가능.
+UML 표기(액터 — 유스케이스 — 시스템 경계, `«include»`/`«extend»`).
 
-```mermaid
-flowchart LR
-    User(("사용자"))
-    Admin(("관리자"))
-
-    subgraph DraWe["DraWe 시스템"]
-        UC1(["로그인 / 인증"])
-        UC2(["프로젝트 관리<br/>생성·정렬·검색·수정·삭제"])
-        UC3(["레퍼런스 추천 채팅<br/>검색·멀티턴·비교"])
-        UC4(["레퍼런스 핀"])
-        UC5(["AI 이미지 생성"])
-        UC6(["그림 가이드<br/>업로드 진단·코칭"])
-        UC7(["갤러리 / 레퍼런스 아카이브"])
-        UC8(["사용량·비용·품질 대시보드"])
-    end
-
-    User --- UC1
-    User --- UC2
-    User --- UC3
-    User --- UC4
-    User --- UC5
-    User --- UC6
-    User --- UC7
-    Admin --- UC1
-    Admin --- UC8
-
-    UC3 -. "결과 없음 «extend»" .-> UC5
-    UC3 -. "«include»" .-> UC4
-```
+![UML 유스케이스 다이어그램](./img/usecase.svg)
 
 - **«include»**: 레퍼런스 추천 중 마음에 드는 이미지를 핀.
-- **«extend»**: 적합한 검색 결과가 없을 때(점수 가드) AI 이미지 생성으로 확장.
+- **«extend»**: 적합한 검색 결과가 없을 때(점수 가드) AI 이미지 생성으로 확장(UC3 → UC5).
