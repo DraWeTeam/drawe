@@ -22,7 +22,7 @@
 
 ## 2. 시스템 아키텍처
 
-![DraWe System Architecture](./img/systemArchitecture.png)
+![DraWe System Architecture](./img/systemArchitecture-eks.png)
 
 - **Backend(Spring Boot)** 가 도메인 로직·인증·AI 추천 파이프라인을 오케스트레이션.
 - **FastAPI·embed**(CLIP ViT-L/14) → 임베딩 → Pinecone, **FastAPI·guide**(OpenCLIP) → 이미지 가이드(Qdrant·`drawe_guide` RDS·S3).
