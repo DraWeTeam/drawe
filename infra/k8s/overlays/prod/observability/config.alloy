@@ -1,0 +1,335 @@
+// ─────────────────────────────────────────────────────────
+// Grafana Alloy — EKS DaemonSet (prod, self-host LGT + AMP)
+// 수집·redaction 로직은 dev(Grafana Cloud)와 동일. export 목적지만 분기:
+//   metrics → AMP   (SigV4 RemoteWrite)
+//   logs    → Loki  (self-host, loki.observability.svc:3100)
+//   traces  → Tempo (self-host, tempo.observability.svc:4317)
+// 주입 env (overlay daemonset patch): AMP_REMOTE_WRITE_URL, AWS_REGION, NODE_NAME
+// ─────────────────────────────────────────────────────────
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// ════════ 노드 메트릭 (per-node) ════════
+prometheus.exporter.unix "node" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+  rootfs_path = "/host"
+}
+
+prometheus.scrape "node" {
+  targets         = prometheus.exporter.unix.node.targets
+  forward_to      = [otelcol.receiver.prometheus.infra.receiver]
+  scrape_interval = "30s"
+  job_name        = "node-exporter"
+}
+
+// ════════ Pod 로그 (이 노드의 pod만, K8s API tail) ════════
+discovery.kubernetes "pods" {
+  role = "pod"
+  selectors {
+    role  = "pod"
+    field = "spec.nodeName=" + sys.env("NODE_NAME")
+  }
+}
+
+discovery.relabel "pods" {
+  targets = discovery.kubernetes.pods.targets
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
+}
+
+loki.source.kubernetes "pods" {
+  targets    = discovery.relabel.pods.output
+  forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+  forward_to = [otelcol.receiver.loki.infra.receiver]
+}
+
+// ── loki / prometheus → OTLP 변환 ──
+otelcol.receiver.loki "infra" {
+  output {
+    logs = [otelcol.processor.transform.infra.input]
+  }
+}
+otelcol.receiver.prometheus "infra" {
+  output {
+    metrics = [otelcol.processor.transform.infra.input]
+  }
+}
+
+// ── infra resource attrs (transform/OTTL, context=resource) ──
+otelcol.processor.transform "infra" {
+  error_mode = "ignore"
+  log_statements {
+    context = "resource"
+    statements = [
+      `set(attributes["service.name"], "infra-daemon")`,
+      `set(attributes["service.namespace"], "drawe")`,
+      `set(attributes["deployment.environment"], "prod")`,
+    ]
+  }
+  metric_statements {
+    context = "resource"
+    statements = [
+      `set(attributes["service.name"], "infra-daemon")`,
+      `set(attributes["service.namespace"], "drawe")`,
+      `set(attributes["deployment.environment"], "prod")`,
+    ]
+  }
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ════════ 앱 텔레메트리 (OTLP 리시버 — 앱이 4317/4318 로 전송) ════════
+otelcol.receiver.otlp "app" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+  output {
+    traces  = [otelcol.processor.k8sattributes.app.input]
+    metrics = [otelcol.processor.k8sattributes.app.input]
+    logs    = [otelcol.processor.k8sattributes.app.input]
+  }
+}
+
+otelcol.processor.k8sattributes "app" {
+  extract {
+    metadata = [
+      "k8s.namespace.name",
+      "k8s.pod.name",
+      "k8s.node.name",
+      "k8s.deployment.name",
+    ]
+  }
+  output {
+    traces  = [otelcol.processor.transform.app.input]
+    metrics = [otelcol.processor.transform.app.input]
+    logs    = [otelcol.processor.transform.app.input]
+  }
+}
+
+otelcol.processor.transform "app" {
+  error_mode = "ignore"
+  trace_statements {
+    context = "resource"
+    statements = [
+      `set(attributes["service.namespace"], "drawe")`,
+      `set(attributes["deployment.environment"], "prod")`,
+    ]
+  }
+  metric_statements {
+    context = "resource"
+    statements = [
+      `set(attributes["service.namespace"], "drawe")`,
+      `set(attributes["deployment.environment"], "prod")`,
+    ]
+  }
+  log_statements {
+    context = "resource"
+    statements = [
+      `set(attributes["service.namespace"], "drawe")`,
+      `set(attributes["deployment.environment"], "prod")`,
+    ]
+  }
+  output {
+    traces  = [otelcol.processor.attributes.redact.input, otelcol.connector.spanmetrics.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.attributes.redact.input]
+  }
+}
+
+// ── PII Redaction (외부 전송 전 안전망) ──
+otelcol.processor.attributes "redact" {
+  action {
+    key = "user.email"
+    action = "delete"
+  }
+  action {
+    key = "user.name"
+    action = "delete"
+  }
+  action {
+    key = "user.phone"
+    action = "delete"
+  }
+  action {
+    key = "end_user.id"
+    action = "delete"
+  }
+  action {
+    key = "enduser.id"
+    action = "delete"
+  }
+  action {
+    key = "client_address"
+    action = "delete"
+  }
+  action {
+    key = "net.peer.ip"
+    action = "delete"
+  }
+  action {
+    key = "client.address"
+    action = "delete"
+  }
+  action {
+    key = "http.request.body"
+    action = "delete"
+  }
+  action {
+    key = "http.response.body"
+    action = "delete"
+  }
+  action {
+    pattern = "^http\\.(request|response)\\.header\\..*$"
+    action = "delete"
+  }
+  action {
+    key = "db.statement"
+    action = "delete"
+  }
+  action {
+    key = "exception.message"
+    action = "delete"
+  }
+  action {
+    key = "http.url"
+    action = "hash"
+  }
+  action {
+    key = "url.full"
+    action = "hash"
+  }
+  action {
+    key = "url.query"
+    action = "delete"
+  }
+  action {
+    key = "gen_ai.prompt"
+    action = "delete"
+  }
+  action {
+    key = "gen_ai.completion"
+    action = "delete"
+  }
+  action {
+    key = "llm.prompts"
+    action = "delete"
+  }
+  action {
+    key = "llm.completions"
+    action = "delete"
+  }
+  action {
+    key = "auth.token"
+    action = "delete"
+  }
+  action {
+    key = "api.key"
+    action = "delete"
+  }
+  action {
+    key = "authorization"
+    action = "delete"
+  }
+  output {
+    traces = [otelcol.processor.probabilistic_sampler.default.input]
+    logs   = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ── Trace 샘플링 (dev=100, prod=10) ──
+otelcol.processor.probabilistic_sampler "default" {
+  sampling_percentage = 10   // prod=10
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ── Spanmetrics (traces → RED 메트릭, 샘플링 전이라 100% 정확) ──
+otelcol.connector.spanmetrics "default" {
+  histogram {
+    explicit {
+      buckets = ["5ms", "10ms", "25ms", "50ms", "100ms", "250ms", "500ms", "1s", "2.5s", "5s", "10s"]
+    }
+  }
+  dimension { name = "http.method" }
+  dimension { name = "http.status_code" }
+  dimension { name = "http.route" }
+  namespace = "traces.spanmetrics"
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ════════ Export → self-host LGT + AMP ════════
+otelcol.processor.batch "default" {
+  timeout         = "5s"
+  send_batch_size = 512
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.amp.input]
+    logs    = [otelcol.exporter.loki.self.input]
+  }
+}
+
+// ── Logs → self-host Loki ──
+otelcol.exporter.loki "self" {
+  forward_to = [loki.write.self.receiver]
+}
+loki.write "self" {
+  endpoint {
+    url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    cluster = "drawe-prod",
+    env     = "prod",
+  }
+}
+
+// ── Traces → self-host Tempo (OTLP gRPC) ──
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo.observability.svc.cluster.local:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ── Metrics → AMP (SigV4 signed RemoteWrite, alloy SA IRSA) ──
+otelcol.exporter.prometheus "amp" {
+  forward_to = [prometheus.remote_write.amp.receiver]
+}
+prometheus.remote_write "amp" {
+  endpoint {
+    url = sys.env("AMP_REMOTE_WRITE_URL")
+    sigv4 {
+      region = sys.env("AWS_REGION")
+      // service: aps (endpoint 호스트에서 자동 추론)
+    }
+    queue_config {
+      capacity             = 10000
+      max_shards           = 50
+      max_samples_per_send = 1500
+    }
+  }
+  external_labels = {
+    cluster = "drawe-prod",
+  }
+}

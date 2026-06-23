@@ -1,0 +1,161 @@
+############################################################
+# Grafana — UI (AMP / Loki / Tempo / X-Ray datasource)
+#   ECS aws_ecs_service.grafana 의 EKS 포팅.
+#   - DB: 기존 prod RDS MySQL 의 'grafana' 스키마 재사용 (SGP 로 3306 접근)
+#   - datasource provisioning: configMapGenerator(grafana-datasources)
+#   - admin/db 비밀번호: ExternalSecret(grafana-secrets)
+#   - AMP query / X-Ray: grafana SA IRSA(drawe-prod-obs-grafana) + SigV4
+#   - 노출: Ingress(grafana.drawe.xyz) → 기존 EKS ALB(group.name=drawe-prod) 공유
+############################################################
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana
+  namespace: observability
+  annotations:
+    # 3-platform output: obs_grafana_role_arn
+    eks.amazonaws.com/role-arn: arn:aws:iam::933832340498:role/drawe-prod-obs-grafana
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: observability
+  labels:
+    app: grafana
+spec:
+  # ALB Ingress 가 target-type: instance 라서 NodePort 필요 (backend 와 동일 패턴)
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: observability
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      serviceAccountName: grafana
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.4.0
+          env:
+            - name: GF_SERVER_ROOT_URL
+              value: https://grafana.drawe.xyz
+            # ── RDS MySQL (기존 prod RDS 의 grafana 스키마) ──
+            - name: GF_DATABASE_TYPE
+              value: mysql
+            - name: GF_DATABASE_HOST
+              value: drawe-prod-mysql.cds86q4oy48b.ap-northeast-2.rds.amazonaws.com:3306
+            - name: GF_DATABASE_NAME
+              value: grafana
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_INSTALL_PLUGINS
+              value: grafana-x-ray-datasource
+            - name: GF_AUTH_SIGV4_AUTH_ENABLED
+              value: "true"
+            # ── datasource provisioning 치환용 env ──
+            - name: AWS_REGION
+              value: ap-northeast-2
+            # ★ terraform output `amp_query_url` 값으로 교체
+            #   (예: https://aps-workspaces.ap-northeast-2.amazonaws.com/workspaces/ws-xxxxxxxx/)
+            - name: AMP_QUERY_URL
+              value: https://aps-workspaces.ap-northeast-2.amazonaws.com/workspaces/ws-83bd44f3-7f62-4320-bcd0-ab8b420dc020/
+            - name: LOKI_URL
+              value: http://loki.observability.svc.cluster.local:3100
+            - name: TEMPO_URL
+              value: http://tempo.observability.svc.cluster.local:3200
+          # admin/db 비밀번호 + db 유저 (ExternalSecret → Secret)
+          envFrom:
+            - secretRef:
+                name: grafana-secrets
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            - name: storage
+              mountPath: /var/lib/grafana
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: storage
+          emptyDir: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: observability
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/group.name: drawe-prod      # 기존 EKS ALB 공유
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # certificate-arn 미지정 → 컨트롤러가 host(grafana.drawe.xyz) 매칭 ACM 자동 탐색.
+    # 기존 main 인증서에 grafana.drawe.xyz SAN 이 없으면 아래로 명시:
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:933832340498:certificate/XXXX
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/success-codes: '200'
+spec:
+  ingressClassName: alb
+  rules:
+    - host: grafana.drawe.xyz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000

@@ -1,0 +1,20 @@
+# Grafana pod 에 pods-db SG(RDS 3306) + 클러스터 SG(probe/DNS) 부여.
+# RDS ingress(pods-db SG → 3306)는 eks/prod/3-platform/rds-access.tf 가 이미 추가 →
+# Grafana pod 가 이 SG 를 달기만 하면 RDS(grafana 스키마) 접근 가능 (신규 규칙 불필요).
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata:
+  name: grafana-rds
+  namespace: observability
+  labels:
+    app: grafana
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  securityGroups:
+    groupIds:
+      # [0] pods-db SG → RDS 3306 (3-platform output: pods_db_security_group_id)
+      - sg-05d63299e0850d902
+      # [1] 클러스터 SG → DNS/파드간/ALB 헬스체크 (2-cluster output, AWS 권장)
+      - sg-01cd9b17e6765c840

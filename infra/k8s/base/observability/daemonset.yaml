@@ -14,8 +14,8 @@ spec:
       labels:
         app.kubernetes.io/name: alloy
       annotations:
-        # config 변경 시 자동 롤링하도록 checksum 을 overlay 에서 주입해도 되고,
         # ArgoCD 가 ConfigMap 변경을 감지해 동기화한다.
+        # (overlay 에서 hashed CM 을 쓰면 자동 롤링도 가능)
         checksum/config: replace-on-config-change
     spec:
       serviceAccountName: alloy
@@ -44,14 +44,9 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: ALLOY_DEPLOY_ENV
-              value: "dev"          # overlay 에서 환경별 패치
-            - name: ALLOY_SAMPLING_RATE
-              value: "100"          # dev=100% / prod=10
-          # Grafana Cloud 자격증명 (ESO 가 만든 Secret)
-          envFrom:
-            - secretRef:
-                name: alloy-grafana-cloud
+          # ── 목적지별 env / 자격증명은 overlay 가 주입 ──
+          #   dev  : envFrom secretRef alloy-grafana-cloud (Grafana Cloud)
+          #   prod : env AMP_REMOTE_WRITE_URL / AWS_REGION (self-host)
           resources:
             requests:
               cpu: 100m

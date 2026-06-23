@@ -1,9 +1,50 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: observability
+
+# dev = Grafana Cloud. neutral base + Grafana Cloud 자격증명/패치/설정을 여기서 소유.
+# (효과는 리팩터 이전과 동일 — base 에 박혀 있던 것을 overlay 로 옮긴 것뿐)
 resources:
   - ../../../base/observability
-# dev 는 base 값(ALLOY_DEPLOY_ENV=dev, 샘플링 100%)을 그대로 사용.
+  - externalsecret.yaml          # Grafana Cloud 자격증명 (base 에서 이동)
+
+# alloy-config CM 을 dev 용(Grafana Cloud export)으로 생성.
+# disableNameSuffixHash=true → 이름 'alloy-config' 고정(daemonset volume 참조와 일치).
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    app.kubernetes.io/part-of: drawe-observability   # 원본 base commonLabels 와 동일(완전 무중단)
+configMapGenerator:
+  - name: alloy-config
+    files:
+      - config.alloy
+
+# DaemonSet 에 dev 전용 env + Grafana Cloud 자격증명(envFrom) 주입 (base 에서 이동).
+# env 는 name 기준 strategic-merge → base 의 NODE_NAME 에 dev 값이 합쳐진다.
+# 결과적으로 리팩터 전 base daemonset 과 byte-identical → ArgoCD diff/롤링 없음.
+patches:
+  - target:
+      kind: DaemonSet
+      name: alloy
+    patch: |-
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: alloy
+      spec:
+        template:
+          spec:
+            containers:
+              - name: alloy
+                env:
+                  - name: ALLOY_DEPLOY_ENV
+                    value: "dev"
+                  - name: ALLOY_SAMPLING_RATE
+                    value: "100"
+                envFrom:
+                  - secretRef:
+                      name: alloy-grafana-cloud
+
 # 운영 전 Alloy 버전 핀 권장 (Docker Hub: grafana/alloy 태그 확인 후 주석 해제):
 # images:
 #   - name: grafana/alloy

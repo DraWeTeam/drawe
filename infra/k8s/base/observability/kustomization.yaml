@@ -3,10 +3,15 @@ kind: Kustomization
 namespace: observability
 commonLabels:
   app.kubernetes.io/part-of: drawe-observability
+# ── 목적지 중립(destination-neutral) base ──
+# Alloy 의 수집(노드 메트릭·pod 로그·OTLP)·RBAC·SA·Service 만 공유.
+# config.alloy(목적지 export)와 Grafana Cloud 자격증명(ExternalSecret)은
+# 환경별로 다르므로 각 overlay 가 소유:
+#   dev  → Grafana Cloud  (overlays/dev/observability)
+#   prod → self-host LGT+AMP (overlays/prod/observability)
+# 각 overlay 가 configMapGenerator 로 'alloy-config' CM 을 제공한다.
 resources:
   - serviceaccount.yaml
   - rbac.yaml
-  - externalsecret.yaml
-  - configmap.yaml
   - daemonset.yaml
   - service.yaml

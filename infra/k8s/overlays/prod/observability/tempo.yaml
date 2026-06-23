@@ -1,0 +1,108 @@
+############################################################
+# Tempo — monolithic, S3 backend (IRSA)
+#   ECS aws_ecs_service.tempo 의 EKS 포팅. config 는 configMapGenerator(tempo-config).
+#   S3 는 tempo SA 의 IRSA(drawe-prod-obs-tempo)로 인증.
+#   Alloy(데몬)가 tempo:4317(OTLP gRPC)로 trace 전송, Grafana 가 :3200 query.
+############################################################
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tempo
+  namespace: observability
+  annotations:
+    # 3-platform output: obs_tempo_role_arn
+    eks.amazonaws.com/role-arn: arn:aws:iam::933832340498:role/drawe-prod-obs-tempo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  namespace: observability
+  labels:
+    app: tempo
+spec:
+  type: ClusterIP
+  selector:
+    app: tempo
+  ports:
+    - name: http
+      port: 3200
+      targetPort: 3200
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tempo
+  namespace: observability
+  labels:
+    app: tempo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tempo
+  template:
+    metadata:
+      labels:
+        app: tempo
+    spec:
+      serviceAccountName: tempo
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: tempo
+          image: grafana/tempo:2.7.0
+          args:
+            - -config.file=/etc/tempo/tempo-config.yaml
+            - -config.expand-env=true   # ${TEMPO_S3_BUCKET}/${AWS_REGION} 확장에 필수
+          env:
+            - name: TEMPO_S3_BUCKET
+              value: drawe-prod-tempo-blocks
+            - name: AWS_REGION
+              value: ap-northeast-2
+          ports:
+            - name: http
+              containerPort: 3200
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tempo
+            - name: storage
+              mountPath: /tmp/tempo
+      volumes:
+        - name: config
+          configMap:
+            name: tempo-config
+        - name: storage
+          emptyDir: {}
