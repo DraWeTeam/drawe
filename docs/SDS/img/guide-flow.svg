@@ -1,0 +1,66 @@
+<svg viewBox="0 0 1580 330" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">Drawe 이미지 가이드 흐름</title>
+  <desc id="desc">사용자 그림 업로드 → OpenCLIP 임베딩 → 관찰 신호 추출(+mediapipe 게이트) → Qdrant 유사 레퍼런스 검색 → Grok LLM 코칭 생성 → 한 끗 포인트·추천 연습 출력으로 이어지는 이미지 가이드 파이프라인.</desc>
+
+  <defs>
+    <g id="ic-upload" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 15.5V5.5"/><path d="M8 9l4-4 4 4"/><path d="M5 14v3.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V14"/></g>
+    <g id="ic-spark" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 4.5c.7 4 2.8 6.1 6.8 6.8-4 .7-6.1 2.8-6.8 6.7-.7-3.9-2.8-6-6.8-6.7 4-.7 6.1-2.8 6.8-6.8z"/></g>
+    <g id="ic-observe" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.6"/></g>
+    <g id="ic-search" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20"/></g>
+    <g id="ic-chat" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M5 6.5h14v9H11l-4 3v-3H5z"/><path d="M8.5 11h7"/></g>
+    <g id="ic-bulb" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3a6 6 0 0 0-4 10.4c.6.6 1 1.3 1 2.6h6c0-1.3.4-2 1-2.6A6 6 0 0 0 12 3z"/><path d="M9.5 18.5h5M10.5 21h3"/></g>
+    <marker id="i-teal" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#1E9486"/></marker>
+    <marker id="i-purple" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#7E51C8"/></marker>
+    <marker id="i-indigo" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#6E5AC8"/></marker>
+    <marker id="i-green" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#45A064"/></marker>
+  </defs>
+
+  <rect x="8" y="8" width="1564" height="314" rx="22" fill="#FBFAF7" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <text x="44" y="50" font-size="24" font-weight="800" fill="#23221F">Drawe<tspan fill="#9A948B" font-weight="600"> · 이미지 가이드 (한끗가이드)</tspan></text>
+  <text x="46" y="74" font-size="12.5" fill="#8C867C">그림 업로드 → 임베딩 → 관찰 신호 → Qdrant 검색 → LLM 코칭 → 한 끗 포인트</text>
+  <line x1="44" y1="90" x2="1536" y2="90" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <path d="M240 200 L290 200" fill="none" stroke="#1E9486" stroke-width="2.6" marker-end="url(#i-teal)"/>
+  <path d="M496 200 L546 200" fill="none" stroke="#1E9486" stroke-width="2.6" marker-end="url(#i-teal)"/>
+  <path d="M752 200 L802 200" fill="none" stroke="#7E51C8" stroke-width="2.6" marker-end="url(#i-purple)"/>
+  <path d="M1008 200 L1058 200" fill="none" stroke="#6E5AC8" stroke-width="2.6" marker-end="url(#i-indigo)"/>
+  <path d="M1264 200 L1314 200" fill="none" stroke="#45A064" stroke-width="2.6" marker-end="url(#i-green)"/>
+
+  <g>
+    <rect x="40" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#9DBAEC" stroke-width="1.6"/>
+    <g transform="translate(56,185)" color="#3B6FD4"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#E5EDFB"/><use href="#ic-upload" x="1.5" y="1.5"/></g>
+    <text x="96" y="205" font-size="14" font-weight="700" fill="#2A2925">사용자 그림 업로드</text>
+  </g>
+  <g>
+    <rect x="296" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#7FCFC2" stroke-width="1.6"/>
+    <g transform="translate(312,185)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#DBF1EC"/><use href="#ic-spark" x="1.5" y="1.5"/></g>
+    <text x="352" y="194" font-size="13.5" font-weight="700" fill="#2A2925">OpenCLIP ViT-L/14</text>
+    <text x="352" y="214" font-size="11" fill="#9A948B">768-dim 임베딩</text>
+  </g>
+  <g>
+    <rect x="552" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#7FCFC2" stroke-width="1.6"/>
+    <g transform="translate(568,185)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#DBF1EC"/><use href="#ic-observe" x="1.5" y="1.5"/></g>
+    <text x="608" y="186" font-size="13.5" font-weight="700" fill="#2A2925">관찰 신호 추출</text>
+    <text x="608" y="205" font-size="9.5" fill="#9A948B">taxonomy · what_to_observe</text>
+    <text x="608" y="220" font-size="9.5" fill="#9A948B">+ mediapipe 손/포즈 게이트</text>
+  </g>
+  <g>
+    <rect x="808" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#C9B0EC" stroke-width="1.6"/>
+    <g transform="translate(824,185)" color="#7E51C8"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#EEE4FA"/><use href="#ic-search" x="1.5" y="1.5"/></g>
+    <text x="864" y="194" font-size="12.5" font-weight="700" fill="#2A2925">Qdrant 유사 검색</text>
+    <text x="864" y="214" font-size="10" fill="#9A948B">reference_images_env</text>
+  </g>
+  <g>
+    <rect x="1064" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#B9AEE6" stroke-width="2"/>
+    <g transform="translate(1080,185)" color="#6E5AC8"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#ECE6FA"/><use href="#ic-chat" x="1.5" y="1.5"/></g>
+    <text x="1120" y="194" font-size="13.5" font-weight="700" fill="#2A2925">LLM 코칭 생성</text>
+    <text x="1120" y="214" font-size="11" fill="#9A948B">Grok</text>
+  </g>
+  <g>
+    <rect x="1320" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#8FCBA0" stroke-width="1.6"/>
+    <g transform="translate(1336,185)" color="#45A064"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#E4F3E9"/><use href="#ic-bulb" x="1.5" y="1.5"/></g>
+    <text x="1376" y="194" font-size="12.5" font-weight="700" fill="#2A2925">한 끗 포인트 · 연습</text>
+    <text x="1376" y="214" font-size="10" fill="#9A948B">참고 이미지 · 도식</text>
+  </g>
+</svg>
