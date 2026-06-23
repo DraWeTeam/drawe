@@ -158,7 +158,7 @@ drawe/
 
 ## ⚙️ 인프라 · 운영 하이라이트
 
-DevOps 관점에서 이 프로젝트의 핵심은 다음 넷입니다. (환경 비교·관측성·Terraform 실행법 등 **상세는 [`infra/README.md`](infra/README.md)**)
+이 프로젝트의 핵심은 다음 넷입니다. (환경 비교·관측성·Terraform 실행법 등 **상세는 [`infra/README.md`](infra/README.md)**)
 
 - **EKS on Graviton(ARM64) · 2계층 오토스케일** — backend·fastapi(embed·guide)를 ARM64 컨테이너로 **EKS(drawe-prod, K8s 1.35)** 에서 운영. **Karpenter**(노드) + **HPA**(파드) 2계층으로 스케일하며, NodePool 은 **on-demand + spot 혼용** + 다중 인스턴스 패밀리(m6g/m7g/c6g/c7g/r6g)로 비용·가용성을 함께 확보. dev/prod 를 **별도 AWS 계정**으로 분리.
 - **ArgoCD GitOps 무중단 배포** — `main` 브랜치를 auto-sync(prune+selfHeal)하여 **롤링 업데이트**로 반영(PDB minAvailable 1 + readiness). 배포 주체는 ArgoCD, CI 는 이미지 빌드·overlay tag bump 까지.
