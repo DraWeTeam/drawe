@@ -122,5 +122,6 @@ Actuator + Micrometer(Prometheus) 메트릭을 노출하며, OTel Java Agent 로
 ## 관련 문서
 
 - [루트 README](../README.md) — 전체 아키텍처·모노레포 원칙
+- [`docs/SDS/`](../docs/SDS/README.md) — 시스템 설계 문서(SDS): 아키텍처·AI 파이프라인·유스케이스·클래스/시퀀스/상태 다이어그램·데이터 설계
 - [`fastapi/README.md`](../fastapi/README.md) — 임베딩(embed)·이미지 가이드(guide) 서버
 - [`infra/README.md`](../infra/README.md) — 배포·환경·관측성
