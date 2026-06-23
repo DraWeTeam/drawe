@@ -4,7 +4,7 @@
 
 ![DraWe System Architecture](./img/systemArchitecture.png)
 
-> *위 다이어그램 이미지는 EKS 반영본으로 교체 예정(인프라 팀 제공). 아래 텍스트는 ROUND 2(EKS) 기준이다.*
+> 정식 EKS 아키텍처 다이어그램(인프라 팀 제공, `drawe-prod`). 아래는 구성요소·통신·배포·운영 설명.
 
 ## 2.1 구성요소
 

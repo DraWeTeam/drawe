@@ -24,8 +24,6 @@
 
 ![DraWe System Architecture](./img/systemArchitecture.png)
 
-> *아키텍처 다이어그램 이미지는 EKS 반영본으로 업데이트 예정. 아래 텍스트는 ROUND 2(EKS) 기준.*
-
 - **Backend(Spring Boot)** 가 도메인 로직·인증·AI 추천 파이프라인을 오케스트레이션.
 - **FastAPI·embed**(CLIP ViT-L/14) → 임베딩 → Pinecone, **FastAPI·guide**(OpenCLIP) → 이미지 가이드(Qdrant·`drawe_guide` RDS·S3).
 - 배포: **AWS EKS(EC2 Graviton arm64) · ArgoCD GitOps · HPA + Karpenter** (dev ECS→EKS 완료, prod 동일 전환). 상세는 [systemArchitecture](./systemArchitecture.md).
