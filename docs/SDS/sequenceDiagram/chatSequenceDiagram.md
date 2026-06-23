@@ -22,7 +22,7 @@ sequenceDiagram
     participant DB as MySQL (DB)
     participant CE as ComposeExecutor
     participant OIC as OutputIntegrityChecker
-    participant LLM as LlmService (Grok)
+    participant LLM as LlmService (Grok / Claude / Gemini)
     participant RS as Redis (SessionService)
 
     C->>CTL: POST /projects/{projectId}/chat<br/>(principal, projectId, ChatRequest{message, sessionId, imageUrl})
@@ -80,6 +80,7 @@ sequenceDiagram
         %% COMPOSE
         WF->>CE: execute(ctx)  [step 3]
         Note over CE: base = refs.isEmpty()? previousReferences : refs<br/>핀 제외(excludePinned) → buildReferenceContext([N] 인용 규칙)
+        Note over Chat,LLM: provider = resolveProvider(user.getPlan()) → pickService<br/>PAID → Claude / 그 외 → Grok (List<LlmService> 중 provider() 일치)
         CE->>LLM: generate(LlmCallContext(history+refCtx, message, image, DRAW_GUIDE_SCHEMA_NAME))
         LLM-->>CE: LlmCallResult(content JSON, model, latencyMs)
         CE->>OIC: check(parsed.output(), refs)
@@ -123,7 +124,7 @@ sequenceDiagram
 | 의도 분류 | `routeIntent()` — 결정론적 `RulePreRouter.route` 먼저, 미스면 Grok `keywordExtractor.extract` 폴백 → `decision.action() == NEW_SEARCH` | 룰 히트/미스를 analytics(INTENT_RULE_HIT/MISS) + Micrometer 로 집계, 분류 latency 측정 (DoD ≤ 300ms) |
 | 키워드 추출 | `ExtractKeywordsExecutor` → `KomoranKeywordExtractor.extract(cleanedMessage)` | Komoran 형태소 분석 → CONTENT_TAGS(NNG/NNP/VV/VA) 필터 → STOPWORDS 제거 → ArtTermsDictionary 한→영 매핑, 사전 미스율 > 30% 면 LLM 폴백 |
 | 검색 + IDF re-rank | `SearchExecutor` → `SearchService.search` → `FastApiClient.embedText` (768차원) → `Pinecone.queryByVector(vector, 40)` → MySQL `findBySourceIdIn`·`findByImageIdIn` 메타 조인 → `TagIdfIndex` re-rank → topK 절단 | dense(CLIP) 위에 태그 IDF 매칭 소프트 점수(cap 0.05)를 얹어 재정렬. 점수 가드 `avg<0.2 AND max<0.24` 충족 시 무관 결과로 차단(blocked=low_score), 통과 시 ImageResult→ReferenceImage(1-based index) |
-| COMPOSE + 무결성 | `ComposeExecutor` → `buildReferenceContext([N] 인용 규칙)` → `LLM(Grok).generate(DRAW_GUIDE_SCHEMA_NAME)` → `OutputParser` → `OutputIntegrityChecker.check` | references 비면 previousReferences 재사용·핀 제외. 무결성 검사로 유효 범위 `1..refs.size()` 밖 환각 인용을 본문·citations 양쪽에서 결정론적으로 제거(재호출 없음) |
+| COMPOSE + 무결성 | `ComposeExecutor` → `buildReferenceContext([N] 인용 규칙)` → `pickService(resolveProvider(plan)).generate(DRAW_GUIDE_SCHEMA_NAME)` → `OutputParser` → `OutputIntegrityChecker.check` | **provider 교체**: `resolveProvider(user.plan)` → PAID=Claude·그 외=Grok, `pickService` 가 `List<LlmService>` 에서 `provider()` 일치 빈 선택(Grok·Claude·Gemini). references 비면 previousReferences 재사용·핀 제외. 무결성 검사로 `1..refs.size()` 밖 환각 인용을 본문·citations 양쪽에서 결정론적으로 제거(재호출 없음) |
 | 세션 저장 | `RedisSessionService.save(sessionData.withSearchResult(NEW_SEARCH, [], refs))` + MySQL `LlmMessage`(USER/ASSISTANT) 저장 | NEW_SEARCH 는 결과 유무와 무관하게 이번 턴 refs 로 단기메모리 덮어쓰기(0건이면 비움 = 화면과 일치, 다음 턴 KEEP lookup 일관), best-effort I/O |
 | 응답 | `ChatResponse(sessionId, "guide", message, references[N], "NEW_SEARCH", offerGenerate, ...)` → `ApiResponse.success` → 200 OK | `offerGenerate = output.offerGenerate() || (NEW_SEARCH && refs.isEmpty())` — 검색은 했으나 적합 레퍼런스가 없으면 'AI 이미지 생성' 버튼 노출. CHAT_SUCCESS analytics + LLM Timer 메트릭 기록 |
 
@@ -212,9 +213,9 @@ sequenceDiagram
 | COMPOSE 재사용 | `previousReferences` 를 `StepContext.startForCompose` 로 실어 보내고 `ComposeExecutor` 가 재사용 | `base = references.isEmpty() ? previousReferences() : references()` → `excludePinned` → `buildReferenceContext` SYSTEM turn 구성 → `DRAW_GUIDE_SCHEMA_NAME` 구조화 LLM 호출 → 파싱·무결성 검사 |
 | 응답 | `ComposedOutput` 으로 `ChatResponse` 조립 후 `assistantMsg` 저장, `persistSessionMemory` 로 단기메모리 갱신 | KEEP/SKIP 은 `sessionData.withIntent(code)` 로 직전 refs 유지(검색 안 했으므로 덮어쓰지 않음). 응답 `action`="KEEP"/"FOLLOWUP", `ApiResponse.success(ChatResponse)` 반환 |
 
-## COMPOSE 종착 의도 — 조언·비교·도메인이탈·SKIP Sequence Diagram
+## COMPOSE 종착 의도 — 조언·비교·후속·도메인이탈·SKIP Sequence Diagram
 
-검색 없이 **직전 맥락만으로 응답**하는 의도들은 `IntentRouting.ROUTING` 에서 `[COMPOSE]` 한 단계만 탄다. 대상은 **COMPARE**(비교) · **COMPOSITION / LIGHTING / COLOR / TECHNIQUE**(미술 조언) · **OUT_OF_DOMAIN**(도메인 이탈 거절) · **SKIP**(인사·감사·확인) 이다. 구조는 동일하고, **의도별로 다른 SYSTEM 가이드**가 주입되는 점만 다르다(검색·생성 없음).
+검색 없이 **직전 맥락만으로 응답**하는 의도들은 `IntentRouting.ROUTING` 에서 `[COMPOSE]` 한 단계만 탄다. 대상은 **COMPARE**(비교) · **FOLLOWUP**(직전 답변 부연) · **COMPOSITION / LIGHTING / COLOR / TECHNIQUE**(미술 조언) · **KEEP**(맥락 유지) · **OUT_OF_DOMAIN**(도메인 이탈 거절) · **SKIP**(인사·감사·확인) 이다. 구조는 동일하나, **가이드 주입 위치가 의도마다 다르다**: OUT_OF_DOMAIN 은 분류 전용 게이트(`rulePreRouter.isOutOfDomain`)가 `chat()` 에서 `OUT_OF_DOMAIN_GUIDE` 를 history 에 먼저 주입한 뒤 워크플로로 넘기고, FOLLOWUP / COMPARE 는 `ComposeExecutor.buildReferenceContext` 가 references 가 비었을 때 전용 가이드를 만든다. 나머지(COMPOSITION/LIGHTING/COLOR/TECHNIQUE/KEEP/SKIP)는 별도 SYSTEM 가이드 없이 페르소나 + (있으면)직전 레퍼런스 컨텍스트로만 합성한다(검색·생성 없음).
 
 ```mermaid
 sequenceDiagram
@@ -225,33 +226,40 @@ sequenceDiagram
     participant Sess as SessionService(Redis)
     participant WF as WorkflowService
     participant CE as ComposeExecutor
-    participant LLM as LLM(Grok)
+    participant LLM as LlmService (Grok / Claude / Gemini)
 
     C->>CTL: POST /projects/{projectId}/chat (message)
     CTL->>Chat: chat(user, projectId, request)
-    Chat->>Intent: routeIntent(message, history)
-    Intent-->>Chat: IntentCode (COMPARE / COMPOSITION / LIGHTING / COLOR / TECHNIQUE / OUT_OF_DOMAIN / SKIP)
+
+    alt OUT_OF_DOMAIN 전용 게이트 (isOutOfDomain AND isLive(OUT_OF_DOMAIN))
+        Note over Chat: routeIntent 결과와 무관 — rulePreRouter.isOutOfDomain 매치 시
+        Chat->>Chat: history 에 OUT_OF_DOMAIN_GUIDE SYSTEM turn 추가 후 chatViaWorkflow
+    else 그 외 (routeIntent → adapt → isLive(code))
+        Chat->>Intent: routeIntent(user, sessionId, message, history)
+        Intent-->>Chat: IntentCode (COMPARE / FOLLOWUP / COMPOSITION / LIGHTING / COLOR / TECHNIQUE / KEEP / SKIP)
+    end
     Note over Chat: IntentRouting.ROUTING = [COMPOSE] — 검색·생성 없음
 
-    Chat->>Sess: getOrRestore(userId, projectId)
-    Sess-->>Chat: previousReferences (있으면 합성 컨텍스트로 재사용)
+    Chat->>Sess: getOrRestore(user.getId, project.getId, session)
+    Sess-->>Chat: SessionData(previousReferences) (있으면 합성 컨텍스트로 재사용)
+    Chat->>WF: run(intent, StepContext.startForCompose(..., previousReferences, history))
 
-    Chat->>WF: run(intent, ctx)
-    WF->>CE: COMPOSE
-    alt 의도별 SYSTEM 가이드 주입
-        Note over CE: COMPARE → COMPARE_GUIDE (맥락 내 [1] vs [2] 비교)
-        Note over CE: 미술 조언 → 구도·명암·색·기법 조언 가이드
-        Note over CE: OUT_OF_DOMAIN → OUT_OF_DOMAIN_GUIDE (정중한 거절)
-        Note over CE: SKIP → 대화 안내 (가벼운 반응, 인용·생성 금지)
+    WF->>CE: execute(ctx)
+    Note over CE: base = references.isEmpty ? previousReferences : references → excludePinned
+    alt buildReferenceContext 분기 (references 비었을 때)
+        Note over CE: code==FOLLOWUP → 후속 질문 안내 가이드
+        Note over CE: code==COMPARE → 비교 안내 가이드
+        Note over CE: 그 외 → 기본 '참고 이미지 없음' 안내 (인용·가짜결과 금지)
     end
-    CE->>LLM: generate(schema 강제)
-    LLM-->>CE: 합성 결과
-    CE->>CE: 출력 무결성 검사(환각 인용 제거)
-    CE-->>WF: ComposedOutput
+    Note over CE: OUT_OF_DOMAIN_GUIDE 는 위에서 Chat 이 이미 history 에 넣어 옴 (CE 가 만들지 않음)
+    CE->>LLM: generate(LlmCallContext(history, rawMessage, DRAW_GUIDE_SCHEMA_NAME))
+    LLM-->>CE: LlmCallResult(content, model, latencyMs)
+    CE->>CE: parseWithSignal → integrityChecker.check (범위밖 [N] 환각 인용 제거)
+    CE-->>WF: ctx.withComposedOutput(finalOutput)
     WF-->>Chat: finalCtx
 
-    Chat->>Sess: save (previousReferences 유지)
-    Chat-->>CTL: ChatResponse (message, offerGenerate=false)
+    Chat->>Sess: save (KEEP/SKIP/그외 → withIntent(code), previousReferences 유지)
+    Chat-->>CTL: ChatResponse(action=referencesAction(code), offerGenerate)
     CTL-->>C: 200 OK
 ```
 
@@ -260,12 +268,12 @@ sequenceDiagram
 | 항목 | 흐름 요약 | 핵심 비즈니스 로직 |
 |:---|:---|:---|
 | **목표** | 검색이 불필요한 의도를 직전 맥락만으로 응답 | `[COMPOSE]` 단일 단계 라우팅 |
-| **대상 의도** | COMPARE · COMPOSITION · LIGHTING · COLOR · TECHNIQUE · OUT_OF_DOMAIN · SKIP | 모두 **COMPOSE 종착**(검색·생성 없음) |
-| **의도 분류** | `routeIntent` 가 규칙 우선 → 모호하면 Grok 분류 | Rule + LLM 2단 |
-| **맥락 재사용** | `SessionService.getOrRestore` 로 직전 레퍼런스를 합성 컨텍스트로만 사용 | Redis 단기메모리 |
-| **의도별 가이드** | COMPARE=비교 / 조언=구도·명암·색·기법 / OUT_OF_DOMAIN=거절 / SKIP=가벼운 반응 | 같은 구조, **다른 SYSTEM 가이드** |
-| **무결성** | 응답의 `[N]` 인용을 `1..refs.size` 로 검사 | 환각 인용 제거 |
-| **응답** | `ChatResponse` (새 레퍼런스 없음, `offerGenerate=false`) | 200 OK |
+| **대상 의도** | COMPARE · FOLLOWUP · COMPOSITION · LIGHTING · COLOR · TECHNIQUE · KEEP · OUT_OF_DOMAIN · SKIP | 모두 **COMPOSE 종착**(검색·생성 없음). `IntentRouting.ROUTING` 에서 전부 `[COMPOSE]` |
+| **의도 분류** | OUT_OF_DOMAIN 은 `rulePreRouter.isOutOfDomain` 전용 게이트로 분류 전에 분기, 나머지는 `routeIntent`(룰 우선 → miss 면 Grok) → `intentResultAdapter.adapt` → `isLive(code)` | OUT_OF_DOMAIN/SELF_CRITIQUE 만 분류 앞 게이트, 그 외는 일반 분류 경로 |
+| **맥락 재사용** | `sessionService.getOrRestore` 로 직전 레퍼런스를 `previousReferences` 로 받아 `StepContext` 에 실어 보냄 | `ComposeExecutor` 가 `references` 비면 `previousReferences` 로 폴백(합성 컨텍스트 전용) |
+| **가이드 주입 위치** | OUT_OF_DOMAIN → `chat()` 이 `OUT_OF_DOMAIN_GUIDE` 를 history 에 선주입 / FOLLOWUP·COMPARE → `ComposeExecutor.buildReferenceContext`(refs 빈 경우) / 그 외 → 전용 가이드 없음 | 같은 `[COMPOSE]` 구조지만 가이드 출처가 다름(레거시처럼 의도별 SYSTEM 가이드를 chat() 이 일괄 주입하지 않음) |
+| **무결성** | 응답의 `[N]` 인용을 `1..refs.size()` 로 검사 | `OutputIntegrityChecker.check` 가 범위 밖 환각 인용 제거 |
+| **응답** | `ChatResponse(action=referencesAction(code), offerGenerate)` | `referencesAction`: COMPARE/FOLLOWUP/OUT_OF_DOMAIN/SKIP 은 그대로, KEEP·001~004 는 "KEEP". COMPOSE 종착이라 `offerGenerate` 은 대개 false(본문에 생성 안내 표현 감지 시만 true) |
 
 ## 자기비평 (SELF_CRITIQUE) Sequence Diagram
 
