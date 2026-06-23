@@ -75,17 +75,17 @@ Drawe 는 자연어 요청을 **의도**에 따라 라우팅하고, 사용자의
 flowchart TD
   U([User]) -->|웹 UI 로드| CF[Cloudflare Pages<br/>frontend SPA · drawe.xyz]
   U -->|API 호출 · axios| CFP[Cloudflare<br/>api.drawe.xyz]
-  CFP --> ALB[ALB]
+  CFP --> ALB[ALB Ingress<br/>group=drawe-prod]
   ALB --> BE
 
-  subgraph ECS["AWS ECS · EC2 Graviton (ARM64)"]
-    BE[Backend<br/>Spring Boot]
-    FA[FastAPI · embed<br/>CLIP ViT-L/14]
-    GA[FastAPI · guide<br/>OpenCLIP · 이미지 가이드]
+  subgraph EKS["AWS EKS · drawe-prod (K8s 1.35) · Karpenter · Graviton ARM64"]
+    BE[Backend<br/>Spring Boot · ClusterIP]
+    FA[FastAPI · embed<br/>CLIP ViT-L/14 · ClusterIP]
+    GA[FastAPI · guide<br/>OpenCLIP · 이미지 가이드 · ClusterIP]
   end
 
   BE --> DB[(MySQL · RDS)]
-  BE --> RC[(Valkey / Redis)]
+  BE --> RC[(Valkey / ElastiCache)]
   BE -->|임베딩 요청| FA
   BE -->|이미지 가이드 요청| GA
   BE -->|벡터 검색| PC[(Pinecone)]
@@ -96,13 +96,15 @@ flowchart TD
   GA --> S3[(S3 · 참고 이미지/에셋)]
 ```
 
+> **배포 진화** — 초기엔 ECS(EC2)로 운영했고, ROUND2 에서 **EKS(Karpenter + HPA 2계층 오토스케일 · ArgoCD GitOps 무중단 배포 · LGTM+AMP 셀프호스트 관측)** 로 고도화했습니다. 자세한 전환 배경·구성은 [`infra/README.md`](infra/README.md) 참고.
+
 | 서비스 | 역할 | 핵심 스택 | 배포 | 문서 |
 | --- | --- | --- | --- | --- |
 | **frontend** | 사용자 웹 UI (SPA) | React 19 · Vite 8 · React Router 7 · axios | Cloudflare Pages | [↗](frontend/README.md) |
-| **backend** | 핵심 API · 인증 · LLM 라우팅 · 도메인 로직 | Spring Boot 3.2.4 · Java 17 · JPA · MySQL · Valkey | AWS ECS (EC2, ARM64) | [↗](backend/README.md) |
-| **fastapi · embed** | CLIP 임베딩 서버 (텍스트/이미지 → 벡터) | FastAPI · PyTorch · transformers CLIP | AWS ECS (EC2, ARM64) | [↗](fastapi/README.md) |
-| **fastapi · guide** | 이미지 가이드 (관찰 신호 → 코칭·참고·도식) | FastAPI · OpenCLIP · Qdrant · MySQL(drawe_guide) · S3 · mediapipe | AWS ECS (EC2, ARM64) | [↗](fastapi/README.md) |
-| **infra** | IaC · 배포 · 관측성 구성 | Terraform · ECS · ALB · RDS · Cloudflare | — | [↗](infra/README.md) |
+| **backend** | 핵심 API · 인증 · LLM 라우팅 · 도메인 로직 | Spring Boot 3.2.4 · Java 17 · JPA · MySQL · Valkey | AWS EKS (Graviton ARM64) | [↗](backend/README.md) |
+| **fastapi · embed** | CLIP 임베딩 서버 (텍스트/이미지 → 벡터) | FastAPI · PyTorch · transformers CLIP | AWS EKS (Graviton ARM64) | [↗](fastapi/README.md) |
+| **fastapi · guide** | 이미지 가이드 (관찰 신호 → 코칭·참고·도식) | FastAPI · OpenCLIP · Qdrant · MySQL(drawe_guide) · S3 · mediapipe | AWS EKS (Graviton ARM64) | [↗](fastapi/README.md) |
+| **infra** | IaC · 배포(GitOps) · 관측성 구성 | Terraform · EKS · Karpenter · ArgoCD · ALB · RDS · Cloudflare | — | [↗](infra/README.md) |
 
 > 각 서비스의 스택·도메인·API 등 **상세는 위 표의 하위 README** 를 참고하세요. 루트 문서는 전체 그림과 공통 운영 흐름만 다룹니다.
 
@@ -156,21 +158,25 @@ drawe/
 
 ## ⚙️ 인프라 · 운영 하이라이트
 
-DevOps 관점에서 이 프로젝트의 핵심은 다음 셋입니다. (환경 비교·관측성·Terraform 실행법 등 **상세는 [`infra/README.md`](infra/README.md)**)
+DevOps 관점에서 이 프로젝트의 핵심은 다음 넷입니다. (환경 비교·관측성·Terraform 실행법 등 **상세는 [`infra/README.md`](infra/README.md)**)
 
-- **ECS on EC2 · Graviton(ARM64)** — backend·fastapi(embed·guide)를 ARM64 컨테이너로 ECS(EC2) 에서 운영. dev/prod 를 **별도 AWS 계정**으로 분리하고, dev 는 EventBridge 스케줄로 자동 on/off 해 비용을 최소화합니다.
-- **GitHub OIDC 기반 CI/CD** — AWS 자격증명을 저장하지 않고 **OIDC 로 역할을 assume**. 경로 필터로 서비스별 배포를 분리하고, ECS Circuit Breaker 로 실패 시 자동 롤백합니다.
-- **OpenTelemetry 관측성 (Alloy)** — daemon + sidecar 로 OTLP 를 수집해 환경별 destination(dev → Grafana Cloud / prod → AMP + self-host)으로 라우팅. 외부 전송 전 **PII redaction** 을 적용합니다.
+- **EKS on Graviton(ARM64) · 2계층 오토스케일** — backend·fastapi(embed·guide)를 ARM64 컨테이너로 **EKS(drawe-prod, K8s 1.35)** 에서 운영. **Karpenter**(노드) + **HPA**(파드) 2계층으로 스케일하며, NodePool 은 **on-demand + spot 혼용** + 다중 인스턴스 패밀리(m6g/m7g/c6g/c7g/r6g)로 비용·가용성을 함께 확보. dev/prod 를 **별도 AWS 계정**으로 분리.
+- **ArgoCD GitOps 무중단 배포** — `main` 브랜치를 auto-sync(prune+selfHeal)하여 **롤링 업데이트**로 반영(PDB minAvailable 1 + readiness). 배포 주체는 ArgoCD, CI 는 이미지 빌드·overlay tag bump 까지.
+- **GitHub OIDC + IRSA** — AWS 자격증명을 저장하지 않고 OIDC 로 역할 assume(CI), 파드 권한은 **IRSA** 로 최소권한 부여.
+- **OpenTelemetry 관측성 (Alloy DaemonSet)** — Alloy 가 OTLP 를 수집해 환경별 destination(dev → Grafana Cloud / prod → **AMP + self-host LGTM**)으로 라우팅. 로그 **Loki(S3)** · 트레이스 **Tempo(S3)** · 메트릭 **AMP**, 외부 전송 전 **PII redaction** 적용.
+
+> **ECS → EKS 전환** — 초기 ECS(EC2 ASG + 서비스 오토스케일) 구성에서, 노드 스케일 반응성·인스턴스 동적 선택(비용)·GitOps 무중단·운영모델 통일을 위해 EKS 로 고도화했습니다.
 
 | 워크플로 | 트리거 경로 | 동작 |
 | --- | --- | --- |
-| `backend-cd` | `backend/**` | JAR → Docker(ARM64) → ECR → ECS 배포 (Circuit Breaker 롤백) |
-| `fastapi-cd` | `fastapi/**`(embed) | 이미지 빌드 → ECR → ECS 업데이트 |
-| `fastapi-guide-cd` | `fastapi/guide/**` · `fastapi/assets/**` · `Dockerfile.guide` | guide 이미지(ARM64) 빌드 → ECR → ECS 업데이트 |
+| `backend-cd` | `backend/**` | JAR → Docker(ARM64) → ECR → **overlay tag bump → ArgoCD 롤아웃**(롤링 무중단) |
+| `fastapi-cd` | `fastapi/**`(embed) | 이미지 빌드 → ECR → overlay tag bump → ArgoCD 동기화 |
+| `fastapi-guide-cd` | `fastapi/guide/**` · `fastapi/assets/**` · `Dockerfile.guide` | guide 이미지(ARM64) 빌드 → ECR → ArgoCD 동기화 |
 | `qdrant-keepalive` | (cron, 3일) | Qdrant Cloud 무료 클러스터 keep-alive 핑 |
 | `*-ci` | 각 서비스 | 빌드/검증 (PR 기준) |
 
-- **브랜치 → 환경**: `develop` → dev 자동 배포, `main` → prod 배포(Required reviewers 통과 후)
+- **브랜치 → 환경**: `develop` → dev 동기화, `main` → prod 배포(Required reviewers 통과 후 ArgoCD sync)
+- **무중단**: ArgoCD 롤링 업데이트 + PodDisruptionBudget(minAvailable 1) + readiness probe
 - **프론트엔드**: 별도 GitHub Actions CD 없음 — **Cloudflare Pages 가 push 를 감지해 빌드/배포**(`frontend-ci` 는 검증만)
 
 ---

@@ -1,13 +1,13 @@
 # fastapi
 
-모노레포 `fastapi/` 디렉터리는 **두 개의 FastAPI 서비스**를 담습니다. 같은 디렉터리에 있지만 **별도 이미지·별도 ECS 서비스·별도 CD 워크플로**로 운영됩니다.
+모노레포 `fastapi/` 디렉터리는 **두 개의 FastAPI 서비스**를 담습니다. 같은 디렉터리에 있지만 **별도 이미지·별도 배포(Deployment)·별도 CD 워크플로**로 운영됩니다.
 
 | 서비스 | 진입점 | Dockerfile | CD 워크플로 | 역할 |
 | --- | --- | --- | --- | --- |
 | **embed** | `main:app` | `Dockerfile` | `fastapi-cd` (`fastapi/**`) | 텍스트/이미지 → CLIP 임베딩(벡터 생성) |
 | **guide** | `guide.app:app` | `Dockerfile.guide` | `fastapi-guide-cd` (`fastapi/guide/**` 등) | 이미지 가이드(관찰 신호 → 구조화된 코칭) |
 
-> 두 서비스는 모두 **AWS ECS (EC2, Graviton ARM64)** 에 배포되며, 이미지는 ARM64 로 빌드해야 합니다.
+> 두 서비스는 모두 **AWS EKS (Graviton ARM64)** 에 배포되며(ClusterIP 내부 전용, backend 가 호출), 이미지는 ARM64 로 빌드해야 합니다.
 > 책임이 분리되어 있습니다 — **embed = 벡터 생성**, **guide = 그림 코칭**. 단일 "AI 호출 서버"가 아니라 서로 다른 도메인 서비스입니다.
 
 ---
@@ -214,10 +214,11 @@ uvicorn guide.app:app --host 0.0.0.0 --port 8001
 
 ## 배포
 
-- **타깃**: AWS ECS (EC2, Graviton ARM64) — 이미지는 **ARM64 빌드 필요**.
-- **embed**: `Dockerfile` → `fastapi-cd` (`fastapi/**` 변경 시) → ECR → ECS 업데이트.
-- **guide**: `Dockerfile.guide` → `fastapi-guide-cd` (`fastapi/guide/**` · `fastapi/assets/**` · `Dockerfile.guide` · `requirements.guide.txt` 변경 시) → ECR → 새 task def → ECS 업데이트.
-- guide 의 시크릿(DB_DSN · Qdrant · Grok · Gemini)은 SSM 파라미터로 주입되며, dev 스토어 백필 절차는 [`infra/runbooks/phase3_dev_store_backfill.md`](../infra/runbooks/phase3_dev_store_backfill.md) 참고.
+- **타깃**: AWS EKS (Graviton ARM64) — 이미지는 **ARM64 빌드 필요**. 두 서비스 모두 ClusterIP(내부 전용, backend 가 호출).
+- **embed**: `Dockerfile` → `fastapi-cd` (`fastapi/**` 변경 시) → ECR → overlay tag bump → **ArgoCD 롤아웃**.
+- **guide**: `Dockerfile.guide` → `fastapi-guide-cd` (`fastapi/guide/**` · `fastapi/assets/**` · `Dockerfile.guide` · `requirements.guide.txt` 변경 시) → ECR → overlay tag bump → **ArgoCD 롤아웃**.
+- guide 의 시크릿(DB_DSN · Qdrant · Grok · Gemini)은 SSM → **ESO(External Secrets)** 로 파드에 주입되며, dev 스토어 백필 절차는 [`infra/runbooks/phase3_dev_store_backfill.md`](../infra/runbooks/phase3_dev_store_backfill.md) 참고.
+- 무중단: ArgoCD 롤링 업데이트 + readiness probe(guide 는 워밍업 전 `loading`). spot 노드 회수 시 SIGTERM→draining 으로 in-flight 마무리.
 - 환경(dev/prod) 차이는 [`infra/README.md`](../infra/README.md) 참고.
 
 ## 관련 문서

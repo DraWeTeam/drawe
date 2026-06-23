@@ -43,7 +43,7 @@ backend 는 가이드 자체를 생성하지 않고, **fastapi · guide** 서비
 - `POST /projects/{projectId}/guide/{guideId}/feedback` — 가이드 피드백(👍/👎)
 - `POST /projects/{projectId}/guide/{guideId}/references/feedback` — 추천 레퍼런스 피드백
 
-> guide 서비스 주소는 `FASTAPI_GUIDE_URL`(내부 Service Connect: `fastapi-guide.drawe-{env}.local:8000`)로 주입됩니다. 브라우저가 참고 이미지에 직접 닿아야 하는 경로는 `FASTAPI_GUIDE_PUBLIC_URL` 로 분리됩니다.
+> guide 서비스 주소는 `FASTAPI_GUIDE_URL`(클러스터 내부 ClusterIP DNS: `http://fastapi-guide:8000`)로 주입됩니다. 브라우저가 참고 이미지에 직접 닿아야 하는 경로는 `FASTAPI_GUIDE_PUBLIC_URL` 로 분리됩니다.
 
 ## AI 추천 파이프라인
 
