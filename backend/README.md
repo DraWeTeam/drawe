@@ -110,12 +110,12 @@ http://localhost:8080/swagger-ui/index.html
 
 Actuator + Micrometer(Prometheus) 메트릭을 노출하며, OTel Java Agent 로 trace/metric/log 를 Alloy 에 OTLP 전송합니다. 수집·라우팅·PII redaction 구성 상세는 [`infra/README.md`](../infra/README.md) 의 관측성 섹션 참고.
 
-## 배포
+## 배포 (GitOps)
 
-- **타깃**: AWS ECS (EC2, Graviton ARM64)
-- **트리거**: `backend/**` 변경 시 `backend-cd` 워크플로
-- **흐름**: JAR 빌드 → Docker(ARM64) 빌드 → ECR push → ECS 새 TD 등록·서비스 업데이트 (Circuit Breaker 자동 롤백)
-- **인증**: GitHub OIDC 로 AWS 역할 assume (자격증명 비저장)
+- **타깃**: AWS EKS (EC2, Graviton arm64)
+- **트리거**: `backend/**` 변경 → GitHub Actions `backend-cd`
+- **흐름**: JAR → Docker(arm64) 빌드 → ECR push(:SHA) → **overlay newTag bump** → **ArgoCD 자동 롤아웃** (무중단: 롤링 + PDB minAvailable 1 + readiness)
+- **인증**: GitHub OIDC 로 AWS 역할 assume(자격증명 비저장), 파드 권한은 **IRSA**
 
 자세한 환경(dev/prod) 차이와 배포 정책은 [`infra/README.md`](../infra/README.md) 참고.
 

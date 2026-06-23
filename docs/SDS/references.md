@@ -13,7 +13,7 @@
 - **Flyway** — 스키마 마이그레이션.
 - **Resilience4j** — 서킷브레이커·리트라이.
 - **Pinecone** — 벡터 검색 DB.
-- **AWS ECS / ALB, Cloudflare** — 배포·엣지.
+- **AWS EKS · ArgoCD(GitOps) · Karpenter / ALB, Cloudflare** — 배포·엣지.
 
 ## 내부 문서
 - `docs/SDS/` — 본 설계 문서 세트.

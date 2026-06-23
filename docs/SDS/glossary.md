@@ -35,7 +35,11 @@
 ## 인프라 용어
 | 용어 | 정의 |
 |---|---|
-| **ECS** | AWS 컨테이너 오케스트레이션(EC2 Graviton ARM64). 배포 플랫폼. |
+| **EKS** | AWS 관리형 Kubernetes(EC2 Graviton arm64). ROUND 2 배포 플랫폼(ECS에서 마이그레이션). |
+| **GitOps / ArgoCD** | git을 단일 진실원으로 매니페스트 변경을 자동 동기화·롤아웃하는 배포 모델. |
+| **Karpenter** | 노드 오토스케일러 — 부하 시 빠른 프로비저닝, 유휴 시 consolidation. |
+| **IRSA** | IAM Roles for Service Accounts — 정적 키 없이 SA 단위 최소권한(OIDC). |
+| **External Secrets(ESO)** | SSM Parameter Store 시크릿을 K8s Secret으로 동기화(시크릿 git 미보관). |
 | **Flyway** | DB 스키마 마이그레이션(V1~V13). |
 | **QueryDSL** | 타입 안전 동적 쿼리(프로젝트 정렬·검색). |
 | **Resilience4j** | 서킷브레이커·리트라이(외부 호출 복원력). |

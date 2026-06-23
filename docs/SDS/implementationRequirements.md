@@ -7,7 +7,7 @@
 | Backend | Spring Boot 3.2, Java 17, Spring Data JPA, **QueryDSL**, Flyway, Resilience4j, Spring Security(OAuth2·JWT) |
 | AI 서비스 | FastAPI(Python), CLIP(ViT-L/14), mediapipe, Gemini VLM |
 | 데이터 | MySQL 8, Redis/Valkey, **Pinecone**(채팅 추천), **Qdrant**(가이드) |
-| 인프라 | AWS ECS (EC2 Graviton), Cloudflare, ALB, GitHub Actions, OTEL(관측) |
+| 인프라 | AWS EKS(EC2 Graviton arm64) · ArgoCD(GitOps) · Karpenter · IRSA · External Secrets, Cloudflare, ALB, GitHub Actions(CD), OTEL(관측) |
 
 ## 10.2 외부 연동
 | 연동 | 용도 | 격리/비고 |
@@ -29,10 +29,13 @@
 - 헬스: Flyway·DB·Redis를 readiness에 포함.
 
 ## 10.5 보안
-- **JWT**(access/refresh) + **Google OAuth2**. OAuth state는 Redis 공유 세션(멀티 파드 대응).
-- 비밀값은 **SSM Parameter Store / gitignore 프로필**. 추적 파일엔 placeholder만.
+- **JWT**(access/refresh) + **Google OAuth2**. OAuth state는 **Spring Session(Valkey)** 공유 세션(멀티 replica 대응).
+- 비밀값은 git에 두지 않음 — **SSM Parameter Store → External Secrets → K8s Secret**(키리스). 추적 파일엔 placeholder만.
+- **IRSA**: 정적 액세스키 없이 SA 단위 최소권한(backend→S3 bria · guide→S3 artref 개별 스코프).
+- 인프라 보안: **HTTPS**(ACM·ssl-redirect 443), **RDS** private·암호화(`publicly_accessible=false`), **S3** Block Public Access, **SSH(22) 차단**(SSM Session Manager).
 - 과거 커밋 노출분(jwt·pinecone)은 **키 재발급**으로 대응.
 
 ## 10.6 운영
-- **배포**: GitHub Actions → ECR → ECS rolling deploy. dev → prod 순.
-- **관측**: OTEL → Alloy, 내부 메트릭(검색 점수·환각 인용·세션 캐시 hit 등).
+- **배포(GitOps)**: GitHub Actions(arm64 빌드) → ECR → overlay SHA bump → **ArgoCD 자동 롤아웃**(EKS). 무중단(롤링 + PDB minAvailable 1 + readiness). dev(`develop`) → prod(`main`, Required reviewers).
+- **오토스케일**: HPA(backend 2~6, fastapi 1~3 / CPU 70%) + **Karpenter** 노드(consolidation 1m, Spot).
+- **관측**: OTEL → Alloy → **Grafana Cloud**(PII redaction), 내부 메트릭(검색 점수·환각 인용·세션 캐시 hit 등).

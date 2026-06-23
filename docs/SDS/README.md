@@ -24,9 +24,11 @@
 
 ![DraWe System Architecture](./img/systemArchitecture.png)
 
+> *아키텍처 다이어그램 이미지는 EKS 반영본으로 업데이트 예정. 아래 텍스트는 ROUND 2(EKS) 기준.*
+
 - **Backend(Spring Boot)** 가 도메인 로직·인증·AI 추천 파이프라인을 오케스트레이션.
 - **FastAPI·embed**(CLIP ViT-L/14) → 임베딩 → Pinecone, **FastAPI·guide**(OpenCLIP) → 이미지 가이드(Qdrant·`drawe_guide` RDS·S3).
-- 배포: **AWS ECS · EC2 Graviton(ARM64)**.
+- 배포: **AWS EKS(EC2 Graviton arm64) · ArgoCD GitOps · HPA + Karpenter** (dev ECS→EKS 완료, prod 동일 전환). 상세는 [systemArchitecture](./systemArchitecture.md).
 
 ## 3. 핵심 ① — AI 추천 파이프라인 ⭐
 
@@ -54,7 +56,7 @@
 | Backend | Spring Boot 3.2, Java 17, JPA, QueryDSL, Flyway, Resilience4j |
 | AI 서비스 | FastAPI, CLIP (ViT-L/14), mediapipe, Gemini VLM |
 | 데이터 | MySQL 8, Redis · Valkey, Pinecone |
-| 인프라 | AWS ECS (EC2 Graviton ARM64), Cloudflare, ALB, GitHub Actions CI/CD |
+| 인프라 | AWS EKS(EC2 Graviton arm64) · ArgoCD(GitOps) · Karpenter · IRSA · External Secrets, Cloudflare, ALB, GitHub Actions CD |
 
 ## 6. 문서 구성 (SDS 인덱스)
 
