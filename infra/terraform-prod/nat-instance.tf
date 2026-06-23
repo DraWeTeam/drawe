@@ -292,6 +292,8 @@ resource "aws_autoscaling_group" "nat_a" {
 
   health_check_type         = "EC2"
   health_check_grace_period = 60
+  enabled_metrics     = ["GroupInServiceInstances"]
+  metrics_granularity = "1Minute"
 
   launch_template {
     id      = aws_launch_template.nat_a.id
@@ -316,6 +318,8 @@ resource "aws_autoscaling_group" "nat_c" {
 
   health_check_type         = "EC2"
   health_check_grace_period = 60
+  enabled_metrics     = ["GroupInServiceInstances"]
+  metrics_granularity = "1Minute"
 
   launch_template {
     id      = aws_launch_template.nat_c.id
