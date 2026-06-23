@@ -10,7 +10,7 @@ resources:
 images:
   - name: drawe-backend
     newName: 570515227314.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-dev-backend
-    newTag: b6d4ec38eda21806fdacee679ceab55b3ce0c6f0   # apache5-client 제외(STS/Presigner HTTP, 커밋 ea903b5). selfHeal 환경이라 SHA 핀 → ArgoCD 롤
+    newTag: cf054b906b5ef67efa733ca39c091ed6205d8180   # apache5-client 제외(STS/Presigner HTTP, 커밋 ea903b5). selfHeal 환경이라 SHA 핀 → ArgoCD 롤
 
 # 환경별 env (backend-env). disableNameSuffixHash 로 이름 고정 → Deployment envFrom 가 그대로 참조
 generatorOptions:
