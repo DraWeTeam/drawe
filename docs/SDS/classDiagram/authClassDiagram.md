@@ -13,7 +13,7 @@ classDiagram
         +AuthController(authService: AuthService, emailVerificationService: EmailVerificationService)
         +signup(request: SignupRequest): ApiResponse~SignupResponse~
         +login(request: LoginRequest): ApiResponse~AuthResponse~
-        +getGoogleLoginUrl(): ApiResponse~Map~String, String~~
+        +getGoogleLoginUrl(): ApiResponse(Map~String, String~)
         +refresh(request: RefreshTokenRequest): ApiResponse~RefreshTokenResponse~
         +logout(request: RefreshTokenRequest): ApiResponse~Void~
         +logoutAll(authorizationHeader: String): ApiResponse~Void~
@@ -357,18 +357,18 @@ classDiagram
 | **Attributes** | clientId | String | private | 구글 OAuth2 클라이언트 ID (application.properties 주입) |
 | **Attributes** | redirectUri | String | private | 구글 OAuth2 리다이렉트 URI (application.properties 주입) |
 | **Operations** | AuthController | - | public | 생성자 (의존성 주입) |
-| **Operations** | signup | ApiResponse~SignupResponse~ | public | 이메일/비밀번호 회원가입 (POST /auth/signup) |
-| **Operations** | login | ApiResponse~AuthResponse~ | public | 이메일/비밀번호 로그인 후 토큰 발급 (POST /auth/login) |
-| **Operations** | getGoogleLoginUrl | ApiResponse~Map~String, String~~ | public | 구글 OAuth2 로그인 URL 생성·반환 (GET /auth/google) |
-| **Operations** | refresh | ApiResponse~RefreshTokenResponse~ | public | 리프레시 토큰으로 액세스/리프레시 토큰 재발급(rotation) (POST /auth/refresh) |
-| **Operations** | logout | ApiResponse~Void~ | public | 해당 리프레시 토큰 삭제로 로그아웃 (POST /auth/logout) |
-| **Operations** | logoutAll | ApiResponse~Void~ | public | 사용자의 모든 리프레시 토큰 삭제로 전체 로그아웃 (POST /auth/logout/all) |
-| **Operations** | checkEmail | ApiResponse~CheckAvailabilityResponse~ | public | 이메일 중복 여부 확인 (GET /auth/check-email) |
-| **Operations** | checkNickname | ApiResponse~CheckAvailabilityResponse~ | public | 닉네임 중복 여부 확인 (GET /auth/check-nickname) |
-| **Operations** | checkPassword | ApiResponse~Void~ | public | 현재 로그인 사용자의 비밀번호 일치 확인 (POST /auth/check-password) |
-| **Operations** | agreeTerms | ApiResponse~Void~ | public | 약관 동의 처리 (POST /auth/agree-terms) |
-| **Operations** | sendCode | ApiResponse~Void~ | public | 이메일 인증번호 발송 (POST /auth/email/send-code) |
-| **Operations** | verifyCode | ApiResponse~Void~ | public | 이메일 인증번호 검증 (POST /auth/email/verify-code) |
+| **Operations** | signup | ApiResponse&lt;SignupResponse&gt; | public | 이메일/비밀번호 회원가입 (POST /auth/signup) |
+| **Operations** | login | ApiResponse&lt;AuthResponse&gt; | public | 이메일/비밀번호 로그인 후 토큰 발급 (POST /auth/login) |
+| **Operations** | getGoogleLoginUrl | ApiResponse&lt;Map&lt;String, String&gt;&gt; | public | 구글 OAuth2 로그인 URL 생성·반환 (GET /auth/google) |
+| **Operations** | refresh | ApiResponse&lt;RefreshTokenResponse&gt; | public | 리프레시 토큰으로 액세스/리프레시 토큰 재발급(rotation) (POST /auth/refresh) |
+| **Operations** | logout | ApiResponse&lt;Void&gt; | public | 해당 리프레시 토큰 삭제로 로그아웃 (POST /auth/logout) |
+| **Operations** | logoutAll | ApiResponse&lt;Void&gt; | public | 사용자의 모든 리프레시 토큰 삭제로 전체 로그아웃 (POST /auth/logout/all) |
+| **Operations** | checkEmail | ApiResponse&lt;CheckAvailabilityResponse&gt; | public | 이메일 중복 여부 확인 (GET /auth/check-email) |
+| **Operations** | checkNickname | ApiResponse&lt;CheckAvailabilityResponse&gt; | public | 닉네임 중복 여부 확인 (GET /auth/check-nickname) |
+| **Operations** | checkPassword | ApiResponse&lt;Void&gt; | public | 현재 로그인 사용자의 비밀번호 일치 확인 (POST /auth/check-password) |
+| **Operations** | agreeTerms | ApiResponse&lt;Void&gt; | public | 약관 동의 처리 (POST /auth/agree-terms) |
+| **Operations** | sendCode | ApiResponse&lt;Void&gt; | public | 이메일 인증번호 발송 (POST /auth/email/send-code) |
+| **Operations** | verifyCode | ApiResponse&lt;Void&gt; | public | 이메일 인증번호 검증 (POST /auth/email/verify-code) |
 
 <br>
 
@@ -377,7 +377,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | **UserController** | - | public | 로그인 사용자의 프로필 조회 엔드포인트를 제공하는 컨트롤러 |
-| **Operations** | me | ApiResponse~MyProfileResponse~ | public | 현재 인증된 사용자의 프로필 조회 (GET /user/profile) |
+| **Operations** | me | ApiResponse&lt;MyProfileResponse&gt; | public | 현재 인증된 사용자의 프로필 조회 (GET /user/profile) |
 
 <br>
 
@@ -415,7 +415,7 @@ classDiagram
 | **Operations** | RefreshTokenService | - | public | 생성자 (의존성 주입) |
 | **Operations** | save | void | public | 새 리프레시 토큰 저장 |
 | **Operations** | findByToken | RefreshToken | public | 토큰 문자열로 리프레시 토큰 조회 (없으면 예외) |
-| **Operations** | findAllByUser | List~RefreshToken~ | public | 사용자의 모든 리프레시 토큰 조회 |
+| **Operations** | findAllByUser | List&lt;RefreshToken&gt; | public | 사용자의 모든 리프레시 토큰 조회 |
 | **Operations** | deleteByToken | void | public | 토큰 문자열로 리프레시 토큰 삭제 |
 | **Operations** | deleteAllByUser | void | public | 사용자의 모든 리프레시 토큰 삭제 |
 | **Operations** | deleteAllByUserId | void | public | userId로 사용자의 모든 리프레시 토큰 삭제 |
@@ -474,7 +474,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | **UserRepository** | - | public | User 엔티티의 영속성 처리를 담당하는 JPA 리포지토리 (JpaRepository<User, Long>) |
-| **Operations** | findByEmail | Optional~User~ | public | 이메일로 사용자 조회 |
+| **Operations** | findByEmail | Optional&lt;User&gt; | public | 이메일로 사용자 조회 |
 | **Operations** | existsByEmail | boolean | public | 이메일 존재 여부 확인 |
 | **Operations** | existsByNickname | boolean | public | 닉네임 존재 여부 확인 |
 
@@ -485,8 +485,8 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | **RefreshTokenRepository** | - | public | RefreshToken 엔티티의 영속성 처리를 담당하는 JPA 리포지토리 (JpaRepository<RefreshToken, Long>) |
-| **Operations** | findByToken | Optional~RefreshToken~ | public | 토큰 문자열로 리프레시 토큰 조회 |
-| **Operations** | findAllByUser | List~RefreshToken~ | public | 사용자의 모든 리프레시 토큰 조회 |
+| **Operations** | findByToken | Optional&lt;RefreshToken&gt; | public | 토큰 문자열로 리프레시 토큰 조회 |
+| **Operations** | findAllByUser | List&lt;RefreshToken&gt; | public | 사용자의 모든 리프레시 토큰 조회 |
 | **Operations** | deleteByToken | void | public | 토큰 문자열로 리프레시 토큰 삭제 |
 | **Operations** | deleteAllByUser | void | public | 사용자의 모든 리프레시 토큰 삭제 |
 | **Operations** | deleteAllByUserId | void | public | userId로 사용자의 모든 리프레시 토큰 삭제 |
@@ -580,14 +580,14 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | **PrincipalDetails** | - | public | 일반/OAuth 로그인 사용자를 감싸는 Spring Security 인증 주체 (UserDetails, OAuth2User 구현) |
 | **Attributes** | user | User | private | 인증 대상 사용자 엔티티 |
-| **Attributes** | attributes | Map~String, Object~ | private | OAuth2 사용자 속성 (일반 로그인은 null) |
+| **Attributes** | attributes | Map&lt;String, Object&gt; | private | OAuth2 사용자 속성 (일반 로그인은 null) |
 | **Operations** | PrincipalDetails | - | public | 일반 로그인용 생성자 |
 | **Operations** | PrincipalDetails | - | public | OAuth 로그인용 생성자 (attributes 포함) |
-| **Operations** | getAuthorities | Collection~GrantedAuthority~ | public | 권한 목록 반환 (빈 목록) |
+| **Operations** | getAuthorities | Collection&lt;GrantedAuthority&gt; | public | 권한 목록 반환 (빈 목록) |
 | **Operations** | getPassword | String | public | 사용자 비밀번호 반환 |
 | **Operations** | getUsername | String | public | 사용자 이메일 반환 |
 | **Operations** | getName | String | public | OAuth2User 식별 이름(이메일) 반환 |
-| **Operations** | getAttributes | Map~String, Object~ | public | OAuth2 속성 반환 |
+| **Operations** | getAttributes | Map&lt;String, Object&gt; | public | OAuth2 속성 반환 |
 | **Operations** | isAccountNonLocked | boolean | public | 계정 잠금 여부 (항상 true) |
 | **Operations** | isAccountNonExpired | boolean | public | 계정 만료 여부 (항상 true) |
 | **Operations** | isCredentialsNonExpired | boolean | public | 자격 증명 만료 여부 (항상 true) |
@@ -600,7 +600,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | **OAuthAttributes** | - | public | 구글 OAuth2 사용자 속성을 표준 형태로 감싸는 DTO |
-| **Attributes** | attributes | Map~String, Object~ | private | 원본 OAuth2 속성 맵 |
+| **Attributes** | attributes | Map&lt;String, Object&gt; | private | 원본 OAuth2 속성 맵 |
 | **Attributes** | email | String | private | 이메일 |
 | **Attributes** | nickname | String | private | 닉네임(name) |
 | **Attributes** | picture | String | private | 프로필 이미지 URL |
@@ -608,7 +608,7 @@ classDiagram
 | **Attributes** | providerId | String | private | 제공자 측 식별자(sub) |
 | **Operations** | OAuthAttributes | - | public | 생성자 (모든 필드 주입) |
 | **Operations** | ofGoogle | OAuthAttributes | public | 구글 속성 맵을 OAuthAttributes로 변환 (static 팩토리) |
-| **Operations** | getAttributes | Map~String, Object~ | public | 원본 속성 맵 반환 |
+| **Operations** | getAttributes | Map&lt;String, Object&gt; | public | 원본 속성 맵 반환 |
 | **Operations** | getEmail | String | public | 이메일 반환 |
 | **Operations** | getNickname | String | public | 닉네임 반환 |
 | **Operations** | getPicture | String | public | 프로필 이미지 URL 반환 |

@@ -82,8 +82,8 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | GalleryController | `<<Controller>>` | public | 갤러리 도메인 REST 진입점. `@RequestMapping("/gallery")`, GET 전용 읽기 컨트롤러로 인증 유저의 완성작·레퍼런스를 조회한다. |
 | **Attributes** | galleryService | GalleryService | private final | 조회 위임 대상 서비스. |
-| **Operations** | completed | ApiResponse~GalleryResponse~ | public | 완성작 갤러리 조회 (GET /gallery/completed?page&size). `@AuthenticationPrincipal` 유저 기준, page≥0(기본 0)·size 1~100(기본 20) 검증 후 `galleryService.getCompleted` 위임.<br> |
-| **Operations** | references | ApiResponse~ReferenceArchiveResponse~ | public | 레퍼런스 아카이브 조회 (GET /gallery/references). 인증 유저의 프로젝트별 레퍼런스 섹션을 `galleryService.getReferenceArchive` 로 조회.<br> |
+| **Operations** | completed | ApiResponse&lt;GalleryResponse&gt; | public | 완성작 갤러리 조회 (GET /gallery/completed?page&size). `@AuthenticationPrincipal` 유저 기준, page≥0(기본 0)·size 1~100(기본 20) 검증 후 `galleryService.getCompleted` 위임.<br> |
+| **Operations** | references | ApiResponse&lt;ReferenceArchiveResponse&gt; | public | 레퍼런스 아카이브 조회 (GET /gallery/references). 인증 유저의 프로젝트별 레퍼런스 섹션을 `galleryService.getReferenceArchive` 로 조회.<br> |
 
 ## GalleryService 클래스 정보
 
@@ -99,15 +99,15 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
-| **ImageRepository** | findCompletedGallery | Page~Image~ | public | `SELECT i FROM Image i WHERE i.source = :source AND i.createdBy = :createdBy ORDER BY i.createdAt DESC, i.id DESC`. 특정 유저가 만든 AI 이미지를 최신순 페이징(파라미터: source, createdBy, pageable). |
-| **ProjectReferenceRepository** | findAllByUserWithImage | List~ProjectReference~ | public | `SELECT pr FROM ProjectReference pr JOIN FETCH pr.image JOIN FETCH pr.project p WHERE p.user = :user ORDER BY p.id DESC, pr.addedAt DESC`. 유저의 모든 레퍼런스를 image·project 즉시 로딩으로 조회(프로젝트 최신순, 그 안에서 추가 최신순). |
+| **ImageRepository** | findCompletedGallery | Page&lt;Image&gt; | public | `SELECT i FROM Image i WHERE i.source = :source AND i.createdBy = :createdBy ORDER BY i.createdAt DESC, i.id DESC`. 특정 유저가 만든 AI 이미지를 최신순 페이징(파라미터: source, createdBy, pageable). |
+| **ProjectReferenceRepository** | findAllByUserWithImage | List&lt;ProjectReference&gt; | public | `SELECT pr FROM ProjectReference pr JOIN FETCH pr.image JOIN FETCH pr.project p WHERE p.user = :user ORDER BY p.id DESC, pr.addedAt DESC`. 유저의 모든 레퍼런스를 image·project 즉시 로딩으로 조회(프로젝트 최신순, 그 안에서 추가 최신순). |
 
 ## GalleryResponse 클래스 정보
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | GalleryResponse | `<<DTO>>` | public record | 완성작 갤러리 목록 응답. items/total/hasMore 페이징 계약. |
-| **Attributes** | items | List~GalleryItem~ | public | 완성작 항목 목록. |
+| **Attributes** | items | List&lt;GalleryItem&gt; | public | 완성작 항목 목록. |
 | **Attributes** | total | long | public | 전체 완성작 개수(`Page.getTotalElements()`). |
 | **Attributes** | hasMore | boolean | public | 다음 페이지 존재 여부(`Page.hasNext()`). |
 
@@ -127,11 +127,11 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | ReferenceArchiveResponse | `<<DTO>>` | public record | 레퍼런스 아카이브 응답. `@JsonInclude(ALWAYS)`. 프로젝트별 섹션 구조로 구성된다. |
-| **Attributes** | sections | List~ProjectSection~ | public | 프로젝트별 레퍼런스 섹션 목록(프로젝트 최신순). |
+| **Attributes** | sections | List&lt;ProjectSection&gt; | public | 프로젝트별 레퍼런스 섹션 목록(프로젝트 최신순). |
 | **class** | ProjectSection | `<<DTO>>` | public record (nested) | 한 프로젝트와 그 프로젝트에 담긴 레퍼런스 이미지 목록을 묶은 섹션. |
 | **Attributes** | projectId | Long | public | 프로젝트 식별자. |
 | **Attributes** | projectName | String | public | 프로젝트 이름. |
-| **Attributes** | references | List~ReferenceImageItem~ | public | 해당 프로젝트의 레퍼런스 이미지 목록(추가 최신순). |
+| **Attributes** | references | List&lt;ReferenceImageItem&gt; | public | 해당 프로젝트의 레퍼런스 이미지 목록(추가 최신순). |
 | **class** | ReferenceImageItem | `<<DTO>>` | public record (nested) | 레퍼런스 이미지 단일 항목. |
 | **Attributes** | imageId | Long | public | 레퍼런스 이미지 식별자. |
 | **Attributes** | url | String | public | 이미지 저장 경로. |

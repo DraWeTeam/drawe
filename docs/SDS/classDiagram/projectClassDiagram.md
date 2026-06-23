@@ -11,8 +11,8 @@ classDiagram
         +create(principal: PrincipalDetails, request: CreateProjectRequest): ApiResponse~ProjectDetailResponse~
         +list(principal: PrincipalDetails, q: String, status: String, sort: ProjectSort, limit: int, offset: int): ApiResponse~ProjectListResponse~
         +detail(principal: PrincipalDetails, projectId: Long): ApiResponse~ProjectDetailResponse~
-        +update(principal: PrincipalDetails, projectId: Long, request: UpdateProjectRequest): ApiResponse~Map~String, Boolean~~
-        +delete(principal: PrincipalDetails, projectId: Long): ApiResponse~Map~String, Boolean~~
+        +update(principal: PrincipalDetails, projectId: Long, request: UpdateProjectRequest): ApiResponse(Map~String, Boolean~)
+        +delete(principal: PrincipalDetails, projectId: Long): ApiResponse(Map~String, Boolean~)
     }
 
     class PinController {
@@ -20,7 +20,7 @@ classDiagram
         -pinService: PinService
         +PinController(pinService: PinService)
         +add(principalDetails: PrincipalDetails, projectId: Long, pinAddRequest: PinAddRequest): ApiResponse~PinListResponse~
-        +delete(principalDetails: PrincipalDetails, projectId: Long, imageId: Long): ApiResponse~Map~String, Boolean~~
+        +delete(principalDetails: PrincipalDetails, projectId: Long, imageId: Long): ApiResponse(Map~String, Boolean~)
         +list(principalDetails: PrincipalDetails, projectId: Long): ApiResponse~PinListResponse~
     }
 
@@ -257,11 +257,11 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | ProjectController | Class | public | 프로젝트 CRUD REST 컨트롤러 (`@RequestMapping("/projects")`). 인증 사용자(`PrincipalDetails`) 기준으로 동작 |
 | **Attributes** | projectService | ProjectService | private | 프로젝트 비즈니스 로직 위임 대상 (생성자 주입) |
-| **Operations** | create | ApiResponse~ProjectDetailResponse~ | public | 프로젝트 생성 (POST /projects), 201 CREATED. `@Valid CreateProjectRequest` 검증 후 생성된 상세 반환 |
-| **Operations** | list | ApiResponse~ProjectListResponse~ | public | 프로젝트 목록 조회 (GET /projects?q&status&sort&limit&offset). sort 기본 RECENT, limit 기본 20(@Min 1), offset 기본 0(@Min 0) |
-| **Operations** | detail | ApiResponse~ProjectDetailResponse~ | public | 프로젝트 상세 조회 (GET /projects/{projectId}) |
-| **Operations** | update | ApiResponse~Map~String, Boolean~~ | public | 프로젝트 부분 수정 (PATCH /projects/{projectId}). `{"success": true}` 반환 |
-| **Operations** | delete | ApiResponse~Map~String, Boolean~~ | public | 프로젝트 삭제 (DELETE /projects/{projectId}). `{"success": true}` 반환 |
+| **Operations** | create | ApiResponse&lt;ProjectDetailResponse&gt; | public | 프로젝트 생성 (POST /projects), 201 CREATED. `@Valid CreateProjectRequest` 검증 후 생성된 상세 반환 |
+| **Operations** | list | ApiResponse&lt;ProjectListResponse&gt; | public | 프로젝트 목록 조회 (GET /projects?q&status&sort&limit&offset). sort 기본 RECENT, limit 기본 20(@Min 1), offset 기본 0(@Min 0) |
+| **Operations** | detail | ApiResponse&lt;ProjectDetailResponse&gt; | public | 프로젝트 상세 조회 (GET /projects/{projectId}) |
+| **Operations** | update | ApiResponse&lt;Map&lt;String, Boolean&gt;&gt; | public | 프로젝트 부분 수정 (PATCH /projects/{projectId}). `{"success": true}` 반환 |
+| **Operations** | delete | ApiResponse&lt;Map&lt;String, Boolean&gt;&gt; | public | 프로젝트 삭제 (DELETE /projects/{projectId}). `{"success": true}` 반환 |
 
 <br>
 
@@ -271,9 +271,9 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | PinController | Class | public | 프로젝트 핀(책갈피) REST 컨트롤러 (`@RequestMapping("/projects/{projectId}/pins")`) |
 | **Attributes** | pinService | PinService | private | 핀 비즈니스 로직 위임 대상 (생성자 주입) |
-| **Operations** | add | ApiResponse~PinListResponse~ | public | 핀 추가 (POST /projects/{projectId}/pins), 201 CREATED. 이미지 핀 후 갱신된 핀 목록 반환. 최대 3개 |
-| **Operations** | delete | ApiResponse~Map~String, Boolean~~ | public | 핀 해제 (DELETE /projects/{projectId}/pins/{imageId}). `{"success": true}` 반환 |
-| **Operations** | list | ApiResponse~PinListResponse~ | public | 핀 목록 조회 (GET /projects/{projectId}/pins) |
+| **Operations** | add | ApiResponse&lt;PinListResponse&gt; | public | 핀 추가 (POST /projects/{projectId}/pins), 201 CREATED. 이미지 핀 후 갱신된 핀 목록 반환. 최대 3개 |
+| **Operations** | delete | ApiResponse&lt;Map&lt;String, Boolean&gt;&gt; | public | 핀 해제 (DELETE /projects/{projectId}/pins/{imageId}). `{"success": true}` 반환 |
+| **Operations** | list | ApiResponse&lt;PinListResponse&gt; | public | 핀 목록 조회 (GET /projects/{projectId}/pins) |
 
 <br>
 
@@ -320,7 +320,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | ProjectRepositoryCustom | Interface | public | QueryDSL 동적 검색/정렬/페이징 커스텀 인터페이스 |
-| **Operations** | findPage | List~Project~ | public | user 필수, status·q 선택. q 있으면 name/subject/technique/mood 부분일치(대소문자 무시) 필터 후 sort 정렬하여 페이지 반환 |
+| **Operations** | findPage | List&lt;Project&gt; | public | user 필수, status·q 선택. q 있으면 name/subject/technique/mood 부분일치(대소문자 무시) 필터 후 sort 정렬하여 페이지 반환 |
 | **Operations** | countPage | long | public | `findPage` 와 동일 필터(status·q)의 전체 건수 — total/hasMore 계산용 |
 
 <br>
@@ -331,11 +331,11 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | ProjectRepositoryImpl | Class | public | `ProjectRepositoryCustom` 의 QueryDSL 구현체 (`QProject.project` 사용) |
 | **Attributes** | queryFactory | JPAQueryFactory | private | QueryDSL 쿼리 팩토리 (생성자 주입) |
-| **Operations** | findPage | List~Project~ | public | `where(user.eq, statusEq, searchContains)` + `orderBy(getOrderSpecifier, id.desc())` + offset/limit fetch |
+| **Operations** | findPage | List&lt;Project&gt; | public | `where(user.eq, statusEq, searchContains)` + `orderBy(getOrderSpecifier, id.desc())` + offset/limit fetch |
 | **Operations** | countPage | long | public | 동일 where 조건으로 `count()` fetch, null 이면 0 반환 |
 | **Operations** | statusEq | BooleanExpression | private | null-safe: status==null 이면 null 반환(where 에서 무시), 아니면 `status.eq` |
 | **Operations** | searchContains | BooleanExpression | private | q null/blank 면 null. trim 후 name/subject/technique/mood 에 대해 `containsIgnoreCase` OR 결합 |
-| **Operations** | getOrderSpecifier | OrderSpecifier~?~ | private | RECENT→updatedAt.desc, CREATED→createdAt.desc, NAME→name.asc |
+| **Operations** | getOrderSpecifier | OrderSpecifier&lt;?&gt; | private | RECENT→updatedAt.desc, CREATED→createdAt.desc, NAME→name.asc |
 
 <br>
 
@@ -346,7 +346,7 @@ classDiagram
 | **class** | ProjectReferenceRepository | Interface | public | `ProjectReference` JPA 레포지토리. 레퍼런스 아카이브 연동 |
 | **Operations** | countByProject | long | public | 프로젝트별 레퍼런스 개수 (목록 항목 referenceCount 용) |
 | **Operations** | deleteByProject | void | public | 프로젝트 삭제 캐스케이드 시 레퍼런스 일괄 삭제 |
-| **Operations** | findAllByUserWithImage | List~ProjectReference~ | public | 한 유저의 모든 프로젝트 레퍼런스를 image·project JOIN FETCH(N+1 방지)로 로드. 프로젝트 최신순(p.id DESC), 그 안에서 addedAt DESC 정렬 |
+| **Operations** | findAllByUserWithImage | List&lt;ProjectReference&gt; | public | 한 유저의 모든 프로젝트 레퍼런스를 image·project JOIN FETCH(N+1 방지)로 로드. 프로젝트 최신순(p.id DESC), 그 안에서 addedAt DESC 정렬 |
 
 <br>
 
@@ -363,9 +363,9 @@ classDiagram
 | **Attributes** | technique | String | private | 기법 (max 30) |
 | **Attributes** | mood | String | private | 분위기 (max 30) |
 | **Attributes** | status | ProjectStatus | private | 상태 (EnumType.STRING, 기본 IN_PROGRESS) |
-| **Attributes** | pinnedImageIds | List~Long~ | private | 핀된 이미지 ID 목록 (JSON 컬럼, 최대 3개) |
+| **Attributes** | pinnedImageIds | List&lt;Long&gt; | private | 핀된 이미지 ID 목록 (JSON 컬럼, 최대 3개) |
 | **Attributes** | drawingUrl | String | private | 그림 결과 URL (max 500) |
-| **Attributes** | detailAnswers | Map~String, Object~ | private | 세부 질문 답변 (JSON 컬럼) |
+| **Attributes** | detailAnswers | Map&lt;String, Object&gt; | private | 세부 질문 답변 (JSON 컬럼) |
 | **Attributes** | suggestionsShown | Boolean | private | 제안 표시 여부 (기본 false) |
 | **Attributes** | createdAt | Instant | private | 생성 시각 (@CreationTimestamp) |
 | **Attributes** | updatedAt | Instant | private | 수정 시각 (@UpdateTimestamp) |
@@ -408,7 +408,7 @@ classDiagram
 | **Attributes** | mood | String | public | 분위기 (max 30) |
 | **Attributes** | description | String | public | 설명 |
 | **Attributes** | status | String | public | 상태 문자열 (parseStatusStrict 로 변환) |
-| **Attributes** | detailAnswers | Map~String, Object~ | public | 세부 질문 답변 |
+| **Attributes** | detailAnswers | Map&lt;String, Object&gt; | public | 세부 질문 답변 |
 
 <br>
 
@@ -426,7 +426,7 @@ classDiagram
 | **Attributes** | status | String | public | 상태(소문자) |
 | **Attributes** | drawingUrl | String | public | 그림 결과 URL |
 | **Attributes** | suggestionsShown | Boolean | public | 제안 표시 여부 |
-| **Attributes** | board | List~BoardItem~ | public | 보드(레퍼런스) 항목 목록 |
+| **Attributes** | board | List&lt;BoardItem&gt; | public | 보드(레퍼런스) 항목 목록 |
 | **Attributes** | createdAt | Instant | public | 생성 시각 |
 | **Attributes** | updatedAt | Instant | public | 수정 시각 |
 | **Operations** | from | ProjectDetailResponse | public static | Project + board 로부터 응답 생성 (status 는 소문자로 변환) |
@@ -438,7 +438,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | ProjectListResponse | DTO (record) | public | 프로젝트 목록 응답 |
-| **Attributes** | projects | List~ProjectListItem~ | public | 목록 항목 |
+| **Attributes** | projects | List&lt;ProjectListItem&gt; | public | 목록 항목 |
 | **Attributes** | total | long | public | 필터 적용 전체 건수 |
 | **Attributes** | hasMore | boolean | public | 추가 페이지 존재 여부 |
 
@@ -482,8 +482,8 @@ classDiagram
 | **Attributes** | technique | String | public | 기법 (ImageDraweTag) |
 | **Attributes** | subject | String | public | 주제 (ImageDraweTag) |
 | **Attributes** | mood | String | public | 분위기 (ImageDraweTag) |
-| **Attributes** | rawTags | List~String~ | public | 원본 태그 |
-| **Attributes** | freeTags | List~String~ | public | 자유 태그 (ImageDraweTag) |
+| **Attributes** | rawTags | List&lt;String&gt; | public | 원본 태그 |
+| **Attributes** | freeTags | List&lt;String&gt; | public | 자유 태그 (ImageDraweTag) |
 | **Attributes** | prompt | String | public | 프롬프트 |
 | **Attributes** | aiDescription | String | public | AI 설명 |
 
@@ -494,6 +494,6 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | PinListResponse | DTO (record) | public | 핀 목록 응답 |
-| **Attributes** | pins | List~PinItem~ | public | 핀된 이미지 목록 (핀 순서 유지) |
+| **Attributes** | pins | List&lt;PinItem&gt; | public | 핀된 이미지 목록 (핀 순서 유지) |
 | **Attributes** | count | int | public | 현재 핀 개수 |
 | **Attributes** | maxSlots | int | public | 최대 핀 슬롯 수 (3) |
