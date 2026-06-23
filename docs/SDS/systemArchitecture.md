@@ -27,7 +27,7 @@
 - **Backend → Pinecone / LLM**, **fastapi-guide → Qdrant Cloud**: 외부 HTTPS. Resilience4j(서킷브레이커·리트라이)로 격리.
 
 ## 3.3 배포
-- **현재: ECS on EC2 (Graviton ARM64)**. (GPU 워크로드용 **EKS 전환** 진행/검토 중)
+- **AWS ECS on EC2 (Graviton ARM64)**.
 - **CI/CD**: GitHub Actions → Amazon ECR → **ECS rolling deploy**.
 - **IaC**: Terraform.
 - **설정**: `application.properties`(env-var) ← **SSM Parameter Store**(비밀). 로컬은 gitignore 프로필이 덮음.
