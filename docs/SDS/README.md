@@ -31,35 +31,36 @@ flowchart LR
 
 ## 2. 시스템 아키텍처
 
-> ⚠️ 정식 아키텍처/배포 다이어그램은 **인프라(클라우드) 팀 제공 예정**. 아래는 이해를 돕는 임시본.
+> 정식 배포 다이어그램은 [systemArchitecture.md](./systemArchitecture.md) 참고. 아래는 핵심 흐름 요약.
 
 ```mermaid
-flowchart LR
-    FE["Frontend<br/>React · Vite"]
-    CF["Cloudflare → ALB"]
-    FE --> CF --> BE
+flowchart TD
+    U(["User"]) -->|웹 UI 로드| CF["Cloudflare Pages<br/>frontend SPA · drawe.xyz"]
+    U -->|API 호출 · axios| CFP["Cloudflare<br/>api.drawe.xyz"]
+    CFP --> ALB["ALB"]
+    ALB --> BE
 
-    subgraph EKS["EKS 클러스터"]
-        BE["Backend<br/>Spring Boot · Java 17"]
-        EMB["fastapi-embed<br/>CLIP 임베딩"]
-        GD["fastapi-guide<br/>비전 파이프라인"]
+    subgraph ECS["AWS ECS · EC2 Graviton (ARM64)"]
+        BE["Backend<br/>Spring Boot"]
+        FA["FastAPI · embed<br/>CLIP ViT-L/14"]
+        GA["FastAPI · guide<br/>OpenCLIP · 이미지 가이드"]
     end
 
-    BE --> EMB
-    BE --> GD
-    BE --> MySQL[("MySQL<br/>메타 · 세션 · 로그")]
-    BE --> Redis[("Redis · Valkey<br/>단기메모리 · 세션")]
-    BE --> PC[("Pinecone<br/>추천 벡터 검색")]
-    GD --> QD[("Qdrant<br/>가이드 레퍼런스 벡터")]
-    EMB -. 임베딩 .-> PC
-    BE --> LLM["LLM<br/>Gemini · Grok · Claude"]
-    BE --> Bria["Bria<br/>이미지 생성"]
-    FE --> OAuth["Google OAuth"]
+    BE --> DB[("MySQL · RDS")]
+    BE --> RC[("Valkey / Redis")]
+    BE -->|임베딩 요청| FA
+    BE -->|이미지 가이드 요청| GA
+    BE -->|벡터 검색| PC[("Pinecone")]
+    BE -->|LLM 라우팅| LLM["Grok · Claude · Gemini"]
+    FA -->|768-dim 벡터| PC
+    GA -->|가이딩 ref 검색| QD[("Qdrant")]
+    GA --> GDB[("drawe_guide · RDS")]
+    GA --> S3[("S3 · 참고 이미지/에셋")]
 ```
 
-- **Backend(Spring Boot)** 가 도메인 로직과 외부 서비스 오케스트레이션을 담당.
-- **fastapi-embed / fastapi-guide** 두 AI 서비스가 각각 CLIP 임베딩과 그림 비전 진단을 수행.
-- **MySQL(메타) · Pinecone(벡터) 듀얼 스토어** — 검색은 벡터, 상세 메타는 RDB.
+- **Backend(Spring Boot)** 가 도메인 로직·인증·AI 추천 파이프라인을 오케스트레이션.
+- **FastAPI·embed**(CLIP ViT-L/14) → 임베딩 → Pinecone, **FastAPI·guide**(OpenCLIP) → 이미지 가이드(Qdrant·`drawe_guide` RDS·S3).
+- 배포: **AWS ECS · EC2 Graviton(ARM64)**.
 
 ## 3. 핵심 — AI 추천 파이프라인 ⭐
 
@@ -89,7 +90,7 @@ flowchart TD
 | Backend | Spring Boot 3.2, Java 17, JPA, QueryDSL, Flyway, Resilience4j |
 | AI 서비스 | FastAPI, CLIP (ViT-L/14), mediapipe, Gemini VLM |
 | 데이터 | MySQL 8, Redis · Valkey, Pinecone |
-| 인프라 | EKS, Cloudflare, ALB, GitOps |
+| 인프라 | AWS ECS (EC2 Graviton ARM64), Cloudflare, ALB, GitHub Actions CI/CD |
 
 ## 5. 주요 설계 포인트
 
