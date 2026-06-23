@@ -99,7 +99,7 @@ resource "aws_ecs_service" "loki" {
   name            = "${local.name_prefix}-loki"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.loki.arn
-  desired_count   = var.prod_enabled ? 1 : 0
+  desired_count   = (var.prod_enabled && var.ecs_observability_enabled) ? 1 : 0
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name
@@ -191,7 +191,7 @@ resource "aws_ecs_service" "tempo" {
   name            = "${local.name_prefix}-tempo"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.tempo.arn
-  desired_count   = var.prod_enabled ? 1 : 0
+  desired_count   = (var.prod_enabled && var.ecs_observability_enabled) ? 1 : 0
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name
@@ -288,7 +288,7 @@ resource "aws_ecs_service" "grafana" {
   name            = "${local.name_prefix}-grafana"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.grafana.arn
-  desired_count   = var.prod_enabled ? 1 : 0
+  desired_count   = (var.prod_enabled && var.ecs_observability_enabled) ? 1 : 0
 
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name

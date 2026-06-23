@@ -1,12 +1,16 @@
 ############################################################
-# EKS 컷오버 — api.drawe.xyz DNS 대상 ALB 자동탐색 (재현성)
+# EKS 컷오버 — api.drawe.xyz / grafana.drawe.xyz DNS 대상 ALB 자동탐색 (재현성)
 #
 # 우선순위(local.api_target_alb_dns):
 #   1) api_alb_dns_override (수동/긴급)
 #   2) eks_cutover=true → EKS Ingress ALB (태그 자동탐색)
 #   3) ECS ALB (aws_lb.main)
 # 롤백: terraform apply -var='eks_cutover=false'  → ECS ALB. (data 도 count=0 스킵)
-# grafana.drawe.xyz 는 이 파일이 안 건드림 → 그대로 ECS(aws_lb.main) 유지.
+#
+# grafana.drawe.xyz(local.grafana_target_alb_dns):
+#   eks_cutover=true 이고 override 가 비었을 때만 EKS ALB(grafana Ingress 가
+#   group.name=drawe-prod 로 같은 ALB 에 합류) → 그 외엔 ECS ALB(aws_lb.main).
+#   api 와 같은 ALB 를 공유하므로 별도 ALB/탐색 불필요.
 ############################################################
 
 variable "eks_cutover" {
@@ -36,6 +40,15 @@ locals {
   api_target_alb_dns = (
     var.api_alb_dns_override != "" ? var.api_alb_dns_override :
     var.eks_cutover ? data.aws_lb.eks_ingress[0].dns_name :
+    aws_lb.main.dns_name
+  )
+
+  # grafana 는 api 와 같은 EKS ALB(group.name=drawe-prod) 공유.
+  # data.aws_lb.eks_ingress 는 (eks_cutover && override=="") 일 때만 존재(count=1)하므로
+  # 동일 조건에서만 [0] 참조 → index 안전. 그 외엔 ECS ALB 유지(롤백/부분적용 안전).
+  grafana_target_alb_dns = (
+    var.eks_cutover && var.api_alb_dns_override == "" ?
+    data.aws_lb.eks_ingress[0].dns_name :
     aws_lb.main.dns_name
   )
 }

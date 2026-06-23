@@ -39,7 +39,7 @@ resource "cloudflare_record" "grafana" {
   zone_id = var.cloudflare_zone_id
   name    = "grafana.${var.root_domain}"
   type    = "CNAME"
-  content = aws_lb.main.dns_name
+  content = local.grafana_target_alb_dns # 컷오버: cutover-eks.tf (eks_cutover 시 EKS ALB)
   ttl     = 1
   proxied = true
   comment = "Managed by Terraform - DraWe prod Grafana"
