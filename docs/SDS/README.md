@@ -31,32 +31,7 @@ flowchart LR
 
 ## 2. 시스템 아키텍처
 
-> 정식 배포 다이어그램은 [systemArchitecture.md](./systemArchitecture.md) 참고. 아래는 핵심 흐름 요약.
-
-```mermaid
-flowchart TD
-    U(["User"]) -->|웹 UI 로드| CF["Cloudflare Pages<br/>frontend SPA · drawe.xyz"]
-    U -->|API 호출 · axios| CFP["Cloudflare<br/>api.drawe.xyz"]
-    CFP --> ALB["ALB"]
-    ALB --> BE
-
-    subgraph ECS["AWS ECS · EC2 Graviton (ARM64)"]
-        BE["Backend<br/>Spring Boot"]
-        FA["FastAPI · embed<br/>CLIP ViT-L/14"]
-        GA["FastAPI · guide<br/>OpenCLIP · 이미지 가이드"]
-    end
-
-    BE --> DB[("MySQL · RDS")]
-    BE --> RC[("Valkey / Redis")]
-    BE -->|임베딩 요청| FA
-    BE -->|이미지 가이드 요청| GA
-    BE -->|벡터 검색| PC[("Pinecone")]
-    BE -->|LLM 라우팅| LLM["Grok · Claude · Gemini"]
-    FA -->|768-dim 벡터| PC
-    GA -->|가이딩 ref 검색| QD[("Qdrant")]
-    GA --> GDB[("drawe_guide · RDS")]
-    GA --> S3[("S3 · 참고 이미지/에셋")]
-```
+![DraWe System Architecture](./img/systemArchitecture.png)
 
 - **Backend(Spring Boot)** 가 도메인 로직·인증·AI 추천 파이프라인을 오케스트레이션.
 - **FastAPI·embed**(CLIP ViT-L/14) → 임베딩 → Pinecone, **FastAPI·guide**(OpenCLIP) → 이미지 가이드(Qdrant·`drawe_guide` RDS·S3).
