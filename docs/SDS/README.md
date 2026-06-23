@@ -18,16 +18,7 @@
 
 ### 주요 사용자 여정
 
-```mermaid
-flowchart LR
-    L["로그인<br/>Google OAuth"] --> P["프로젝트 생성<br/>주제·기법·분위기"]
-    P --> C["채팅으로<br/>레퍼런스 요청"]
-    C --> R["맞춤 레퍼런스 추천<br/>+ 미술 조언"]
-    R --> Pin["마음에 드는<br/>이미지 핀"]
-    R --> D["그림 작업"]
-    D --> G["그림 업로드<br/>가이드 진단·코칭"]
-    G --> Gal["완성작<br/>갤러리 저장"]
-```
+![주요 사용자 여정](./img/user-journey.svg)
 
 ## 2. 시스템 아키텍처
 
@@ -39,19 +30,7 @@ flowchart LR
 
 ## 3. 핵심 — AI 추천 파이프라인 ⭐
 
-```mermaid
-flowchart TD
-    U["사용자 메시지(한국어)"] --> I{"의도 분류<br/>Rule + Grok"}
-    I -- "NEW_SEARCH" --> K["키워드 추출<br/>Komoran + 미술사전(247) + Grok 폴백"]
-    I -- "KEEP / FOLLOWUP" --> PR["Redis 직전 레퍼런스 재사용"]
-    K --> E["CLIP 임베딩"]
-    E --> P["Pinecone 벡터검색 (top-K overfetch)"]
-    P --> M["MySQL 메타 결합"]
-    M --> RR["태그 IDF 하이브리드 re-rank"]
-    RR --> C["COMPOSE (LLM)<br/>+ ai_description 캡션<br/>+ 출력 무결성 검증"]
-    PR --> C
-    C --> R["응답: 레퍼런스 + 미술 조언"]
-```
+![AI 추천 파이프라인](./img/reference-search-pipeline.svg)
 
 - **의도 기반 분기**: 검색이 필요한 의도만 검색, 나머지는 직전 맥락 재사용(멀티턴).
 - **하이브리드 검색**: CLIP 유사도에 태그 IDF 가중치를 더해 변별력 보강.

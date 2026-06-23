@@ -1,0 +1,126 @@
+<svg viewBox="0 0 1000 1134" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">Drawe 레퍼런스 검색 파이프라인</title>
+  <desc id="desc">사용자 메시지를 의도 분류하여 NEW_SEARCH면 키워드 추출·CLIP 임베딩·Pinecone 검색·MySQL 결합·re-rank를 거치고, KEEP/FOLLOWUP이면 Redis 직전 레퍼런스를 재사용해, COMPOSE LLM에서 합쳐 응답을 반환하는 파이프라인.</desc>
+
+  <defs>
+    <g id="ic-chat" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M5 6.5h14v9H11l-4 3v-3H5z"/><path d="M8.5 11h7"/></g>
+    <g id="ic-fork" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><circle cx="7" cy="6" r="2.1"/><circle cx="17" cy="6" r="2.1"/><circle cx="12" cy="18" r="2.1"/><path d="M7 8.1v1.4c0 2 1.6 3 5 3.4M17 8.1v1.4c0 2-1.6 3-5 3.4M12 13v2.9"/></g>
+    <g id="ic-tag" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M4.5 4.5h7L19 12l-7 7-7.5-7.5z"/><circle cx="8" cy="8" r="1.4"/></g>
+    <g id="ic-spark" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 4.5c.7 4 2.8 6.1 6.8 6.8-4 .7-6.1 2.8-6.8 6.7-.7-3.9-2.8-6-6.8-6.7 4-.7 6.1-2.8 6.8-6.8z"/></g>
+    <g id="ic-db" stroke="currentColor" stroke-width="1.7" fill="none"><ellipse cx="12" cy="6.5" rx="6.5" ry="2.6"/><path d="M5.5 6.5v11c0 1.4 2.9 2.6 6.5 2.6s6.5-1.2 6.5-2.6v-11" stroke-linecap="round"/><path d="M5.5 12c0 1.4 2.9 2.6 6.5 2.6s6.5-1.2 6.5-2.6"/></g>
+    <g id="ic-sort" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><path d="M5 7h12M5 12h8M5 17h4"/><circle cx="19" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="17" r="1.2" fill="currentColor" stroke="none"/></g>
+    <g id="ic-cache" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><ellipse cx="12" cy="6.5" rx="6.5" ry="2.6"/><path d="M5.5 6.5v11c0 1.4 2.9 2.6 6.5 2.6s6.5-1.2 6.5-2.6v-11"/><path d="M9 13l2 2 4-4"/></g>
+    <g id="ic-resp" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M6 4.5h8l4.5 4.5V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"/><path d="M13.5 4.5V9H18"/><path d="M8.5 13.5l2 2 4-4"/></g>
+    <marker id="m-grey" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#9A948B"/></marker>
+    <marker id="m-blue" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#3B6FD4"/></marker>
+    <marker id="m-teal" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#1E9486"/></marker>
+    <marker id="m-amber" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#B57E33"/></marker>
+    <marker id="m-purple" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#7E51C8"/></marker>
+    <marker id="m-green" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#3E9C6B"/></marker>
+  </defs>
+
+  <rect x="8" y="8" width="984" height="1118" rx="22" fill="#FBFAF7" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <text x="44" y="56" font-size="27" font-weight="800" fill="#23221F">Drawe<tspan fill="#9A948B" font-weight="600"> · 레퍼런스 검색 파이프라인</tspan></text>
+  <text x="46" y="82" font-size="13" fill="#8C867C">사용자 메시지 → 의도 분류 → 검색 / 재사용 → COMPOSE → 응답</text>
+  <line x1="44" y1="98" x2="956" y2="98" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <!-- ===== CONNECTORS ===== -->
+  <path d="M500 184 L500 212" fill="none" stroke="#9A948B" stroke-width="2.4" marker-end="url(#m-grey)"/>
+  <path d="M430 296 C 360 322 300 330 237 346" fill="none" stroke="#1E9486" stroke-width="2.4" marker-end="url(#m-teal)"/>
+  <path d="M570 296 C 640 322 700 330 763 346" fill="none" stroke="#B57E33" stroke-width="2.4" marker-end="url(#m-amber)"/>
+  <g fill="none" stroke="#1E9486" stroke-width="2.4">
+    <path d="M235 446 L235 474" marker-end="url(#m-teal)"/>
+    <path d="M235 550 L235 576" marker-end="url(#m-teal)"/>
+    <path d="M235 652 L235 678" marker-end="url(#m-teal)"/>
+    <path d="M235 754 L235 780" marker-end="url(#m-teal)"/>
+    <path d="M235 860 C 235 905 235 944 316 951" marker-end="url(#m-teal)"/>
+  </g>
+  <path d="M765 436 C 765 720 765 912 684 951" fill="none" stroke="#B57E33" stroke-width="2.4" marker-end="url(#m-amber)"/>
+  <path d="M500 1006 L500 1034" fill="none" stroke="#3E9C6B" stroke-width="2.4" marker-end="url(#m-green)"/>
+
+  <!-- branch condition pills -->
+  <g font-size="11.5" font-weight="700">
+    <rect x="286" y="318" width="106" height="22" rx="11" fill="#EAF6F3" stroke="#9FD8CE"/><text x="339" y="333" text-anchor="middle" fill="#1B8576">NEW_SEARCH</text>
+    <rect x="588" y="318" width="132" height="22" rx="11" fill="#FBF1DE" stroke="#E1C98C"/><text x="654" y="333" text-anchor="middle" fill="#8B6A2E">KEEP / FOLLOWUP</text>
+  </g>
+
+  <!-- ===== BOXES ===== -->
+  <g>
+    <rect x="350" y="118" width="300" height="68" rx="13" fill="#FFFFFF" stroke="#D8D2C8" stroke-width="1.6"/>
+    <g transform="translate(368,135)" color="#6B6B66"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#F0EEE9"/><use href="#ic-chat" x="1.5" y="1.5"/></g>
+    <text x="408" y="146" font-size="16" font-weight="700" fill="#2A2925">사용자 메시지</text>
+    <text x="408" y="166" font-size="11.5" fill="#9A948B">한국어 입력</text>
+  </g>
+
+  <g>
+    <rect x="350" y="214" width="300" height="86" rx="13" fill="#FFFFFF" stroke="#9DBAEC" stroke-width="1.8"/>
+    <g transform="translate(368,238)" color="#3B6FD4"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#E5EDFB"/><use href="#ic-fork" x="1.5" y="1.5"/></g>
+    <text x="408" y="250" font-size="16" font-weight="700" fill="#2A2925">의도 분류</text>
+    <text x="408" y="270" font-size="11.5" fill="#9A948B">Rule + Grok</text>
+    <text x="408" y="287" font-size="11" fill="#B0AAA0">분기 판단</text>
+  </g>
+
+  <g>
+    <rect x="105" y="350" width="260" height="96" rx="12" fill="#FFFFFF" stroke="#5BC0B2" stroke-width="1.6"/>
+    <g transform="translate(121,368)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#D8F0EB"/><use href="#ic-tag" x="1.5" y="1.5"/></g>
+    <text x="161" y="380" font-size="15" font-weight="700" fill="#2A2925">키워드 추출</text>
+    <text x="161" y="400" font-size="11.5" fill="#9A948B">Komoran + 미술사전(247)</text>
+    <text x="161" y="417" font-size="11.5" fill="#9A948B">+ Grok 폴백</text>
+  </g>
+  <g>
+    <rect x="105" y="474" width="260" height="76" rx="12" fill="#FFFFFF" stroke="#5BC0B2" stroke-width="1.6"/>
+    <g transform="translate(121,494)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#D8F0EB"/><use href="#ic-spark" x="1.5" y="1.5"/></g>
+    <text x="161" y="506" font-size="15" font-weight="700" fill="#2A2925">CLIP 임베딩</text>
+    <text x="161" y="526" font-size="11.5" fill="#9A948B">fastapi-embed</text>
+  </g>
+  <g>
+    <rect x="105" y="576" width="260" height="76" rx="12" fill="#FFFFFF" stroke="#5BC0B2" stroke-width="1.6"/>
+    <g transform="translate(121,596)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#D8F0EB"/><use href="#ic-spark" x="1.5" y="1.5"/></g>
+    <text x="161" y="608" font-size="15" font-weight="700" fill="#2A2925">Pinecone 벡터검색</text>
+    <text x="161" y="628" font-size="11.5" fill="#9A948B">top-K overfetch</text>
+  </g>
+  <g>
+    <rect x="105" y="678" width="260" height="76" rx="12" fill="#FFFFFF" stroke="#5BC0B2" stroke-width="1.6"/>
+    <g transform="translate(121,698)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#D8F0EB"/><use href="#ic-db" x="1.5" y="1.5"/></g>
+    <text x="161" y="710" font-size="15" font-weight="700" fill="#2A2925">MySQL 메타 결합</text>
+    <text x="161" y="730" font-size="11.5" fill="#9A948B">메타데이터 join</text>
+  </g>
+  <g>
+    <rect x="105" y="780" width="260" height="80" rx="12" fill="#FFFFFF" stroke="#5BC0B2" stroke-width="1.6"/>
+    <g transform="translate(121,800)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#D8F0EB"/><use href="#ic-sort" x="1.5" y="1.5"/></g>
+    <text x="161" y="812" font-size="15" font-weight="700" fill="#2A2925">하이브리드 re-rank</text>
+    <text x="161" y="832" font-size="11.5" fill="#9A948B">태그 IDF 결합</text>
+  </g>
+
+  <g>
+    <rect x="635" y="350" width="260" height="86" rx="12" fill="#FFFFFF" stroke="#DCC081" stroke-width="1.6"/>
+    <g transform="translate(651,373)" color="#B57E33"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#F6EAD0"/><use href="#ic-cache" x="1.5" y="1.5"/></g>
+    <text x="691" y="385" font-size="15" font-weight="700" fill="#2A2925">직전 레퍼런스 재사용</text>
+    <text x="691" y="405" font-size="11.5" fill="#9A948B">Redis 캐시</text>
+    <text x="691" y="422" font-size="11" fill="#B0AAA0">검색 생략 · 맥락 유지</text>
+  </g>
+
+  <g>
+    <rect x="320" y="908" width="360" height="98" rx="14" fill="#FFFFFF" stroke="#C9B0EC" stroke-width="1.8"/>
+    <g transform="translate(338,932)" color="#7E51C8"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#EEE4FA"/><use href="#ic-chat" x="1.5" y="1.5"/></g>
+    <text x="378" y="942" font-size="16" font-weight="700" fill="#2A2925">COMPOSE · LLM</text>
+    <text x="378" y="962" font-size="11.5" fill="#9A948B">+ ai_description 캡션</text>
+    <text x="378" y="980" font-size="11.5" fill="#9A948B">+ 출력 무결성 검증</text>
+  </g>
+
+  <g>
+    <rect x="350" y="1034" width="300" height="72" rx="13" fill="#FFFFFF" stroke="#8FCBA0" stroke-width="1.6"/>
+    <g transform="translate(368,1054)" color="#3E9C6B"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#E4F3E9"/><use href="#ic-resp" x="1.5" y="1.5"/></g>
+    <text x="408" y="1066" font-size="15.5" font-weight="700" fill="#2A2925">응답 반환</text>
+    <text x="408" y="1086" font-size="11.5" fill="#9A948B">레퍼런스[N] + 미술 조언</text>
+  </g>
+
+  <g transform="translate(635,470)" font-size="12" font-weight="600">
+    <rect x="0" y="0" width="262" height="120" rx="14" fill="#FFFFFF" stroke="#ECE7DF"/>
+    <text x="18" y="28" font-size="12.5" font-weight="700" fill="#2A2925">두 갈래 흐름</text>
+    <circle cx="24" cy="52" r="6" fill="#1E9486"/><text x="40" y="56" fill="#6B6660">NEW_SEARCH · 신규 검색</text>
+    <circle cx="24" cy="78" r="6" fill="#B57E33"/><text x="40" y="82" fill="#6B6660">KEEP/FOLLOWUP · 재사용</text>
+    <circle cx="24" cy="104" r="6" fill="#7E51C8"/><text x="40" y="108" fill="#6B6660">COMPOSE 에서 합류</text>
+  </g>
+</svg>
