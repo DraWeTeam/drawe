@@ -1,6 +1,6 @@
 # 6. AI 파이프라인 설계 ⭐
 
-DraWe의 핵심은 **한국어 자유 요청 → 정확한 레퍼런스 추천·미술 조언**을 만드는 AI 파이프라인이다.
+DraWe의 주요 기능인 텍스트 기반 가이드에서 **한국어 자유 요청 → 정확한 레퍼런스 추천·미술 조언**을 만드는 AI 파이프라인이다.
 본 섹션은 각 단계의 **설계 의도와 근거**를 기술한다. (흐름 그림은 [README](./README.md), 단계 시퀀스는 [sequenceDiagram](./sequenceDiagram.md), 상태 전이는 [stateMachineDiagram](./stateMachineDiagram.md) 참고)
 
 ## 6.1 전체 단계
