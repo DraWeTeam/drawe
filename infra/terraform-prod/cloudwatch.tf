@@ -49,6 +49,36 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 ############################################################
+# EKS 컷오버 정합 — 알람 dimension 을 ECS/EKS 로 분기
+#   cutover-eks.tf 와 동일 기준(eks_cutover && override=="").
+#   ALB 4xx/5xx 는 활성 ALB 로, backend health/unhealthy 는 활성 ALB+TG 로.
+#   fastapi(내부 서비스, ALB 없음) 알람은 컷오버 시 비활성(backend 5xx 로 간접 커버).
+############################################################
+variable "eks_backend_tg_arn_suffix" {
+  description = "EKS backend Ingress 의 ALB TargetGroup arn_suffix (예: targetgroup/k8s-drawepro-backend-xxxx/yyyy). 비우면 TG 기반 알람은 컷오버 동안 비활성(ECS 드레인 오탐 방지)."
+  type        = string
+  default     = ""
+}
+
+locals {
+  # api 와 동일한 컷오버 기준
+  alarm_eks_active = var.eks_cutover && var.api_alb_dns_override == ""
+
+  # 활성 ALB / backend TG 의 CloudWatch dimension(arn_suffix)
+  alarm_alb_suffix = local.alarm_eks_active ? data.aws_lb.eks_ingress[0].arn_suffix : aws_lb.main.arn_suffix
+  alarm_backend_tg_suffix = (
+    local.alarm_eks_active && var.eks_backend_tg_arn_suffix != ""
+    ? var.eks_backend_tg_arn_suffix
+    : aws_lb_target_group.backend.arn_suffix
+  )
+
+  # 컷오버인데 EKS TG suffix 미입력이면 TG 기반 알람 비활성(오탐 방지)
+  alarm_tg_count = (local.alarm_eks_active && var.eks_backend_tg_arn_suffix == "") ? 0 : 1
+  # ECS task 기반 알람(fastapi)은 컷오버면 비활성
+  alarm_ecs_task_count = local.alarm_eks_active ? 0 : 1
+}
+
+############################################################
 # SAFETY-NET Alarms
 #
 # ⌁ 핵심 원칙: self-host LGTM stack 이 죽어도 작동해야 함.
@@ -56,21 +86,24 @@ resource "aws_sns_topic_subscription" "email" {
 # Loki/Tempo/Grafana 가 다운돼도 SNS 알림은 계속 작동.
 ############################################################
 
-# ── Backend ECS Service: 정상 task 수 < desired ──────────
+# ── Backend: 정상 타깃 0 = 완전 다운 (ALB TG HealthyHostCount<1) ──
+#   컷오버 시 EKS ALB TG, 아니면 ECS ALB TG (local.alarm_backend_tg_suffix).
+#   safety-net: CloudWatch-native 라 LGTM(self-host)이 죽어도 계속 작동.
 resource "aws_cloudwatch_metric_alarm" "backend_unhealthy" {
+  count               = local.alarm_tg_count
   alarm_name          = "${local.name_prefix}-backend-unhealthy"
-  alarm_description   = "Backend ECS service running task < desired (서비스 다운 또는 기동 실패)"
+  alarm_description   = "Backend ALB TG HealthyHostCount<1 (정상 타깃 0 = 서비스 완전 다운)"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
-  metric_name         = "RunningTaskCount"
-  namespace           = "ECS/ContainerInsights"
+  metric_name         = "HealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
   period              = 60
-  statistic           = "Average"
-  threshold           = var.backend_desired_count
+  statistic           = "Minimum"
+  threshold           = 1
 
   dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.backend.name
+    LoadBalancer = local.alarm_alb_suffix
+    TargetGroup  = local.alarm_backend_tg_suffix
   }
 
   alarm_actions      = [aws_sns_topic.alerts.arn]
@@ -80,6 +113,8 @@ resource "aws_cloudwatch_metric_alarm" "backend_unhealthy" {
 
 # ── FastAPI ECS: 정상 task 수 < desired ─────────────────
 resource "aws_cloudwatch_metric_alarm" "fastapi_unhealthy" {
+  # 내부 서비스(ALB 없음) → 컷오버 시 비활성. EKS 에선 backend 5xx 로 간접 커버.
+  count               = local.alarm_ecs_task_count
   alarm_name          = "${local.name_prefix}-fastapi-unhealthy"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
@@ -111,7 +146,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_high" {
   threshold           = 10
 
   dimensions = {
-    LoadBalancer = aws_lb.main.arn_suffix
+    LoadBalancer = local.alarm_alb_suffix
   }
 
   alarm_actions      = [aws_sns_topic.alerts.arn]
@@ -134,7 +169,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_4xx_high" {
   threshold           = 50
 
   dimensions = {
-    LoadBalancer = aws_lb.main.arn_suffix
+    LoadBalancer = local.alarm_alb_suffix
   }
 
   alarm_actions      = [aws_sns_topic.alerts.arn]
@@ -143,6 +178,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_4xx_high" {
 
 # ── ALB: target health ─────────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
+  count               = local.alarm_tg_count
   alarm_name          = "${local.name_prefix}-alb-unhealthy-targets"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -153,8 +189,8 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
   threshold           = 0
 
   dimensions = {
-    LoadBalancer = aws_lb.main.arn_suffix
-    TargetGroup  = aws_lb_target_group.backend.arn_suffix
+    LoadBalancer = local.alarm_alb_suffix
+    TargetGroup  = local.alarm_backend_tg_suffix
   }
 
   alarm_actions = [aws_sns_topic.alerts.arn]
