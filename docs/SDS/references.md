@@ -12,7 +12,8 @@
 - **QueryDSL** — 타입 안전 동적 쿼리.
 - **Flyway** — 스키마 마이그레이션.
 - **Resilience4j** — 서킷브레이커·리트라이.
-- **Pinecone** — 벡터 검색 DB.
+- **Pinecone** — 벡터 검색 DB(채팅 추천).
+- **Qdrant** — 벡터 검색 DB(가이드 레퍼런스).
 - **AWS EKS · ArgoCD(GitOps) · Karpenter / ALB, Cloudflare** — 배포·엣지.
 
 ## 내부 문서

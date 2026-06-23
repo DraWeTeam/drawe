@@ -11,9 +11,9 @@
 | 영역 | 구성요소 | 책임 |
 |---|---|---|
 | **Client / Edge** | Frontend(Cloudflare Pages), Cloudflare DNS, ALB(group `drawe-dev`) | UI 서빙, HTTPS(ACM)·ssl-redirect, L7 라우팅(idle_timeout 180s) |
-| **Compute**<br/>(EKS on EC2, Graviton arm64) | **Backend**(Spring Boot `:8080`) | 도메인 로직·AI 파이프라인 오케스트레이션·인증. HPA 2~6, replicas 2(세션 HA), PDB minAvailable 1 |
-| | **fastapi-embed** `:8000` | CLIP 텍스트/이미지 임베딩. HPA 1~3 |
-| | **fastapi-guide** `:8000` | 업로드 그림 비전 진단·코칭(growth). HPA 1~3 |
+| **Compute**<br/>(EKS on EC2, Graviton arm64) | **Backend**(Spring Boot `:8080`) | 도메인 로직·AI 파이프라인 오케스트레이션·인증. HPA 2–6, replicas 2(세션 HA), PDB minAvailable 1 |
+| | **fastapi-embed** `:8000` | CLIP 텍스트/이미지 임베딩. HPA 1–3 |
+| | **fastapi-guide** `:8000` | 업로드 그림 비전 진단·코칭(growth). HPA 1–3 |
 | | observability(Alloy/OTEL DaemonSet) | OTEL 수집 → Grafana Cloud |
 | | Karpenter 노드(arm64) | 노드 오토스케일, consolidation 1m, Spot |
 | **Data Stores** | **MySQL RDS** | 메인 메타(이미지·프로젝트·세션·메시지·로그) `publicly_accessible=false`·암호화 |
@@ -46,7 +46,7 @@ push(develop) → GitHub Actions
 
 ## 2.4 오토스케일 · 무중단
 
-- **2단 오토스케일**: HPA(backend 2~6, fastapi 1~3 / CPU 70%) + **Karpenter** 노드 오토스케일(부하 시 수십 초 내 확보, 유휴 시 1분 내 consolidation, Spot interruption SQS 처리).
+- **2단 오토스케일**: HPA(backend 2–6, fastapi 1–3 / CPU 70%) + **Karpenter** 노드 오토스케일(부하 시 수십 초 내 확보, 유휴 시 1분 내 consolidation, Spot interruption SQS 처리).
 - **무중단 배포**: 롤링 업데이트 + **PDB(minAvailable 1)** + readiness 게이트 → 배포 중 가용 파드 ≥1.
 - **긴 가이드 요청**: ALB `idle_timeout` 60→**180s** 로 504 제거.
 

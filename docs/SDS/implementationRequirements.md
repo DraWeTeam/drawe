@@ -37,5 +37,5 @@
 
 ## 10.6 운영
 - **배포(GitOps)**: GitHub Actions(arm64 빌드) → ECR → overlay SHA bump → **ArgoCD 자동 롤아웃**(EKS). 무중단(롤링 + PDB minAvailable 1 + readiness). dev(`develop`) → prod(`main`, Required reviewers).
-- **오토스케일**: HPA(backend 2~6, fastapi 1~3 / CPU 70%) + **Karpenter** 노드(consolidation 1m, Spot).
+- **오토스케일**: HPA(backend 2–6, fastapi 1–3 / CPU 70%) + **Karpenter** 노드(consolidation 1m, Spot).
 - **관측**: OTEL → Alloy → **Grafana Cloud**(PII redaction), 내부 메트릭(검색 점수·환각 인용·세션 캐시 hit 등).
