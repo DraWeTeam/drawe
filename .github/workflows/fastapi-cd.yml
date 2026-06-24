@@ -106,6 +106,10 @@ jobs:
           # 내 bump 커밋은 유지한 채 origin 을 rebase 로 당겨 위로 얹고 다시 push.
           REF="${{ github.ref_name }}"
           git config pull.rebase true
+          # [fix] 러너의 무관한 추적파일(terraform 산출물 등)로 작업트리가 더러우면
+          #       git pull --rebase 가 'unstaged changes' 로 막혀 rebase 가 시작도 못 한다.
+          #       우리 bump 커밋만 남기고 트리를 깨끗이 한다(러너 1회용 → stash 미복구 OK).
+          git stash push --include-untracked --quiet || true
           for attempt in 1 2 3 4 5; do
             if git push origin "HEAD:${REF}"; then
               echo "✅ overlay 갱신 푸시 — ArgoCD(develop 추적)가 롤아웃합니다."
@@ -117,7 +121,13 @@ jobs:
               echo "rebase 충돌 — newTag ${SHA} 로 재적용"
               sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\\1${SHA}|" "$OVERLAY"
               git add "$OVERLAY"
-              GIT_EDITOR=true git rebase --continue || git rebase --abort
+              if [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+                GIT_EDITOR=true git rebase --continue || git rebase --abort
+              else
+                # [fix] rebase 미시작(더티 트리/네트워크 등) → 'no rebase in progress' 로 죽지 않게 정리만
+                git rebase --abort >/dev/null 2>&1 || true
+                git stash push --include-untracked --quiet || true
+              fi
             fi
             sleep $((RANDOM % 5 + 2))   # 2~6초 지터로 동시 재시도 분산
           done
@@ -143,6 +153,10 @@ jobs:
           # 내 bump 커밋은 유지한 채 origin 을 rebase 로 당겨 위로 얹고 다시 push.
           REF="${{ github.ref_name }}"
           git config pull.rebase true
+          # [fix] 러너의 무관한 추적파일(terraform 산출물 등)로 작업트리가 더러우면
+          #       git pull --rebase 가 'unstaged changes' 로 막혀 rebase 가 시작도 못 한다.
+          #       우리 bump 커밋만 남기고 트리를 깨끗이 한다(러너 1회용 → stash 미복구 OK).
+          git stash push --include-untracked --quiet || true
           for attempt in 1 2 3 4 5; do
             if git push origin "HEAD:${REF}"; then
               echo "✅ overlay 갱신 푸시 — ArgoCD(main 추적)가 롤아웃합니다."
@@ -154,7 +168,13 @@ jobs:
               echo "rebase 충돌 — newTag ${SHA} 로 재적용"
               sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\\1${SHA}|" "$OVERLAY"
               git add "$OVERLAY"
-              GIT_EDITOR=true git rebase --continue || git rebase --abort
+              if [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+                GIT_EDITOR=true git rebase --continue || git rebase --abort
+              else
+                # [fix] rebase 미시작(더티 트리/네트워크 등) → 'no rebase in progress' 로 죽지 않게 정리만
+                git rebase --abort >/dev/null 2>&1 || true
+                git stash push --include-untracked --quiet || true
+              fi
             fi
             sleep $((RANDOM % 5 + 2))   # 2~6초 지터로 동시 재시도 분산
           done
