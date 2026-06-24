@@ -1,5 +1,6 @@
 package com.drawe.backend.domain.project.repository;
 
+import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.ProjectReference;
 import com.drawe.backend.domain.User;
@@ -11,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 public interface ProjectReferenceRepository extends JpaRepository<ProjectReference, Long> {
 
   long countByProject(Project project);
+
+  boolean existsByProjectAndImage(Project project, Image image);
 
   void deleteByProject(Project project);
 

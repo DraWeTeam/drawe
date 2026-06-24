@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import ReferencePage from "./pages/chat/ReferencePage";
 import ProjectList from "./pages/projects/ProjectList";
 import ChatPage from "./pages/chat/ChatPage";
+import ArchivePage from "./pages/gallery/ArchivePage";
 // 온보딩 비활성화:
 // import OnboardingPage from "./pages/onboarding/OnboardingPage";
 // import OnboardingCompletePage from "./pages/onboarding/OnboardingCompletePage";
@@ -37,6 +38,7 @@ function App() {
                 element={<ReferencePage />}
               />
               <Route path="/projects" element={<ProjectList />} />
+              <Route path="/archive" element={<ArchivePage />} />
               <Route path="/projects/:projectId/chat" element={<ChatPage />} />
               {/* 온보딩 비활성화:
               <Route path="/onboarding" element={<OnboardingPage />} /> */}

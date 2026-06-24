@@ -23,6 +23,7 @@ const Sidebar = () => {
   const userMenuRef = useRef(null);
 
   const hidden = HIDDEN_PATHS.includes(location.pathname);
+  const isArchiveActive = location.pathname.startsWith("/archive");
 
   // 유저 정보 로드
   useEffect(() => {
@@ -152,9 +153,11 @@ const Sidebar = () => {
         {collapsed ? (
           <button
             type="button"
-            className={`${styles.menuItem} ${styles.iconOnly}`}
-            disabled
-            title="아카이브 (준비 중)"
+            className={`${styles.menuItem} ${styles.iconOnly} ${
+              isArchiveActive ? styles.active : ""
+            }`}
+            onClick={() => navigate("/archive")}
+            title="아카이브"
           >
             <span className={styles.menuIcon}>
               <ArchiveIcon />
@@ -164,7 +167,9 @@ const Sidebar = () => {
           <>
             <button
               type="button"
-              className={styles.menuItem}
+              className={`${styles.menuItem} ${
+                isArchiveActive ? styles.active : ""
+              }`}
               onClick={() => setArchiveOpen((o) => !o)}
             >
               <span className={styles.menuIcon}>
@@ -181,15 +186,14 @@ const Sidebar = () => {
             </button>
             {archiveOpen && (
               <div className={styles.submenu}>
-                <button
-                  type="button"
-                  className={styles.submenuItem}
-                  disabled
-                  title="준비 중"
+                <Link
+                  to="/archive"
+                  className={`${styles.submenuItem} ${
+                    isArchiveActive ? styles.active : ""
+                  }`}
                 >
                   <span>레퍼런스</span>
-                  <span className={styles.count}>0</span>
-                </button>
+                </Link>
               </div>
             )}
           </>

@@ -1,6 +1,7 @@
 package com.drawe.backend.domain.image.controller;
 
 import com.drawe.backend.domain.image.dto.ImageUploadResponse;
+import com.drawe.backend.domain.image.service.ImageDownloadService;
 import com.drawe.backend.domain.image.service.ImageStorage;
 import com.drawe.backend.domain.image.service.ImageUploadService;
 import com.drawe.backend.global.error.CustomException;
@@ -27,6 +28,7 @@ public class ImageController {
 
   private final ImageUploadService imageUploadService;
   private final ImageStorage imageStorage;
+  private final ImageDownloadService imageDownloadService;
 
   @PostMapping("/upload")
   public ApiResponse<ImageUploadResponse> upload(
@@ -59,6 +61,24 @@ public class ImageController {
           HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
     }
     return builder.body(loaded.data());
+  }
+
+  /**
+   * 출처 무관 다운로드 — 외부 URL 레퍼런스(Unsplash 등)는 서버가 프록시로 받아오고, 서버 저장 이미지는 바이트를 그대로 내려준다. 항상
+   * {@code Content-Disposition: attachment} 라 브라우저(아이패드 Safari 포함)가 새 탭이 아닌 파일 다운로드로 처리한다.
+   */
+  @GetMapping("/{id}/download")
+  public ResponseEntity<byte[]> download(
+      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long id) {
+    ImageDownloadService.Download dl =
+        imageDownloadService.download(id, principal.getUser().getId());
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType(dl.contentType()))
+        .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            "attachment; filename=\"" + dl.filename() + "\"")
+        .body(dl.data());
   }
 
   /** mimeType → 파일 확장자. 알 수 없으면 빈 문자열(확장자 없는 파일명). */
