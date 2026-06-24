@@ -1,0 +1,40 @@
+# 저장소 전역 줄바꿈 정책
+# 모든 텍스트 파일을 LF 로 정규화한다. gitattributes 는 각 환경의 core.autocrlf
+# 설정을 override 하므로, Windows(PowerShell/Git Bash) 와 WSL 이 줄바꿈을 동일하게
+# 인식한다. (Win/WSL 혼용 시 VS Code GUI phantom diff, CI rebase 더티 트리 방지)
+#
+# 하위 디렉토리에 더 구체적인 규칙이 있으면 그쪽이 우선한다.
+#   - backend/.gitattributes : gradlew(LF) / *.bat(CRLF) / *.jar(binary)
+#   - infra/.gitattributes   : infra 전역 LF
+* text=auto eol=lf
+
+# Windows 전용 스크립트는 CRLF 유지 (배치/명령 스크립트)
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# 바이너리는 정규화 대상에서 명시적으로 제외 (text=auto 자동 감지 보강)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.jar   binary
+*.war   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.mp4   binary
+*.mov   binary
+*.webm  binary
+*.xlsx  binary
+*.xls   binary
+*.docx  binary
+*.pptx  binary
+*.p12   binary
+*.pfx   binary

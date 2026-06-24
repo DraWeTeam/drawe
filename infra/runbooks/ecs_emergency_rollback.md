@@ -1,7 +1,7 @@
 # ECS 비상 롤백 절차 (DraWe prod)
 
-> EKS 가 큰 장애에 빠진 상황에서 **ECS 로 트래픽을 되돌리는** 절차다.
-> ECS 코드는 영구 dormant 상태로 유지되니까(`prod_eks_cutover.md` Phase D), 5~15 분 안에 부활 가능하다.
+> EKS 가 큰 장애에 빠진 상황에서 **ECS 로 트래픽을 되돌리는** 절차.
+> ECS 코드는 영구 dormant 상태로 유지되니까(`prod_eks_cutover.md`), 필요할 때 부활 가능하다.
 
 ## 언제 이 절차를 쓰나
 

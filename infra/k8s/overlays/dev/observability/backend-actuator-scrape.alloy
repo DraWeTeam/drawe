@@ -1,0 +1,75 @@
+// =============================================================================
+// backend /actuator/prometheus 스크랩 — EKS 전용 (DaemonSet, 디렉터리 로드)
+//
+//  ⚠ 이 파일은 EKS 전용이다. ECS 와 절대 공유하지 마라.
+//    - ECS 의 backend actuator 메트릭은 configs/alloy-sidecar*.alloy 의
+//      localhost:8080 스크랩(같은 ECS task)이 담당한다. (그쪽은 건드리지 않는다.)
+//    - 이 블록은 discovery.kubernetes(role=pod) 를 쓴다 → k8s API/RBAC 필요.
+//      ECS 의 Alloy(resourcedetection=ecs, k8s 권한 없음)에서는 평가 자체가 불가.
+//      => 만약 이 내용을 ECS 설정(configs/*.alloy)에 섞으면 ECS Alloy 가 깨져
+//         "EKS→ECS 롤백 불가" 상태가 된다. 그래서 별도 .alloy 파일로 분리하고
+//         EKS overlay 의 alloy-config ConfigMap 에만 싣는다.
+//    - Alloy 의 `run <dir>` 는 같은 디렉터리의 모든 *.alloy 를 단일 config 로 병합한다
+//      (공식 지원: reference/cli/run). config.alloy 와 이 파일이 함께 로드된다.
+//      컴포넌트 이름은 config.alloy 와 충돌하면 안 된다 →
+//      여기서는 backend_pods / backend_actuator 로 명명(기존 pods 와 다름).
+//
+//  ── 단일 writer 충돌 방지 (중요) ──
+//    prod 는 ECS·EKS 가 같은 AMP workspace 로 remote_write 하고, 양쪽 Alloy 모두
+//    external_label cluster="drawe-prod" 를 붙인다. 컷오버 blue/green 공존 구간에
+//    두 플랫폼의 backend 파드가 동일 series(application="drawe-backend",
+//    job="backend-actuator")를 동시에 push → Prometheus 단일 writer 원칙 위반(중복/충돌).
+//    => 여기서 platform="eks" 라벨을 부여해 EKS series 를 ECS(라벨 없음)와 분리한다.
+//       룰/대시보드는 platform 으로 group 하지 않으므로 sum() 집계 결과엔 영향 없음.
+//
+//  forward 대상: dev/prod 의 config.alloy 에 이미 존재하는
+//    otelcol.receiver.prometheus.infra. (export 경로는 그대로: dev=Grafana Cloud)
+//  적용 후 `alloy fmt` 로 문법 확인 권장.
+// =============================================================================
+
+// 클러스터 전역 pod 디스커버리. RBAC 는 기존 pods 디스커버리(base/observability/rbac.yaml)와 동일.
+discovery.kubernetes "backend_pods" {
+  role = "pod"
+}
+
+discovery.relabel "backend_actuator" {
+  targets = discovery.kubernetes.backend_pods.targets
+
+  // 1) app=backend 파드만 유지
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app"]
+    regex         = "backend"
+    action        = "keep"
+  }
+
+  // 2) actuator 포트(8080) 타깃만 유지 — 다른 컨테이너 포트로 인한 중복 스크랩 방지
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_port_number"]
+    regex         = "8080"
+    action        = "keep"
+  }
+
+  // 3) 식별 라벨 정리
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+
+  // 4) EKS 전용 분리 라벨 — ECS series 와 동일 series 가 되지 않도록 (단일 writer 보호)
+  rule {
+    target_label = "platform"
+    replacement  = "eks"
+  }
+}
+
+prometheus.scrape "backend_actuator" {
+  targets         = discovery.relabel.backend_actuator.output
+  forward_to      = [otelcol.receiver.prometheus.infra.receiver]
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "30s"
+  job_name        = "backend-actuator"
+}

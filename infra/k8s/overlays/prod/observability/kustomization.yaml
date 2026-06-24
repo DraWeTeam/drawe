@@ -21,6 +21,7 @@ configMapGenerator:
   - name: alloy-config            # Alloy prod(self-host) 설정
     files:
       - config.alloy
+      - backend-actuator-scrape.alloy   # [추가] EKS 전용 backend 스크랩 (ECS configs/*.alloy 와 분리)
   - name: loki-config             # Loki monolithic 설정
     files:
       - loki-config.yaml
@@ -30,6 +31,17 @@ configMapGenerator:
   - name: grafana-datasources     # Grafana datasource provisioning
     files:
       - datasources.yaml=grafana-datasources.yaml
+
+  # ── [추가] EKS 전용 대시보드 프로비저닝 (공유 RDS 'grafana' 스키마 롤백 안전판) ──
+  #   dashboards-provider.yaml 은 disableDeletion=true / allowUiUpdates=false /
+  #   고정 folderUid 로 하드닝되어 있다. 자세한 이유는 dashboards/ROLLBACK.md 참고.
+  - name: drawe-grafana-dashboard-provider
+    files:
+      - dashboards-provider.yaml=dashboards/dashboards-provider.yaml
+  - name: drawe-grafana-dashboards
+    files:
+      - dashboards/backend.json
+      - dashboards/fastapi.json
 
 patches:
   # ① alloy SA → AMP RemoteWrite IRSA
@@ -43,7 +55,7 @@ patches:
           # 3-platform output: obs_alloy_role_arn
           eks.amazonaws.com/role-arn: arn:aws:iam::933832340498:role/drawe-prod-obs-alloy
 
-  # ② alloy DaemonSet → self-host export 에 필요한 env 주입
+  # ② alloy DaemonSet → self-host export env 주입 + [변경] 디렉터리 로드 args
   #    AMP_REMOTE_WRITE_URL 은 terraform output `amp_remote_write_url` 값으로 교체
   - target:
       kind: DaemonSet
@@ -58,19 +70,53 @@ patches:
           spec:
             containers:
               - name: alloy
+                args:
+                  - run
+                  - /etc/alloy/                         # [변경] 파일→디렉터리: config.alloy + backend-actuator-scrape.alloy 병합 로드
+                  - --server.http.listen-addr=0.0.0.0:12345
+                  - --storage.path=/tmp/alloy
                 env:
                   - name: NODE_NAME
                     valueFrom:
                       fieldRef:
                         fieldPath: spec.nodeName
                   # ★ terraform output amp_remote_write_url 로 교체
-                  #   (예: https://aps-workspaces.ap-northeast-2.amazonaws.com/workspaces/ws-xxxx/api/v1/remote_write)
                   - name: AMP_REMOTE_WRITE_URL
                     value: https://aps-workspaces.ap-northeast-2.amazonaws.com/workspaces/ws-83bd44f3-7f62-4320-bcd0-ab8b420dc020/api/v1/remote_write
                   - name: AWS_REGION
                     value: ap-northeast-2
 
-# 운영 전 Alloy 버전 핀 권장 (Docker Hub: grafana/alloy 태그 확인 후 주석 해제):
+  # ③ [추가] Grafana Deployment 에 대시보드 프로비저닝 볼륨 2쌍 주입
+  #    (volumeMounts/volumes 는 name 기준 strategic-merge → 기존 datasources/storage 유지하며 append)
+  - target:
+      kind: Deployment
+      name: grafana
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: grafana
+      spec:
+        template:
+          spec:
+            containers:
+              - name: grafana
+                volumeMounts:
+                  - name: dash-provider
+                    mountPath: /etc/grafana/provisioning/dashboards
+                    readOnly: true
+                  - name: dashboards
+                    mountPath: /var/lib/grafana/dashboards
+                    readOnly: true
+            volumes:
+              - name: dash-provider
+                configMap:
+                  name: drawe-grafana-dashboard-provider
+              - name: dashboards
+                configMap:
+                  name: drawe-grafana-dashboards
+
+# 운영 전 Alloy 버전 핀 권장:
 # images:
 #   - name: grafana/alloy
 #     newTag: v1.10.0

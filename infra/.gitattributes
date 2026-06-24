@@ -1,7 +1,18 @@
-*.tf       text eol=lf
-*.tfvars   text eol=lf
-*.hcl      text eol=lf
-*.yaml     text eol=lf
-*.yml      text eol=lf
-*.sh       text eol=lf
-*.zip      binary
+# infra/ 하위 모든 텍스트 파일을 LF 로 정규화한다.
+# gitattributes 는 각 환경의 core.autocrlf 설정을 override 하므로,
+# PowerShell(autocrlf=true) / Git Bash / WSL 이 줄바꿈을 동일하게 인식한다.
+# (Windows·WSL 혼용 시 GUI 가 phantom 변경을 띄우던 문제 해소)
+* text=auto eol=lf
+
+# 바이너리는 정규화 대상에서 명시적으로 제외 (text=auto 자동 감지 보강)
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.p12   binary
+*.pfx   binary

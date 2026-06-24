@@ -1,0 +1,101 @@
+{
+  "uid": "drawe-backend",
+  "title": "DraWe — Backend (RED + AI 파이프라인)",
+  "tags": ["drawe", "backend"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      { "name": "datasource", "type": "datasource", "query": "prometheus", "current": {}, "hide": 0 }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Rate — 요청수 by status",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{application=\"drawe-backend\"}[5m]))",
+          "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Errors — 5xx 비율  ·  Duration — 평균(버킷 없음)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [
+        { "matcher": { "id": "byName", "options": "5xx ratio" }, "properties": [ { "id": "unit", "value": "percentunit" } ] },
+        { "matcher": { "id": "byName", "options": "avg latency(s)" }, "properties": [ { "id": "unit", "value": "s" } ] }
+      ] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"drawe-backend\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=\"drawe-backend\"}[5m]))",
+          "legendFormat": "5xx ratio" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(http_server_requests_seconds_sum{application=\"drawe-backend\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=\"drawe-backend\"}[5m]))",
+          "legendFormat": "avg latency(s)" }
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "LLM 호출 — provider·outcome 별 rate",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (provider, outcome) (rate(drawe_llm_call_seconds_count[5m]))",
+          "legendFormat": "{{provider}}/{{outcome}}" }
+      ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "LLM 평균 응답시간 by provider",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (provider) (rate(drawe_llm_call_seconds_sum[5m])) / sum by (provider) (rate(drawe_llm_call_seconds_count[5m]))",
+          "legendFormat": "{{provider}}" }
+      ]
+    },
+    {
+      "id": 5, "type": "stat", "title": "환각 인용 (1h, DoD=0)",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(increase(drawe_output_hallucinated_citation_total[1h]))" }
+      ]
+    },
+    {
+      "id": 6, "type": "stat", "title": "룰 라우터 커버리지 (15m)",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 0.5 } ] } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(drawe_intent_route_total{outcome=\"rule_hit\"}[15m])) / sum(rate(drawe_intent_route_total[15m]))" }
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "JVM heap 사용률  ·  Hikari active",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "max by (instance) (jvm_memory_used_bytes{application=\"drawe-backend\",area=\"heap\"} / (jvm_memory_max_bytes{application=\"drawe-backend\",area=\"heap\"} > 0))",
+          "legendFormat": "heap util {{instance}}" },
+        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(hikaricp_connections_active{application=\"drawe-backend\"})",
+          "legendFormat": "hikari active" }
+      ]
+    }
+  ]
+}

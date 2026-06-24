@@ -1,0 +1,61 @@
+{
+  "uid": "drawe-fastapi",
+  "title": "DraWe — FastAPI (spanmetrics RED)",
+  "tags": ["drawe", "fastapi", "spanmetrics"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      { "name": "datasource", "type": "datasource", "query": "prometheus", "current": {}, "hide": 0 }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Rate — 초당 요청 by service",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~\"fastapi-.*\"}[5m]))",
+          "legendFormat": "{{service_name}}" }
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Errors — 5xx 비율 by service",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.05 } ] } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~\"fastapi-.*\",http_status_code=~\"5..\"}[5m])) / sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~\"fastapi-.*\"}[5m]))",
+          "legendFormat": "{{service_name}}" }
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Duration — p95 (ms) by service",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(traces_spanmetrics_duration_milliseconds_bucket{service_name=~\"fastapi-.*\"}[5m])))",
+          "legendFormat": "{{service_name}} p95" }
+      ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Rate by route (top routes)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (service_name, http_route) (rate(traces_spanmetrics_calls_total{service_name=~\"fastapi-.*\"}[5m]))",
+          "legendFormat": "{{service_name}} {{http_route}}" }
+      ]
+    }
+  ]
+}
