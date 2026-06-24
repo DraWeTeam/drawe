@@ -1,8 +1,8 @@
 # Prod EKS Migration Cutover Runbook
 
-> 본 문서는 실제 수행된 컷오버 절차와 운영 중 확인된 Known Issues 를 함께 기록한다.
+> 본 문서는 실제 수행된 컷오버 절차와 운영 중 확인된 Known Issues 를 함께 기록.
 > 컷오버 절차(D-day 순서) → 장애 사례(함정) → 설계 결정 순서로 구성됨.
-> 한 번 실행한 작업이지만 향후 staging 신설·DR 재구축·신규 인원 온보딩에 사용.
+> 한 번 실행한 작업이지만 참고용으로 기록.
 
 ## ⚠️ Terraform State 구조
 
