@@ -23,7 +23,10 @@ const Sidebar = () => {
   const userMenuRef = useRef(null);
 
   const hidden = HIDDEN_PATHS.includes(location.pathname);
-  const isArchiveActive = location.pathname.startsWith("/archive");
+  const isReferenceActive = location.pathname.startsWith("/archive");
+  const isGalleryActive = location.pathname.startsWith("/gallery");
+  // 아카이브 섹션(레퍼런스 + 완성작 갤러리) 활성 여부
+  const isArchiveActive = isReferenceActive || isGalleryActive;
 
   // 유저 정보 로드
   useEffect(() => {
@@ -189,10 +192,18 @@ const Sidebar = () => {
                 <Link
                   to="/archive"
                   className={`${styles.submenuItem} ${
-                    isArchiveActive ? styles.active : ""
+                    isReferenceActive ? styles.active : ""
                   }`}
                 >
                   <span>레퍼런스</span>
+                </Link>
+                <Link
+                  to="/gallery"
+                  className={`${styles.submenuItem} ${
+                    isGalleryActive ? styles.active : ""
+                  }`}
+                >
+                  <span>완성작 갤러리</span>
                 </Link>
               </div>
             )}

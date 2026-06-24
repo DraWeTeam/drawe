@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getProject } from "../projects/api";
+import { getProject, updateProject } from "../projects/api";
 import {
   addPin,
   generateImage,
@@ -21,7 +21,9 @@ import {
   sendMessage,
   sendGuideFeedback,
   sendReferenceFeedback,
+  uploadImage,
 } from "./api";
+import { resizeImage, validateImageFile } from "./imageUtils";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import GuideForm from "./GuideForm";
@@ -63,6 +65,7 @@ const ChatPage = () => {
   const [input, setInput] = useState("");
   const [followUp, setFollowUp] = useState(null);
   const [sending, setSending] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [attachment, setAttachment] = useState(null);
 
@@ -233,6 +236,7 @@ const ChatPage = () => {
   const textareaRef = useRef(null);
   const lastResponseTime = useRef(null);
   const attachAnchorRef = useRef(null); // 튜토리얼 코치마크 앵커 (첨부 버튼)
+  const completeInputRef = useRef(null); // 완성하기 — 완성 그림 파일 input
   const firstRefMenuRef = useRef(null); // 레퍼런스 반응 튜토리얼 앵커 (첫 카드 ... 메뉴)
 
   const pinnedIds = useMemo(
@@ -459,9 +463,8 @@ const ChatPage = () => {
     const inputMode = sentAttachment ? "text_image" : "text";
 
     if (isFirstSubmission) {
-      // 첫 제출
-      if (sentAttachment) {
-      } else {
+      // 첫 제출 — 첨부 없는 텍스트 제출만 추적
+      if (!sentAttachment) {
         track("prompt_submitted", {
           project_id: projectId,
           prompt_length: text.length,
@@ -611,6 +614,42 @@ const ChatPage = () => {
     } finally {
       if (rotator) clearInterval(rotator);
       setSending(false);
+    }
+  };
+
+  // 완성하기 — 완성 그림 파일 선택 시: 업로드 → 프로젝트 COMPLETED + drawingUrl 저장.
+  const handleCompleteFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // 같은 파일 다시 선택 가능하도록 초기화
+    if (!file || completing) return;
+
+    const err = validateImageFile(file);
+    if (err) {
+      alert(err);
+      return;
+    }
+
+    setCompleting(true);
+    try {
+      const resized = await resizeImage(file);
+      const { url } = await uploadImage(resized);
+      // PATCH 는 {success:true} 만 반환하므로 로컬 state 를 직접 갱신한다.
+      await updateProject(projectId, {
+        status: "COMPLETED",
+        drawingUrl: url,
+      });
+      setProject((prev) =>
+        prev ? { ...prev, status: "completed", drawingUrl: url } : prev,
+      );
+      track("project_completed", { project_id: projectId });
+      alert("완성작으로 저장했어요! 완성작 갤러리에서 볼 수 있어요.");
+    } catch (e2) {
+      const message =
+        e2.response?.data?.error?.message ||
+        "완성 처리에 실패했어요. 다시 시도해주세요.";
+      alert(message);
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -1135,6 +1174,33 @@ const ChatPage = () => {
             {errorMessage && <p className={styles.error}>{errorMessage}</p>}
 
             <form className={styles.inputBar} onSubmit={handleSend}>
+              {/* 액션 칩 줄 — 그림 완성하기 */}
+              <div className={styles.actionChips}>
+                <input
+                  ref={completeInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleCompleteFile}
+                  style={{ display: "none" }}
+                />
+                <button
+                  type="button"
+                  className={styles.completeChip}
+                  onClick={() => completeInputRef.current?.click()}
+                  disabled={completing}
+                  title="완성한 그림을 올려 프로젝트를 완성해요"
+                >
+                  <CompleteIcon />
+                  <span>
+                    {completing
+                      ? "완성 중…"
+                      : project?.status === "completed"
+                        ? "다시 완성하기"
+                        : "그림 완성하기"}
+                  </span>
+                </button>
+              </div>
+
               {/* 첨부 미리보기 — 있을 때만 위쪽에 표시 */}
               {attachment && (
                 <div className={styles.attachmentPreviews}>
@@ -1319,6 +1385,22 @@ const MinimizeIcon = () => (
       d="M0 14L5 7L0 0H2.45L7.45 7L2.45 14H0ZM5.95 14L10.95 7L5.95 0H8.4L13.4 7L8.4 14H5.95Z"
       fill="#4A4846"
     />
+  </svg>
+);
+
+const CompleteIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M20 6L9 17l-5-5" />
   </svg>
 );
 
