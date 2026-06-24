@@ -1,0 +1,164 @@
+# =============================================================================
+# backend (Spring Boot · Micrometer) 알림 룰 — Prometheus/Mimir rule-group 포맷
+#
+# 적재 방식 (이 프로젝트는 Prometheus Operator가 없음 → CRD 아님):
+#   dev  (Grafana Cloud / Mimir): mimirtool rules load rules/backend.rules.yaml
+#   prod (AMP)                  : AMP ruler에 rule group 업로드(aws amp / API)
+#
+# 검증된 사실 (코드 + 라이브러리 표준):
+#   - /actuator/prometheus 노출(Boot 3.2.4, micrometer-registry-prometheus)
+#   - 공통 태그: application="drawe-backend", environment=<profile>
+#       (application.properties: management.metrics.tags.application/environment)
+#   - ⚠ 히스토그램 버킷 미발행(기본값). http_server_requests_seconds_bucket 없음.
+#       → 지연은 평균(rate(_sum)/rate(_count))으로 알림. p95가 필요하면 아래 1줄:
+#       management.metrics.distribution.percentiles-histogram.http.server.requests=true
+#   - 커스텀 메트릭(LlmMetrics.java 등)은 timer→_seconds_{count,sum,max},
+#       counter→_total. 카디널리티 통제됨(유한 태그만).
+# =============================================================================
+groups:
+  # ───────────────────────── 앱 RED ─────────────────────────
+  - name: drawe-backend-red
+    rules:
+      - alert: BackendHigh5xxRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{application="drawe-backend",status=~"5.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{application="drawe-backend"}[5m]))
+          > 0.05
+        for: 5m
+        labels: { severity: warning, service: backend, layer: app }
+        annotations:
+          summary: "backend 5xx 비율 5% 초과"
+          description: "최근 5분 5xx 비율 {{ $value | humanizePercentage }}"
+      - alert: BackendHigh5xxRateCritical
+        expr: |
+          sum(rate(http_server_requests_seconds_count{application="drawe-backend",status=~"5.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{application="drawe-backend"}[5m]))
+          > 0.10
+        for: 5m
+        labels: { severity: critical, service: backend, layer: app }
+        annotations:
+          summary: "backend 5xx 비율 10% 초과 (긴급)"
+      - alert: BackendHigh4xxRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{application="drawe-backend",status=~"4.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{application="drawe-backend"}[5m]))
+          > 0.20
+        for: 10m
+        labels: { severity: warning, service: backend, layer: app }
+        annotations:
+          summary: "backend 4xx 비율 20% 초과"
+      # 버킷이 없어 평균 지연으로 알림(요청 단위). p95가 필요하면 위 주석의 속성을 켤 것.
+      - alert: BackendHighAvgLatency
+        expr: |
+          sum(rate(http_server_requests_seconds_sum{application="drawe-backend"}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{application="drawe-backend"}[5m]))
+          > 1.5
+        for: 10m
+        labels: { severity: warning, service: backend, layer: app }
+        annotations:
+          summary: "backend 평균 응답시간 1.5s 초과 ({{ $value }}s)"
+      # 버킷 활성화 후 사용할 p95 (버킷이 없으면 데이터 없음):
+      # - alert: BackendHighLatencyP95
+      #   expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{application="drawe-backend"}[5m]))) > 1.5
+
+  # ─────────────────── JVM / DB / 서킷 (saturation) ───────────────────
+  - name: drawe-backend-runtime
+    rules:
+      - alert: BackendJvmHeapHigh
+        expr: |
+          max by (instance) (
+            jvm_memory_used_bytes{application="drawe-backend",area="heap"}
+            /
+            (jvm_memory_max_bytes{application="drawe-backend",area="heap"} > 0)
+          ) > 0.9
+        for: 10m
+        labels: { severity: warning, service: backend, layer: runtime }
+        annotations:
+          summary: "backend JVM heap 사용률 90% 초과"
+      - alert: BackendHikariPoolSaturated
+        expr: |
+          hikaricp_connections_active{application="drawe-backend"}
+          /
+          hikaricp_connections_max{application="drawe-backend"}
+          > 0.9
+        for: 10m
+        labels: { severity: warning, service: backend, layer: runtime }
+        annotations:
+          summary: "backend Hikari 커넥션풀 90% 포화 (pool={{ $labels.pool }})"
+      - alert: BackendCircuitBreakerOpen
+        # resilience4j: state="open" 일 때 값 1. 외부 API(embed/guide/pinecone) 차단 의미.
+        expr: resilience4j_circuitbreaker_state{application="drawe-backend",state="open"} == 1
+        for: 1m
+        labels: { severity: critical, service: backend, layer: runtime }
+        annotations:
+          summary: "backend 서킷브레이커 OPEN (name={{ $labels.name }})"
+
+  # ─────────── 비즈니스 / AI 파이프라인 DoD (LlmMetrics.java 기반) ───────────
+  - name: drawe-backend-ai
+    rules:
+      # DoD: 환각 인용 0건. 1건이라도 카운트되면 즉시.
+      - alert: LlmHallucinatedCitation
+        expr: increase(drawe_output_hallucinated_citation_total[10m]) > 0
+        for: 0m
+        labels: { severity: critical, service: backend, layer: ai }
+        annotations:
+          summary: "환각 인용 발생 (source={{ $labels.source }}) — DoD 0건 위반"
+      # 메인 LLM 호출 실패율
+      - alert: LlmCallErrorRate
+        expr: |
+          sum(rate(drawe_llm_call_seconds_count{outcome="error"}[5m]))
+          /
+          sum(rate(drawe_llm_call_seconds_count[5m]))
+          > 0.10
+        for: 5m
+        labels: { severity: warning, service: backend, layer: ai }
+        annotations:
+          summary: "LLM 호출 실패율 10% 초과"
+      # 메인 LLM 호출 평균 지연(버킷 없음 → 평균). provider별.
+      - alert: LlmCallSlow
+        expr: |
+          sum by (provider) (rate(drawe_llm_call_seconds_sum[5m]))
+          /
+          sum by (provider) (rate(drawe_llm_call_seconds_count[5m]))
+          > 8
+        for: 10m
+        labels: { severity: warning, service: backend, layer: ai }
+        annotations:
+          summary: "LLM({{ $labels.provider }}) 평균 응답 8s 초과"
+      # COMPOSE 출력 구조 위반율 DoD ≤1% (분모: COMPOSE step 호출 수)
+      - alert: OutputStructureViolationRate
+        expr: |
+          sum(rate(drawe_output_structure_violation_total[10m]))
+          /
+          sum(rate(drawe_workflow_step_seconds_count{step="COMPOSE"}[10m]))
+          > 0.01
+        for: 10m
+        labels: { severity: warning, service: backend, layer: ai }
+        annotations:
+          summary: "COMPOSE 구조 위반율 1% 초과 — DoD 위반"
+      # 경량 분류기 DoD ≤300ms (평균)
+      - alert: IntentClassifierSlow
+        expr: |
+          sum(rate(drawe_intent_classify_seconds_sum[10m]))
+          /
+          sum(rate(drawe_intent_classify_seconds_count[10m]))
+          > 0.3
+        for: 10m
+        labels: { severity: warning, service: backend, layer: ai }
+        annotations:
+          summary: "인텐트 분류기 평균 300ms 초과 — DoD 위반"
+      # 룰 프리라우터 커버리지 저하(= LLM 폴백 급증 → 비용·지연↑). 정보성.
+      - alert: IntentRuleCoverageLow
+        expr: |
+          sum(rate(drawe_intent_route_total{outcome="rule_hit"}[15m]))
+          /
+          sum(rate(drawe_intent_route_total[15m]))
+          < 0.5
+        for: 15m
+        labels: { severity: info, service: backend, layer: ai }
+        annotations:
+          summary: "룰 라우터 커버리지 50% 미만 (LLM 폴백 증가)"

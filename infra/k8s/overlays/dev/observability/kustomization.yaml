@@ -3,25 +3,27 @@ kind: Kustomization
 namespace: observability
 
 # dev = Grafana Cloud. neutral base + Grafana Cloud 자격증명/패치/설정을 여기서 소유.
-# (효과는 리팩터 이전과 동일 — base 에 박혀 있던 것을 overlay 로 옮긴 것뿐)
 resources:
   - ../../../base/observability
   - externalsecret.yaml          # Grafana Cloud 자격증명 (base 에서 이동)
 
-# alloy-config CM 을 dev 용(Grafana Cloud export)으로 생성.
+# ── alloy-config CM (dev = Grafana Cloud export) ──
+# [변경] backend-actuator-scrape.alloy 를 추가해 두 파일을 한 CM 에 담는다.
+#        Alloy 가 `run /etc/alloy/` (디렉터리)로 두 파일을 단일 config 로 병합한다.
 # disableNameSuffixHash=true → 이름 'alloy-config' 고정(daemonset volume 참조와 일치).
 generatorOptions:
   disableNameSuffixHash: true
   labels:
-    app.kubernetes.io/part-of: drawe-observability   # 원본 base commonLabels 와 동일(완전 무중단)
+    app.kubernetes.io/part-of: drawe-observability
 configMapGenerator:
   - name: alloy-config
     files:
       - config.alloy
+      - backend-actuator-scrape.alloy   # [추가] EKS 전용 backend 스크랩 (ECS 와 분리)
 
-# DaemonSet 에 dev 전용 env + Grafana Cloud 자격증명(envFrom) 주입 (base 에서 이동).
-# env 는 name 기준 strategic-merge → base 의 NODE_NAME 에 dev 값이 합쳐진다.
-# 결과적으로 리팩터 전 base daemonset 과 byte-identical → ArgoCD diff/롤링 없음.
+# DaemonSet 패치: dev 전용 env + Grafana Cloud 자격증명 + [변경] 디렉터리 로드 args.
+# env 는 name 기준 strategic-merge. args 는 list(merge key 없음) → 전체 교체이므로
+# base 의 args 전체를 다시 명시하되 config 경로만 파일→디렉터리로 바꾼다.
 patches:
   - target:
       kind: DaemonSet
@@ -36,6 +38,11 @@ patches:
           spec:
             containers:
               - name: alloy
+                args:
+                  - run
+                  - /etc/alloy/                         # [변경] 파일→디렉터리: config.alloy + backend-actuator-scrape.alloy 병합 로드
+                  - --server.http.listen-addr=0.0.0.0:12345
+                  - --storage.path=/tmp/alloy
                 env:
                   - name: ALLOY_DEPLOY_ENV
                     value: "dev"
@@ -45,7 +52,7 @@ patches:
                   - secretRef:
                       name: alloy-grafana-cloud
 
-# 운영 전 Alloy 버전 핀 권장 (Docker Hub: grafana/alloy 태그 확인 후 주석 해제):
+# 운영 전 Alloy 버전 핀 권장:
 # images:
 #   - name: grafana/alloy
 #     newTag: v1.10.0
