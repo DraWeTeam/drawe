@@ -36,7 +36,7 @@ jobs:
 
   deploy:
     needs: resolve-env
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm   # 네이티브 arm64 러너 (QEMU 에뮬레이션 제거)
     environment: ${{ needs.resolve-env.outputs.env_name }}
 
     env:
@@ -54,11 +54,13 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Build JAR
+      - name: Build JAR (native arm + gradle cache)
         working-directory: backend
         run: |
           chmod +x gradlew
           ./gradlew bootJar -x test
+          # Docker 가 복사할 위치로 산출물 이동 (.dockerignore 의 build/ 제외 회피)
+          cp build/libs/*-SNAPSHOT.jar app.jar
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -70,27 +72,23 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & push Docker image
-        id: build
-        working-directory: backend
-        env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-          REPO: drawe-${{ env.ENV_NAME }}-backend
-          TAG: ${{ github.sha }}
-        run: |
-          docker buildx build \
-              --platform linux/arm64 \
-              --tag $REGISTRY/$REPO:$TAG \
-              --tag $REGISTRY/$REPO:latest \
-              --push \
-              .
-          echo "image_uri=$REGISTRY/$REPO:$TAG" >> $GITHUB_OUTPUT
+      - name: Build & push Docker image (native arm64 + ECR layer cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false   # ECR 호환(단일 매니페스트)
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-backend:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-backend:latest
+          # ECR 레지스트리 레이어 캐시 (otel agent·RDS cert·유저 레이어 재사용, jar 만 갱신)
+          cache-from: type=registry,ref=${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-backend:buildcache
+          cache-to: type=registry,ref=${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-backend:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
       # ───────── DEV: EKS GitOps (ArgoCD) ─────────
       - name: "[dev] Bump overlay newTag → commit (ArgoCD GitOps)"
