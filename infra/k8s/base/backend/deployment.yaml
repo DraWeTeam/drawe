@@ -17,9 +17,23 @@ spec:
       serviceAccountName: backend   # IRSA → bria-ai S3 (/images 서빙·업로드)
       # 그레이스풀 종료: Spring 이 in-flight 요청 마무리할 시간
       terminationGracePeriodSeconds: 60
+      # 파드 레벨 보안 컨텍스트 — 이미지(USER drawe 1000:1000)와 정합.
+      # backend 이미지는 이미 비루트라 즉시 적용 가능.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: backend
           image: drawe-backend:latest   # overlay 의 images: 가 실제 ECR 주소로 치환
+          # 컨테이너 레벨 보안 컨텍스트 — 권한 상승·불필요 capability 차단
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 8080
           envFrom:

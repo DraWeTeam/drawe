@@ -15,9 +15,23 @@ spec:
         app: fastapi-embed
     spec:
       terminationGracePeriodSeconds: 60
+      # 파드 레벨 보안 컨텍스트 — 이미지(USER drawe 1000:1000)와 정합.
+      # ⚠️ 비루트 이미지(Dockerfile 수정본)를 ECR 에 푸시한 뒤에 적용할 것.
+      #    root 이미지 상태에서 적용하면 "runAsNonRoot and image will run as root" 로 기동 거부됨.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: fastapi-embed
           image: drawe-fastapi:latest          # overlay images: 가 실제 ECR 로 치환
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: 8000
           envFrom:
