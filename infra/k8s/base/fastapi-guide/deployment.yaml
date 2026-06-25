@@ -17,9 +17,24 @@ spec:
       serviceAccountName: fastapi-guide          # IRSA → artref S3 RW
       # uvicorn graceful-shutdown 110s + 버퍼 → 130s (spot 2분 통지 시 in-flight 마무리)
       terminationGracePeriodSeconds: 130
+      # 파드 레벨 보안 컨텍스트 — 이미지(USER drawe 1000:1000)와 정합.
+      # ⚠️ 비루트 이미지(Dockerfile.guide 수정본)를 ECR 에 푸시한 뒤에 적용할 것.
+      #    root 이미지 상태에서 적용하면 "runAsNonRoot and image will run as root" 로 기동 거부됨.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: fastapi-guide
           image: drawe-fastapi-guide:latest      # overlay images: 가 실제 ECR 로 치환
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            # readOnlyRootFilesystem 은 OpenCLIP/HF 캐시·mediapipe 임시파일 쓰기 때문에 미적용
           ports:
             - containerPort: 8000
           envFrom:
