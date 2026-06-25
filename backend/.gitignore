@@ -46,6 +46,7 @@ out/
 .env
 
 ### Local artifacts (DB dumps, scratch images, side build dirs) ###
+app.jar
 *.sql
 *.png
 *.jpg

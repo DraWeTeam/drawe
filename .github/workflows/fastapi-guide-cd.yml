@@ -40,7 +40,7 @@ jobs:
 
   deploy:
     needs: resolve-env
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm   # 네이티브 arm64 러너 (QEMU 에뮬레이션 제거)
     environment: ${{ needs.resolve-env.outputs.env_name }}
 
     env:
@@ -54,11 +54,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set up QEMU (ARM64 cross-build)
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -69,23 +64,23 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & push Docker image (linux/arm64, Dockerfile.guide)
-        id: build
-        working-directory: fastapi
-        env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-          REPO: drawe-${{ env.ENV_NAME }}-fastapi-guide
-          TAG: ${{ github.sha }}
-        run: |
-          docker buildx build \
-              --platform linux/arm64 \
-              -f Dockerfile.guide \
-              --build-arg HF_TOKEN="${{ secrets.HF_TOKEN }}" \
-              -t $REGISTRY/$REPO:$TAG \
-              -t $REGISTRY/$REPO:latest \
-              --push \
-              .
-          echo "image_uri=$REGISTRY/$REPO:$TAG" >> $GITHUB_OUTPUT
+      - name: Build & push Docker image (native arm64 + ECR layer cache, Dockerfile.guide)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./fastapi
+          file: ./fastapi/Dockerfile.guide
+          platforms: linux/arm64
+          push: true
+          provenance: false   # ECR 호환(단일 매니페스트) + 빌드 단순화
+          build-args: |
+            HF_TOKEN=${{ secrets.HF_TOKEN }}
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi-guide:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi-guide:latest
+          # ECR 레지스트리 레이어 캐시 (guide 전용 repo → embed 와 분리)
+          # image-manifest=true,oci-mediatypes=true : ECR 가 캐시 매니페스트를 받게 하는 필수 옵션
+          cache-from: type=registry,ref=${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi-guide:buildcache
+          cache-to: type=registry,ref=${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi-guide:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
       # ───────── DEV: EKS GitOps (ArgoCD) ─────────
       - name: "[dev] Bump overlay newTag → commit (ArgoCD GitOps)"
