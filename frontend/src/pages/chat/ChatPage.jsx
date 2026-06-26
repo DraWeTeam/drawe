@@ -1188,15 +1188,15 @@ const ChatPage = () => {
                   className={styles.completeChip}
                   onClick={() => completeInputRef.current?.click()}
                   disabled={completing}
-                  title="완성한 그림을 올려 프로젝트를 완성해요"
+                  title="완성한 그림을 올려 프로젝트를 완료해요"
                 >
                   <CompleteIcon />
                   <span>
                     {completing
-                      ? "완성 중…"
+                      ? "완료 중…"
                       : project?.status === "completed"
-                        ? "다시 완성하기"
-                        : "그림 완성하기"}
+                        ? "다시 완료하기"
+                        : "프로젝트 완료"}
                   </span>
                 </button>
               </div>

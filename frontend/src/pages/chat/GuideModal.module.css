@@ -447,6 +447,19 @@
   padding: 4px 10px;
   border-radius: 999px;
 }
+/* 강조 칩(주황) — 가장 자주 막힌 축처럼 한 끗 포인트로 짚을 때 */
+.chipAccent {
+  color: #c2632c;
+  font-weight: 600;
+  background: #fff3e9;
+  border-color: #f6e3c8;
+}
+/* 가이드 본문 최상단 '이번에 다룬 축' 요약 줄 — 섹션 전 구분선까지 */
+.summaryChips {
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f3efe9;
+}
 
 /* ── PDF 다운로드 버튼(복사 대신) ── */
 .pdfBtn {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../login/api";
 import styles from "./ReferenceGrid.module.css";
 import { track } from "../../analytics";
+import { unsplashSized } from "./imageUtils";
 
 const ReferenceGrid = ({
   references,
@@ -146,6 +147,7 @@ const ReferenceCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -248,16 +250,23 @@ const ReferenceCard = ({
       onClick={onClick}
     >
       <div className={styles.cardImage}>
-        <img
-          src={reference.url}
-          alt={
-            index !== null
-              ? `참고 이미지 ${index}`
-              : reference.photographerName || "핀된 참고 이미지"
-          }
-          className={styles.image}
-          loading="lazy"
-        />
+        {imgFailed ? (
+          <div className={styles.imageFallback} aria-hidden>
+            <BrokenImageIcon />
+          </div>
+        ) : (
+          <img
+            src={unsplashSized(reference.url, 400)}
+            alt={
+              index !== null
+                ? `참고 이미지 ${index}`
+                : reference.photographerName || "핀된 참고 이미지"
+            }
+            className={styles.image}
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+          />
+        )}
         <button
           type="button"
           className={`${styles.pinBtn} ${isPinned ? styles.pinBtnActive : ""}`}
@@ -344,6 +353,24 @@ const ReferenceCard = ({
 };
 
 /* ===== 아이콘 ===== */
+// 이미지 로드 실패 시 카드 안에 표시(브라우저 기본 깨진 아이콘 대신)
+const BrokenImageIcon = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#c2bcb4"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 15l4-4 4 4M13 13l2-2 6 6" />
+    <circle cx="8.5" cy="8.5" r="1.4" />
+  </svg>
+);
+
 const EmptyBoardIcon = () => (
   <svg
     width="48"

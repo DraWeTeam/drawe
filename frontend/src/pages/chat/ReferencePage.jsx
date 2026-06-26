@@ -5,6 +5,7 @@ import styles from "./ReferencePage.module.css";
 import { track } from "../../analytics";
 import { downloadImage } from "../gallery/download";
 import { addReference } from "../projects/api";
+import { unsplashSized } from "./imageUtils";
 
 const ReferencePage = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const ReferencePage = () => {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   // reference 없으면 챗으로 돌아감
   useEffect(() => {
@@ -245,11 +247,18 @@ const ReferencePage = () => {
 
       <div className={styles.body}>
         <div className={styles.imageArea}>
-          <img
-            src={reference.url}
-            alt={reference.photographerName || "참고 이미지"}
-            className={styles.image}
-          />
+          {imgFailed ? (
+            <div className={styles.imageError}>
+              이미지를 불러오지 못했어요.
+            </div>
+          ) : (
+            <img
+              src={unsplashSized(reference.url, 1080)}
+              alt={reference.photographerName || "참고 이미지"}
+              className={styles.image}
+              onError={() => setImgFailed(true)}
+            />
+          )}
         </div>
 
         <div className={styles.infoPanel}>

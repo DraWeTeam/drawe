@@ -230,13 +230,19 @@ const GrowthChart = ({ trend, delta }) => {
   );
 };
 
-const ChipRow = ({ label, axes }) => {
-  if (!axes || axes.length === 0) return null;
+// 축 키 배열 → 칩 줄. accent=true 면 주황 강조 칩. 빈 배열이면 줄 자체를 숨긴다.
+//   중복 축은 한 번만(여러 소스를 합칠 때 안전).
+const ChipRow = ({ label, axes, accent, className }) => {
+  const uniq = [...new Set((axes || []).filter(Boolean))];
+  if (uniq.length === 0) return null;
   return (
-    <div className={styles.chipRow}>
-      <span className={styles.chipRowLabel}>{label}</span>
-      {axes.map((a) => (
-        <span key={a} className={styles.chip}>
+    <div className={`${styles.chipRow} ${className || ""}`}>
+      {label && <span className={styles.chipRowLabel}>{label}</span>}
+      {uniq.map((a) => (
+        <span
+          key={a}
+          className={`${styles.chip} ${accent ? styles.chipAccent : ""}`}
+        >
           {axisLabel(a)}
         </span>
       ))}
@@ -250,6 +256,7 @@ const Growth = ({ growth }) => {
   const hasChart = trend.length >= 2;
   const current = growth.chips?.current_stage_axes || [];
   const improving = growth.chips?.improving_axes || [];
+  const topRecurring = growth.recurring_stat?.sub_problem;
   const delta = hasChart ? growthDelta(trend) : null;
   // 차트 있으면 trend로 계산한 변화 한 줄(= next_steps.note 와 중복 안 됨).
   const message = hasChart
@@ -267,6 +274,12 @@ const Growth = ({ growth }) => {
           </p>
         )}
       </div>
+      {/* 가장 자주 막힌 축 — recurring_stat 있을 때 강조 칩(차트 통계와 짝) */}
+      <ChipRow
+        label="가장 자주 막힌 부분"
+        axes={topRecurring ? [topRecurring] : []}
+        accent
+      />
       <ChipRow label="현재 그림 단계" axes={current} />
       <ChipRow label="최근에 덜 보이는 어려움" axes={improving} />
     </section>
@@ -338,9 +351,18 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
   // 번호: 있는 섹션만 1,2,3… 연속 부여(빈 섹션은 번호 건너뜀).
   let num = 0;
   const goalShown = next && (next.next_goal_practice || next.next_goal);
+  // 이번 가이드가 다룬 축 요약(본문 최상단 칩). 블록의 sub_problem 들 — 중복은 ChipRow가 정리.
+  const coveredAxes = blocks.map((b) => b.sub_problem).filter(Boolean);
 
   return (
     <>
+      {/* 이번에 다룬 축 요약 — 본문 맨 위에서 '무엇을 짚었는지' 한눈에 */}
+      <ChipRow
+        label="이번에 짚은 부분"
+        axes={coveredAxes}
+        className={styles.summaryChips}
+      />
+
       {/* 반복 레이아웃에서만 상단 이미지/인트로(최초 레이아웃은 '1.분석' 안으로 들어감) */}
       {hasPractice && drawingPreviewUrl && (
         <AuthedImage
@@ -444,7 +466,7 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
         </section>
       )}
 
-      {/* 4. 앞으로 해야 할 것 — 다음 목표 카드만(note 는 상단으로 이동). */}
+      {/* 4. 앞으로 해야 할 것 — 다음 목표 카드 + 지금 집중/자주 막히는 부분 칩. */}
       {goalShown && (
         <section className={styles.nextSteps}>
           <SectionTitle num={++num}>앞으로 해야 할 것</SectionTitle>
@@ -459,6 +481,9 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
               <p className={styles.goalText}>{next.next_goal_practice}</p>
             )}
           </div>
+          {/* 지금 집중할 축(focus) + 자주 막히는 부분(recurring) — 응답에 있을 때만 */}
+          <ChipRow label="지금 집중" axes={next.focus ? [next.focus] : []} accent />
+          <ChipRow label="자주 막히는 부분" axes={next.recurring} />
         </section>
       )}
 
