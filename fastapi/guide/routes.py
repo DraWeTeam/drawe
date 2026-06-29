@@ -7,6 +7,7 @@ import uuid
 import asyncio
 from sqlalchemy import text, bindparam
 
+from guide._trace import trace
 from guide.stores.db import engine
 from guide.stores.s3 import presigned_url
 from guide.ml.normalize import normalize
@@ -75,6 +76,14 @@ def _pipeline(
             "message": "이 업로드는 처리할 수 없어요. 작품 이미지를 올려주세요.",
         }
     scene = analyze(pil)
+    # [경계1] scene: person 채널만 track 게이팅(resolve_profile)에 쓰이고, lighting/camera 서술은 미사용.
+    #   prompt 까지 닿는 건 사실상 track 결정 1비트뿐 — 나머지 분포가 여기서 멈춘다.
+    trace(
+        "scene",
+        person=round(scene["subject"]["person"]["prominence"], 2),
+        lighting=scene["render"]["lighting"],
+        camera=scene["framing"]["camera"],
+    )
     pose = extract(scene, pil)
     mode, personas, user_terms = resolve(message, scene)
     if mode == "redirect":
@@ -95,7 +104,7 @@ def _pipeline(
     if _extra_terms:
         user_terms = set(user_terms) | _extra_terms
     # track 프로파일: 명시 track 우선, 없으면 scene(인물 유무)로 자동. 진단 게이팅·norm과 로드맵 커리큘럼에 동시 적용.
-    profile = resolve_profile(track, scene)
+    profile = resolve_profile(track, scene, pil)
     growth = growth_context(
         user_id,
         track=track,

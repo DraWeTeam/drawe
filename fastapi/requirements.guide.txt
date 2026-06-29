@@ -21,9 +21,10 @@ PyMySQL                  # DB_DSN = mysql+pymysql://...
 boto3                    # S3(에셋 해소·presign)
 mediapipe==0.10.14                # 손/포즈(게이트). aarch64 휠은 P5 빌드에서 확인
 opencv-python-headless
+google-auth              # vision.py vertex 백엔드(ADC 토큰 발급). VLM_BACKEND=vertex 일 때만 사용
 
-# 지연/게이트라 우리 구성(aistudio·qdrant)에선 생략:
-#   google-auth(vertex 전용) · pinecone(VECTOR_BACKEND=pinecone) · rembg(SUBJECT_MASK) · redis(REDIS_URL)
+# 지연/게이트라 우리 구성에선 생략:
+#   pinecone(VECTOR_BACKEND=pinecone) · rembg(SUBJECT_MASK) · redis(REDIS_URL)
 
 # Observability
 #  embed 는 1.29.0/0.50b0. guide 는 mediapipe==0.10.14(protobuf<5) 와의 충돌 때문에
@@ -31,3 +32,4 @@ opencv-python-headless
 opentelemetry-distro==0.48b0
 opentelemetry-exporter-otlp==1.27.0
 opentelemetry-instrumentation-fastapi==0.48b0
+redis==5.2.1

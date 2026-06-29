@@ -3,6 +3,7 @@ import yaml
 import numpy as np
 from functools import lru_cache
 from guide.pipeline.profiles import POSE_DEPENDENT, ALL_AXES
+from guide._trace import trace
 
 # 파일 위치 기준 → repo 루트/CWD 어디서 실행해도 동작(eval 포함). 환경변수로 override 가능.
 TAXONOMY_PATH = os.environ.get(
@@ -221,9 +222,14 @@ def hand_signals(pil):
         from guide.ml.hands import detect, hand_signal
 
         h = detect(pil)
+        # [v2 make-or-break] HandLandmarker 는 '실제 손 사진'으로 학습됨 → 손 '그림'에 검출되는지가
+        #   v2 의 전제. available/n_hands/conf 가 0 이면 MediaPipe 경로는 그림엔 안 맞음(→ VLM 측정으로).
+        _hands = h.get("hands") or []
         if not h.get("available"):
+            trace("hand.detect", available=False, n_hands=0, conf=0.0)
             return {}
-        conf, sig = hand_signal(h["hands"])
+        conf, sig = hand_signal(_hands)
+        trace("hand.detect", available=True, n_hands=len(_hands), conf=round(float(conf), 2))
         if conf > 0:
             return {"_hand": (round(float(conf), 2), sig)}
     except Exception as e:
@@ -238,29 +244,34 @@ def _vlm_hand_signal(pil):
     placeholder 블록에서 주입돼 measured=False 로 surface된다(측정=사실 원칙 보호).
     게이트(HAND_VLM)·키·일관성(2회) 판단은 ml.vision.observe_hand 내부에서. 꺼졌으면 None → 기존 빈 관찰로 폴백.
     """
+    trace("hand.vlm.enter", stage="fn_start")  # [진단] 이게 안 뜨면 호출 자체가 안 됨
     try:
         from guide.ml.vision import observe_hand
-
+        trace("hand.vlm.enter", stage="pre_call")  # [진단] 여기까지 오면 import 성공
         o = observe_hand(pil)
     except Exception as e:
         print(f"[diagnose] VLM 손 관찰 실패(무시): {type(e).__name__}: {e}")
         return None
-    if not o or o.get("confidence") != "관찰":  # 2회 불일치(낮음)면 구체관찰 보류
+    trace("hand.vlm.enter", stage="post_call", got=bool(o),
+          conf=(o.get("confidence") if o else None))  # [진단] observe_hand 가 돌고 돌아온 결과
+    if not o or o.get("confidence") not in ("관찰", "관찰(약)"):  # 낮음(view 불일치)만 보류; 약은 통과
         return None
+    strong = o.get("confidence") == "관찰"
     parts = []
     if o.get("view") and o["view"] != "불확실":
         parts.append(f"{o['view']}이 보임")
     if o.get("plane_facing"):
         parts.append(f"손 평면은 {o['plane_facing']} 방향")
-    fs = o.get("foreshortening") or []
+    fs = o.get("foreshortening") or []  # 약일 땐 교집합이 빈 set → 단축 단정 자동 제외
     if fs:
         parts.append(f"{'·'.join(fs)}가 보는 쪽으로 단축돼 보임")
+    # structure 는 §2 에서 view 일치 케이스에서도 흔들려 → strong(관찰)일 때만 표기. 약이면 view 만.
     st = o.get("structure")
-    if st == "입체":
+    if strong and st == "입체":
         parts.append("덩어리(상자+원통)로 읽힘")
-    elif st == "평면":
+    elif strong and st == "평면":
         parts.append("외곽선 위주로 읽힘")
-    elif st == "혼합":
+    elif strong and st == "혼합":
         parts.append("덩어리·외곽선 혼합으로 읽힘")
     sig = ", ".join(parts)
     return (0.4, sig) if sig else None
@@ -498,7 +509,13 @@ def s_proportion(s):
         "leg_torso", (0.75, 1.7)
     )  # track norm; None이면 발화 끔
     if r is not None and band and (r < band[0] or r > band[1]):
-        return (0.3, f"다리/몸통 길이비 ≈ {r:.2f}")
+        # [밀도] 비율만 주면 LLM이 '얼마나 벗어났는지'를 모른다 → 기댓값 밴드와 벗어난 정도까지 복원.
+        #   (타입은 그대로 str 유지 — build_coach_prompt/guardrails 계약 불변. 추가 정보만 실음.)
+        off = round(min(abs(r - band[0]), abs(r - band[1])), 2)
+        return (
+            0.3,
+            f"다리/몸통 길이비 ≈ {r:.2f} (정상대 {band[0]}–{band[1]} 밖, 벗어난 정도 ≈ {off})",
+        )
 
 
 def s_action_line(s):
@@ -646,6 +663,9 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         landscape_signals(pil)
     )  # 풍경 전용(대기원근·지평선) — figure track은 게이팅으로 제외
     sig["_norms"] = norms  # 스코어러(예: s_proportion)가 track norm을 읽게
+    # [경계2a] sig: 업스트림(pose/image/region/color/light/hand/landscape)이 만든 원시 측정 총량.
+    trace("sig", n=len([k for k in sig if k != "_norms"]),
+          keys=[k for k in sig if k != "_norms"])
 
     hits = {}
     for sid, fn in SCORERS.items():
@@ -654,6 +674,12 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
             hits[sid] = r
     measured_ids = set(hits)  # 자동 측정으로 잡힌 것 = 근거 있음
     for sid, e in tax.items():
+        if sid == "hand_structure":
+            # [라우팅 진단] observe_hand 도달 못 하는 원인 격리: 셋 중 무엇이 막나.
+            #   in_hits=True → MediaPipe _hand 로 s_hand_structure 발화(placeholder 스킵)
+            #   in_terms=False → user_terms 에 없음(line 677 스킵) / 둘 다 정상이면 도달해야 함.
+            trace("hand.route", in_hits=(sid in hits), in_terms=(sid in user_terms),
+                  pose_ok=(tier == POSE_OK), in_pose_dep=(sid in POSE_DEPENDENT))
         if sid in hits:
             continue
         # 흉상/얼굴(degraded=형체 미검출): 포즈 의존 축은 측정 불가 → persona 만으로 빈 관찰을 채우지 않는다.
@@ -691,6 +717,10 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         }
 
     ranked = sorted(hits.items(), key=lambda kv: -kv[1][0])
+    # [경계2b] hits: 스코어러 통과 축 + 측정 여부 + '빈 signal'(=내용 없이 LLM에 가는 축).
+    #   empty_signal 에 from_user 축이 끼면 그게 '결과가 안 나온다'의 1순위 용의자.
+    trace("hits", n=len(hits), measured=sorted(measured_ids),
+          empty_signal=[sid for sid, (c, s) in hits.items() if not s])
     # 이력 연속성 보정: steady는 뒤로, 재발/현재집중은 앞으로 — 정렬 키에만(표시 confidence 불변).
     recurring_set = set((growth or {}).get("recurring", []))
     if growth:
@@ -715,6 +745,11 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         ranked.sort(
             key=lambda kv: kv[0] not in user_terms
         )  # 안정 정렬: user_terms를 앞으로
+    # [경계3] Retention: 진짜 손실 지점. hits(최대 14축) → 상위 3축. 나머지는 LLM이 영영 모름.
+    #   더 많은 관찰을 살리고 싶으면 손댈 레버는 agent가 아니라 '이 캡'(인지부하 UX 트레이드오프).
+    #   prompt 단계 retention 은 build_coach_prompt 의 [경계4] trace(post-agent)가 그대로 반영.
+    trace("retain", hits=len(ranked), kept=[s for s, _ in ranked[:3]],
+          dropped=[s for s, _ in ranked[3:]])
     ranked = ranked[:3]
     obs = []
     for sid, (conf, sigtext) in ranked:
@@ -755,12 +790,30 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         "centroid": _subject_centroid(_g),
         "horizon_y": sig.get("horizon_y"),
     }
+    # inexpressible: 이번 그림에 '재료가 없는' 축 — growth 인정에서 제외용(선화에 '색 좋아졌어요' 누수 차단).
+    #   substrate 기반: 색이 (거의) 없으면 color, 톤이 없으면 value/light 는 표현 자체가 불가.
+    #   주의: color_signals 는 'std<1e-3'(완전 균일)에만 빈 dict → 흑백 선화는 sat_mean 이 *있지만 ≈0*.
+    #   그래서 '부재'가 아니라 '값이 매우 낮음'으로 본다. 임계는 trace 의 실측으로 확정/튜닝.
+    _sat = sig.get("sat_mean")
+    _mid = float(((_g > 0.2) & (_g < 0.8)).mean())
+    inexpressible = set()
+    if _sat is None or _sat < 0.05:  # 빈 dict(완전 균일) or 거의 무채(흑백/선화) → 색 부재
+        inexpressible.add("color_harmony")
+    if _mid < 0.15:  # 중간톤 거의 없음 → 톤/명암 부재
+        inexpressible |= {"value_structure", "light_direction"}
+    trace(
+        "substrate",
+        sat_mean=(round(_sat, 3) if _sat is not None else None),
+        mid=round(_mid, 3),
+        inexpressible=sorted(inexpressible),
+    )
     return {
         "primary_focus": obs[0]["sub_problem"] if obs else None,
         "observations": obs,
         "degraded": degraded,
         "persona": personas,
         "measurable": measurable,
+        "inexpressible": sorted(inexpressible),
         "instrument_version": instrument_version(),
         "pose_tier": tier,
         "spatial": _spatial,

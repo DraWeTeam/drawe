@@ -125,14 +125,33 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-open_clip:ViT-L-14:openai}
       LLM_PROVIDER: grok
       XAI_API_KEY: ${GROK_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # VLM 모델 — vertex 백엔드는 무료 20/day 한도가 없어 flash 직접 사용 가능. aistudio 폴백 시 flash-lite.
+      GEMINI_VISION_MODEL: ${GEMINI_VISION_MODEL:-gemini-2.5-flash}
+      # VLM 백엔드: vertex(GCP 프로젝트 quota·크레딧, 20/day 없음) | aistudio(GEMINI_API_KEY, 무료 20/day).
+      #   vertex 는 ADC(/secrets/adc.json) + 프로젝트로 인증. adc.json 만료/없으면 호출이 조용히 None 폴백.
+      VLM_BACKEND: ${VLM_BACKEND:-vertex}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-project-761a4dff-7717-4f75-a4a}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-global}
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/adc.json
       # 레퍼런스 이미지(S3/MinIO). 비우면 썸네일 없이 코칭만 동작.
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_KEY: ${S3_KEY:-}
       S3_SECRET: ${S3_SECRET:-}
       S3_BUCKET: ${S3_BUCKET:-artref}
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:8001}
-      HAND_VLM: "0"
+      HAND_VLM: "1"
+      HAND_AUTO: "1"
       CORS_ORIGINS: http://localhost:5173
+      TRACE_CTX: "1"
+      SUBJECT_VLM: "1"
+      STYLE_VLM: "1"
+      REDIS_HOST: valkey
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-valkey_pass}
+    volumes:
+      # vertex 백엔드 ADC 자격증명(읽기전용). .secrets/ 는 gitignore 됨.
+      - ./.secrets/adc.json:/secrets/adc.json:ro
     depends_on:
       mysql:
         condition: service_healthy

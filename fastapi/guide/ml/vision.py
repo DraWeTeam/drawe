@@ -21,6 +21,14 @@ import base64
 import requests
 from concurrent.futures import ThreadPoolExecutor
 
+from guide.cache import img_hash, vlm_get, vlm_set
+from guide._trace import trace
+
+# 이미지-only·결정적인 VLM 결과(주제 분류·손 관찰)를 sha256(이미지)로 캐시(cache.vlm_*: L1 in-process
+# + L2 Redis). 같은 그림을 다른 질문으로 재요청해도 VLM 0회. 최종 가이드 결과는 message/user/growth 에도
+# 의존하므로 캐시하지 않는다 — '이미지에만 의존하는 비싼 단계'만 캐시(정확성 불변). transient 실패
+# (예외·전 샘플 실패)는 캐시하지 않는다(다음 요청에 재시도).
+
 _MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.5-flash")
 _URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
 
@@ -234,15 +242,13 @@ def _norm(s):
 
 
 def _agree(a, b):
-    """일관성: view·structure 가 일치(또는 한쪽이 '불확실')하면 True. 단축은 더 미세해 별도 처리."""
+    """일관성: view 만 일치(또는 한쪽이 '불확실')하면 True. structure 는 §2 측정에서 run 간
+    흔들림이 확인돼('입체↔혼합' 매번 뒤집힘) 게이트에서 제외. structure 는 표기만 한다.
+    foreshortening 도 노이즈가 커서 교집합 결과만 신뢰(아래 strong 판정에 사용).
+    """
     if not a or not b:
         return False
     if a["view"] != b["view"] and "불확실" not in (a["view"], b["view"]):
-        return False
-    if a["structure"] != b["structure"] and "불확실" not in (
-        a["structure"],
-        b["structure"],
-    ):
         return False
     return True
 
@@ -272,17 +278,71 @@ def classify_subject(image):
         return None
     if not _creds_ok():
         return None
+    h = img_hash(image)
+    hit, cached, tier = vlm_get("subject", _MODEL, h)
+    if hit:
+        trace("vlm.cache", fn="subject", hit=True, tier=tier, val=cached, model=_MODEL)
+        return cached
     try:
         b64, mime = _to_b64(image)
         raw = _call(b64, mime, _key(), prompt=_SUBJECT_PROMPT, timeout=30)
     except Exception as e:
         print(f"[vision] 주제 분류 실패(CLIP 폴백): {type(e).__name__}: {e}")
-        return None
+        return None  # transient → 캐시하지 않음(다음에 재시도)
     word = re.sub(r"[^a-z]", "", (raw or "").strip().lower())
+    result = None
     for k, v in _SUBJECT_WORDS.items():
         if k in word:
-            return v
-    return None
+            result = v
+            break
+    vlm_set("subject", _MODEL, h, result)  # 결정적 결과(매칭 실패 None 포함) 캐시
+    trace("vlm.cache", fn="subject", hit=False, tier="miss", val=result, model=_MODEL)
+    return result
+
+
+# ── 스타일 분류(애매한 CLIP 보강용 — 에스컬레이션) ────────────────────────────────────────────
+#   비례(proportion) 노름은 스타일마다 다르다(사실체 7~8등신 ↔ 애니 다리 길게 ↔ 치비 머리 큼).
+#   CLIP 은 수수한 회색 만화(색·렌더 단서 약함)에서 anime↔realistic 을 자신있게 못 가른다(실측
+#   figure_002 anime 0.56) → 그 애매대역에서만 VLM 1회로 스타일을 확정한다(subject 와 같은 사다리).
+_STYLE_PROMPT = (
+    "Classify the ART STYLE of this character drawing. "
+    "Answer with EXACTLY ONE word from: realistic, anime, chibi. "
+    "realistic=natural human proportions (about 7-8 heads tall). "
+    "anime=stylized manga or anime character (often long legs, about 6-7 heads). "
+    "chibi=super-deformed, very large head and small short body (about 2-4 heads). "
+    "Output only the one word, nothing else."
+)
+_STYLE_WORDS = {"realistic": "realistic", "anime": "anime", "chibi": "chibi"}
+
+
+def classify_style(image):
+    """캐릭터 그림의 스타일을 Gemini 1회로 분류 — CLIP 이 애매할 때만 호출부에서 부른다.
+    반환: realistic/anime/chibi | None. 게이트(STYLE_VLM) off·키 없음·실패·미매칭이면 None
+    → 호출부가 '스타일 미상'으로 보고 norm 자동발화를 끈다(_NORM_OFF, abstain)."""
+    if os.environ.get("STYLE_VLM", "0").strip().lower() not in ("1", "true", "yes"):
+        return None
+    if not _creds_ok():
+        return None
+    h = img_hash(image)
+    hit, cached, tier = vlm_get("style", _MODEL, h)
+    if hit:
+        trace("vlm.cache", fn="style", hit=True, tier=tier, val=cached, model=_MODEL)
+        return cached
+    try:
+        b64, mime = _to_b64(image)
+        raw = _call(b64, mime, _key(), prompt=_STYLE_PROMPT, timeout=30)
+    except Exception as e:
+        print(f"[vision] 스타일 분류 실패(스타일 미상): {type(e).__name__}: {e}")
+        return None  # transient → 캐시하지 않음
+    word = re.sub(r"[^a-z]", "", (raw or "").strip().lower())
+    result = None
+    for k, v in _STYLE_WORDS.items():
+        if k in word:
+            result = v
+            break
+    vlm_set("style", _MODEL, h, result)  # 결정적 결과(미매칭 None 포함) 캐시
+    trace("vlm.cache", fn="style", hit=False, tier="miss", val=result, model=_MODEL)
+    return result
 
 
 def observe_hand(image, runs=2):
@@ -291,7 +351,15 @@ def observe_hand(image, runs=2):
     foreshortening 은 두 실행의 *교집합*만 남긴다(일관된 단축만 신뢰).
     """
     if not _on() or not _creds_ok():
+        # [게이트 가시화] 여기서 조용히 None 반환하던 게 'observe_hand 가 아예 안 보이는' 증상의 후보.
+        #   on(HAND_VLM)·creds(키/프로젝트)·backend 를 남겨, 게이트 탈락이면 한 줄로 드러나게 한다.
+        trace("hand.vlm.gate", on=_on(), creds=_creds_ok(), backend=_BACKEND)
         return None
+    h = img_hash(image)
+    hit, cached, tier = vlm_get("hand", _MODEL, h)
+    if hit:
+        trace("vlm.cache", fn="hand", hit=True, tier=tier, model=_MODEL)
+        return cached
     b64, mime = _to_b64(image)
     key = _key()
 
@@ -317,21 +385,49 @@ def observe_hand(image, runs=2):
 
     base = parsed[0]
     consistent = len(parsed) >= 2 and _agree(parsed[0], parsed[1])
+    # [§2 측정] VLM 이 '일관된 구조 추출기'인가 — _agree 는 view·structure(거친 축)만 본다. 미세 필드
+    #   (plane_facing·foreshortening)가 거친 일치 속에서도 흔들리는지 두 실행을 나란히 노출해 확인한다.
+    trace(
+        "hand.vlm",
+        runs=len(parsed),
+        consistent=consistent,
+        views=[p["view"] for p in parsed],
+        structures=[p["structure"] for p in parsed],
+        facings=[p["plane_facing"] for p in parsed],
+        foreshort=[p["foreshortening"] for p in parsed],
+    )
     fs = base["foreshortening"]
     if consistent and len(parsed) >= 2:
         s2 = {_norm(x) for x in parsed[1]["foreshortening"]}
         fs = [x for x in fs if _norm(x) in s2]
-    return {
+    # 신뢰 3단: view 일치(consistent=True)가 기본 통과 — strong/weak 은 foreshortening 안정성으로 갈린다.
+    #   strong: view 일치 + fs 교집합 ≠ 빈 set → 단축 손가락도 두 번 다 봤음 = "관찰" 그대로
+    #   weak:   view 일치 + fs 교집합 == 빈 set → 단축 단정은 피하고 view 만 surface = "관찰(약)"
+    #   낮음:   view 불일치 → 현재처럼 보류
+    #   가드: view·structure 둘 다 '불확실'이면 관찰된 게 없는 것이다. 두 번 다 '불확실'이면
+    #   _agree 는 (값이 같으니) consistent=True 를 주지만 그건 '일관된 관찰'이 아니라 '일관된 무관찰'
+    #   → 낮음으로 억제. (손 없는 그림에서 손 관찰이 hand_structure 를 거짓 surface 하던 경로 차단.)
+    empty_obs = base["view"] == "불확실" and base["structure"] == "불확실"
+    if empty_obs:
+        confidence = "낮음"
+    elif consistent:
+        confidence = "관찰" if fs else "관찰(약)"
+    else:
+        confidence = "낮음"
+    result = {
         "model": _MODEL,
         "view": base["view"],
         "plane_facing": base["plane_facing"],
         "foreshortening": fs,
-        "structure": base["structure"],
+        "structure": base["structure"],  # 표기는 하되 게이트엔 안 씀(§2: structure 불안정)
         "notes": base["notes"] if consistent else "",
         "consistent": consistent,
-        "confidence": "관찰" if consistent else "낮음",
+        "confidence": confidence,
         "runs_used": len(parsed),
     }
+    vlm_set("hand", _MODEL, h, result)  # 성공 관찰만 캐시(위 'parsed 없음' transient 는 미캐시)
+    trace("vlm.cache", fn="hand", hit=False, tier="miss", model=_MODEL)
+    return result
 
 
 def _selftest():

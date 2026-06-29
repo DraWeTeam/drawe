@@ -40,6 +40,18 @@ _SCENE_ORDER = [
     "light_direction",
     "color_harmony",
 ]
+# 손(클로즈업): 손에서 의미 있는 축만. 전신 축(proportion·weight_balance·action_line·joint_articulation·
+#   전신 foreshortening)은 손에 안 맞아 제외 — 이게 v1 의 핵심(손을 figure 커리큘럼으로 평가하지 않음).
+#   hand_structure 가 리드, 나머지는 이미지축(채색/명암 손 그림에 적용; 선화면 substrate 필터가 제외).
+#   [v2 확장 자리] HAND_AUTO(HandLandmarker)가 측정 신호를 만들면 여기에 손가락 비율·손목 각도·엄지
+#   위치·손바닥 구조 등 손 전용 measured 축을 끼워 넣는다(순서 = 성장 커리큘럼).
+_HAND_ORDER = [
+    "hand_structure",
+    "value_structure",
+    "light_direction",
+    "composition_balance",
+    "color_harmony",
+]
 
 # 단일 출처(SSOT): 커리큘럼/축 정의는 여기 한 곳. roadmap 등 다른 모듈은 이 공개 별칭을 끌어다 쓴다
 # (예전엔 roadmap.py 가 _FIGURE_ORDER 를 복제해 drift 위험이 있었음 → 제거).
@@ -93,6 +105,12 @@ PROFILES = {
         "curriculum": _SCENE_ORDER,
         "norms": _NORM_OFF,
     },
+    "hand": {
+        "label": "손",
+        "subproblems": _HAND_ORDER,  # 게이팅: 손 축만 켠다(전신 축 제외)
+        "curriculum": _HAND_ORDER,  # 성장: 손 기준 순서 → growth 가 색·구도를 figure 에서 안 물려받음
+        "norms": _NORM_OFF,  # 손엔 leg_torso 비율 무의미 → 자동발화 끔
+    },
 }
 
 # 자동(track 미지정) 폴백. 인물이면 인물(자동), 아니면 풍경.
@@ -105,11 +123,66 @@ _FIGURE_AUTO = {
 }
 
 
-def resolve_profile(track=None, scene=None):
+# ── 스타일→norm 라우팅(인물 자동 전용) ───────────────────────────────────────────────────
+#   비례 노름은 스타일마다 달라(real 7~8등신 / anime 다리길게 / chibi 머리큼), 스타일을 모르면
+#   _NORM_OFF 로 비례 자동발화를 꺼야 '의도된 데포르메'를 오류로 단정하지 않는다. 그래서 인물(자동)
+#   에서 스타일을 확정할 수 있을 때만 해당 norm 을 켠다 — CLIP 확신, 애매하면 VLM 1회, 그래도
+#   모르면 OFF(abstain). 이 게이트가 '자신 있게 틀린 비례 조언'을 막는다.
+_STYLE_LABELS = {  # CLIP zero-shot 라벨(실측에서 set A보다 분리력 좋았던 set B)
+    "realistic": "a realistic anatomical figure drawing with natural proportions",
+    "anime": "a stylized anime cartoon character with long legs",
+    "chibi": "a cute chibi character, big head, short stubby body",
+}
+_STYLE_NORM = {"realistic": _NORM_REAL, "anime": _NORM_ANIME, "chibi": _NORM_CHIBI}
+_STYLE_HIGH = 0.70  # CLIP 확신 임계(분포 갭 0.56↔0.83 사이). 이 아래는 VLM 에스컬레이션.
+
+
+def _resolve_style(pil):
+    """인물 그림의 스타일 → 'realistic'|'anime'|'chibi'|None. CLIP 확신이면 그대로, 애매하면
+    VLM 1회, 그래도 미상이면 None(→ _NORM_OFF). subject 라우팅과 같은 에스컬레이션 사다리."""
+    if pil is None:
+        return None
+    try:
+        import numpy as np
+        from guide._trace import trace
+        from guide.ml.scene import _scores
+        from guide.ml.embed import embedder
+
+        iv = embedder.image(pil)
+        sc = _scores(iv, list(_STYLE_LABELS.values()))
+        keys = list(_STYLE_LABELS.keys())
+        probs = [sc[p] for p in _STYLE_LABELS.values()]
+        i = int(np.argmax(probs))
+        top, conf = keys[i], float(probs[i])
+        if conf >= _STYLE_HIGH:
+            trace("style", src="clip", style=top, conf=round(conf, 2))
+            return top
+        # 애매 → VLM 으로 *보강*. 단 VLM 을 CLIP 위에 무조건 덮어쓰지 않는다(실측: figure_002 는
+        #   CLIP anime 가 맞고 VLM 이 chibi 로 틀림 → 덮어쓰면 약한-정답을 확신-오답으로 교체).
+        #   일치하면 확정, 불일치/미상이면 abstain(_NORM_OFF) — '자신 있게 틀린 비례 조언' 차단.
+        from guide.ml.vision import classify_style
+
+        vlm = classify_style(pil)
+        if vlm is None:
+            trace("style", src="clip_low", style=top, conf=round(conf, 2), abstain=True)
+            return None
+        if vlm == top:
+            trace("style", src="agree", style=top, conf=round(conf, 2))
+            return top
+        trace("style", src="conflict", clip=top, vlm=vlm, conf=round(conf, 2), abstain=True)
+        return None  # CLIP·VLM 불일치 → 미상(abstain)
+    except Exception as e:
+        print(f"[profiles] 스타일 분류 실패(미상 처리): {type(e).__name__}: {e}")
+        return None
+
+
+def resolve_profile(track=None, scene=None, pil=None):
     """명시 track 우선 → scene로 자동 → 정보 없으면 기본 레인(인물).
 
     'scene가 인물 없음'(풍경)과 'scene 자체가 없음'(이미지 없는 /roadmap 호출 등)을 구분한다.
     후자는 주제를 알 수 없으니 제품의 1차 레인인 인물(자동)로 둔다. 알 수 없는 track도 여기로.
+
+    pil 이 있으면 인물(자동)에서 스타일을 확정해 비례 norm 을 켠다(없으면 _NORM_OFF 유지).
     """
     if track and track in PROFILES:
         return PROFILES[track]
@@ -120,4 +193,10 @@ def resolve_profile(track=None, scene=None):
     #   비대칭 비용: 인물→풍경 오분류(지평선 가이드 등)가 풍경→인물보다 UX 손실이 크다.
     #   확정 인물은 명시 track(위) 또는 추후 face-detection 으로, 여기선 보수적 풍경 게이트만.
     prom = float(scene.get("subject", {}).get("person", {}).get("prominence", 0.0))
-    return PROFILES["landscape"] if prom < 0.35 else _FIGURE_AUTO
+    if prom < 0.35:
+        return PROFILES["landscape"]
+    # 인물(자동): 스타일을 확정할 수 있으면 그 norm 을 켜고, 못 하면 OFF(abstain) 유지.
+    style = _resolve_style(pil)
+    if style:
+        return {**_FIGURE_AUTO, "norms": _STYLE_NORM[style], "style": style}
+    return _FIGURE_AUTO

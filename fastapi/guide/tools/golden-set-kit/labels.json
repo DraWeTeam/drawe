@@ -1,0 +1,185 @@
+{
+  "_meta": {
+    "purpose": "Blind ground-truth labels for the drawe golden-set. Authored by viewing each image directly BEFORE reading any system/axis output, to avoid anchoring to current behavior.",
+    "authored": "2026-06-29",
+    "clarity": "clear = a competent artist would agree on the primary issue; ambiguous = the input is intrinsically unstable (stylized, conflicting cues, or the 'defect' is a deliberate style choice). Accuracy is scored on clear set only; ambiguous set is scored by abstain / weak-grade ratio.",
+    "fields": "track=expected routing; expected_primary=most teachable single issue (artist judgment); acceptable=axes that would also be a defensible primary; for hands view/structure/foreshort = expected VLM read."
+  },
+  "images": [
+    {
+      "file": "hand_001_v_sign_line.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "평면",
+      "foreshorten": false,
+      "expected_primary": "line_quality",
+      "acceptable": ["line_quality", "proportion", "hand_structure"],
+      "notes": "V-sign, clean line art, back of hand. Flat/line — structure read should NOT be 입체."
+    },
+    {
+      "file": "hand_002_colored_palm.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "structure": "입체",
+      "foreshorten": false,
+      "expected_primary": "hand_structure",
+      "acceptable": ["hand_structure", "value_structure", "proportion"],
+      "notes": "Palm facing, 5 fingers spread, colored/shaded -> 입체 ok."
+    },
+    {
+      "file": "hand_003_long_fingers.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "혼합",
+      "foreshorten": false,
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "hand_structure"],
+      "notes": "Elongated fingers with skeletal underdrawing — proportion is the teachable issue."
+    },
+    {
+      "file": "hand_004_foreshortened.png",
+      "track": "hand",
+      "clarity": "ambiguous",
+      "view": "불확실",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": ["hand_structure", "foreshortening", "proportion"],
+      "notes": "Hand pointing at viewer, strong foreshortening + crosshatch. View is genuinely hard to call — VLM view flips expected; acceptable to abstain on view but structure=입체."
+    },
+    {
+      "file": "hand_005_message_ratio.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "structure": "입체",
+      "foreshorten": false,
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "hand_structure"],
+      "notes": "Palm-up at angle, intended for a ratio/proportion message. Should respond to proportion ask."
+    },
+    {
+      "file": "edge_001_blank_canvas.png",
+      "track": "none",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": ["abstain", "refuse", "no_subject"],
+      "notes": "Blank paper. MUST NOT confabulate an axis — expect refuse/clarify/no-subject."
+    },
+    {
+      "file": "edge_002_ambiguous_scribble.png",
+      "track": "none",
+      "clarity": "ambiguous",
+      "expected_primary": "clarify",
+      "acceptable": ["clarify", "abstain", "no_subject"],
+      "notes": "Dense scribble, no readable subject. Expect clarify/abstain, not a confident axis."
+    },
+    {
+      "file": "edge_003_hand_with_face_message.png",
+      "track": "hand",
+      "clarity": "ambiguous",
+      "expected_primary": "routing_conflict",
+      "acceptable": ["clarify", "hand_structure", "line_quality"],
+      "notes": "Image is a hand but message says face. Routing-conflict test: should either follow image (hand) or clarify, NOT hallucinate face feedback."
+    },
+    {
+      "file": "face_001_front_normal.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "value_structure", "composition"],
+      "notes": "Front head/shoulders, pencil, light shading, normal proportions. No full-body pose -> pose should degrade gracefully."
+    },
+    {
+      "file": "face_002_profile_side.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "line_quality",
+      "acceptable": ["line_quality", "proportion"],
+      "notes": "Profile, pure outline (no shading) -> line/edge focus, not value."
+    },
+    {
+      "file": "face_003_three_quarter.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "color", "value_structure"],
+      "notes": "3/4 anime portrait, colored. Color/value axes plausible since it's painted."
+    },
+    {
+      "file": "figure_001_standing_front_normal.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "anatomy", "value_structure"],
+      "notes": "Full anatomical male, front, normal. Pose should extract cleanly. 'normal' control case — no severe single defect."
+    },
+    {
+      "file": "figure_002_short_legs.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": ["proportion"],
+      "notes": "Manga full-body, legs short relative to torso. Proportion is the designed defect."
+    },
+    {
+      "file": "figure_003_unbalanced_pose.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "weight_balance",
+      "acceptable": ["weight_balance", "action_line", "pose"],
+      "notes": "Young man leaning strongly off-axis. Balance/center-of-gravity is the teachable issue."
+    },
+    {
+      "file": "figure_004_walking_pose.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "action_line",
+      "acceptable": ["action_line", "weight_balance", "pose"],
+      "notes": "Anatomical male mid-stride walking. Gesture/weight-shift is the focus."
+    },
+    {
+      "file": "figure_005_sd_chibi.png",
+      "track": "figure",
+      "clarity": "ambiguous",
+      "expected_primary": "style_intentional",
+      "acceptable": ["abstain", "proportion"],
+      "notes": "Chibi/SD — huge head, tiny body. The 'proportion defect' is a deliberate style. Flagging proportion here would be WRONG advice; ideal is to recognize stylization. Ambiguous by design."
+    },
+    {
+      "file": "figure_006_message_color.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "color",
+      "acceptable": ["color", "value_structure", "composition"],
+      "notes": "Vibrant colored mage, dynamic. Designed for a color-focused message — should route to color when asked, not default to pose/proportion."
+    },
+    {
+      "file": "landscape_001_normal.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "atmospheric_perspective",
+      "acceptable": ["atmospheric_perspective", "composition", "value_structure"],
+      "notes": "Realistic oil mountains with good aerial perspective. Control case — strong depth."
+    },
+    {
+      "file": "landscape_002_flat_perspective.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "atmospheric_perspective",
+      "acceptable": ["atmospheric_perspective", "depth", "value_structure"],
+      "notes": "Ink line landscape, uniform line weight, no aerial gradation -> flat depth is the designed defect."
+    },
+    {
+      "file": "landscape_003_still_life.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "routing_mismatch",
+      "acceptable": ["composition", "value_structure", "form"],
+      "notes": "Filename says landscape but it's a still life (fruit bowl, bottle, cloth). Routing test: should treat as object/still-life, NOT force a landscape/perspective read."
+    }
+  ]
+}
