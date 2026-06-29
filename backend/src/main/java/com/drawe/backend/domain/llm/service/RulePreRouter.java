@@ -145,6 +145,23 @@ public class RulePreRouter {
       return Decision.hit("generate_verb", ExtractionResult.generateNow(trimmed));
     }
 
+    // 우선순위 1.5 (SCRUM-112): 명확한 "[N]번/고정 N번 + 유사" → 룰로 끝낸다(Grok 콜 절약). 핀 먼저.
+    // 모호한 표현은 여기서 MISS → 아래 Grok(KeywordExtractor)가 REFERENCE_SIMILAR/PIN_SIMILAR 로 분류(robust).
+    if (isPinSimilar(trimmed)) {
+      Integer n = extractPinIndex(trimmed);
+      if (n != null) {
+        log.info("룰 매치: PIN_SIMILAR (rule=pin_similar, n={})", n);
+        return Decision.hit("pin_similar", ExtractionResult.pinSimilar(n));
+      }
+    }
+    if (isReferenceSimilar(trimmed)) {
+      Integer n = extractReferenceIndex(trimmed);
+      if (n != null) {
+        log.info("룰 매치: REFERENCE_SIMILAR (rule=reference_similar, n={})", n);
+        return Decision.hit("reference_similar", ExtractionResult.referenceSimilar(n));
+      }
+    }
+
     // 우선순위 2: 짧은 단독 인사·감사 → SKIP.
     if (trimmed.length() <= SKIP_MAX_LENGTH && THANKS_GREETING.matcher(trimmed).find()) {
       log.info("룰 매치: SKIP (rule=thanks_greeting)");
@@ -160,7 +177,10 @@ public class RulePreRouter {
   // 유사 의도 + 레퍼런스 번호 지칭이 동시에 있어야 발화. 핀("고정 N번"/"핀 N번")은 별도 맥락이라 제외.
   private static final Pattern SIMILAR_INTENT =
       Pattern.compile(
-          "유사|비슷|닮은|같은\\s*(느낌|거|것|스타일|분위기|톤)|이런\\s*(느낌|거|스타일)|similar|like\\s+this",
+          "유사|비슷|닮(은|네)|처럼"
+              + "|같은\\s*(느낌|거|것|스타일|분위기|톤|그림|사진|이미지|색감|색)"
+              + "|이런\\s*(느낌|거|스타일|그림|사진|이미지)"
+              + "|similar|like\\s+this",
           Pattern.CASE_INSENSITIVE);
 
   /** 핀 지칭 — 레퍼런스 번호 탐색 전 제거(레퍼런스가 아니라 보드 고정). */

@@ -126,19 +126,18 @@ public class ChatLlmService {
     }
 
     // SCRUM-112: "[N]번/고정 N번 과 유사한 사진" — 앵커(레퍼런스/핀) 이미지 벡터로 유사검색(자기자신·핀 제외).
+    // 탐지는 routeIntent 가 통합 — RulePreRouter 룰 fast-path 또는 Grok(KeywordExtractor) 분류가 같은
+    // REFERENCE_SIMILAR/PIN_SIMILAR 액션 + anchorIndex 를 채운다. 여기선 그 액션으로만 분기한다(정규식 직접 호출 X).
     // 명시적 생성(GENERATE_NOW) 뒤에 둬 "비슷한 거 만들어줘"는 생성, "비슷한 거 보여줘"는 유사검색으로 간다.
-    // 핀("고정 N번") 먼저 — 레퍼런스 트리거는 핀 접두어를 제거하므로 충돌은 없으나 명확성을 위해 핀 우선.
-    if (rulePreRouter.isPinSimilar(request.message())) {
-      Integer pinIndex = rulePreRouter.extractPinIndex(request.message());
-      if (pinIndex != null) {
-        return handlePinSimilar(user, session, request, pinIndex, pinnedItems, pinnedIds);
-      }
+    if (decision.action() == ExtractionResult.Action.PIN_SIMILAR
+        && decision.anchorIndex() != null) {
+      return handlePinSimilar(
+          user, session, request, decision.anchorIndex(), pinnedItems, pinnedIds);
     }
-    if (rulePreRouter.isReferenceSimilar(request.message())) {
-      Integer refIndex = rulePreRouter.extractReferenceIndex(request.message());
-      if (refIndex != null) {
-        return handleReferenceSimilar(user, project, session, request, refIndex, pinnedIds);
-      }
+    if (decision.action() == ExtractionResult.Action.REFERENCE_SIMILAR
+        && decision.anchorIndex() != null) {
+      return handleReferenceSimilar(
+          user, project, session, request, decision.anchorIndex(), pinnedIds);
     }
 
     // 000 OUT_OF_DOMAIN (S3' 트랙 A): 명백한 비미술 도메인 외 질문 → 거절 톤 경로.
@@ -1109,7 +1108,10 @@ public class ChatLlmService {
         "guide",
         message,
         signReferenceUrls(refItems),
-        actionLabel,
+        // 프론트가 레퍼런스 그리드를 "새 결과"로 즉시 렌더하도록 NEW_SEARCH 로 보낸다(REFERENCE/PIN_SIMILAR 라벨은
+        // 프론트 미지원이라 라이브 응답에서 그리드가 안 떴음 — 새로고침 시 history 로드로만 보였음). 내부 구분은 위
+        // analytics payload 의 actionLabel 로 유지.
+        "NEW_SEARCH",
         false,
         null,
         null);
@@ -1160,7 +1162,7 @@ public class ChatLlmService {
     llmMessageRepository.save(assistantMsg);
     session.setLastActive(Instant.now());
     return new ChatResponse(
-        session.getId(), "guide", message, List.of(), "SIMILAR", false, null, null);
+        session.getId(), "guide", message, List.of(), "NEW_SEARCH", false, null, null);
   }
 
   /** 사용자가 "AI 이미지 만들어주세요" 버튼을 누른 경우 호출. Bria 로 이미지 생성 후 세션에 ASSISTANT 메시지로 기록. */

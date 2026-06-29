@@ -8,6 +8,8 @@ import com.drawe.backend.domain.llm.dto.LlmCallContext;
 import com.drawe.backend.domain.llm.dto.LlmCallResult;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -51,18 +53,22 @@ public class KeywordExtractor {
           Abstract to broad visual concepts CLIP can match (mood, style, scene).
           Avoid specific pose details (CLIP can't match them well).
 
-          ## Reference by number ("[N]번 같은 거")
+          ## Similar-by-number — REFERENCE_SIMILAR / PIN_SIMILAR (SCRUM-112)
 
-          When the user references a specific previously shown image by number
-          (e.g. "1번 같은 거", "3번 비슷한 분위기", "2번처럼 더 줘"):
+          When the user asks to SEE/FIND images VISUALLY SIMILAR to a specific
+          previously shown image referred to by number, output a dedicated action
+          (the system anchors on that exact image's vector — do NOT extract keywords):
 
-          1. Look at the previous assistant message in history.
-          2. The assistant has described what each [N] image is\s
-             (typically mentions technique, mood, subject, or visual elements).
-          3. Extract 3-5 core visual keywords from that description.
-          4. Output as NEW_SEARCH with English keywords.
+          - Reference image: "1번 같은 거", "3번 비슷한 분위기", "2번처럼 더 줘",
+            "3번 같은 그림 보여줘", "[2]번이랑 유사한 사진"
+            → output "REFERENCE_SIMILAR: N"   (N = the number, digits only)
+          - Pinned image (with 고정/핀 prefix): "고정 1번이랑 비슷한 거", "핀 2번 같은 느낌"
+            → output "PIN_SIMILAR: N"
 
-          If you cannot find clear description of [N] in history, fall back to KEEP.
+          Only when the intent is to SEE similar images (보여줘/찾아줘/더 줘 + 비슷/유사/같은 그림/처럼).
+          NOT for technique/theory questions about [N] ("1번 어떻게 그려?", "3번 보색은?") → KEEP.
+          NOT for generation ("[2]번처럼 만들어줘") → GENERATE_NOW.
+          If you cannot determine N, fall back to NEW_SEARCH (keywords) or KEEP.
 
           ## 2. KEEP
 
@@ -84,7 +90,7 @@ public class KeywordExtractor {
           - "더 보여줘" → NEW_SEARCH (asking for more images)
           - "다른 방법으로 설명해줘" → KEEP (refinement)
           - "다른 거 보여줘" → NEW_SEARCH (different images)
-          - "[N]번 같은 거 더" → NEW_SEARCH (anchor pattern)
+          - "[N]번 같은 거 더" → REFERENCE_SIMILAR (anchor 유사검색)
           - "[N]번 어떻게 그려" → KEEP (technique question)
 
           ### KEEP art-intent label (REQUIRED when KEEP)
@@ -190,6 +196,8 @@ public class KeywordExtractor {
           - GENERATE_NOW: a cheerful golden retriever walking in soft sunlight, watercolor style
           - FOLLOWUP
           - COMPARE
+          - REFERENCE_SIMILAR: 3   (visually similar to shown reference [3])
+          - PIN_SIMILAR: 1         (visually similar to pinned image 1)
 
           ---
 
@@ -230,6 +238,18 @@ public class KeywordExtractor {
           History: portrait drawing
           User: "비슷한 인물 사진 더 보여줘"
           → NEW_SEARCH: portrait person photography
+
+          History: waterfall references shown [1][2][3]
+          User: "3번 같은 그림 보여줘"
+          → REFERENCE_SIMILAR: 3
+
+          History: references shown, user pinned some
+          User: "고정 1번이랑 비슷한 거 보여줘"
+          → PIN_SIMILAR: 1
+
+          History: waterfall references shown [1][2][3]
+          User: "3번 어떻게 그려?"
+          → KEEP: TECHNIQUE
 
           History: cat drawing topic
           User: "혹시 기지개 펴는 고양이 레퍼런스를 볼 수 있을까?"
@@ -388,7 +408,31 @@ public class KeywordExtractor {
     }
   }
 
+  /** 앵커 번호 추출용 — "REFERENCE_SIMILAR: 3" 의 값에서 첫 정수. */
+  private static final Pattern ANCHOR_DIGITS = Pattern.compile("\\d+");
+
   private ExtractionResult parseResult(String output) {
+    // SCRUM-112: 레퍼런스/핀 유사검색 — 앵커 N 을 실어 전용 핸들러로 라우팅(키워드 추측 아님).
+    if (output.startsWith("REFERENCE_SIMILAR:")) {
+      Integer n = parseAnchorIndex(output.substring("REFERENCE_SIMILAR:".length()));
+      if (n != null) {
+        log.info("레퍼런스 유사검색 (REFERENCE_SIMILAR, n={})", n);
+        return ExtractionResult.referenceSimilar(n);
+      }
+      log.warn("REFERENCE_SIMILAR 앵커 파싱 실패 → KEEP");
+      return ExtractionResult.keep();
+    }
+
+    if (output.startsWith("PIN_SIMILAR:")) {
+      Integer n = parseAnchorIndex(output.substring("PIN_SIMILAR:".length()));
+      if (n != null) {
+        log.info("핀 유사검색 (PIN_SIMILAR, n={})", n);
+        return ExtractionResult.pinSimilar(n);
+      }
+      log.warn("PIN_SIMILAR 앵커 파싱 실패 → KEEP");
+      return ExtractionResult.keep();
+    }
+
     if (output.startsWith("NEW_SEARCH:")) {
       String keywords = output.substring("NEW_SEARCH:".length()).trim();
       if (keywords.isEmpty()) {
@@ -441,6 +485,22 @@ public class KeywordExtractor {
 
     log.warn("판단 결과 형식 오류, SKIP 처리: output_length={}", output.length());
     return ExtractionResult.skip();
+  }
+
+  /** "REFERENCE_SIMILAR: 3" 등 라벨 값에서 첫 정수 N 추출. 없으면 null. */
+  private static Integer parseAnchorIndex(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    Matcher m = ANCHOR_DIGITS.matcher(raw);
+    if (m.find()) {
+      try {
+        return Integer.parseInt(m.group());
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   /**

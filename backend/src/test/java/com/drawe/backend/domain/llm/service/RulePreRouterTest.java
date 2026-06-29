@@ -170,6 +170,9 @@ class RulePreRouterTest {
         "1번이랑 비슷한 사진 보여줘",
         "[2]번이랑 유사한 거 보여줘",
         "3번 같은 느낌으로 찾아줘",
+        "3번 같은 그림 보여줘", // "같은 그림" (그림 토큰) — 회귀: 옛 정규식이 못 잡던 케이스
+        "3번같은 사진 보여줘", // 띄어쓰기 없음
+        "1번처럼 찾아줘", // "처럼"
         "레퍼런스 2랑 비슷한 거",
         "2번 이미지랑 닮은 거 더 보여줘"
       })
@@ -233,5 +236,24 @@ class RulePreRouterTest {
     assertThat(router.extractPinIndex("핀 2번 유사")).isEqualTo(2);
     assertThat(router.extractPinIndex("2번이랑 비슷")).isNull(); // 핀 접두어 없음(레퍼런스)
     assertThat(router.extractPinIndex("비슷한 거")).isNull();
+  }
+
+  @DisplayName(
+      "route() fast-path — 명확한 유사 요청은 REFERENCE_SIMILAR/PIN_SIMILAR + anchorIndex 로 종결(Grok 없이)")
+  @org.junit.jupiter.api.Test
+  void routeSimilarFastPath() {
+    RulePreRouter.Decision ref = router.route("3번 같은 그림 보여줘", List.of());
+    assertThat(ref.isHit()).isTrue();
+    assertThat(ref.result().action()).isEqualTo(ExtractionResult.Action.REFERENCE_SIMILAR);
+    assertThat(ref.result().anchorIndex()).isEqualTo(3);
+
+    RulePreRouter.Decision pin = router.route("고정 1번이랑 비슷한 거", List.of());
+    assertThat(pin.isHit()).isTrue();
+    assertThat(pin.result().action()).isEqualTo(ExtractionResult.Action.PIN_SIMILAR);
+    assertThat(pin.result().anchorIndex()).isEqualTo(1);
+
+    // 생성이 우선 — "비슷한 거 만들어줘"는 GENERATE_NOW(유사검색 아님)
+    assertThat(router.route("3번이랑 비슷한 거 만들어줘", List.of()).result().action())
+        .isEqualTo(ExtractionResult.Action.GENERATE_NOW);
   }
 }
