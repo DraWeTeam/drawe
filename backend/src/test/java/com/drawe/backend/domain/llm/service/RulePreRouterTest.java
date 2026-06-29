@@ -203,4 +203,35 @@ class RulePreRouterTest {
     assertThat(router.extractReferenceIndex("고정 1번이랑 비슷한 거")).isNull(); // 핀만 → null
     assertThat(router.extractReferenceIndex("비슷한 거 보여줘")).isNull();
   }
+
+  // ── SCRUM-112 PIN_SIMILAR: "고정 N번이랑 유사한 사진" ───────
+  @ParameterizedTest
+  @ValueSource(strings = {"고정 1번이랑 비슷한 거", "핀 2번 유사한 사진 보여줘", "고정 3번 같은 느낌으로 찾아줘"})
+  @DisplayName("핀 지칭 + 유사 의도 → isPinSimilar=true")
+  void pinSimilarTrue(String message) {
+    assertThat(router.isPinSimilar(message)).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "1번이랑 비슷한 거", // 레퍼런스(핀 접두어 없음)
+        "고정 1번 어때?", // 유사 의도 없음
+        "비슷한 거 보여줘", // 핀 지칭 없음
+        "",
+        "   "
+      })
+  @DisplayName("핀 지칭 또는 유사 신호 불완전 → isPinSimilar=false")
+  void pinSimilarFalse(String message) {
+    assertThat(router.isPinSimilar(message)).isFalse();
+  }
+
+  @DisplayName("핀 번호 추출 — '고정 N번'/'핀 N번' 인식, 접두어 없으면 null")
+  @org.junit.jupiter.api.Test
+  void extractPinIndex() {
+    assertThat(router.extractPinIndex("고정 3번 비슷한 거")).isEqualTo(3);
+    assertThat(router.extractPinIndex("핀 2번 유사")).isEqualTo(2);
+    assertThat(router.extractPinIndex("2번이랑 비슷")).isNull(); // 핀 접두어 없음(레퍼런스)
+    assertThat(router.extractPinIndex("비슷한 거")).isNull();
+  }
 }

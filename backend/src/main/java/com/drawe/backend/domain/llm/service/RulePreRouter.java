@@ -166,6 +166,9 @@ public class RulePreRouter {
   /** 핀 지칭 — 레퍼런스 번호 탐색 전 제거(레퍼런스가 아니라 보드 고정). */
   private static final Pattern PIN_REF = Pattern.compile("(고정|핀)\\s*\\d+\\s*번?");
 
+  /** 핀 앵커 — "고정 N번"/"핀 N번" 의 N 추출(group 1). */
+  private static final Pattern PIN_ANCHOR = Pattern.compile("(?:고정|핀)\\s*(\\d+)\\s*번?");
+
   /** 레퍼런스 번호 지칭: "[3]번", "3번", "3번 이미지", "레퍼런스 2". group(1) 또는 group(2) 가 숫자. */
   private static final Pattern REF_ANCHOR =
       Pattern.compile("(?:\\[)?(\\d+)(?:\\])?\\s*번|레퍼런스\\s*(\\d+)");
@@ -181,6 +184,33 @@ public class RulePreRouter {
       return false;
     }
     return SIMILAR_INTENT.matcher(userMessage).find() && extractReferenceIndex(userMessage) != null;
+  }
+
+  /**
+   * 메시지가 "고정 N번과 유사한 이미지" 요청인지 (SCRUM-112 PIN_SIMILAR 후보). 유사 의도 + 핀 지칭("고정/핀 N번")이 모두 있어야 true.
+   * 레퍼런스("[N]번")와 달리 앵커를 보드 핀(DB)에서 찾는다.
+   */
+  public boolean isPinSimilar(String userMessage) {
+    if (userMessage == null || userMessage.isBlank()) {
+      return false;
+    }
+    return SIMILAR_INTENT.matcher(userMessage).find() && extractPinIndex(userMessage) != null;
+  }
+
+  /** 메시지에서 핀 번호 N 추출("고정 N번"/"핀 N번", 1-based). 없으면 {@code null}. */
+  public Integer extractPinIndex(String userMessage) {
+    if (userMessage == null || userMessage.isBlank()) {
+      return null;
+    }
+    java.util.regex.Matcher m = PIN_ANCHOR.matcher(userMessage);
+    if (m.find()) {
+      try {
+        return Integer.parseInt(m.group(1));
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   /** 메시지에서 레퍼런스 번호 N 을 추출(1-based, 사용자 표시 [N]). 핀 지칭은 먼저 제거해 레퍼런스만 본다. 없으면 {@code null}. */
