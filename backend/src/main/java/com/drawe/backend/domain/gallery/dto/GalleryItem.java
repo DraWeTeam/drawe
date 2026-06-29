@@ -15,9 +15,6 @@ public record GalleryItem(
 
   public static GalleryItem of(Project project) {
     return new GalleryItem(
-        project.getId(),
-        project.getName(),
-        project.getDrawingUrl(),
-        project.getUpdatedAt());
+        project.getId(), project.getName(), project.getDrawingUrl(), project.getUpdatedAt());
   }
 }

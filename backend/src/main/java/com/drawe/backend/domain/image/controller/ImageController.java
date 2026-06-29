@@ -43,15 +43,15 @@ public class ImageController {
   }
 
   /**
-   * 이미지 바이트 서빙. {@code download=true} 면 {@code Content-Disposition: attachment} 로 브라우저가 인라인
-   * 표시 대신 파일을 내려받게 한다(레퍼런스/완성작 다운로드).
+   * 이미지 바이트 서빙. {@code download=true} 면 {@code Content-Disposition: attachment} 로 브라우저가 인라인 표시 대신
+   * 파일을 내려받게 한다(레퍼런스/완성작 다운로드).
    *
    * <p>접근 제어는 두 경로 중 하나로 인가한다:
    *
    * <ul>
    *   <li><b>서명 URL</b>({@code ?exp=&sig=}): 브라우저 {@code <img src>} 는 Authorization 헤더를 못 싣는다.
-   *       {@link ImageUrlSigner} 가 노출 직전 발급한 단기 HMAC 서명을 검증해 통과시킨다(소유자 무관 — 보드에서 타인의
-   *       AI 이미지도 노출돼야 하므로 서명 자체가 인가다).
+   *       {@link ImageUrlSigner} 가 노출 직전 발급한 단기 HMAC 서명을 검증해 통과시킨다(소유자 무관 — 보드에서 타인의 AI 이미지도 노출돼야
+   *       하므로 서명 자체가 인가다).
    *   <li><b>JWT</b>: 서명이 없으면 인증 주체의 소유자 검증으로 폴백한다(직접 API 호출 등).
    * </ul>
    */
@@ -90,8 +90,8 @@ public class ImageController {
   }
 
   /**
-   * 출처 무관 다운로드 — 외부 URL 레퍼런스(Unsplash 등)는 서버가 프록시로 받아오고, 서버 저장 이미지는 바이트를 그대로 내려준다. 항상
-   * {@code Content-Disposition: attachment} 라 브라우저(아이패드 Safari 포함)가 새 탭이 아닌 파일 다운로드로 처리한다.
+   * 출처 무관 다운로드 — 외부 URL 레퍼런스(Unsplash 등)는 서버가 프록시로 받아오고, 서버 저장 이미지는 바이트를 그대로 내려준다. 항상 {@code
+   * Content-Disposition: attachment} 라 브라우저(아이패드 Safari 포함)가 새 탭이 아닌 파일 다운로드로 처리한다.
    */
   @GetMapping("/{id}/download")
   public ResponseEntity<byte[]> download(
@@ -101,9 +101,7 @@ public class ImageController {
     return ResponseEntity.ok()
         .contentType(MediaType.parseMediaType(dl.contentType()))
         .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
-        .header(
-            HttpHeaders.CONTENT_DISPOSITION,
-            "attachment; filename=\"" + dl.filename() + "\"")
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + dl.filename() + "\"")
         .body(dl.data());
   }
 
