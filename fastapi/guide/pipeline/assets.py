@@ -33,6 +33,8 @@ AXIS_PREF = {
     "joint_articulation": [BACKBONE, SVG],
     "proportion": [BACKBONE, SVG],
     "action_line": [BACKBONE, SVG],
+    # 얼굴 비례(이목구비 배치/눈선) : 손과 동형으로 svg 도식만(AI 얼굴은 형태를 자주 왜곡 → AI_AVOID).
+    "facial_proportion": [SVG],
     "hand_structure": [SVG],
     "value_structure": [SVG, AI],
     "composition_balance": [SVG, AI],
@@ -52,6 +54,7 @@ AI_AVOID = {
     "joint_articulation",
     "foreshortening",
     "proportion",
+    "facial_proportion",  # 얼굴·이목구비도 AI가 자주 왜곡 → 초보에게 잘못된 형태 권하지 않게 ai_example 제외.
     "weight_balance",
 }
 
@@ -63,6 +66,7 @@ _FLOOR_CAPTION = {
     "value_structure": "명암을 밝음·중간·어둠 3단계로 묶어 보는 도식이에요.",
     "composition_balance": "화면을 3분할해 무게가 어디로 쏠리는지 보는 썸네일 격자예요.",
     "proportion": "머리 하나를 단위로 등신을 재는 비율 사다리예요.",
+    "facial_proportion": "머리를 공+턱 한 덩어리로 보고 눈선을 머리끝~턱의 한가운데에 먼저 그어요 — 좌우 눈·귀가 이 선에 맞으면 인상이 안정돼요.",
     "foreshortening": "면이 시점으로 줄어드는 정도를 보는 투시 격자예요.",
     "action_line": "포즈를 관통하는 하나의 큰 흐름(동세 선)을 보는 도식이에요.",
     "light_direction": "광원 한 개에서 면이 받는 빛의 방향을 보는 도식이에요.",
@@ -106,6 +110,19 @@ _FLOOR_SVG = {
     + '<line x1="160" y1="30" x2="160" y2="158" stroke="{i}"/>'
     + '<text x="170" y="36" fill="{s}" font-size="11">1</text>'
     + '<text x="170" y="156" fill="{s}" font-size="11">8</text>',
+    # 얼굴 비례 = 머리(공+턱) 한 덩어리 + 눈선이 머리끝~턱의 정중앙(½)에 놓이는 도식. 좌우 눈을 그 선에 대칭으로.
+    "facial_proportion": '<ellipse cx="120" cy="90" rx="48" ry="65" fill="none" stroke="{i}"/>'
+    '<line x1="120" y1="25" x2="120" y2="155" stroke="{s}" stroke-dasharray="4"/>'
+    '<line x1="58" y1="90" x2="182" y2="90" stroke="{i}"/>'
+    '<ellipse cx="104" cy="90" rx="9" ry="4" fill="none" stroke="{i}"/>'
+    '<ellipse cx="136" cy="90" rx="9" ry="4" fill="none" stroke="{i}"/>'
+    '<line x1="192" y1="25" x2="192" y2="155" stroke="{s}"/>'
+    '<line x1="188" y1="25" x2="196" y2="25" stroke="{s}"/>'
+    '<line x1="188" y1="90" x2="196" y2="90" stroke="{s}"/>'
+    '<line x1="188" y1="155" x2="196" y2="155" stroke="{s}"/>'
+    '<text x="200" y="62" fill="{s}" font-size="10">1/2</text>'
+    '<text x="200" y="126" fill="{s}" font-size="10">1/2</text>'
+    '<text x="22" y="94" fill="{i}" font-size="11">눈선</text>',
     "foreshortening": '<polygon points="40,40 200,60 200,120 40,140" fill="none" stroke="{i}"/>'
     + "".join(
         f'<line x1="{40 + i * 40}" y1="{40 + i * 5}" x2="{40 + i * 40}" y2="{140 - i * 5}" stroke="{{s}}"/>'
