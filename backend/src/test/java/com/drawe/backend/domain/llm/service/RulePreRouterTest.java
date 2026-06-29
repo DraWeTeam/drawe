@@ -162,4 +162,45 @@ class RulePreRouterTest {
   void outOfDomainFalse(String message) {
     assertThat(router.isOutOfDomain(message)).isFalse();
   }
+
+  // ── SCRUM-112 REFERENCE_SIMILAR: "[N]번이랑 유사한 사진" ───────
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "1번이랑 비슷한 사진 보여줘",
+        "[2]번이랑 유사한 거 보여줘",
+        "3번 같은 느낌으로 찾아줘",
+        "레퍼런스 2랑 비슷한 거",
+        "2번 이미지랑 닮은 거 더 보여줘"
+      })
+  @DisplayName("레퍼런스 번호 + 유사 의도 → isReferenceSimilar=true")
+  void referenceSimilarTrue(String message) {
+    assertThat(router.isReferenceSimilar(message)).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "비슷한 거 보여줘", // 번호 지칭 없음
+        "1번 어떻게 그려?", // 유사 의도 없음
+        "고정 1번이랑 비슷한 거", // 핀 지칭(레퍼런스 아님)
+        "다른 레퍼런스 더 보여줘", // 유사 의도·번호 없음
+        "",
+        "   "
+      })
+  @DisplayName("번호·유사 신호가 불완전하거나 핀 지칭 → isReferenceSimilar=false")
+  void referenceSimilarFalse(String message) {
+    assertThat(router.isReferenceSimilar(message)).isFalse();
+  }
+
+  @DisplayName("레퍼런스 번호 추출 — 핀은 제외하고 [N]/N번/레퍼런스 N 인식")
+  @org.junit.jupiter.api.Test
+  void extractReferenceIndex() {
+    assertThat(router.extractReferenceIndex("[3]번이랑 비슷한 거")).isEqualTo(3);
+    assertThat(router.extractReferenceIndex("2번 같은 느낌")).isEqualTo(2);
+    assertThat(router.extractReferenceIndex("레퍼런스 4랑 비슷")).isEqualTo(4);
+    assertThat(router.extractReferenceIndex("고정 1번 말고 2번이랑 비슷")).isEqualTo(2); // 핀 제외 후 2 인식
+    assertThat(router.extractReferenceIndex("고정 1번이랑 비슷한 거")).isNull(); // 핀만 → null
+    assertThat(router.extractReferenceIndex("비슷한 거 보여줘")).isNull();
+  }
 }
