@@ -4,6 +4,9 @@ import api from "../login/api";
 import Tooltip from "../../components/Tooltip";
 import styles from "./ReferencePage.module.css";
 import { track } from "../../analytics";
+import { downloadImage } from "../gallery/download";
+import { addReference } from "../projects/api";
+import { unsplashSized } from "./imageUtils";
 
 const ReferencePage = () => {
   const navigate = useNavigate();
@@ -17,6 +20,9 @@ const ReferencePage = () => {
   const [userFeedback, setUserFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
   const [feedbackLoading, setFeedbackLoading] = useState(true); // 추가
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   // reference 없으면 챗으로 돌아감
   useEffect(() => {
@@ -67,13 +73,39 @@ const ReferencePage = () => {
     navigate(-1);
   };
 
-  const handleDownload = () => {
-    if (!reference?.url) return;
-    window.open(reference.url, "_blank", "noopener,noreferrer");
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      // 소유 이미지(id)면 실제 파일 다운로드, 외부 소스면 새 탭 폴백.
+      await downloadImage(reference?.id, reference?.url);
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  const handleSave = () => {
-    alert("프로젝트에 저장 기능은 곧 추가될 예정이에요!");
+  const handleSave = async () => {
+    if (saving) return;
+    if (!reference?.id) {
+      alert("저장할 수 없는 이미지예요.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await addReference(projectId, reference.id);
+      alert("아카이브에 저장했어요!");
+      track("reference_archived", {
+        reference_id: reference.id,
+        project_id: projectId,
+      });
+    } catch (err) {
+      // 백엔드 메시지를 그대로 노출.
+      const message =
+        err.response?.data?.error?.message || "저장에 실패했어요. 다시 시도해주세요.";
+      alert(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleLike = async () => {
@@ -202,24 +234,36 @@ const ReferencePage = () => {
             <button
               className={styles.iconBtn}
               onClick={handleDownload}
+              disabled={downloading}
               aria-label="다운로드"
             >
               <DownloadIcon />
             </button>
           </Tooltip>
-          <button className={styles.saveBtn} onClick={handleSave}>
-            저장
+          <button
+            className={styles.saveBtn}
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? "저장 중…" : "저장"}
           </button>
         </div>
       </div>
 
       <div className={styles.body}>
         <div className={styles.imageArea}>
-          <img
-            src={reference.url}
-            alt={reference.photographerName || "참고 이미지"}
-            className={styles.image}
-          />
+          {imgFailed ? (
+            <div className={styles.imageError}>
+              이미지를 불러오지 못했어요.
+            </div>
+          ) : (
+            <img
+              src={unsplashSized(reference.url, 1080)}
+              alt={reference.photographerName || "참고 이미지"}
+              className={styles.image}
+              onError={() => setImgFailed(true)}
+            />
+          )}
         </div>
 
         <div className={styles.infoPanel}>

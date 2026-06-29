@@ -91,6 +91,9 @@ public class ProjectService {
     if (request.status() != null) {
       project.setStatus(parseStatusStrict(request.status()));
     }
+    if (request.drawingUrl() != null) {
+      project.setDrawingUrl(request.drawingUrl());
+    }
     if (request.detailAnswers() != null) {
       project.setDetailAnswers(request.detailAnswers());
     }

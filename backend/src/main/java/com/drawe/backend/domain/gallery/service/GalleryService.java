@@ -4,14 +4,14 @@ import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.ProjectReference;
 import com.drawe.backend.domain.User;
-import com.drawe.backend.domain.enums.ImageSource;
+import com.drawe.backend.domain.enums.ProjectStatus;
 import com.drawe.backend.domain.gallery.dto.GalleryItem;
 import com.drawe.backend.domain.gallery.dto.GalleryResponse;
 import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse;
 import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse.ProjectSection;
 import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse.ReferenceImageItem;
-import com.drawe.backend.domain.image.repository.ImageRepository;
 import com.drawe.backend.domain.project.repository.ProjectReferenceRepository;
+import com.drawe.backend.domain.project.repository.ProjectRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,13 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class GalleryService {
 
-  private final ImageRepository imageRepository;
+  private final ProjectRepository projectRepository;
   private final ProjectReferenceRepository projectReferenceRepository;
 
   @Transactional(readOnly = true)
   public GalleryResponse getCompleted(User user, int page, int size) {
-    Page<Image> result =
-        imageRepository.findCompletedGallery(ImageSource.AI, user, PageRequest.of(page, size));
+    Page<Project> result =
+        projectRepository.findCompletedWithDrawing(
+            user, ProjectStatus.COMPLETED, PageRequest.of(page, size));
 
     var items = result.getContent().stream().map(GalleryItem::of).toList();
     boolean hasMore = result.hasNext();

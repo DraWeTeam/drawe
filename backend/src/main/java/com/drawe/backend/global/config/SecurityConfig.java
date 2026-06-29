@@ -83,6 +83,11 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/image/**", "/guide-asset/**")
                     .permitAll()
+                    // /images/{id} GET 만 서명(exp/sig) 검증으로 공개 — 브라우저 <img> 는 Authorization
+                    // 헤더를 못 싣기 때문. 컨트롤러가 ImageUrlSigner.verify 로 인가한다. 와일드카드 한 단계라
+                    // /images/{id}/download(소유자 검증 필요)·POST /images/upload 는 포함되지 않는다.
+                    .requestMatchers(HttpMethod.GET, "/images/*")
+                    .permitAll()
                     .requestMatchers(
                         HttpMethod.GET, "/auth/google", "/auth/check-email", "/auth/check-nickname")
                     .permitAll()
@@ -106,7 +111,7 @@ public class SecurityConfig {
     configuration.setAllowedOrigins(allowedOrigins);
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
     configuration.setAllowedHeaders(List.of("*"));
-    configuration.setExposedHeaders(List.of("Authorization"));
+    configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
     configuration.setAllowCredentials(true);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -101,6 +101,39 @@
 }
 
 /* ===== 공통 아이콘 버튼 ===== */
+.actionChips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.completeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  color: #ff8534;
+  border: 1.5px solid #ff8534;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.completeChip:hover:not(:disabled) {
+  background: #fff3ea;
+}
+
+.completeChip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .iconBtn {
   background: none;
   border: none;
