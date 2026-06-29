@@ -89,5 +89,18 @@
 ## 8. 오픈 질문
 1. `REFERENCE_SIMILAR` 를 **새 IntentCode** 로 둘지, 기존 NEW_SEARCH 에 "앵커 있으면 벡터검색" 분기를 얹을지.
 2. ✅ **검증 완료: 정합 확인.** `ReferenceImage.index` = 사용자 표시 [N](1-based, 인용 무결성 키, `ReferenceImage.java:24`). 레거시(`buildReferenceContext` i+1, 핀 제외 리스트)·라이브(`excludePinned` 1..N 재부여) 양쪽 모두 **화면 [N] = Redis `previousReferences` index**. Redis 미스 시 MySQL `references_json` 동일 순서 복원. → `previousReferences.get(N-1)` 가 정확히 그 이미지. 별도 정합 수정 불필요.
-3. embedImage 비용/지연 허용 범위(매 "유사" 요청마다 임베딩 1회) vs 태그 텍스트 폴백 기본화.
-4. 트리거를 결정론 룰로만 둘지, Grok 분류에도 REFERENCE_SIMILAR 인식을 추가할지.
+3. embedImage 비용/지연 허용 범위(매 "유사" 요청마다 임베딩 1회) vs 태그 텍스트 폴백 기본화. → 해소: **(C) Pinecone fetch 1순위**라 재임베딩 없음, embedImage(A)는 폴백.
+4. 트리거를 결정론 룰로만 둘지, Grok 분류에도 REFERENCE_SIMILAR 인식을 추가할지. → **해소: 하이브리드.**
+
+---
+
+## 10. 구현 갱신 (탐지 Grok 이관 + 라이브 렌더)
+
+초기 MVP는 정규식(RulePreRouter)만으로 탐지했으나 "같은 그림"처럼 표현을 놓쳐(brittle) 옛 키워드 추측 경로로 샜다. 다른 의미적 의도(NEW_SEARCH/KEEP/FOLLOWUP/COMPARE)는 모두 Grok 분류이므로, 일관성·강건성을 위해 **탐지를 하이브리드로 이관**:
+
+- **Grok(`KeywordExtractor`)** 가 `REFERENCE_SIMILAR: N` / `PIN_SIMILAR: N` 라벨로 분류(프롬프트+파싱 추가). 이 메시지들은 어차피 룰 미스라 Grok 가 이미 호출됨 → **추가 비용 0**.
+- **`RulePreRouter.route()` fast-path**: 명확한 "[N]번/고정 N번 + 유사"는 룰로 종결(Grok 콜 절약). 모호하면 MISS→Grok.
+- 둘 다 `ExtractionResult{action, anchorIndex}` 를 채우고, `ChatLlmService.chat()` 은 **`decision.action()`** 으로만 분기(정규식 직접 호출 제거). 엔진(handler/runSimilarSearch/Pinecone)은 불변.
+- `ExtractionResult` 에 `REFERENCE_SIMILAR`/`PIN_SIMILAR` 액션 + `anchorIndex` 필드 추가. `IntentResultAdapter.toCode` 는 도달 안 하지만 컴파일 위해 NEW_SEARCH 로 안전 매핑.
+
+**라이브 렌더 수정**: 유사검색 `ChatResponse.action` 을 `NEW_SEARCH` 로 보낸다. `REFERENCE_SIMILAR`/`PIN_SIMILAR` 라벨은 프론트가 몰라 라이브에서 그리드가 안 떴고 새로고침(history 로드) 때만 보였음 — 프론트가 아는 `NEW_SEARCH` 로 보내 즉시 렌더. 내부 구분은 analytics payload 의 라벨로만 유지.
