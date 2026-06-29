@@ -52,6 +52,15 @@
   reference_query: "hand structure planes box gesture reference"
   practice_prompt: "손을 먼저 벙어리장갑(손바닥 덩어리+엄지)으로 단순화해 방향만 잡고 손가락은 나중에."
 
+- id: facial_proportion
+  personas: [face]
+  auto: false
+  trigger: "주 대상이 얼굴/머리 초상 (VLM 관찰로 검출·관찰; mediapipe FaceLandmarker 는 드로잉·측면에 약함)"
+  what_to_observe: "이목구비를 따로 그리기 전에 머리를 하나의 덩어리(공+턱)로 보고, 눈높이가 머리끝~턱의 절반 부근인지, 좌우 눈·귀의 높이가 맞는지 먼저 잡으세요. 눈선이 인상의 절반을 좌우합니다."
+  default_effect: "눈높이를 머리 절반 부근에 두면 두개골 공간이 자연스럽게 확보되고, 눈을 너무 위로 올리면 이마가 좁고 어려 보이는 인상이 됩니다."
+  reference_query: "head proportions loomis eye line placement portrait reference"
+  practice_prompt: "머리를 공+턱으로 단순화하고 눈선·중심선을 먼저 그은 뒤 이목구비를 얹어보세요."
+
 - id: value_structure
   personas: [light, technique]
   auto: true

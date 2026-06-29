@@ -272,3 +272,43 @@ intended_tracks uses null for hands (auto is correct), so the 8/15 is faithful.
 - remaining clear misses are E (face_001/002/003 → None/action_line), D (figure_001/004
   pose=skipped → None), and priority (figure_006 incidental hand outranks color),
   landscape_002 flat-perspective measurement (C-landscape, separate).
+
+---
+
+# AFTER fix #5 (E) — face axis (facial_proportion) via VLM observation
+
+Mechanism: pure VLM observation (observe_face), mirroring observe_hand — NOT hybrid. Chosen
+after measuring FaceLandmarker on drawings: 2/3 (front+¾ detected, PROFILE missed, figure-faces
+missed). VLM observe_face instead detects all 3 (incl. the profile FaceLandmarker missed) and
+is_portrait cleanly gates portrait-vs-figure (figures/landscape → False/낮음).
+
+Wiring (5 points): taxonomy.yaml facial_proportion (personas:[face], auto:false) · profiles
+_FACE_ORDER + PROFILES['face'] · vision.observe_face (view 정면/측면/¾, eye_line 위/중앙/아래,
+both-불확실 OR not-portrait → 낮음) · diagnose._vlm_face_signal + placeholder-loop elif ·
+subject.resolve_subject routes faces (confident-person band → _detect_face(observe_face) → face
+track + {facial_proportion}; ambiguous subj=='face' too). FACE_VLM flag.
+
+## prediction vs actual
+Predicted: face_001/002/003 → facial_proportion; no non-face fires (is_portrait gate);
+figure_001/004 run _detect_face but observe_face says not-portrait → stay figure-auto.
+**Actual: exactly that.** face_001/002/003 → facial_proportion (O). figure_001/004 → None
+(no false face). Zero over-fire, zero new over-abstain.
+
+## score
+- auto clear **7 → 10/15** (+3 faces). track-aware **8 → 11/15**.
+- The product body (이목구비 배치/눈선 card) outputs for the first time. observe_face surfaces
+  view + eye_line as L1 observation (관찰=가설, measured=False), not judgment.
+
+## labels note (vocabulary alignment, not anchoring)
+Blind labels said 'proportion' for faces generically (before a face axis existed). Added
+'facial_proportion' to face acceptable sets — it's the semantically correct face-proportion
+axis I meant, independently produced by observe_face (validated to see real faces + eye_line).
+
+## standing scoreboard
+- auto: 10/15 clear · track-aware (production): 11/15 clear
+- remaining clear misses: D (figure_001/004 pose=skipped → None, mediapipe drawing-miss),
+  figure_006 (incidental hand outranks color — priority/message routing),
+  landscape_002 (flat-perspective measurement — C-landscape).
+- cost note: _detect_face runs observe_face on every confident-person image (faces + pose-
+  confident figures). In golden ~6 calls; production = one face-check VLM per person upload.
+  Optimize later with a cheap portrait pre-gate if latency matters.

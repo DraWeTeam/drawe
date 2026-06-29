@@ -430,6 +430,115 @@ def observe_hand(image, runs=2):
     return result
 
 
+# ── 얼굴 관찰자(observe_hand 패턴 이식) ───────────────────────────────────────────────────
+#   face 검출도 mediapipe(FaceLandmarker)가 드로잉에 약함(실측 2/3, 측면·스타일화 미검출) →
+#   hand 와 동일하게 VLM 관찰로 간다. 하이브리드(landmark+VLM 합류)는 새 confabulation 진입로라
+#   기각. 측정=사실이 아니라 *관찰(가설)* 이므로 placeholder 로 measured=False surface.
+#   가드(hand 보다 더 단단히): view·eye_line 둘 다 불확실이거나 초상 아니면 '낮음'(abstain).
+_FACE_PROMPT = (
+    "그림의 주 대상이 '얼굴/머리 초상'인지 관찰하고, 맞으면 얼굴을 관찰합니다. 평가·판정 금지 — "
+    "'부족/어색/틀림/실력/잘함/못함' 같은 말 금지. 보이는 사실만.\n"
+    "아래 JSON 객체 하나만 출력(마크다운·설명·코드펜스 없이 순수 JSON):\n"
+    "{\n"
+    '  "is_portrait": true|false,  // 주 대상이 얼굴/머리 초상이면 true, 전신 인물·사물·풍경이면 false\n'
+    '  "view": "정면"|"측면"|"3/4"|"불확실",\n'
+    '  "eye_line": "위"|"중앙"|"아래"|"불확실",  // 머리끝~턱 사이에서 눈높이의 위치(절반보다 위면 "위")\n'
+    '  "notes": "보이는 사실 한 문장"\n'
+    "}\n"
+    "eye_line 은 그려진 눈 높이의 관찰입니다(잘잘못 아님). 전신 인물·사물이면 is_portrait=false.\n"
+    '보이지 않으면 값에 "불확실". 반드시 JSON 하나만.'
+)
+_FVIEWS = {"정면", "측면", "3/4", "불확실"}
+_EYELINE = {"위", "중앙", "아래", "불확실"}
+
+
+def _face_on():
+    return os.environ.get("FACE_VLM", "0").strip().lower() not in ("", "0", "false", "no")
+
+
+def _parse_face(text):
+    t = (text or "").strip()
+    a, b = t.find("{"), t.rfind("}")
+    if a < 0 or b <= a:
+        return None
+    try:
+        d = json.loads(t[a : b + 1])
+    except Exception:
+        return None
+    view = str(d.get("view", "불확실")).strip()
+    eye = str(d.get("eye_line", "불확실")).strip()
+    return {
+        "is_portrait": bool(d.get("is_portrait", False)),
+        "view": view if view in _FVIEWS else "불확실",
+        "eye_line": eye if eye in _EYELINE else "불확실",
+        "notes": str(d.get("notes", "")).strip(),
+    }
+
+
+def _face_agree(a, b):
+    """일관성: view 일치(또는 한쪽 '불확실')하고 둘 다 초상으로 봤을 때만 True."""
+    if not a or not b:
+        return False
+    if not (a["is_portrait"] and b["is_portrait"]):
+        return False
+    if a["view"] != b["view"] and "불확실" not in (a["view"], b["view"]):
+        return False
+    return True
+
+
+def observe_face(image, runs=2):
+    """그림 속 얼굴/머리 초상을 관찰(가설). 게이트 off·키 없음·전부 실패·초상 아님이면 낮음/None.
+    반환: dict(is_portrait, view, eye_line, notes, consistent, confidence, runs_used, model).
+    confidence ∈ {관찰, 관찰(약), 낮음}. 라우팅(검출)·신호(측정) 양쪽이 이 한 결과를 캐시로 공유한다."""
+    if not _face_on() or not _creds_ok():
+        trace("face.vlm.gate", on=_face_on(), creds=_creds_ok(), backend=_BACKEND)
+        return None
+    h = img_hash(image)
+    hit, cached, tier = vlm_get("face", _MODEL, h)
+    if hit:
+        trace("vlm.cache", fn="face", hit=True, tier=tier, model=_MODEL)
+        return cached
+    parsed = []
+    for _ in range(max(1, runs)):
+        try:
+            b64, mime = _to_b64(image)
+            raw = _call(b64, mime, _key(), prompt=_FACE_PROMPT, timeout=60)
+        except Exception as e:
+            print(f"[vision] 얼굴 관찰 호출 실패(무시): {type(e).__name__}: {e}")
+            continue
+        p = _parse_face(raw)
+        if p:
+            parsed.append(p)
+    if not parsed:
+        return None  # transient → 미캐시
+    base = parsed[0]
+    consistent = len(parsed) >= 2 and _face_agree(parsed[0], parsed[1])
+    trace("face.vlm", runs=len(parsed), consistent=consistent,
+          portrait=[p["is_portrait"] for p in parsed],
+          views=[p["view"] for p in parsed], eyes=[p["eye_line"] for p in parsed])
+    # 가드: 초상 아님 또는 view·eye_line 둘 다 불확실 → '낮음'(관찰된 것 없음). hand 의 empty_obs 강화판.
+    empty_obs = base["view"] == "불확실" and base["eye_line"] == "불확실"
+    if not base["is_portrait"] or empty_obs:
+        confidence = "낮음"
+    elif consistent:
+        confidence = "관찰" if base["eye_line"] != "불확실" else "관찰(약)"
+    else:
+        confidence = "낮음"
+    result = {
+        "model": _MODEL,
+        "is_portrait": base["is_portrait"],
+        "view": base["view"],
+        "eye_line": base["eye_line"],
+        "notes": base["notes"] if consistent else "",
+        "consistent": consistent,
+        "confidence": confidence,
+        "runs_used": len(parsed),
+    }
+    vlm_set("face", _MODEL, h, result)
+    trace("vlm.cache", fn="face", hit=False, tier="miss", model=_MODEL)
+    return result
+
+
 def _selftest():
     """키 없이 파싱·일관성 로직 검증."""
     r1 = '{"view":"손등","plane_facing":"아래-오른쪽","foreshortening":["중지","약지"],"structure":"입체","notes":"손등이 보인다"}'

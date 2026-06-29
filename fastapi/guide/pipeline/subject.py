@@ -76,6 +76,20 @@ def _looks_like_sketch(pil) -> bool:
         return False
 
 
+def _detect_face(pil):
+    """얼굴 초상 검출 — observe_face 관찰을 검출로 재사용(FaceLandmarker 가 드로잉·측면에 약해 VLM 로).
+    초상이고 관찰 신뢰가 있으면 True. FACE_VLM off·키없음·전신·불확실이면 False → figure-auto 폴백.
+    결과는 캐시되어 diagnose._vlm_face_signal 이 같은 관찰을 재사용(추가 호출 없음)."""
+    try:
+        from guide.ml.vision import observe_face
+
+        o = observe_face(pil)
+    except Exception as e:
+        print(f"[subject] 얼굴 검출 실패(figure-auto 폴백): {type(e).__name__}: {e}")
+        return False
+    return bool(o and o.get("is_portrait") and o.get("confidence") in ("관찰", "관찰(약)"))
+
+
 def resolve_subject(scene, pil, track=None):
     if track:  # ① 명시 track → 그대로. 단 hand track 은 auto 경로(아래 subj=="hand")와 동일하게
         #   hand_structure 를 의도항으로 surface 한다 — 안 그러면 사용자가 '손' track 을 직접 고를 때
@@ -88,6 +102,12 @@ def resolve_subject(scene, pil, track=None):
     if (
         (prom < _LOW or prom > _HIGH) and not sketch
     ):  # ③ CLIP 확신 + 선화 아님 → CLIP 그대로(track None → resolve_profile 결정)
+        # 인물 쪽 확신(prom 높음)이면 얼굴 초상인지 VLM 으로 검출 → face track. subject VLM 은 여기서
+        #   스킵되므로(확신대역) 얼굴 경로는 observe_face 가 검출 겸 측정을 맡는다(결과 캐시 공유).
+        if prom > _HIGH and _detect_face(pil):
+            trace("subject", prom=round(prom, 2), band="confident", sketch=False,
+                  vlm="face", subj="face", track="face")
+            return "face", {"facial_proportion"}
         trace("subject", prom=round(prom, 2), band="confident", sketch=False,
               vlm="skipped", subj=None, track=None)
         return None, set()
@@ -111,5 +131,8 @@ def resolve_subject(scene, pil, track=None):
         # 손 → 전용 hand track + hand_structure 를 의도 축으로 surface(user_terms 경로 → POSE_DEPENDENT
         #   게이트 우회·리드 승격). track="hand" 라서 eligible/growth 가 손 커리큘럼(전신 축 제외)로 굳는다.
         return "hand", {"hand_structure"}
-    # figure/face/None → CLIP 폴백(track None → person_p 로 figure-auto)
+    if subj == "face":
+        # 얼굴 → 전용 face track + facial_proportion 을 의도 축으로 surface(observe_face 가 신호 주입).
+        return "face", {"facial_proportion"}
+    # figure/None → CLIP 폴백(track None → person_p 로 figure-auto)
     return None, set()

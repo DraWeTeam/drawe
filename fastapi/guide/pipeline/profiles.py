@@ -53,13 +53,24 @@ _HAND_ORDER = [
     "color_harmony",
 ]
 
+# 얼굴/초상: 전신 축(비례=등신·무게중심·동세 등)은 흉상에 무의미 → 제외. facial_proportion(이목구비
+#   배치·눈선)이 리드, 나머지는 이미지축(명암·구도; 선화면 substrate 필터가 제외). figure proportion
+#   (leg_torso)과 별개 축 — 얼굴엔 다리가 없다. facial_proportion 은 VLM 관찰(measured=False).
+_FACE_ORDER = [
+    "facial_proportion",
+    "value_structure",
+    "composition_balance",
+]
+
 # 단일 출처(SSOT): 커리큘럼/축 정의는 여기 한 곳. roadmap 등 다른 모듈은 이 공개 별칭을 끌어다 쓴다
 # (예전엔 roadmap.py 가 _FIGURE_ORDER 를 복제해 drift 위험이 있었음 → 제거).
 FIGURE_ORDER = _FIGURE_ORDER
 SCENE_ORDER = _SCENE_ORDER
 ALL_AXES = _FIGURE_ORDER + [
     a for a in _SCENE_ORDER if a not in _FIGURE_ORDER
-]  # 순서 보존 합집합(14축)
+] + [
+    a for a in _FACE_ORDER if a not in _FIGURE_ORDER and a not in _SCENE_ORDER
+]  # 순서 보존 합집합(+ facial_proportion)
 
 # 포즈(전신 키포인트)에 의존하는 축. 포즈가 degraded(전신 미검출)면 측정 불가라,
 # 진단·중재에서 이 축들을 '리드(이번에 딱 하나)'로 단정·승격하지 않는다(흉상·초상에 전신 비율 오발화 방지).
@@ -110,6 +121,12 @@ PROFILES = {
         "subproblems": _HAND_ORDER,  # 게이팅: 손 축만 켠다(전신 축 제외)
         "curriculum": _HAND_ORDER,  # 성장: 손 기준 순서 → growth 가 색·구도를 figure 에서 안 물려받음
         "norms": _NORM_OFF,  # 손엔 leg_torso 비율 무의미 → 자동발화 끔
+    },
+    "face": {
+        "label": "얼굴/초상",
+        "subproblems": _FACE_ORDER,  # facial_proportion 리드 + 이미지축(명암·구도). 전신 축 제외.
+        "curriculum": _FACE_ORDER,
+        "norms": _NORM_OFF,  # 얼굴엔 leg_torso 무의미
     },
 }
 

@@ -146,6 +146,7 @@ services:
       TRACE_CTX: "1"
       SUBJECT_VLM: "1"
       STYLE_VLM: "1"
+      FACE_VLM: "1"
       REDIS_HOST: valkey
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-valkey_pass}

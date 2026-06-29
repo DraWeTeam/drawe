@@ -277,6 +277,33 @@ def _vlm_hand_signal(pil):
     return (0.4, sig) if sig else None
 
 
+def _vlm_face_signal(pil):
+    """Gemini VLM 얼굴 *관찰*을 (conf, 관찰문장)으로. FaceLandmarker 가 드로잉·측면에 약해(실측 2/3)
+    그 대체 지각. 측정 아니라 *관찰(가설)* → placeholder 로 measured=False surface(측정=사실 보호).
+    초상 아님·view·eye_line 둘 다 불확실이면 observe_face 가 '낮음' → 여기서 None(보류)."""
+    try:
+        from guide.ml.vision import observe_face
+
+        o = observe_face(pil)
+    except Exception as e:
+        print(f"[diagnose] VLM 얼굴 관찰 실패(무시): {type(e).__name__}: {e}")
+        return None
+    if not o or o.get("confidence") not in ("관찰", "관찰(약)"):  # 낮음만 보류; 약은 통과
+        return None
+    strong = o.get("confidence") == "관찰"
+    parts = []
+    if o.get("view") and o["view"] != "불확실":
+        parts.append(f"{o['view']} 얼굴로 보임")
+    el = o.get("eye_line")
+    # eye_line 은 strong(관찰)일 때만 표기 — 약이면 view 만(단정 회피, hand 의 structure 게이팅과 동형).
+    if strong and el and el != "불확실":
+        where = {"위": "머리 절반보다 위", "중앙": "머리 절반 부근",
+                 "아래": "머리 절반보다 아래"}.get(el, el)
+        parts.append(f"눈높이가 {where}에 놓인 것으로 보임")
+    sig = ", ".join(parts)
+    return (0.4, sig) if sig else None
+
+
 VIS_KP = 0.3  # 개별 키포인트 가시성 하한(bbox 계산용; 파일 평균 VIS와 별개)
 
 
@@ -696,6 +723,12 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                     pil
                 )  # HAND_VLM off/키없음/2회불일치면 None → 빈 관찰 폴백
                 hits[sid] = vh if vh else (0.25 if e.get("auto") else 0.15, "")
+            elif sid == "facial_proportion":
+                # 얼굴도 검출(FaceLandmarker)이 드로잉에 약함 → VLM 관찰 주입(measured=False=관찰).
+                vf = _vlm_face_signal(
+                    pil
+                )  # FACE_VLM off/키없음/불확실·초상아님이면 None → 빈 관찰 폴백
+                hits[sid] = vf if vf else (0.25 if e.get("auto") else 0.15, "")
             else:
                 hits[sid] = (0.25 if e.get("auto") else 0.15, "")
 
