@@ -16,8 +16,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long>, Project
   long countByUserAndStatus(User user, ProjectStatus status);
 
   /**
-   * 완성작 갤러리 — 내 프로젝트 중 완성(COMPLETED) 처리됐고 완성 그림(drawingUrl)이 있는 것만 최신순.
-   * updatedAt 이 비어있을 수 있어 id 보조 정렬.
+   * 완성작 갤러리 — 내 프로젝트 중 완성(COMPLETED) 처리됐고 완성 그림(drawingUrl)이 있는 것만 최신순. updatedAt 이 비어있을 수 있어 id 보조
+   * 정렬.
    */
   @Query(
       "SELECT p FROM Project p "

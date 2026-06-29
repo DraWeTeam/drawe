@@ -54,15 +54,19 @@ public class GrokService implements LlmService {
     long start = System.currentTimeMillis();
     Map<?, ?> response;
     try {
-      response =
+      var spec =
           restClient
               .post()
               .uri(url)
               .header(HttpHeaders.AUTHORIZATION, "Bearer " + cfg.getApiKey())
-              .contentType(MediaType.APPLICATION_JSON)
-              .body(body)
-              .retrieve()
-              .body(Map.class);
+              .contentType(MediaType.APPLICATION_JSON);
+      // 멀티턴 캐시 라우팅 — conversationId(세션ID)가 있으면 x-grok-conv-id 로 같은 서버에 라우팅해 prefix 캐시 적중률을 높인다.
+      // 없으면(분류·번역 등 세션 무관 짧은 콜) 부착하지 않는다 — 그쪽은 세션 단위 라우팅이 오히려 공용 캐시를 쪼갠다.
+      String convId = context.conversationId();
+      if (convId != null && !convId.isBlank()) {
+        spec = spec.header("x-grok-conv-id", convId);
+      }
+      response = spec.body(body).retrieve().body(Map.class);
     } catch (org.springframework.web.client.RestClientResponseException e) {
       log.error("Grok HTTP error: status={}", e.getStatusCode());
       log.debug("Grok HTTP error body: {}", e.getResponseBodyAsString());
@@ -77,6 +81,16 @@ public class GrokService implements LlmService {
     }
     int latency = (int) (System.currentTimeMillis() - start);
 
+    // 토큰/캐시 계측 — 전후 비교용 단일 포맷(provider 공통 "TOKENCOST" 태그로 grep). Grok 은 prompt_tokens 가 캐시 포함
+    // 전체 입력이고, cached_tokens(usage.prompt_tokens_details.cached_tokens)가 그중 캐시 적중분이다. cached 가 0 이면
+    // conv-id·메시지 순서 점검(xAI best practice). raw usage 도 함께 찍어 필드 경로를 검증할 수 있게 둔다.
+    log.debug(
+        "TOKENCOST provider=GROK prompt={} cached={} completion={} usage={}",
+        usageInt(response, "prompt_tokens"),
+        cachedTokens(response),
+        usageInt(response, "completion_tokens"),
+        response.get("usage"));
+
     String content = extractText(response);
     return new LlmCallResult(
         content,
@@ -90,6 +104,17 @@ public class GrokService implements LlmService {
   private static Integer usageInt(Map<?, ?> response, String key) {
     Object usage = response.get("usage");
     if (usage instanceof Map<?, ?> u && u.get(key) instanceof Number n) {
+      return n.intValue();
+    }
+    return null;
+  }
+
+  /** OpenAI 호환 usage.prompt_tokens_details.cached_tokens — 캐시 적중 입력 토큰. 없으면 null. */
+  private static Integer cachedTokens(Map<?, ?> response) {
+    Object usage = response.get("usage");
+    if (usage instanceof Map<?, ?> u
+        && u.get("prompt_tokens_details") instanceof Map<?, ?> d
+        && d.get("cached_tokens") instanceof Number n) {
       return n.intValue();
     }
     return null;
