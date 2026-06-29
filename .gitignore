@@ -1,3 +1,6 @@
 .secrets/
 drawe-beta-extract/
 apply_*.py
+
+# IntelliJ IDEA
+.idea/

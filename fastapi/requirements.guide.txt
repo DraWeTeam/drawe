@@ -26,6 +26,8 @@ opencv-python-headless
 #   google-auth(vertex 전용) · pinecone(VECTOR_BACKEND=pinecone) · rembg(SUBJECT_MASK) · redis(REDIS_URL)
 
 # Observability (embed 와 동일 표준)
-opentelemetry-distro==0.50b0
-opentelemetry-exporter-otlp==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
+# NOTE: 1.29/0.50b0 은 opentelemetry-proto 가 protobuf>=5 를 요구해 mediapipe(protobuf<5)와 충돌.
+#       1.27/0.48b0 라인은 otel-proto 가 protobuf<5 라 mediapipe(4.25.x)와 공존 가능.
+opentelemetry-distro==0.48b0
+opentelemetry-exporter-otlp==1.27.0
+opentelemetry-instrumentation-fastapi==0.48b0
