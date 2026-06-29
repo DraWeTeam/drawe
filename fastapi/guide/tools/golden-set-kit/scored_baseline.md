@@ -243,3 +243,32 @@ lever is intrinsically entangled with style ambiguity. Implication: source style
 track/UI in production (works today); treat auto-detection as best-effort that abstains on
 doubt. The golden-set auto-run tests the HARDEST path (no style hint) and thus undersells the
 feature — a production-faithful eval would pass each image's intended track.
+
+---
+
+# Track-aware re-eval (step 1) — auto path vs production-faithful path
+
+`labels.json.intended_tracks` = the path a real user/UI provides. Key calibration: null = auto
+IS the best path. Non-null ONLY for figures (a STYLE hint real/anime/chibi adds info auto can't
+get). track_aware_eval.py runs each image both ways and scores vs the blind acceptable sets.
+
+## result
+- clear set: **auto 7/15 → track-aware 8/15**. Single moved image: figure_002 action_line →
+  **proportion** (anime_figure track → anime norm → 0.796 fires). C's value, isolated & honest.
+- ambiguous 2/5 both. No other image moves — clean.
+
+## latent bug found (explicit track='hand' is WORSE than auto)
+First mapping set hands → track='hand'; they regressed hand_structure→value/joint/comp. Cause:
+auto routing returns `resolve_subject → ('hand', {'hand_structure'})` — it pins hand_structure
+as a user-term. Explicit `track='hand'` hits `if track: return track, set()` → **drops the
+hand_structure pin**. So a user who explicitly picks the hand track gets degraded hand feedback
+vs auto-detection. Fix lead (later): explicit hand track should also surface {'hand_structure'}
+(or resolve_subject should add intent terms for explicit figure/hand tracks too). For now
+intended_tracks uses null for hands (auto is correct), so the 8/15 is faithful.
+
+## standing scoreboard
+- auto path: 7/15 clear (blank-abstain win from A)
+- production path (figure style hints): 8/15 clear (+ figure_002 proportion from C)
+- remaining clear misses are E (face_001/002/003 → None/action_line), D (figure_001/004
+  pose=skipped → None), and priority (figure_006 incidental hand outranks color),
+  landscape_002 flat-perspective measurement (C-landscape, separate).

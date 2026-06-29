@@ -5,6 +5,29 @@
     "clarity": "clear = a competent artist would agree on the primary issue; ambiguous = the input is intrinsically unstable (stylized, conflicting cues, or the 'defect' is a deliberate style choice). Accuracy is scored on clear set only; ambiguous set is scored by abstain / weak-grade ratio.",
     "fields": "track=expected routing; expected_primary=most teachable single issue (artist judgment); acceptable=axes that would also be a defensible primary; for hands view/structure/foreshort = expected VLM read."
   },
+  "intended_tracks": {
+    "_note": "Production-faithful path a real user/UI provides. null = auto-detection IS the best path (hands/landscapes route correctly auto, and auto adds the hand_structure intent term that explicit track='hand' drops — a known asymmetry). Non-null ONLY for figures, where a STYLE hint (real/anime/chibi) adds info auto-detect can't reliably get. face/edge → null (no face profile = E gap; no-subject).",
+    "edge_001_blank_canvas.png": null,
+    "edge_002_ambiguous_scribble.png": null,
+    "edge_003_hand_with_face_message.png": null,
+    "face_001_front_normal.png": null,
+    "face_002_profile_side.png": null,
+    "face_003_three_quarter.png": null,
+    "figure_001_standing_front_normal.png": "realistic_figure",
+    "figure_002_short_legs.png": "anime_figure",
+    "figure_003_unbalanced_pose.png": "realistic_figure",
+    "figure_004_walking_pose.png": "realistic_figure",
+    "figure_005_sd_chibi.png": "chibi_figure",
+    "figure_006_message_color.png": "anime_figure",
+    "hand_001_v_sign_line.png": null,
+    "hand_002_colored_palm.png": null,
+    "hand_003_long_fingers.png": null,
+    "hand_004_foreshortened.png": null,
+    "hand_005_message_ratio.png": null,
+    "landscape_001_normal.png": null,
+    "landscape_002_flat_perspective.png": null,
+    "landscape_003_still_life.png": null
+  },
   "images": [
     {
       "file": "hand_001_v_sign_line.png",

@@ -77,8 +77,10 @@ def _looks_like_sketch(pil) -> bool:
 
 
 def resolve_subject(scene, pil, track=None):
-    if track:  # ① 명시 track → 그대로
-        return track, set()
+    if track:  # ① 명시 track → 그대로. 단 hand track 은 auto 경로(아래 subj=="hand")와 동일하게
+        #   hand_structure 를 의도항으로 surface 한다 — 안 그러면 사용자가 '손' track 을 직접 고를 때
+        #   auto 보다 손 피드백이 나빠진다(track-aware 평가에서 확인된 비대칭).
+        return track, ({"hand_structure"} if track == "hand" else set())
     prom = float(
         (scene or {}).get("subject", {}).get("person", {}).get("prominence", 0.0)
     )
