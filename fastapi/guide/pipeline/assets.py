@@ -61,7 +61,7 @@ AI_AVOID = {
 # 축마다 항상 가능한 svg 도식 바닥의 설명(방법/도해). 없는 축은 일반 격자 도해로 폴백.
 _FLOOR_CAPTION = {
     "weight_balance": "골반 중심에서 바닥으로 수직선을 하나 그어보세요 — 두 발 사이를 지나가면 안정적으로 읽혀요.",
-    "hand_structure": "손을 손바닥 덩어리 + 손가락으로 먼저 단순화해보세요 — 큰 덩어리가 맞으면 디테일이 자연스러워져요.",
+    "hand_structure": "손을 손바닥(상자)+손가락 덩어리로 먼저 잡으세요 — 손바닥은 얼굴만 하고 손가락 길이도 손바닥과 비슷해요. 손가락은 마디 3개로 끝으로 갈수록 짧아지고, 엄지는 더 짧고 마디 2개로 옆으로 벌어집니다.",
     "joint_articulation": "관절을 원, 뼈를 선으로 먼저 잡아보세요 — 꺾이는 방향이 분명해지면 포즈가 살아나요.",
     "value_structure": "명암을 밝음·중간·어둠 3단계로 묶어 보는 도식이에요.",
     "composition_balance": "화면을 3분할해 무게가 어디로 쏠리는지 보는 썸네일 격자예요.",
@@ -135,6 +135,22 @@ _FLOOR_SVG = {
         f'<line x1="{40 + i * 40}" y1="{40 + i * 5}" x2="{40 + i * 40}" y2="{140 - i * 5}" stroke="{{s}}"/>'
         for i in range(1, 4)
     ),
+    # 손 구조(영역5 문서): 손바닥(상자)=얼굴 세로 / 손가락 길이≈손바닥 / 손가락 마디 3개·끝으로 짧아짐 /
+    #   엄지 더 짧고 마디 2개·옆 90°로 벌어짐 / 중지 최장·새끼 최단. 얼굴 타원으로 손바닥 크기 비교.
+    "hand_structure": '<ellipse cx="34" cy="120" rx="20" ry="27" fill="none" stroke="{s}"/>'
+    '<text x="34" y="124" text-anchor="middle" fill="{s}" font-size="11">얼굴</text>'
+    '<rect x="92" y="92" width="74" height="56" rx="6" fill="none" stroke="{i}"/>'
+    '<text x="129" y="124" text-anchor="middle" fill="{i}" font-size="11">손바닥</text>'
+    + "".join(
+        f'<line x1="{x}" y1="92" x2="{x}" y2="{tip}" stroke="{{i}}"/>'
+        f'<line x1="{x - 5}" y1="{tip + (92 - tip) // 3}" x2="{x + 5}" y2="{tip + (92 - tip) // 3}" stroke="{{s}}"/>'
+        f'<line x1="{x - 5}" y1="{tip + 2 * (92 - tip) // 3}" x2="{x + 5}" y2="{tip + 2 * (92 - tip) // 3}" stroke="{{s}}"/>'
+        for x, tip in ((104, 52), (121, 42), (138, 50), (155, 62))
+    )
+    + '<text x="129" y="34" text-anchor="middle" fill="{s}" font-size="10">마디 3</text>'
+    + '<line x1="92" y1="126" x2="75" y2="133" stroke="{i}"/>'
+    + '<line x1="75" y1="133" x2="64" y2="129" stroke="{i}"/>'
+    + '<text x="62" y="150" text-anchor="middle" fill="{s}" font-size="10">엄지 2</text>',
 }
 _GENERIC_SVG = (
     '<rect x="40" y="40" width="160" height="100" fill="none" stroke="{i}"/>'
