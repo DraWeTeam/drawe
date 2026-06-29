@@ -1090,6 +1090,28 @@ public class ChatLlmService {
     llmMessageRepository.save(assistantMsg);
     session.setLastActive(Instant.now());
 
+    // 체이닝(SCRUM-112): 이번 유사검색 결과를 previousReferences 로 갱신 → 다음 "[N]번/고정 N번 유사"가 이 그리드를 가리킨다.
+    // 화면 표시 순서(=results, refItems 와 동일)대로 1-based index 부여해 [N] 정합 유지(일반검색의 persistSessionMemory 와
+    // 동일 결).
+    if (!results.isEmpty()) {
+      List<ReferenceImage> chained = new ArrayList<>(results.size());
+      for (int i = 0; i < results.size(); i++) {
+        ImageResult r = results.get(i);
+        // score/tags 는 다음 턴 앵커 해석(imageId→fetchVector)에 안 쓰여 최소값으로 둔다.
+        chained.add(
+            new ReferenceImage(
+                r.id(),
+                i + 1,
+                r.url(),
+                r.photographerName(),
+                java.math.BigDecimal.ZERO,
+                List.of()));
+      }
+      sessionService.save(
+          SessionData.start(user.getId(), session.getProject().getId())
+              .withSearchResult(IntentCode.NEW_SEARCH, List.of(), chained));
+    }
+
     Map<String, Object> payload = new HashMap<>();
     payload.put("action", actionLabel);
     payload.put("anchor_image_id", anchorImageId);

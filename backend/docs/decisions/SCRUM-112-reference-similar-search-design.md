@@ -104,3 +104,5 @@
 - `ExtractionResult` 에 `REFERENCE_SIMILAR`/`PIN_SIMILAR` 액션 + `anchorIndex` 필드 추가. `IntentResultAdapter.toCode` 는 도달 안 하지만 컴파일 위해 NEW_SEARCH 로 안전 매핑.
 
 **라이브 렌더 수정**: 유사검색 `ChatResponse.action` 을 `NEW_SEARCH` 로 보낸다. `REFERENCE_SIMILAR`/`PIN_SIMILAR` 라벨은 프론트가 몰라 라이브에서 그리드가 안 떴고 새로고침(history 로드) 때만 보였음 — 프론트가 아는 `NEW_SEARCH` 로 보내 즉시 렌더. 내부 구분은 analytics payload 의 라벨로만 유지.
+
+**체이닝(검색-on-검색)**: `runSimilarSearch` 가 결과를 Redis `previousReferences` 로 갱신한다(화면 표시 순서대로 1-based index). 일반검색(persistSessionMemory)과 동일한 결 — 이제 유사검색 직후 "[N]번 유사"가 **방금 본 그리드**를 가리킨다(이전엔 유사검색 전 그리드를 가리키는 비대칭이 있었음). score/tags 는 다음 앵커 해석(imageId→fetchVector)에 불필요해 최소값.
