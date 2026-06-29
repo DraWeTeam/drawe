@@ -82,6 +82,9 @@ public class IntentResultAdapter {
       case GENERATE_NOW -> IntentCode.GENERATE; // 008
       case FOLLOWUP -> IntentCode.FOLLOWUP; // 012
       case COMPARE -> IntentCode.COMPARE; // 013
+      // SCRUM-112: REFERENCE_SIMILAR/PIN_SIMILAR 는 ChatLlmService 전용 핸들러가 조기 처리해 여기 도달하지 않는다.
+      // (의도 기계/워크플로를 안 타므로) 컴파일·안전상 검색 계열(NEW_SEARCH)로 매핑만 해 둔다.
+      case REFERENCE_SIMILAR, PIN_SIMILAR -> IntentCode.NEW_SEARCH;
     };
   }
 }

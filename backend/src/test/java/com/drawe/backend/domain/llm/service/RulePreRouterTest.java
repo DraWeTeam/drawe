@@ -162,4 +162,98 @@ class RulePreRouterTest {
   void outOfDomainFalse(String message) {
     assertThat(router.isOutOfDomain(message)).isFalse();
   }
+
+  // ── SCRUM-112 REFERENCE_SIMILAR: "[N]번이랑 유사한 사진" ───────
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "1번이랑 비슷한 사진 보여줘",
+        "[2]번이랑 유사한 거 보여줘",
+        "3번 같은 느낌으로 찾아줘",
+        "3번 같은 그림 보여줘", // "같은 그림" (그림 토큰) — 회귀: 옛 정규식이 못 잡던 케이스
+        "3번같은 사진 보여줘", // 띄어쓰기 없음
+        "1번처럼 찾아줘", // "처럼"
+        "레퍼런스 2랑 비슷한 거",
+        "2번 이미지랑 닮은 거 더 보여줘"
+      })
+  @DisplayName("레퍼런스 번호 + 유사 의도 → isReferenceSimilar=true")
+  void referenceSimilarTrue(String message) {
+    assertThat(router.isReferenceSimilar(message)).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "비슷한 거 보여줘", // 번호 지칭 없음
+        "1번 어떻게 그려?", // 유사 의도 없음
+        "고정 1번이랑 비슷한 거", // 핀 지칭(레퍼런스 아님)
+        "다른 레퍼런스 더 보여줘", // 유사 의도·번호 없음
+        "",
+        "   "
+      })
+  @DisplayName("번호·유사 신호가 불완전하거나 핀 지칭 → isReferenceSimilar=false")
+  void referenceSimilarFalse(String message) {
+    assertThat(router.isReferenceSimilar(message)).isFalse();
+  }
+
+  @DisplayName("레퍼런스 번호 추출 — 핀은 제외하고 [N]/N번/레퍼런스 N 인식")
+  @org.junit.jupiter.api.Test
+  void extractReferenceIndex() {
+    assertThat(router.extractReferenceIndex("[3]번이랑 비슷한 거")).isEqualTo(3);
+    assertThat(router.extractReferenceIndex("2번 같은 느낌")).isEqualTo(2);
+    assertThat(router.extractReferenceIndex("레퍼런스 4랑 비슷")).isEqualTo(4);
+    assertThat(router.extractReferenceIndex("고정 1번 말고 2번이랑 비슷")).isEqualTo(2); // 핀 제외 후 2 인식
+    assertThat(router.extractReferenceIndex("고정 1번이랑 비슷한 거")).isNull(); // 핀만 → null
+    assertThat(router.extractReferenceIndex("비슷한 거 보여줘")).isNull();
+  }
+
+  // ── SCRUM-112 PIN_SIMILAR: "고정 N번이랑 유사한 사진" ───────
+  @ParameterizedTest
+  @ValueSource(strings = {"고정 1번이랑 비슷한 거", "핀 2번 유사한 사진 보여줘", "고정 3번 같은 느낌으로 찾아줘"})
+  @DisplayName("핀 지칭 + 유사 의도 → isPinSimilar=true")
+  void pinSimilarTrue(String message) {
+    assertThat(router.isPinSimilar(message)).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "1번이랑 비슷한 거", // 레퍼런스(핀 접두어 없음)
+        "고정 1번 어때?", // 유사 의도 없음
+        "비슷한 거 보여줘", // 핀 지칭 없음
+        "",
+        "   "
+      })
+  @DisplayName("핀 지칭 또는 유사 신호 불완전 → isPinSimilar=false")
+  void pinSimilarFalse(String message) {
+    assertThat(router.isPinSimilar(message)).isFalse();
+  }
+
+  @DisplayName("핀 번호 추출 — '고정 N번'/'핀 N번' 인식, 접두어 없으면 null")
+  @org.junit.jupiter.api.Test
+  void extractPinIndex() {
+    assertThat(router.extractPinIndex("고정 3번 비슷한 거")).isEqualTo(3);
+    assertThat(router.extractPinIndex("핀 2번 유사")).isEqualTo(2);
+    assertThat(router.extractPinIndex("2번이랑 비슷")).isNull(); // 핀 접두어 없음(레퍼런스)
+    assertThat(router.extractPinIndex("비슷한 거")).isNull();
+  }
+
+  @DisplayName(
+      "route() fast-path — 명확한 유사 요청은 REFERENCE_SIMILAR/PIN_SIMILAR + anchorIndex 로 종결(Grok 없이)")
+  @org.junit.jupiter.api.Test
+  void routeSimilarFastPath() {
+    RulePreRouter.Decision ref = router.route("3번 같은 그림 보여줘", List.of());
+    assertThat(ref.isHit()).isTrue();
+    assertThat(ref.result().action()).isEqualTo(ExtractionResult.Action.REFERENCE_SIMILAR);
+    assertThat(ref.result().anchorIndex()).isEqualTo(3);
+
+    RulePreRouter.Decision pin = router.route("고정 1번이랑 비슷한 거", List.of());
+    assertThat(pin.isHit()).isTrue();
+    assertThat(pin.result().action()).isEqualTo(ExtractionResult.Action.PIN_SIMILAR);
+    assertThat(pin.result().anchorIndex()).isEqualTo(1);
+
+    // 생성이 우선 — "비슷한 거 만들어줘"는 GENERATE_NOW(유사검색 아님)
+    assertThat(router.route("3번이랑 비슷한 거 만들어줘", List.of()).result().action())
+        .isEqualTo(ExtractionResult.Action.GENERATE_NOW);
+  }
 }

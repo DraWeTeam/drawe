@@ -11,6 +11,8 @@ import com.drawe.backend.domain.enums.LlmCallStatus;
 import com.drawe.backend.domain.enums.LlmProvider;
 import com.drawe.backend.domain.enums.MessageRole;
 import com.drawe.backend.domain.enums.UserPlan;
+import com.drawe.backend.domain.image.repository.ImageRepository;
+import com.drawe.backend.domain.image.service.ImageDownloadService;
 import com.drawe.backend.domain.image.service.ImageGenerationService;
 import com.drawe.backend.domain.image.service.ImageUrlSigner;
 import com.drawe.backend.domain.llm.classifier.IntentResultAdapter;
@@ -36,6 +38,8 @@ import com.drawe.backend.domain.search.dto.ImageResult;
 import com.drawe.backend.domain.search.dto.SearchRequest;
 import com.drawe.backend.domain.search.dto.SearchResponse;
 import com.drawe.backend.domain.search.service.SearchService;
+import com.drawe.backend.global.client.FastApiClient;
+import com.drawe.backend.global.client.PineconeClient;
 import com.drawe.backend.global.config.LlmProperties;
 import com.drawe.backend.global.config.WorkflowComposeProperties;
 import com.drawe.backend.global.error.CustomException;
@@ -83,6 +87,10 @@ public class ChatLlmService {
   private final WorkflowComposeProperties workflowComposeProperties;
   private final SessionService sessionService;
   private final PinService pinService;
+  private final PineconeClient pineconeClient;
+  private final ImageRepository imageRepository;
+  private final ImageDownloadService imageDownloadService;
+  private final FastApiClient fastApiClient;
 
   @Transactional
   public ChatResponse chat(User user, Long projectId, ChatRequest request) {
@@ -115,6 +123,21 @@ public class ChatLlmService {
     // 바로 Bria 호출해서 응답에 생성된 이미지 url 을 담아 돌려준다.
     if (decision.action() == ExtractionResult.Action.GENERATE_NOW) {
       return handleGenerateNow(user, project, session, request, decision);
+    }
+
+    // SCRUM-112: "[N]번/고정 N번 과 유사한 사진" — 앵커(레퍼런스/핀) 이미지 벡터로 유사검색(자기자신·핀 제외).
+    // 탐지는 routeIntent 가 통합 — RulePreRouter 룰 fast-path 또는 Grok(KeywordExtractor) 분류가 같은
+    // REFERENCE_SIMILAR/PIN_SIMILAR 액션 + anchorIndex 를 채운다. 여기선 그 액션으로만 분기한다(정규식 직접 호출 X).
+    // 명시적 생성(GENERATE_NOW) 뒤에 둬 "비슷한 거 만들어줘"는 생성, "비슷한 거 보여줘"는 유사검색으로 간다.
+    if (decision.action() == ExtractionResult.Action.PIN_SIMILAR
+        && decision.anchorIndex() != null) {
+      return handlePinSimilar(
+          user, session, request, decision.anchorIndex(), pinnedItems, pinnedIds);
+    }
+    if (decision.action() == ExtractionResult.Action.REFERENCE_SIMILAR
+        && decision.anchorIndex() != null) {
+      return handleReferenceSimilar(
+          user, project, session, request, decision.anchorIndex(), pinnedIds);
     }
 
     // 000 OUT_OF_DOMAIN (S3' 트랙 A): 명백한 비미술 도메인 외 질문 → 거절 톤 경로.
@@ -966,6 +989,180 @@ public class ChatLlmService {
         null,
         new ChatResponse.GeneratedImage(
             image.getId(), imageUrlSigner.sign(image.getUrl()), decision.keywords()));
+  }
+
+  /** "[N]번/고정 N번 유사" 검색 결과 상한. */
+  private static final int REFERENCE_SIMILAR_TOP_K = 6;
+
+  /**
+   * SCRUM-112: "[N]번이랑 유사한 사진" — 직전 레퍼런스 [N](Redis previousReferences)을 앵커로 유사검색. 앵커 해석만 다르고 벡터
+   * 확보·검색·응답은 {@link #runSimilarSearch} 가 핀 경로와 공유한다. previousReferences 부재/N 범위 밖은 안내 폴백.
+   */
+  private ChatResponse handleReferenceSimilar(
+      User user,
+      Project project,
+      ChatSession session,
+      ChatRequest request,
+      int refIndex,
+      Set<Long> pinnedIds) {
+    saveUserMessage(session, request);
+    SessionData sessionData = sessionService.getOrRestore(user.getId(), project.getId(), session);
+    List<ReferenceImage> prev = sessionData.previousReferences();
+    if (prev == null || prev.isEmpty() || refIndex < 1 || refIndex > prev.size()) {
+      return similarFallback(
+          session, "어떤 이미지를 말하는지 못 찾았어요. 먼저 레퍼런스를 검색한 뒤 \"" + refIndex + "번이랑 비슷한 거\"처럼 말해주세요.");
+    }
+    return runSimilarSearch(
+        user,
+        session,
+        prev.get(refIndex - 1).imageId(),
+        refIndex + "번",
+        "REFERENCE_SIMILAR",
+        pinnedIds);
+  }
+
+  /**
+   * SCRUM-112: "고정 N번이랑 유사한 사진" — 보드에 고정(핀)한 이미지를 앵커로 유사검색. 앵커는 {@code pinnedItems[N-1]}(DB), 이후
+   * 경로는 레퍼런스와 동일({@link #runSimilarSearch}).
+   */
+  private ChatResponse handlePinSimilar(
+      User user,
+      ChatSession session,
+      ChatRequest request,
+      int pinIndex,
+      List<PinItem> pinnedItems,
+      Set<Long> pinnedIds) {
+    saveUserMessage(session, request);
+    if (pinnedItems == null || pinIndex < 1 || pinIndex > pinnedItems.size()) {
+      return similarFallback(session, "고정 " + pinIndex + "번 이미지를 찾지 못했어요. 보드에 고정한 이미지를 확인해주세요.");
+    }
+    return runSimilarSearch(
+        user,
+        session,
+        pinnedItems.get(pinIndex - 1).id(),
+        "고정 " + pinIndex + "번",
+        "PIN_SIMILAR",
+        pinnedIds);
+  }
+
+  /**
+   * 앵커 이미지(레퍼런스/핀 공통) → 벡터 확보 → {@code searchByVector} → 자기 자신·핀 제외 → 응답. {@code actionLabel} 로
+   * REFERENCE_SIMILAR / PIN_SIMILAR 를 구분(분석·프론트). 벡터 확보 실패는 안내 폴백.
+   */
+  private ChatResponse runSimilarSearch(
+      User user,
+      ChatSession session,
+      Long anchorImageId,
+      String displayLabel,
+      String actionLabel,
+      Set<Long> pinnedIds) {
+    // 앵커 벡터 확보 (C: Pinecone fetch → A: embedImage 폴백).
+    List<Float> vector = resolveAnchorVector(anchorImageId, user.getId());
+    if (vector == null || vector.isEmpty()) {
+      return similarFallback(session, displayLabel + " 이미지로 유사검색을 못 했어요. 잠시 후 다시 시도해주세요.");
+    }
+
+    // 유사검색 + 자기 자신·핀 제외(자기 자신이 1위로 나오는 것 방지). 제외분 고려해 넉넉히 뽑은 뒤 상한으로 자른다.
+    SearchResponse resp =
+        searchService.searchByVector(vector, REFERENCE_SIMILAR_TOP_K + 1 + pinnedIds.size());
+    List<ImageResult> results =
+        resp.results().stream()
+            .filter(r -> anchorImageId == null || !anchorImageId.equals(r.id()))
+            .filter(r -> !pinnedIds.contains(r.id()))
+            .limit(REFERENCE_SIMILAR_TOP_K)
+            .toList();
+
+    List<ChatResponse.ReferenceItem> refItems = convertToReferenceItems(results);
+    String message =
+        refItems.isEmpty()
+            ? displayLabel + "과 비슷한 이미지를 찾지 못했어요. 다른 키워드로 검색해볼까요?"
+            : displayLabel + "과 비슷한 분위기의 레퍼런스를 찾아봤어요.";
+
+    LlmMessage assistantMsg = new LlmMessage();
+    assistantMsg.setChatSession(session);
+    assistantMsg.setRole(MessageRole.ASSISTANT);
+    assistantMsg.setContent(message);
+    assistantMsg.setHasImage(false);
+    assistantMsg.setStatus(LlmCallStatus.SUCCESS);
+    if (!refItems.isEmpty()) {
+      assistantMsg.setReferences(refItems);
+    }
+    llmMessageRepository.save(assistantMsg);
+    session.setLastActive(Instant.now());
+
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("action", actionLabel);
+    payload.put("anchor_image_id", anchorImageId);
+    payload.put("reference_count", refItems.size());
+    analyticsEventService.track(AnalyticsEventType.CHAT_SUCCESS, user, session.getId(), payload);
+
+    log.info(
+        "{} 처리: user={}, anchorImageId={}, 결과={}개",
+        actionLabel,
+        user.getId(),
+        anchorImageId,
+        refItems.size());
+
+    return new ChatResponse(
+        session.getId(),
+        "guide",
+        message,
+        signReferenceUrls(refItems),
+        // 프론트가 레퍼런스 그리드를 "새 결과"로 즉시 렌더하도록 NEW_SEARCH 로 보낸다(REFERENCE/PIN_SIMILAR 라벨은
+        // 프론트 미지원이라 라이브 응답에서 그리드가 안 떴음 — 새로고침 시 history 로드로만 보였음). 내부 구분은 위
+        // analytics payload 의 actionLabel 로 유지.
+        "NEW_SEARCH",
+        false,
+        null,
+        null);
+  }
+
+  /** 유사검색 앵커 — 사용자 메시지 저장(결과 무관하게 입력 기록). */
+  private void saveUserMessage(ChatSession session, ChatRequest request) {
+    LlmMessage userMsg = new LlmMessage();
+    userMsg.setChatSession(session);
+    userMsg.setRole(MessageRole.USER);
+    userMsg.setContent(request.message());
+    userMsg.setHasImage(false);
+    llmMessageRepository.save(userMsg);
+  }
+
+  /** 앵커 벡터 확보: Pinecone 저장 벡터 fetch(C) → 실패 시 바이트 다운로드 + embedImage(A). 모두 실패 시 null. */
+  private List<Float> resolveAnchorVector(Long imageId, Long userId) {
+    if (imageId == null) {
+      return null;
+    }
+    // C: 이미 색인된 벡터를 sourceId 로 그대로 fetch (재임베딩 없음 — 가장 정확·저비용).
+    Image img = imageRepository.findById(imageId).orElse(null);
+    if (img != null && img.getSourceId() != null) {
+      List<Float> v = pineconeClient.fetchVector(img.getSourceId());
+      if (v != null && !v.isEmpty()) {
+        return v;
+      }
+    }
+    // A 폴백: 픽셀 다운로드 → CLIP 임베딩.
+    try {
+      ImageDownloadService.Download dl = imageDownloadService.download(imageId, userId);
+      return fastApiClient.embedImage(dl.data(), dl.contentType());
+    } catch (Exception e) {
+      log.warn(
+          "앵커 벡터 확보 실패(C·A 모두): imageId={}, error_class={}", imageId, e.getClass().getSimpleName());
+      return null;
+    }
+  }
+
+  /** 레퍼런스/핀 유사검색 폴백 응답 — 레퍼런스 없이 안내 메시지만. assistant 메시지로 기록. */
+  private ChatResponse similarFallback(ChatSession session, String message) {
+    LlmMessage assistantMsg = new LlmMessage();
+    assistantMsg.setChatSession(session);
+    assistantMsg.setRole(MessageRole.ASSISTANT);
+    assistantMsg.setContent(message);
+    assistantMsg.setHasImage(false);
+    assistantMsg.setStatus(LlmCallStatus.SUCCESS);
+    llmMessageRepository.save(assistantMsg);
+    session.setLastActive(Instant.now());
+    return new ChatResponse(
+        session.getId(), "guide", message, List.of(), "NEW_SEARCH", false, null, null);
   }
 
   /** 사용자가 "AI 이미지 만들어주세요" 버튼을 누른 경우 호출. Bria 로 이미지 생성 후 세션에 ASSISTANT 메시지로 기록. */
