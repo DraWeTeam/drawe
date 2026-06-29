@@ -65,7 +65,7 @@ _FLOOR_CAPTION = {
     "joint_articulation": "관절을 원, 뼈를 선으로 먼저 잡아보세요 — 꺾이는 방향이 분명해지면 포즈가 살아나요.",
     "value_structure": "명암을 밝음·중간·어둠 3단계로 묶어 보는 도식이에요.",
     "composition_balance": "화면을 3분할해 무게가 어디로 쏠리는지 보는 썸네일 격자예요.",
-    "proportion": "머리 하나를 단위로 등신을 재는 비율 사다리예요.",
+    "proportion": "머리 하나를 자로 키가 몇 등신인지 재고, 어깨·허리·골반(키½)·무릎(다리½)·발이 머리 몇 개 위치인지 점만 찍어보세요. 절대 등신을 단정하지 말고 의도한 스타일 밴드(데포르메 4~5·캐주얼 6~7·사실 8)에 맞는지로 보세요.",
     "facial_proportion": "머리를 공+턱 한 덩어리로 보고 눈선을 머리끝~턱의 한가운데에 먼저 그어요 — 좌우 눈·귀가 이 선에 맞으면 인상이 안정돼요.",
     "foreshortening": "면이 시점으로 줄어드는 정도를 보는 투시 격자예요.",
     "action_line": "포즈를 관통하는 하나의 큰 흐름(동세 선)을 보는 도식이에요.",
@@ -102,14 +102,21 @@ _FLOOR_SVG = {
     '<line x1="30" y1="70" x2="210" y2="70" stroke="{s}" stroke-dasharray="4"/>'
     '<line x1="30" y1="110" x2="210" y2="110" stroke="{s}" stroke-dasharray="4"/>'
     '<circle cx="150" cy="70" r="6" fill="{i}"/>',
+    # 비례 = 머리-단위 눈금(1~6) + 랜드마크 위치. 문서(영역1) 칸분할 머리1·가슴1·골반1·허벅지1.5·종아리1.5=6등신,
+    # 골반(다리 시작)=키½·무릎=다리½는 문서 명시값, 어깨·허리는 칸분할 역산(문서 파생). 절대 등신은 스타일 밴드로만 판정.
     "proportion": "".join(
-        f'<line x1="60" y1="{30 + i * 16}" x2="160" y2="{30 + i * 16}" stroke="{{s}}"/>'
-        for i in range(8)
+        f'<line x1="38" y1="{18 + h * 22}" x2="150" y2="{18 + h * 22}" stroke="{{s}}" stroke-dasharray="3"/>'
+        f'<text x="22" y="{22 + h * 22}" fill="{{s}}" font-size="10">{h}</text>'
+        for h in range(1, 7)
     )
-    + '<line x1="60" y1="30" x2="60" y2="158" stroke="{i}"/>'
-    + '<line x1="160" y1="30" x2="160" y2="158" stroke="{i}"/>'
-    + '<text x="170" y="36" fill="{s}" font-size="11">1</text>'
-    + '<text x="170" y="156" fill="{s}" font-size="11">8</text>',
+    + '<line x1="95" y1="40" x2="95" y2="150" stroke="{s}"/>'
+    + '<ellipse cx="95" cy="29" rx="10" ry="11" fill="none" stroke="{i}"/>'
+    + '<line x1="78" y1="40" x2="112" y2="40" stroke="{i}"/><text x="156" y="44" fill="{i}" font-size="11">어깨</text>'
+    + '<line x1="80" y1="62" x2="110" y2="62" stroke="{i}"/><text x="156" y="66" fill="{i}" font-size="11">허리</text>'
+    + '<line x1="74" y1="84" x2="116" y2="84" stroke="{i}"/><text x="156" y="88" fill="{i}" font-size="11">골반·½키</text>'
+    + '<line x1="80" y1="117" x2="110" y2="117" stroke="{i}"/><text x="156" y="121" fill="{i}" font-size="11">무릎·½다리</text>'
+    + '<line x1="80" y1="150" x2="110" y2="150" stroke="{i}"/><text x="156" y="147" fill="{i}" font-size="11">발</text>'
+    + '<text x="10" y="174" fill="{i}" font-size="9">데포르메 4·5  캐주얼 6·7  사실 8</text>',
     # 얼굴 비례 = 머리(공+턱) 한 덩어리 + 눈선이 머리끝~턱의 정중앙(½)에 놓이는 도식. 좌우 눈을 그 선에 대칭으로.
     "facial_proportion": '<ellipse cx="120" cy="90" rx="48" ry="65" fill="none" stroke="{i}"/>'
     '<line x1="120" y1="25" x2="120" y2="155" stroke="{s}" stroke-dasharray="4"/>'
