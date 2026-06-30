@@ -19,8 +19,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 
 /**
- * SCRUM-105 전역 검색 신규 JPQL 검증 — 실제 MySQL 스키마에 대해 {@code searchCompleted}/{@code searchByKeyword}
- * 쿼리가 파싱·실행되는지 확인한다(레퍼런스 ad-hoc {@code LEFT JOIN ... ON} 포함). 트랜잭션 롤백이라 DB 오염 없음.
+ * SCRUM-105 전역 검색 신규 JPQL 검증 — 실제 MySQL 스키마에 대해 {@code searchCompleted}/{@code searchByKeyword} 쿼리가
+ * 파싱·실행되는지 확인한다(레퍼런스 ad-hoc {@code LEFT JOIN ... ON} 포함). 트랜잭션 롤백이라 DB 오염 없음.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -36,7 +36,7 @@ class GlobalSearchRepositoryTest {
   }
 
   @Test
-  void searchCompleted_파싱_실행된다() {
+  void searchCompleted_parsesAndRuns() {
     User u = persistUser("gs-completed@test.com");
     em.flush();
 
@@ -48,7 +48,7 @@ class GlobalSearchRepositoryTest {
   }
 
   @Test
-  void searchByKeyword_레퍼런스_adhoc조인_파싱_실행된다() {
+  void searchByKeyword_referenceAdhocJoin_parsesAndRuns() {
     User u = persistUser("gs-ref@test.com");
     em.flush();
 

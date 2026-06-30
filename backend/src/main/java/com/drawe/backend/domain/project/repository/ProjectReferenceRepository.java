@@ -47,7 +47,8 @@ public interface ProjectReferenceRepository extends JpaRepository<ProjectReferen
           + "WHERE p.user = :user AND ("
           + "  LOWER(p.name) LIKE :kw OR LOWER(p.subject) LIKE :kw "
           + "  OR LOWER(p.technique) LIKE :kw OR LOWER(p.mood) LIKE :kw "
-          + "  OR LOWER(t.subject) LIKE :kw OR LOWER(t.technique) LIKE :kw OR LOWER(t.mood) LIKE :kw) "
+          + "  OR LOWER(t.subject) LIKE :kw OR LOWER(t.technique) LIKE :kw "
+          + "  OR LOWER(t.mood) LIKE :kw) "
           + "ORDER BY pr.addedAt DESC")
   List<ProjectReference> searchByKeyword(
       @Param("user") User user, @Param("kw") String kw, Pageable pageable);
