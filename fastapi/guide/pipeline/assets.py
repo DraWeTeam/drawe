@@ -60,7 +60,7 @@ AI_AVOID = {
 
 # 축마다 항상 가능한 svg 도식 바닥의 설명(방법/도해). 없는 축은 일반 격자 도해로 폴백.
 _FLOOR_CAPTION = {
-    "weight_balance": "골반 중심에서 바닥으로 수직선을 하나 그어보세요 — 두 발 사이를 지나가면 안정적으로 읽혀요.",
+    "weight_balance": "골반(무게중심)에서 바닥으로 수직선을 하나 내려보세요 — 그 선이 지지하는 발(지지면) 안에 떨어지면 안정적으로, 밖으로 벗어나면 붕 뜨거나 넘어질 듯 읽혀요. 이 가이드는 균형 붕괴 교정에 대한 것이며, 의도적 비대칭(콘트라포스토)은 별개 개념입니다.",
     "hand_structure": "손을 손바닥(상자)+손가락 덩어리로 먼저 잡으세요 — 손바닥의 세로 길이는 얼굴 세로와 거의 같고, 손가락 길이도 손바닥과 비슷해요. 손가락은 마디 3개로 끝으로 갈수록 짧아지고, 엄지는 더 짧고 마디 2개에 손가락과 거의 직각(약 90°)으로 벌어집니다.",
     "joint_articulation": "관절을 원, 뼈를 선으로 먼저 잡아보세요 — 꺾이는 방향이 분명해지면 포즈가 살아나요.",
     "value_structure": "명암을 밝음·중간·어둠 3단계로 묶어 보는 도식이에요.",
@@ -158,6 +158,24 @@ _FLOOR_SVG = {
     + '<line x1="70" y1="105" x2="58" y2="101" stroke="{i}"/>'
     + '<text x="72" y="88" text-anchor="middle" fill="{s}" font-size="10">≈90°</text>'
     + '<text x="70" y="124" text-anchor="middle" fill="{s}" font-size="10">엄지 2</text>',
+    # 무게중심(영역4, b 균형교정): 골반 중심에서 내린 수직선(plumb)이 지지면(발) 안에 떨어지면 균형, 밖이면 붕괴.
+    #   문서 콘트라포스토 중 "무게중심을 지지발 위로" 쪽만 도해 — "비대칭을 더해라"(action_line 방향)는 미포함.
+    "weight_balance": '<line x1="46" y1="150" x2="194" y2="150" stroke="{s}"/>'
+    '<circle cx="110" cy="28" r="9" fill="none" stroke="{i}"/>'
+    '<line x1="110" y1="37" x2="110" y2="90" stroke="{i}"/>'
+    '<line x1="95" y1="48" x2="125" y2="48" stroke="{i}"/>'
+    '<line x1="99" y1="90" x2="121" y2="90" stroke="{i}"/>'
+    '<line x1="100" y1="90" x2="90" y2="150" stroke="{i}"/>'
+    '<line x1="120" y1="90" x2="130" y2="150" stroke="{i}"/>'
+    '<line x1="82" y1="150" x2="98" y2="150" stroke="{i}"/>'
+    '<line x1="122" y1="150" x2="138" y2="150" stroke="{i}"/>'
+    '<circle cx="110" cy="84" r="4" fill="{i}" stroke="{i}"/>'
+    '<line x1="110" y1="84" x2="110" y2="150" stroke="{s}" stroke-dasharray="4"/>'
+    '<line x1="82" y1="160" x2="138" y2="160" stroke="{s}"/>'
+    '<line x1="82" y1="156" x2="82" y2="164" stroke="{s}"/>'
+    '<line x1="138" y1="156" x2="138" y2="164" stroke="{s}"/>'
+    '<text x="118" y="82" fill="{i}" font-size="11">무게중심</text>'
+    '<text x="110" y="176" text-anchor="middle" fill="{s}" font-size="10">지지면(발) 안 = 균형</text>',
 }
 _GENERIC_SVG = (
     '<rect x="40" y="40" width="160" height="100" fill="none" stroke="{i}"/>'
