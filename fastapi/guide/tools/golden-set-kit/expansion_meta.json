@@ -1,0 +1,23 @@
+{
+  "_meta": "AI 생성 확장 이미지의 생성 의도/모델/스타일 — 블라인드 라벨(labels.json)과 분리 저장(의도 누출 방지). 나중에 'AI셋 정확도 vs 실사용' 도메인 갭 추적용. expansion_matrix.md 의 칸 정의 참조.",
+  "hand_006_foreshorten_palm.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened hand)", "style": "flat color",
+    "staging_src": "area5_foreshorten_gem_04.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok (mild)"
+  },
+  "hand_007_foreshorten_angled.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened hand)", "style": "pencil sketch",
+    "staging_src": "area5_foreshorten_gem_05.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok"
+  },
+  "hand_008_foreshorten_down.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened hand)", "style": "pencil sketch",
+    "staging_src": "area5_foreshorten_gem_06.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok (strongest)"
+  },
+  "hand_009_foreshorten_fist.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened fist)", "style": "pencil sketch",
+    "staging_src": "area5_foreshorten_gem_09.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok"
+  }
+}

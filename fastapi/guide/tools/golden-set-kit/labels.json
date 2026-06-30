@@ -24,6 +24,10 @@
     "hand_003_long_fingers.png": null,
     "hand_004_foreshortened.png": null,
     "hand_005_message_ratio.png": null,
+    "hand_006_foreshorten_palm.png": null,
+    "hand_007_foreshorten_angled.png": null,
+    "hand_008_foreshorten_down.png": null,
+    "hand_009_foreshorten_fist.png": null,
     "landscape_001_normal.png": null,
     "landscape_002_flat_perspective.png": null,
     "landscape_003_still_life.png": null
@@ -83,6 +87,50 @@
       "expected_primary": "proportion",
       "acceptable": ["proportion", "hand_structure"],
       "notes": "Palm-up at angle, intended for a ratio/proportion message. Should respond to proportion ask."
+    },
+    {
+      "file": "hand_006_foreshorten_palm.png",
+      "track": "hand",
+      "clarity": "ambiguous",
+      "view": "손바닥",
+      "structure": "혼합",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": ["hand_structure", "foreshortening", "proportion"],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Open palm reaching toward viewer, MILD foreshortening (fingers ~normal), 5 fingers ok, flat color. Ambiguous = foreshortening subtle."
+    },
+    {
+      "file": "hand_007_foreshorten_angled.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": ["hand_structure", "foreshortening", "proportion"],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Pencil sketch, hand+forearm angled, fingers receding into space — clear foreshortening, anatomy ok."
+    },
+    {
+      "file": "hand_008_foreshorten_down.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": ["hand_structure", "foreshortening", "proportion"],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Pencil sketch, back of hand, fingers point down toward viewer, compressed/stubby — clear foreshortening."
+    },
+    {
+      "file": "hand_009_foreshorten_fist.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": ["hand_structure", "foreshortening", "proportion"],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Pencil sketch, clenched fist, forearm receding, knuckles toward viewer — foreshortening, anatomy ok."
     },
     {
       "file": "edge_001_blank_canvas.png",
