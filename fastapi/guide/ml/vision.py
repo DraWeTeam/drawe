@@ -62,10 +62,13 @@ _PROMPT = (
     "{\n"
     '  "view": "손등"|"손바닥"|"옆면"|"불확실",\n'
     '  "plane_facing": "손 평면이 향하는 방향(짧게, 예: 아래-오른쪽)",\n'
-    '  "foreshortening": ["단축되어 보이는 손가락/부위", ...],  // 없으면 []\n'
+    '  "reaching_at_viewer": "예"|"아니오"|"불확실",  // 손/손가락이 화면 밖 보는 사람 쪽으로 뻗어 깊이(원근) 축이 있나\n'
+    '  "parts_compressed": "예"|"아니오"|"불확실",  // 원근 때문에 손가락·손의 길이가 짧게 눌리거나 겹쳐 보이나(정면에서 본 전체 길이가 아님)\n'
+    '  "foreshortening": ["단축으로 보이는 부위", ...],  // 참고 메모용, 없으면 []\n'
     '  "structure": "입체"|"평면"|"혼합",\n'
     '  "notes": "보이는 사실 한 문장"\n'
     "}\n"
+    'reaching_at_viewer·parts_compressed 는 기하 관찰입니다(잘잘못 아님). 평면으로 펼쳐 정면을 향한 손은 보통 둘 다 "아니오".\n'
     'structure 는 그려진 방식의 관찰입니다(덩어리로 읽히면 "입체", 외곽선 위주면 "평면"). 잘잘못이 아닙니다.\n'
     '보이지 않으면 값에 "불확실". 반드시 JSON 하나만.'
 )
@@ -80,6 +83,7 @@ except Exception:  # pragma: no cover
 
 _VIEWS = {"손등", "손바닥", "옆면", "불확실"}
 _STRUCT = {"입체", "평면", "혼합", "불확실"}
+_YESNO = {"예", "아니오", "불확실"}
 
 
 def _on():
@@ -206,16 +210,35 @@ def _parse(raw):
         return None
     view = str(d.get("view", "불확실")).strip()
     struct = str(d.get("structure", "불확실")).strip()
+    reach = str(d.get("reaching_at_viewer", "불확실")).strip()
+    comp = str(d.get("parts_compressed", "불확실")).strip()
     fs = d.get("foreshortening", []) or []
     if not isinstance(fs, list):
         fs = [str(fs)]
     return {
         "view": view if view in _VIEWS else "불확실",
         "plane_facing": str(d.get("plane_facing", "")).strip(),
+        "reaching_at_viewer": reach if reach in _YESNO else "불확실",
+        "parts_compressed": comp if comp in _YESNO else "불확실",
         "foreshortening": [str(x).strip() for x in fs if str(x).strip()],
         "structure": struct if struct in _STRUCT else "불확실",
         "notes": str(d.get("notes", "")).strip(),
     }
+
+
+# 단축(foreshortening) = latent concept(VLM이 매 호출 다른 손가락을 지목 = 측정 정의 붕괴)였다.
+#   자유 리스트 대신 기하 binary 2개(reaching_at_viewer·parts_compressed)로 grounding → 3단.
+#   둘 다 '예'=STRONG, 하나만=WEAK, 아니면 NONE. 자유 리스트는 디버그/표기용만(게이트 미사용).
+_TIER_RANK = {"NONE": 0, "WEAK": 1, "STRONG": 2}
+
+
+def _fs_tier(p):
+    r, c = p.get("reaching_at_viewer", "불확실"), p.get("parts_compressed", "불확실")
+    if r == "예" and c == "예":
+        return "STRONG"
+    if "예" in (r, c):
+        return "WEAK"
+    return "NONE"
 
 
 _FINGER = {
@@ -387,6 +410,10 @@ def observe_hand(image, runs=2):
     consistent = len(parsed) >= 2 and _agree(parsed[0], parsed[1])
     # [§2 측정] VLM 이 '일관된 구조 추출기'인가 — _agree 는 view·structure(거친 축)만 본다. 미세 필드
     #   (plane_facing·foreshortening)가 거친 일치 속에서도 흔들리는지 두 실행을 나란히 노출해 확인한다.
+    # 단축 3단: 두 run 의 기하-binary tier 보수 합의(min rank). view 일치와 *독립* — 단축은 깊이
+    #   관찰이라 손등/손바닥을 알 필요 없다(view-coupling 제거). 둘 다 STRONG 이어야 STRONG.
+    tiers = [_fs_tier(p) for p in parsed[:2]]
+    fs_tier = min(tiers, key=lambda t: _TIER_RANK[t]) if len(tiers) >= 2 else _fs_tier(base)
     trace(
         "hand.vlm",
         runs=len(parsed),
@@ -394,31 +421,28 @@ def observe_hand(image, runs=2):
         views=[p["view"] for p in parsed],
         structures=[p["structure"] for p in parsed],
         facings=[p["plane_facing"] for p in parsed],
-        foreshort=[p["foreshortening"] for p in parsed],
+        reach=[p["reaching_at_viewer"] for p in parsed],
+        compressed=[p["parts_compressed"] for p in parsed],
+        fs_tier=fs_tier,
+        foreshort=[p["foreshortening"] for p in parsed],  # 디버그 raw(게이트 미사용)
     )
-    fs = base["foreshortening"]
-    if consistent and len(parsed) >= 2:
-        s2 = {_norm(x) for x in parsed[1]["foreshortening"]}
-        fs = [x for x in fs if _norm(x) in s2]
-    # 신뢰 3단: view 일치(consistent=True)가 기본 통과 — strong/weak 은 foreshortening 안정성으로 갈린다.
-    #   strong: view 일치 + fs 교집합 ≠ 빈 set → 단축 손가락도 두 번 다 봤음 = "관찰" 그대로
-    #   weak:   view 일치 + fs 교집합 == 빈 set → 단축 단정은 피하고 view 만 surface = "관찰(약)"
-    #   낮음:   view 불일치 → 현재처럼 보류
-    #   가드: view·structure 둘 다 '불확실'이면 관찰된 게 없는 것이다. 두 번 다 '불확실'이면
-    #   _agree 는 (값이 같으니) consistent=True 를 주지만 그건 '일관된 관찰'이 아니라 '일관된 무관찰'
-    #   → 낮음으로 억제. (손 없는 그림에서 손 관찰이 hand_structure 를 거짓 surface 하던 경로 차단.)
+    # confidence(view 기반 — view/structure surface 게이트). 단축 surface 는 fs_tier 가 따로 담당.
+    #   가드: view·structure 둘 다 '불확실'이면 '일관된 무관찰' → 낮음(손 없는 그림 거짓 surface 차단).
     empty_obs = base["view"] == "불확실" and base["structure"] == "불확실"
     if empty_obs:
         confidence = "낮음"
     elif consistent:
-        confidence = "관찰" if fs else "관찰(약)"
+        confidence = "관찰" if fs_tier != "NONE" else "관찰(약)"
     else:
         confidence = "낮음"
     result = {
         "model": _MODEL,
         "view": base["view"],
         "plane_facing": base["plane_facing"],
-        "foreshortening": fs,
+        "reaching_at_viewer": base["reaching_at_viewer"],
+        "parts_compressed": base["parts_compressed"],
+        "foreshortening_tier": fs_tier,  # 단축 surface 게이트(view 독립, 안정)
+        "foreshortening": base["foreshortening"],  # 디버그/표기용 raw(게이트엔 미사용 — 측정 정의 붕괴)
         "structure": base["structure"],  # 표기는 하되 게이트엔 안 씀(§2: structure 불안정)
         "notes": base["notes"] if consistent else "",
         "consistent": consistent,
@@ -682,7 +706,12 @@ def _selftest():
     assert _pose_agree(p1, p2) is True, "일치해야 함(전신+동적, balance 한쪽 불확실 허용)"
     assert _pose_agree(p1, p3) is False, "불일치여야 함(p3 비전신)"
     assert p1["dynamism"] == "동적" and p1["balance"] == "불안정", "pose 값 정규화 오류"
-    print("selftest OK — 파싱·일관성·교집합·방어선·포즈 정상")
+    # 단축 3단(기하 binary grounding — 자유 리스트 대신): 둘 다 예=STRONG, 하나=WEAK, 없음=NONE
+    assert _fs_tier({"reaching_at_viewer": "예", "parts_compressed": "예"}) == "STRONG", "STRONG 오류"
+    assert _fs_tier({"reaching_at_viewer": "예", "parts_compressed": "아니오"}) == "WEAK", "WEAK 오류"
+    assert _fs_tier({"reaching_at_viewer": "아니오", "parts_compressed": "아니오"}) == "NONE", "NONE 오류"
+    assert _fs_tier({"reaching_at_viewer": "불확실", "parts_compressed": "불확실"}) == "NONE", "불확실→NONE 오류"
+    print("selftest OK — 파싱·일관성·교집합·방어선·포즈·단축3단 정상")
 
 
 if __name__ == "__main__":

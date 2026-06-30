@@ -252,26 +252,31 @@ def _vlm_hand_signal(pil):
     except Exception as e:
         print(f"[diagnose] VLM 손 관찰 실패(무시): {type(e).__name__}: {e}")
         return None
-    trace("hand.vlm.enter", stage="post_call", got=bool(o),
-          conf=(o.get("confidence") if o else None))  # [진단] observe_hand 가 돌고 돌아온 결과
-    if not o or o.get("confidence") not in ("관찰", "관찰(약)"):  # 낮음(view 불일치)만 보류; 약은 통과
+    if not o:
         return None
-    strong = o.get("confidence") == "관찰"
+    conf = o.get("confidence")
+    fs_tier = o.get("foreshortening_tier", "NONE")
+    trace("hand.vlm.enter", stage="post_call", got=True, conf=conf, fs_tier=fs_tier)
+    view_ok = conf in ("관찰", "관찰(약)")  # view/structure surface 게이트(낮음=보류)
+    # 단축은 view 와 *독립*: 기하-binary 2-run STRONG 합의면 view 신뢰와 무관하게 surface(측정 정의 고정).
+    #   자유형 손가락 리스트(run마다 흔들림=정의 붕괴)는 안 씀 → 부위 단정 없이 tier 로만 발화.
+    if not view_ok and fs_tier != "STRONG":
+        return None  # 안정적으로 말할 게 없음
+    strong = conf == "관찰"
     parts = []
-    if o.get("view") and o["view"] != "불확실":
+    if view_ok and o.get("view") and o["view"] != "불확실":
         parts.append(f"{o['view']}이 보임")
-    if o.get("plane_facing"):
+    if view_ok and o.get("plane_facing"):
         parts.append(f"손 평면은 {o['plane_facing']} 방향")
-    fs = o.get("foreshortening") or []  # 약일 땐 교집합이 빈 set → 단축 단정 자동 제외
-    if fs:
-        parts.append(f"{'·'.join(fs)}가 보는 쪽으로 단축돼 보임")
+    if fs_tier == "STRONG":
+        parts.append("손가락이 보는 쪽으로 단축돼(원근 압축) 보임")
     # structure 는 §2 에서 view 일치 케이스에서도 흔들려 → strong(관찰)일 때만 표기. 약이면 view 만.
     st = o.get("structure")
-    if strong and st == "입체":
+    if view_ok and strong and st == "입체":
         parts.append("덩어리(상자+원통)로 읽힘")
-    elif strong and st == "평면":
+    elif view_ok and strong and st == "평면":
         parts.append("외곽선 위주로 읽힘")
-    elif strong and st == "혼합":
+    elif view_ok and strong and st == "혼합":
         parts.append("덩어리·외곽선 혼합으로 읽힘")
     sig = ", ".join(parts)
     return (0.4, sig) if sig else None
