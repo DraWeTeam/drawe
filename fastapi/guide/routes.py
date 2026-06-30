@@ -5,9 +5,11 @@ from io import BytesIO
 import json
 import uuid
 import asyncio
+from time import perf_counter
 from sqlalchemy import text, bindparam
 
 from guide._trace import trace
+from guide import _shadow
 from guide.stores.db import engine
 from guide.stores.s3 import presigned_url
 from guide.ml.normalize import normalize
@@ -339,6 +341,7 @@ async def guide_ep(
 
 
 def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+    _t0 = perf_counter()  # ②v1: end-to-end(순차 Grok 다회 포함) 레이턴시 측정용
     ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         return early
@@ -365,6 +368,8 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
         intent=intent,
         asset_index=asset_index,
     )
+    # ②v1 섀도우 계측(관측 전용·동작 불변): 확정된 dx 출력 + 실현 mode + end-to-end dt 만 read-only 로 emit.
+    _shadow.emit(dx, resp, perf_counter() - _t0, track=track)
     # '생성 중' 레퍼런스 신호 — 보여줄 블록(sub_problem)에 해당하는 미스 job 만 노출(없으면 빈 리스트).
     if pending_by_sp:
         shown = {b.sub_problem for b in resp.blocks}
@@ -411,6 +416,7 @@ async def guide_stream_ep(
 
 
 def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+    _t0 = perf_counter()  # ②v1: end-to-end 레이턴시(스트림은 run_guide 완료까지가 무거운 Grok 구간)
     ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
     if early:
         body = [
@@ -441,6 +447,8 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
         intent=intent,
         asset_index=asset_index,
     )
+    # ②v1 섀도우 계측(관측 전용·동작 불변): _guide_sync 와 동형 read-only emit.
+    _shadow.emit(dx, resp, perf_counter() - _t0, track=track)
     growth_obj = None
     if resp.mode == "coach":
         resp.guide_id = str(uuid.uuid4())
