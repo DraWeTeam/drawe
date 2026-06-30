@@ -677,6 +677,16 @@ def s_horizon_placement(s):
         return (0.3, f"지평선이 화면 세로 중앙 부근({y:.2f})에 위치")
 
 
+# [영역3 scorer 재설계 ①] action_line·joint_articulation 자동 발화 억제(over-fire 제거).
+#   geometric proxy(action_line=torso_lean<0.03 / joint_articulation=angle>177)는 '의도적 정적(chibi)'과
+#   '동적(걷기)'을 못 가른다 — 둘 다 수직 몸통 → 서있는 figure 마다 measured 로 over-fire 하고 chibi
+#   abstain 을 깬다(영역4 콘트라포스토와 동류의 *해석* 한계, 검출 문제 아님). 검출기 BlazePose→ViTPose
+#   로 전신 검출이 7/12→12/12 되며 이 기본값-발화가 모든 figure 에 노출돼 드러남.
+#   → 측정 스코어러(SCORERS 루프)·persona placeholder 양쪽 auto 경로에서 빼고, *명시 요청(user_terms)*
+#   으로만 표면(다음 task: 키워드→교습 카드가 그 경로로 복원). dynamism 의 VLM-gate(tier=ok 에도 observer)
+#   는 ② 분포로 판단 빈도 본 뒤. 스코어러 함수 s_action_line/s_joint_articulation 은 카드 task 용으로 보존.
+SUPPRESSED_AUTO = {"action_line", "joint_articulation"}
+
 SCORERS = {
     "weight_balance": s_weight_balance,
     "foreshortening": s_foreshortening,
@@ -726,6 +736,8 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
 
     hits = {}
     for sid, fn in SCORERS.items():
+        if sid in SUPPRESSED_AUTO:
+            continue  # auto 측정 억제(위 SUPPRESSED_AUTO 주석) — 명시 요청은 아래 placeholder 에서만
         r = fn(sig)
         if r:
             hits[sid] = r
@@ -744,6 +756,8 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                   pose_ok=(tier == POSE_OK), in_pose_dep=(sid in POSE_DEPENDENT))
         if sid in hits:
             continue
+        if sid in SUPPRESSED_AUTO and sid not in user_terms:
+            continue  # [영역3 ①] auto 억제 — persona 만으로 표면 금지, 명시 요청(키워드 카드)일 때만 통과
         # 흉상/얼굴(degraded=형체 미검출): 포즈 의존 축은 측정 불가 → persona 만으로 빈 관찰을 채우지 않는다.
         #   포즈축 빈 관찰이 새면 "무게중심/단축" 같은 걸 측정한 척 흘려 신뢰를 깎는다. feel 축(명도·구도·빛)만
         #   남겨 정직한 진단으로. 단 사용자가 칩으로 직접 고른 경우(user_terms)는 가설형으로 surface(의도 존중).
