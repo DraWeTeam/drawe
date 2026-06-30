@@ -1,19 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { getProjects } from "../pages/projects/api";
+import { globalSearch } from "../pages/search/api";
+import AuthedImage from "../pages/chat/AuthedImage";
 import { track } from "../analytics";
 import styles from "./SearchModal.module.css";
 
 const RECENT_KEY = "drawe_recent_searches";
 const RECENT_MAX = 3;
 
-// 우선은 "프로젝트"만 검색 대상. 나머지는 준비 중.
+// 검색 대상: 전체 / 프로젝트 / 레퍼런스(아카이브) / 완성작 갤러리. SCRUM-105.
 const FILTERS = [
   { key: "all", label: "전체" },
   { key: "project", label: "프로젝트" },
-  { key: "archive", label: "아카이브", disabled: true },
+  { key: "reference", label: "레퍼런스" },
+  { key: "completed", label: "완성작 갤러리" },
 ];
+
+// 프론트 필터 키 → 백엔드 scope
+const SCOPE_BY_FILTER = {
+  all: "ALL",
+  project: "PROJECT",
+  reference: "REFERENCE",
+  completed: "COMPLETED",
+};
+
+const EMPTY_RESULTS = { projects: [], references: [], completed: [] };
 
 // 최근 검색어 = { term, type } (type: 검색 당시 대상 — 아이콘 결정용)
 function loadRecent() {
@@ -37,13 +49,17 @@ const SearchModal = ({ onClose }) => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(EMPTY_RESULTS);
   const [loading, setLoading] = useState(false);
   const [recent, setRecent] = useState(loadRecent);
   const inputRef = useRef(null);
 
   const trimmed = query.trim();
   const showResults = trimmed.length > 0;
+  const totalCount =
+    results.projects.length +
+    results.references.length +
+    results.completed.length;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -58,26 +74,33 @@ const SearchModal = ({ onClose }) => {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // 디바운스 검색 (프로젝트 대상)
+  // 디바운스 검색 (대상 = filter). filter 가 바뀌어도 재검색.
   useEffect(() => {
     if (!trimmed) {
-      setResults([]);
+      setResults(EMPTY_RESULTS);
       setLoading(false);
       return;
     }
     setLoading(true);
     const t = setTimeout(async () => {
       try {
-        const data = await getProjects({ q: trimmed });
-        setResults(data?.projects ?? []);
+        const data = await globalSearch({
+          q: trimmed,
+          scope: SCOPE_BY_FILTER[filter] || "ALL",
+        });
+        setResults({
+          projects: data?.projects ?? [],
+          references: data?.references ?? [],
+          completed: data?.completed ?? [],
+        });
       } catch {
-        setResults([]);
+        setResults(EMPTY_RESULTS);
       } finally {
         setLoading(false);
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [trimmed]);
+  }, [trimmed, filter]);
 
   // 최근 검색어 저장 — 엔터 또는 결과 클릭 시 (type은 검색 대상)
   const pushRecent = useCallback((term, type = "project") => {
@@ -119,10 +142,32 @@ const SearchModal = ({ onClose }) => {
     navigate(`/projects/${p.id}/chat`);
   };
 
+  // 레퍼런스 결과 → 레퍼런스 아카이브로 이동
+  const openReference = () => {
+    pushRecent(trimmed, "reference");
+    onClose();
+    navigate("/archive");
+  };
+
+  // 완성작 결과 → 완성작 갤러리로 이동
+  const openCompleted = () => {
+    pushRecent(trimmed, "completed");
+    onClose();
+    navigate("/gallery");
+  };
+
   const goCreate = () => {
     onClose();
     navigate("/projects", { state: { openCreate: true } });
   };
+
+  // scope=all 이고 결과 그룹이 2개 이상일 때만 그룹 소제목을 보인다(단일 그룹이면 평평하게).
+  const groupsWithHits = [
+    results.projects.length > 0,
+    results.references.length > 0,
+    results.completed.length > 0,
+  ].filter(Boolean).length;
+  const showGroupLabels = filter === "all" && groupsWithHits > 1;
 
   return createPortal(
     <div className={styles.backdrop} onMouseDown={onClose}>
@@ -164,12 +209,10 @@ const SearchModal = ({ onClose }) => {
             <button
               key={f.key}
               type="button"
-              disabled={f.disabled}
               className={`${styles.chip} ${
                 filter === f.key ? styles.chipActive : ""
               }`}
               onClick={() => setFilter(f.key)}
-              title={f.disabled ? "준비 중" : undefined}
             >
               {f.label}
             </button>
@@ -180,27 +223,95 @@ const SearchModal = ({ onClose }) => {
           {showResults ? (
             <>
               <p className={styles.sectionLabel}>
-                {loading ? "검색 중..." : `검색 결과 ${results.length}개`}
+                {loading ? "검색 중..." : `검색 결과 ${totalCount}개`}
               </p>
-              {!loading && results.length === 0 ? (
+              {!loading && totalCount === 0 ? (
                 <p className={styles.empty}>검색 결과가 없어요.</p>
               ) : (
-                <ul className={styles.list}>
-                  {results.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        className={styles.row}
-                        onClick={() => openProject(p)}
-                      >
-                        <span className={styles.rowIcon}>
-                          <FolderIcon />
-                        </span>
-                        <span className={styles.rowText}>{p.name}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  {/* 프로젝트 */}
+                  {results.projects.length > 0 && (
+                    <>
+                      {showGroupLabels && (
+                        <p className={styles.groupLabel}>프로젝트</p>
+                      )}
+                      <ul className={styles.list}>
+                        {results.projects.map((p) => (
+                          <li key={`p-${p.id}`}>
+                            <button
+                              type="button"
+                              className={styles.row}
+                              onClick={() => openProject(p)}
+                            >
+                              <span className={styles.rowIcon}>
+                                <FolderIcon />
+                              </span>
+                              <span className={styles.rowText}>{p.name}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {/* 레퍼런스 */}
+                  {results.references.length > 0 && (
+                    <>
+                      {showGroupLabels && (
+                        <p className={styles.groupLabel}>레퍼런스</p>
+                      )}
+                      <ul className={styles.list}>
+                        {results.references.map((r) => (
+                          <li key={`r-${r.imageId}-${r.projectId}`}>
+                            <button
+                              type="button"
+                              className={styles.row}
+                              onClick={openReference}
+                            >
+                              <AuthedImage
+                                src={r.url}
+                                alt="레퍼런스"
+                                className={styles.thumb}
+                              />
+                              <span className={styles.rowText}>
+                                {r.projectName}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {/* 완성작 갤러리 */}
+                  {results.completed.length > 0 && (
+                    <>
+                      {showGroupLabels && (
+                        <p className={styles.groupLabel}>완성작 갤러리</p>
+                      )}
+                      <ul className={styles.list}>
+                        {results.completed.map((c) => (
+                          <li key={`c-${c.projectId}`}>
+                            <button
+                              type="button"
+                              className={styles.row}
+                              onClick={openCompleted}
+                            >
+                              <AuthedImage
+                                src={c.drawingUrl}
+                                alt="완성작"
+                                className={styles.thumb}
+                              />
+                              <span className={styles.rowText}>
+                                {c.projectName}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
               )}
             </>
           ) : (
@@ -223,8 +334,10 @@ const SearchModal = ({ onClose }) => {
                   <button
                     type="button"
                     className={styles.row}
-                    disabled
-                    title="준비 중"
+                    onClick={() => {
+                      onClose();
+                      navigate("/archive");
+                    }}
                   >
                     <span
                       className={`${styles.rowIcon} ${styles.rowIconArchive}`}
@@ -256,7 +369,8 @@ const SearchModal = ({ onClose }) => {
                           }}
                         >
                           <span className={styles.rowIcon}>
-                            {item.type === "archive" ? (
+                            {item.type === "reference" ||
+                            item.type === "completed" ? (
                               <ArchiveIcon />
                             ) : (
                               <FolderIcon />
