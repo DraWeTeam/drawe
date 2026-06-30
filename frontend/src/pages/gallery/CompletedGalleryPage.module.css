@@ -72,7 +72,9 @@
   background: #f0ece7;
   margin-bottom: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  transition: box-shadow 0.18s ease, transform 0.18s ease;
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
   /* column 레이아웃에서 카드가 컬럼 사이에 쪼개지지 않게 */
   break-inside: avoid;
   -webkit-column-break-inside: avoid;
@@ -124,7 +126,9 @@ div.thumb {
   justify-content: center;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s, background 0.15s;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
 }
 
 .card:hover .downloadBtn,
