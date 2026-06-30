@@ -19,5 +19,45 @@
     "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
     "gen_intent": "단축(foreshortened fist)", "style": "pencil sketch",
     "staging_src": "area5_foreshorten_gem_09.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok"
+  },
+  "hand_010_longfinger.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_longfinger",
+    "gen_intent": "긴 손가락(finger>palm)", "style": "pencil sketch",
+    "staging_src": "area5_longfinger_gem_01.png", "gate": "blind ratio=길다, not foreshortened, anatomy ok (blind-named h01)"
+  },
+  "hand_011_longfinger.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_longfinger",
+    "gen_intent": "긴 손가락", "style": "flat color",
+    "staging_src": "area5_longfinger_gem_02.png", "gate": "blind ratio=길다 (h07)"
+  },
+  "hand_012_longfinger.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_longfinger",
+    "gen_intent": "긴 손가락", "style": "pencil sketch",
+    "staging_src": "area5_longfinger_gem_03.png", "gate": "blind ratio=길다 (h10)"
+  },
+  "hand_013_shortfinger.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_shortfinger",
+    "gen_intent": "짧은 손가락(finger<palm)", "style": "flat color",
+    "staging_src": "area5_shortfinger_gem_02.png", "gate": "blind ratio=짧다, not foreshortened (h03). SHORT 칸 1/4만 깨끗 = AI 저수율 발견"
+  },
+  "hand_014_normal.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_normal",
+    "gen_intent": "정상 손(over-fire control)", "style": "pencil sketch",
+    "staging_src": "area5_normal_gem_03.png", "gate": "blind ratio=보통 (h02)"
+  },
+  "hand_015_normal.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_normal",
+    "gen_intent": "정상 손(over-fire control)", "style": "pencil sketch",
+    "staging_src": "area5_normal_gem_05.png", "gate": "blind ratio=보통 (h08)"
+  },
+  "hand_016_normal.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_normal",
+    "gen_intent": "정상 손(over-fire control)", "style": "flat color",
+    "staging_src": "area5_normal_gem_02.png", "gate": "blind ratio=보통 (h11)"
+  },
+  "hand_017_normal.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_normal",
+    "gen_intent": "정상 손(over-fire control)", "style": "flat color",
+    "staging_src": "area5_normal_gem_04.png", "gate": "blind ratio=보통 (h13)"
   }
 }
