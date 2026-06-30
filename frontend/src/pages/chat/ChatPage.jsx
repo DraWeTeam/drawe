@@ -7,7 +7,9 @@ import {
   useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getProject, updateProject } from "../projects/api";
+import { addReference, getProject, updateProject } from "../projects/api";
+import { getReferenceArchive } from "../gallery/api";
+import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import {
   addPin,
   generateImage,
@@ -89,6 +91,8 @@ const ChatPage = () => {
 
   const [pinnedRefs, setPinnedRefs] = useState([]);
   const [pinError, setPinError] = useState("");
+  // 이 프로젝트에서 이미 아카이브에 저장된 imageId 집합 (카드 메뉴 상태표시용)
+  const [archivedIds, setArchivedIds] = useState(() => new Set());
 
   // 모드: "split" | "refFull" | "chatFull"
   const [mode, setMode] = useState("split");
@@ -259,6 +263,29 @@ const ChatPage = () => {
   }, [projectId]);
 
   const buttonViewedFired = useRef(false);
+
+  // 현재 프로젝트의 아카이브 저장 목록 로드 (카드 메뉴 "아카이브됨" 표시용)
+  useEffect(() => {
+    if (!projectId) return;
+    let alive = true;
+    (async () => {
+      try {
+        const data = await getReferenceArchive();
+        if (!alive) return;
+        const section = (data?.sections ?? []).find(
+          (s) => String(s.projectId) === String(projectId),
+        );
+        setArchivedIds(
+          new Set((section?.references ?? []).map((r) => r.imageId)),
+        );
+      } catch {
+        // 상태표시는 부가 정보 — 실패해도 무시
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [projectId]);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -850,6 +877,25 @@ const ChatPage = () => {
     }
   };
 
+  // 레퍼런스 카드 ⋮ → 아카이브에 저장
+  const handleArchiveReference = async (imageId) => {
+    try {
+      await addReference(projectId, imageId);
+      setArchivedIds((prev) => new Set(prev).add(imageId));
+      notifyArchiveChanged();
+      track("reference_archived", {
+        reference_id: imageId,
+        project_id: projectId,
+      });
+      alert("아카이브에 저장했어요!");
+    } catch (err) {
+      alert(
+        err.response?.data?.error?.message ||
+          "저장에 실패했어요. 다시 시도해주세요.",
+      );
+    }
+  };
+
   const goToChatFull = () => setMode("chatFull");
   const goToRefFull = () => setMode("refFull");
   const goToSplit = () => setMode("split");
@@ -900,6 +946,8 @@ const ChatPage = () => {
             onClearPinError={() => setPinError("")}
             onPinToggle={handlePinToggle}
             onCardClick={handleCardClick}
+            onArchive={handleArchiveReference}
+            archivedIds={archivedIds}
             expanded={mode === "refFull"}
             firstMenuRef={firstRefMenuRef}
           />

@@ -132,11 +132,11 @@
   cursor: not-allowed;
 }
 
-/* 본문 */
+/* 본문 — sticky 라벨이 맨 위에 딱 붙도록 위쪽 패딩 제거(틈으로 내용 비침 방지) */
 .bodyArea {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 0 4px;
+  padding: 0 0 4px;
 }
 
 .sectionLabel {
@@ -150,12 +150,26 @@
   margin-top: 0;
 }
 
-/* 전체(ALL) 검색 시 타입별 그룹 소제목 */
+/* '검색 결과 N개'는 스크롤 시 상단 고정, 그 아래 리스트만 스크롤 */
+.sectionLabelSticky {
+  position: sticky;
+  top: 0;
+  margin: 0 0 4px;
+  padding: 4px;
+  background: #fff;
+  z-index: 1;
+}
+
+/* 전체(ALL) 검색 시 타입별 그룹 소제목 — 퀵액션/최근검색어 라벨과 동일(볼드 X) */
 .groupLabel {
-  margin: 10px 4px 2px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #888685;
+  margin: 8px 4px 4px;
+  font-size: 12px;
+  color: #a3a1a0;
+}
+
+/* '검색 결과 N개' 바로 아래 첫 그룹 간격 (divider 아래보다 살짝 좁게) */
+.sectionLabel + .groupLabel {
+  margin-top: 12px;
 }
 
 /* 레퍼런스/완성작 결과 행 썸네일 — rowIcon 과 같은 크기 박스 */
@@ -236,6 +250,13 @@
   display: flex;
   color: #c4c2c0;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* 행 hover 시에만 > 셰브론 노출 (참고 UI와 동일) */
+.row:hover:not(:disabled) .rowChevron {
+  opacity: 1;
 }
 
 .rowRemove {

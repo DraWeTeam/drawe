@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../pages/login/api";
 import { getReferenceArchive, getCompletedGallery } from "../pages/gallery/api";
+import { ARCHIVE_CHANGED_EVENT } from "../pages/gallery/archiveEvents";
 import Tooltip from "../components/Tooltip";
 import SearchModal from "./SearchModal";
 import styles from "./Sidebar.module.css";
@@ -53,33 +54,36 @@ const Sidebar = () => {
   }, [hidden]);
 
   // 아카이브 카운트 로드 (레퍼런스 / 완성작 갤러리)
-  useEffect(() => {
+  const fetchArchiveCounts = useCallback(async () => {
     if (hidden) return;
     const token = localStorage.getItem("accessToken");
     if (!token) return;
-    let alive = true;
-    const fetchCounts = async () => {
-      try {
-        const [refData, galData] = await Promise.all([
-          getReferenceArchive(),
-          getCompletedGallery({ page: 0, size: 1 }),
-        ]);
-        if (!alive) return;
-        const refCount = (refData?.sections ?? []).reduce(
-          (sum, s) => sum + (s.references?.length ?? 0),
-          0,
-        );
-        setReferenceCount(refCount);
-        setGalleryCount(galData?.totalElements ?? 0);
-      } catch {
-        // 카운트는 부가 정보 — 실패해도 무시
-      }
-    };
-    fetchCounts();
-    return () => {
-      alive = false;
-    };
+    try {
+      const [refData, galData] = await Promise.all([
+        getReferenceArchive(),
+        getCompletedGallery({ page: 0, size: 1 }),
+      ]);
+      const refCount = (refData?.sections ?? []).reduce(
+        (sum, s) => sum + (s.references?.length ?? 0),
+        0,
+      );
+      setReferenceCount(refCount);
+      setGalleryCount(galData?.totalElements ?? 0);
+    } catch {
+      // 카운트는 부가 정보 — 실패해도 무시
+    }
   }, [hidden]);
+
+  useEffect(() => {
+    fetchArchiveCounts();
+  }, [fetchArchiveCounts]);
+
+  // 레퍼런스 저장 등으로 아카이브가 바뀌면 즉시 카운트 재조회
+  useEffect(() => {
+    const handler = () => fetchArchiveCounts();
+    window.addEventListener(ARCHIVE_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(ARCHIVE_CHANGED_EVENT, handler);
+  }, [fetchArchiveCounts]);
 
   // 바깥 클릭으로 유저 메뉴 닫기
   useEffect(() => {

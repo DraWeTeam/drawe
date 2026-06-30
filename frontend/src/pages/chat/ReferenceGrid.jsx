@@ -15,6 +15,8 @@ const ReferenceGrid = ({
   onClearPinError,
   onPinToggle,
   onCardClick,
+  onArchive,
+  archivedIds,
   expanded,
   firstMenuRef,
 }) => {
@@ -118,7 +120,9 @@ const ReferenceGrid = ({
                   index={index}
                   pinSlot={pinSlot}
                   isPinned={pinnedIds?.has(ref.id) ?? false}
+                  isArchived={archivedIds?.has(ref.id) ?? false}
                   onPinToggle={onPinToggle}
+                  onArchive={onArchive}
                   onClick={() => onCardClick(ref, index)}
                   menuBtnRef={
                     ref.id === displayItems[0]?.ref.id
@@ -149,7 +153,9 @@ const ReferenceCard = ({
   index,
   pinSlot,
   isPinned,
+  isArchived,
   onPinToggle,
+  onArchive,
   onClick,
   menuBtnRef,
 }) => {
@@ -157,7 +163,20 @@ const ReferenceCard = ({
   const [feedback, setFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const menuRef = useRef(null);
+
+  const handleArchiveClick = async (e) => {
+    e.stopPropagation();
+    if (archiving) return;
+    setMenuOpen(false);
+    setArchiving(true);
+    try {
+      await onArchive?.(reference.id);
+    } finally {
+      setArchiving(false);
+    }
+  };
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -360,12 +379,14 @@ const ReferenceCard = ({
               </button>
               <button
                 type="button"
-                className={styles.menuItem}
-                disabled
-                title="준비 중"
+                className={`${styles.menuItem} ${
+                  isArchived ? styles.menuItemActive : ""
+                }`}
+                onClick={handleArchiveClick}
+                disabled={archiving || isArchived}
               >
                 <ArchiveIcon />
-                <span>아카이브</span>
+                <span>{isArchived ? "아카이브됨" : "아카이브"}</span>
               </button>
             </div>
           )}

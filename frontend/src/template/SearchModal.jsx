@@ -222,7 +222,9 @@ const SearchModal = ({ onClose }) => {
         <div className={styles.bodyArea}>
           {showResults ? (
             <>
-              <p className={styles.sectionLabel}>
+              <p
+                className={`${styles.sectionLabel} ${styles.sectionLabelSticky}`}
+              >
                 {loading ? "검색 중..." : `검색 결과 ${totalCount}개`}
               </p>
               {!loading && totalCount === 0 ? (
@@ -247,6 +249,9 @@ const SearchModal = ({ onClose }) => {
                                 <FolderIcon />
                               </span>
                               <span className={styles.rowText}>{p.name}</span>
+                              <span className={styles.rowChevron}>
+                                <ChevronRightIcon />
+                              </span>
                             </button>
                           </li>
                         ))}
@@ -257,6 +262,9 @@ const SearchModal = ({ onClose }) => {
                   {/* 레퍼런스 */}
                   {results.references.length > 0 && (
                     <>
+                      {showGroupLabels && results.projects.length > 0 && (
+                        <div className={styles.divider} />
+                      )}
                       {showGroupLabels && (
                         <p className={styles.groupLabel}>레퍼런스</p>
                       )}
@@ -276,6 +284,9 @@ const SearchModal = ({ onClose }) => {
                               <span className={styles.rowText}>
                                 {r.projectName}
                               </span>
+                              <span className={styles.rowChevron}>
+                                <ChevronRightIcon />
+                              </span>
                             </button>
                           </li>
                         ))}
@@ -286,6 +297,11 @@ const SearchModal = ({ onClose }) => {
                   {/* 완성작 갤러리 */}
                   {results.completed.length > 0 && (
                     <>
+                      {showGroupLabels &&
+                        (results.projects.length > 0 ||
+                          results.references.length > 0) && (
+                          <div className={styles.divider} />
+                        )}
                       {showGroupLabels && (
                         <p className={styles.groupLabel}>완성작 갤러리</p>
                       )}
@@ -304,6 +320,9 @@ const SearchModal = ({ onClose }) => {
                               />
                               <span className={styles.rowText}>
                                 {c.projectName}
+                              </span>
+                              <span className={styles.rowChevron}>
+                                <ChevronRightIcon />
                               </span>
                             </button>
                           </li>
@@ -431,6 +450,18 @@ const CloseIcon = () => (
 const FolderIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z" />
+  </svg>
+);
+
+const ChevronRightIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M9 6L15 12L9 18"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 

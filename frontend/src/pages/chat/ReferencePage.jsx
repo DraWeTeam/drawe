@@ -6,6 +6,7 @@ import styles from "./ReferencePage.module.css";
 import { track } from "../../analytics";
 import { downloadImage } from "../gallery/download";
 import { addReference } from "../projects/api";
+import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import { unsplashSized } from "./imageUtils";
 
 const ReferencePage = () => {
@@ -93,6 +94,7 @@ const ReferencePage = () => {
     setSaving(true);
     try {
       await addReference(projectId, reference.id);
+      notifyArchiveChanged();
       alert("아카이브에 저장했어요!");
       track("reference_archived", {
         reference_id: reference.id,
