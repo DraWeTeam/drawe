@@ -85,9 +85,7 @@ const ArchivePage = () => {
               <button
                 type="button"
                 className={styles.sectionTitle}
-                onClick={() =>
-                  navigate(`/projects/${section.projectId}/chat`)
-                }
+                onClick={() => navigate(`/projects/${section.projectId}/chat`)}
                 title="프로젝트로 이동"
               >
                 {section.projectName}

@@ -150,6 +150,25 @@
   margin-top: 0;
 }
 
+/* 전체(ALL) 검색 시 타입별 그룹 소제목 */
+.groupLabel {
+  margin: 10px 4px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888685;
+}
+
+/* 레퍼런스/완성작 결과 행 썸네일 — rowIcon 과 같은 크기 박스 */
+.thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f0eeec;
+  flex-shrink: 0;
+  font-size: 0;
+}
+
 .empty {
   margin: 12px 4px;
   font-size: 14px;
