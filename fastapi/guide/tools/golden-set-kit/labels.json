@@ -29,13 +29,13 @@
     "hand_008_foreshorten_down.png": null,
     "hand_009_foreshorten_fist.png": null,
     "hand_010_longfinger.png": null,
-    "hand_011_longfinger.png": null,
     "hand_012_longfinger.png": null,
-    "hand_013_shortfinger.png": null,
     "hand_014_normal.png": null,
     "hand_015_normal.png": null,
-    "hand_016_normal.png": null,
-    "hand_017_normal.png": null,
+    "hand_018_shortfinger.png": null,
+    "hand_019_shortfinger.png": null,
+    "hand_020_longfinger.png": null,
+    "hand_021_normal.png": null,
     "landscape_001_normal.png": null,
     "landscape_002_flat_perspective.png": null,
     "landscape_003_still_life.png": null
@@ -152,17 +152,6 @@
       "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Middle finger clearly LONGER than palm, flat (not foreshortened), pencil. Tests finger-proportion observable (not yet built)."
     },
     {
-      "file": "hand_011_longfinger.png",
-      "track": "hand",
-      "clarity": "clear",
-      "view": "손바닥",
-      "foreshorten": false,
-      "finger_vs_palm": "길다",
-      "expected_primary": "proportion",
-      "acceptable": ["proportion", "hand_structure"],
-      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Slender fingers longer than palm, flat color."
-    },
-    {
       "file": "hand_012_longfinger.png",
       "track": "hand",
       "clarity": "clear",
@@ -172,17 +161,6 @@
       "expected_primary": "proportion",
       "acceptable": ["proportion", "hand_structure"],
       "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Spread fingers longer than palm, pencil."
-    },
-    {
-      "file": "hand_013_shortfinger.png",
-      "track": "hand",
-      "clarity": "clear",
-      "view": "손바닥",
-      "foreshorten": false,
-      "finger_vs_palm": "짧다",
-      "expected_primary": "proportion",
-      "acceptable": ["proportion", "hand_structure"],
-      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Stubby fingers shorter than broad palm, flat color. SHORT cell low-yield: only 1/4 clean (AI tends to make normal/long instead)."
     },
     {
       "file": "hand_014_normal.png",
@@ -207,18 +185,40 @@
       "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Natural proportion, pencil. Over-fire control."
     },
     {
-      "file": "hand_016_normal.png",
+      "file": "hand_018_shortfinger.png",
       "track": "hand",
       "clarity": "clear",
       "view": "손바닥",
       "foreshorten": false,
-      "finger_vs_palm": "보통",
-      "expected_primary": "hand_structure",
-      "acceptable": ["hand_structure", "proportion"],
-      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Natural proportion, flat color. Over-fire control."
+      "finger_vs_palm": "짧다",
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "hand_structure"],
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Short stubby fingers on large palm, pencil. Replaced weak flat-color Imagen short (model diversity: ChatGPT makes short far better)."
     },
     {
-      "file": "hand_017_normal.png",
+      "file": "hand_019_shortfinger.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "짧다",
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "hand_structure"],
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Short fingers, large rounded palm, pencil."
+    },
+    {
+      "file": "hand_020_longfinger.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "foreshorten": false,
+      "finger_vs_palm": "길다",
+      "expected_primary": "proportion",
+      "acceptable": ["proportion", "hand_structure"],
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Long slender elongated fingers, pencil. Replaced weak flat-color Imagen long."
+    },
+    {
+      "file": "hand_021_normal.png",
       "track": "hand",
       "clarity": "clear",
       "view": "손바닥",
@@ -226,7 +226,7 @@
       "finger_vs_palm": "보통",
       "expected_primary": "hand_structure",
       "acceptable": ["hand_structure", "proportion"],
-      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Natural proportion, flat color. Over-fire control."
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Natural proportion, pencil. Over-fire control. Replaced weak flat-color Imagen normal."
     },
     {
       "file": "edge_001_blank_canvas.png",
