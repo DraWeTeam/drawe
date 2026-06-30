@@ -7,5 +7,5 @@
 golden-set-kit/images/
 
 # 세션 핸드오프: 로컬 세션메모로만 사용(스코어·진행상태 포함) — GitHub에 올리지 않음.
-# 결정 이력은 fastapi/docs/adr/ 로 ADR 승격 예정(별도 세션). 측정 근거 md는 docs로 이전 후 ADR에서 링크.
+# 결정 이력은 fastapi/docs/adr/ 로 ADR 승격 완료(2026-06-30). 측정 근거 md도 fastapi/docs/ 로 이전 후 ADR에서 링크.
 golden-set-kit/HANDOFF.md
