@@ -68,7 +68,7 @@ _FLOOR_CAPTION = {
     "proportion": "머리 하나를 자로 키가 몇 등신인지 재고, 어깨·허리·골반(키½)·무릎(다리½)·발이 머리 몇 개 위치인지 점만 찍어보세요. 절대 등신을 단정하지 말고 의도한 스타일 밴드(데포르메 4~5·캐주얼 6~7·사실 8)에 맞는지로 보세요.",
     "facial_proportion": "머리를 공+턱 한 덩어리로 보고 눈선을 머리끝~턱의 한가운데에 먼저 그어요 — 좌우 눈·귀가 이 선에 맞으면 인상이 안정돼요.",
     "foreshortening": "면이 시점으로 줄어드는 정도를 보는 투시 격자예요.",
-    "action_line": "포즈를 관통하는 하나의 큰 흐름(동세 선)을 보는 도식이에요.",
+    "action_line": "포즈를 머리부터 발끝까지 관통하는 하나의 흐름선(동작선)이에요 — 곧게 서면 정적, C·S자로 휘면 동적으로 읽혀요. 디테일보다 이 큰 흐름을 먼저 잡습니다. 이 도식은 동세(정적↔동적)의 개념 안내이며, 그림이 동세가 약하다는 판정이 아닙니다. 균형 교정(무게중심에서 내리는 수직선)과는 별개 축이에요.",
     "light_direction": "광원 한 개에서 면이 받는 빛의 방향을 보는 도식이에요.",
     "color_harmony": "색상환에서 쓰는 색들의 관계를 보는 도식이에요.",
     "linear_perspective": "선들이 한 소실점으로 모이는 원근 격자 도식이에요.",
@@ -176,6 +176,24 @@ _FLOOR_SVG = {
     '<line x1="138" y1="156" x2="138" y2="164" stroke="{s}"/>'
     '<text x="118" y="82" fill="{i}" font-size="11">무게중심</text>'
     '<text x="110" y="176" text-anchor="middle" fill="{s}" font-size="10">지지면(발) 안 = 균형</text>',
+    # 동세(영역3, a 동작선): 머리→발끝을 꿰는 하나의 흐름선. 곧으면 정적, C·S자로 휘면 동적.
+    #   진단에서 빠진(suppress) 축을 *키워드 요청 시* 교습으로만 — '정적↔동적' 개념 도해이지
+    #   그림 판정 아님. weight_balance plumb-line 카드와 *별개 축*(이쪽=흐름 뉘앙스, 저쪽=균형 교정).
+    "action_line": '<text x="60" y="20" text-anchor="middle" fill="{s}" font-size="11">정적</text>'
+    '<line x1="60" y1="32" x2="60" y2="156" stroke="{s}" stroke-width="2"/>'
+    '<circle cx="60" cy="42" r="8" fill="none" stroke="{i}"/>'
+    '<line x1="60" y1="50" x2="60" y2="98" stroke="{i}"/>'
+    '<line x1="43" y1="64" x2="77" y2="64" stroke="{i}"/>'
+    '<line x1="60" y1="98" x2="47" y2="152" stroke="{i}"/>'
+    '<line x1="60" y1="98" x2="73" y2="152" stroke="{i}"/>'
+    '<text x="178" y="20" text-anchor="middle" fill="{s}" font-size="11">동적</text>'
+    '<path d="M196 34 C150 78 214 116 162 154" fill="none" stroke="{s}" stroke-width="2"/>'
+    '<circle cx="192" cy="44" r="8" fill="none" stroke="{i}"/>'
+    '<path d="M190 52 C174 74 198 92 180 110" fill="none" stroke="{i}"/>'
+    '<line x1="173" y1="62" x2="210" y2="51" stroke="{i}"/>'
+    '<line x1="180" y1="110" x2="163" y2="152" stroke="{i}"/>'
+    '<line x1="180" y1="110" x2="202" y2="147" stroke="{i}"/>'
+    '<text x="120" y="173" text-anchor="middle" fill="{s}" font-size="9">머리→발끝을 꿰는 한 줄(곧음=정적 · 휨=동적)</text>',
 }
 _GENERIC_SVG = (
     '<rect x="40" y="40" width="160" height="100" fill="none" stroke="{i}"/>'
