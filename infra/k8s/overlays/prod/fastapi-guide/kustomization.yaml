@@ -20,6 +20,11 @@ configMapGenerator:
       - QDRANT_COLLECTION=reference_images_prod
       - CORS_ORIGINS=https://drawe.xyz
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,service.namespace=drawe
+      # ②v1 섀도우 계측 — 프로덕션 전용 ON(로컬 compose·dev 는 미설정=off; 로컬 ON 시 selftest 합성 분포 오염).
+      #   /dev/stdout 싱크 → Alloy DaemonSet → Loki(파드 재시작·HPA 다중 파드에도 분포 보존; /tmp 는 휘발).
+      #   결정 0 접촉·발화 불변(코드 기본 off, read-only emit). 빈도 유의미 확인되면 v2 동의 기반 스팟체크.
+      - SHADOW_AUDIT=1
+      - SHADOW_AUDIT_LOG=/dev/stdout
 
 patches:
   - target:
