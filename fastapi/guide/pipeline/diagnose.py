@@ -747,6 +747,12 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     #   불일치면 빈 dict(전 축 보류) = figure_005(chibi)·001(normal) over-fire 방지. tier==POSE_OK 면
     #   기존 키포인트 스코어러가 담당하므로 호출 안 함(빈 dict → 아래 placeholder 기존 동작 유지).
     pose_vlm = _vlm_pose_signal(pil) if tier != POSE_OK else {}
+    # [영역3 ①] 포즈 빈-가설 억제(대칭 확장): 포즈가 '근거 없음' = 검출 실패(tier!=ok) *또는* 검출됐어도
+    #   측정된 포즈 결함이 0(measured_ids 에 POSE_DEPENDENT 없음). 그러면 persona 만으로 포즈축 빈 관찰
+    #   (weight_balance·foreshortening 등)을 surface 하지 않는다. ViTPose 가 모든 figure 를 검출(tier=ok)
+    #   하면서 결함 0인 깨끗/의도적-정적(chibi) figure 에 빈 포즈 가설이 새 chibi abstain 을 깨던 것을 차단
+    #   — tier=fail 가드와 대칭. user_terms·VLM 관찰 보유축은 아래서 예외.
+    pose_unsupported = (tier != POSE_OK) or not (measured_ids & POSE_DEPENDENT)
     for sid, e in tax.items():
         if sid == "hand_structure":
             # [라우팅 진단] observe_hand 도달 못 하는 원인 격리: 셋 중 무엇이 막나.
@@ -761,7 +767,7 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         # 흉상/얼굴(degraded=형체 미검출): 포즈 의존 축은 측정 불가 → persona 만으로 빈 관찰을 채우지 않는다.
         #   포즈축 빈 관찰이 새면 "무게중심/단축" 같은 걸 측정한 척 흘려 신뢰를 깎는다. feel 축(명도·구도·빛)만
         #   남겨 정직한 진단으로. 단 사용자가 칩으로 직접 고른 경우(user_terms)는 가설형으로 surface(의도 존중).
-        if tier != POSE_OK and sid in POSE_DEPENDENT and sid not in user_terms:
+        if pose_unsupported and sid in POSE_DEPENDENT and sid not in user_terms:
             # VLM 관찰자 보유축 예외(hand_structure/facial_proportion 가 주입블록서 받는 것과 동형):
             #   action_line·weight_balance 를 VLM 포즈 관찰자가 confident하게 표면화(pose_vlm 에 키 존재)했으면
             #   통과시켜 아래서 measured=False 로 surface. 관찰자 침묵/낮음(키 없음)이면 기존대로 억제(continue).
