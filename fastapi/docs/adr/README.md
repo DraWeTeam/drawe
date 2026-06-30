@@ -19,6 +19,7 @@
 - [0001](0001-vlm-observer-pattern.md) — VLM 관찰자 패턴 (MediaPipe 드로잉 한계 → 순수 VLM 관찰, measured=False)
 - [0002](0002-accuracy-methodology.md) — 정확도 작업 방법론 (single-change isolation + 평가 위생)
 - [0003](0003-abstain-over-fire-design.md) — abstain / over-fire 설계 (agree-or-abstain · 2-run · 낮음 게이트 · positive-only)
+- [0004](0004-latent-to-geometric-observable.md) — latent→geometric observable (모호 관찰축을 기하 binary로 재정의 → 측정 정의 붕괴 해소 · view 디커플)
 
 ## 측정 근거 (이 디렉터리 `fastapi/docs/`)
 ADR이 링크하는 측정 md — 숫자·delta·안정성 결과의 출처. ADR은 "왜"만, 숫자는 여기.
