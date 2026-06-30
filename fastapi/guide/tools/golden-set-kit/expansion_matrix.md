@@ -71,9 +71,10 @@ within normal range, casual amateur sketch") 변주를 일부 섞는다.
   **추가**(tracked 매니페스트가 "어느 바이트가 골든셋"의 단일 진실원) → `labels.json`에 ground truth 라벨
   추가. 본 셋은 항상 "게이트+라벨 통과"만 유지.
 - **메타데이터(4단계, 라벨과 분리)** — `expansion_meta.json`(키=파일명): `{ source:"ai_gen",
-  model:"chatgpt"|"gemini", prompt_cell, gen_intent, style }`. 생성 의도가 `labels.json`에 안 새게 분리.
-  **두 모델 병행**(손은 둘 다 약하나 실패 패턴이 달라 칸 채우기 유리) → `model` 필드로 "어느 모델이 어느 칸에
-  강한지" 나중에 보임. → "AI셋 정확도 vs 실사용 정확도" 도메인 갭 추적.
+  model, prompt_cell, gen_intent, style }`. 생성 의도가 `labels.json`에 안 새게 분리.
+  **현재 Gemini 단일**(ChatGPT는 한도) → `model:"gemini"` 정직 기록. 잃는 건 "모델 간 비교"(어느 칸이
+  AI 일반 한계인지 vs Gemini 특유 약점인지)뿐 — 지금 단계엔 불필요(목표=칸 채우기지 생성 파이프라인 구축 아님).
+  나중에 ChatGPT 섞으면 그때 `model:"gpt"`로 기록돼 비교가 살아남. → "AI셋 vs 실사용" 도메인 갭 추적.
 
 ## ★ 파일럿 기대치 (영역 5 — 이걸로 받는다)
 영역 5는 두 겹 게이트를 **처음 돌리는 자리** = 워크플로우 자체의 파일럿. 그래서 1차 산출물은 "손 카드 정확도"가
