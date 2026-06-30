@@ -69,6 +69,10 @@ public class AuthService {
             .findByEmail(request.getEmail())
             .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHORIZED));
 
+    if (user.isWithdrawn()) {
+      throw new CustomException(ErrorCode.ACCOUNT_WITHDRAWN);
+    }
+
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
       throw new CustomException(ErrorCode.UNAUTHORIZED);
     }

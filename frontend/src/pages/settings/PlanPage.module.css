@@ -1,0 +1,147 @@
+.page {
+  padding: 32px 40px 64px;
+  max-width: 840px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #8a8580;
+}
+
+.stateBox {
+  text-align: center;
+  color: #8a8580;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 80px 20px;
+}
+
+/* ── 플랜 그리드 ── */
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 640px) {
+  .planGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.planCard {
+  background: #fff;
+  border: 1px solid #ece8e3;
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.highlight {
+  border-color: #c9a86a;
+  box-shadow: 0 4px 18px rgba(201, 168, 106, 0.12);
+}
+
+.currentCard {
+  border-color: #2e2c2a;
+}
+
+.planHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.planName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2e2c2a;
+}
+
+.currentBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: #2e2c2a;
+  border-radius: 20px;
+  padding: 3px 9px;
+}
+
+.planPrice {
+  font-size: 28px;
+  font-weight: 800;
+  color: #2e2c2a;
+  margin-bottom: 18px;
+}
+
+.planPeriod {
+  font-size: 14px;
+  font-weight: 500;
+  color: #8a8580;
+  margin-left: 4px;
+}
+
+.featureList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  flex: 1;
+}
+
+.feature {
+  font-size: 14px;
+  color: #4a4846;
+  padding: 7px 0 7px 22px;
+  position: relative;
+}
+
+.feature::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #c9a86a;
+  font-weight: 700;
+}
+
+.currentBtn {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8a8580;
+  background: #f4f1ec;
+  border: 1px solid #e3ddd5;
+  border-radius: 9px;
+  padding: 11px;
+  cursor: default;
+}
+
+.upgradeBtn {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #c9a86a;
+  border: none;
+  border-radius: 9px;
+  padding: 11px;
+  cursor: not-allowed;
+  opacity: 0.75;
+}

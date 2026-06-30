@@ -215,12 +215,21 @@ const Sidebar = () => {
                 <div className={styles.submenu}>
                   <button
                     type="button"
-                    className={styles.submenuItem}
-                    disabled
-                    title="준비 중"
+                    className={`${styles.submenuItem} ${
+                      location.pathname === "/archive" ? styles.active : ""
+                    }`}
+                    onClick={() => navigate("/archive")}
                   >
                     <span>레퍼런스</span>
-                    <span className={styles.count}>0</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.submenuItem} ${
+                      location.pathname === "/gallery" ? styles.active : ""
+                    }`}
+                    onClick={() => navigate("/gallery")}
+                  >
+                    <span>완성작</span>
                   </button>
                 </div>
               )}
@@ -239,8 +248,10 @@ const Sidebar = () => {
               <button
                 type="button"
                 className={styles.userMenuItem}
-                disabled
-                title="준비 중"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  navigate("/settings");
+                }}
               >
                 <SettingsIcon />
                 <span>환경설정</span>
@@ -248,8 +259,10 @@ const Sidebar = () => {
               <button
                 type="button"
                 className={styles.userMenuItem}
-                disabled
-                title="준비 중"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  navigate("/plan");
+                }}
               >
                 <BillingIcon />
                 <span>요금제 보기</span>
