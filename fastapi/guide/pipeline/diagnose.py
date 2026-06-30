@@ -304,6 +304,31 @@ def _vlm_face_signal(pil):
     return (0.4, sig) if sig else None
 
 
+def _vlm_pose_signal(pil):
+    """Gemini VLM 포즈 *관찰*을 {axis: (conf, 관찰문장)} 으로. BlazePose 가 드로잉·선화에 장님이라
+    (실측 4/6 no_person_detected, kp=0) 그 대체 지각. 측정 아니라 *관찰(가설)* → placeholder measured=False.
+    ★positive-only(검출 복구가 아니라 주제 표면화): 동적→action_line / 불안정→weight_balance 만 surface.
+    정적·안정·중립·불확실이면 그 축 침묵 — figure_005(chibi)·001(normal) over-fire 방지(handoff §3-2 가드).
+    전신 인물 아님·둘 다 불확실이면 observe_pose 가 '낮음' → 빈 dict(전 축 보류). proportion 은 VLM 비대상."""
+    try:
+        from guide.ml.vision import observe_pose
+
+        o = observe_pose(pil)
+    except Exception as e:
+        print(f"[diagnose] VLM 포즈 관찰 실패(무시): {type(e).__name__}: {e}")
+        return {}
+    if not o or o.get("confidence") not in ("관찰", "관찰(약)"):  # 낮음만 보류; 약은 통과
+        return {}
+    out = {}
+    # 동적 → action_line 주제 표면화(정적·불확실이면 침묵 = 정적-결함 스코어러 영역, over-fire 방지).
+    if o.get("dynamism") == "동적":
+        out["action_line"] = (0.4, "동적인(움직임 있는) 포즈로 보임")
+    # 불안정 → weight_balance 주제 표면화(안정·불확실이면 침묵).
+    if o.get("balance") == "불안정":
+        out["weight_balance"] = (0.4, "무게가 한쪽으로 쏠린(한 발 지지·기울임) 포즈로 보임")
+    return out
+
+
 VIS_KP = 0.3  # 개별 키포인트 가시성 하한(bbox 계산용; 파일 평균 VIS와 별개)
 
 
@@ -700,6 +725,11 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         if r:
             hits[sid] = r
     measured_ids = set(hits)  # 자동 측정으로 잡힌 것 = 근거 있음
+    # VLM 포즈 관찰자(BlazePose 미검출 보강) — pose fail일 때만, positive-only.
+    #   동적→action_line / 불안정→weight_balance 만 {axis:(conf,sig)} 로 담긴다. 정적·안정·중립·비인물·
+    #   불일치면 빈 dict(전 축 보류) = figure_005(chibi)·001(normal) over-fire 방지. tier==POSE_OK 면
+    #   기존 키포인트 스코어러가 담당하므로 호출 안 함(빈 dict → 아래 placeholder 기존 동작 유지).
+    pose_vlm = _vlm_pose_signal(pil) if tier != POSE_OK else {}
     for sid, e in tax.items():
         if sid == "hand_structure":
             # [라우팅 진단] observe_hand 도달 못 하는 원인 격리: 셋 중 무엇이 막나.
@@ -713,7 +743,11 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         #   포즈축 빈 관찰이 새면 "무게중심/단축" 같은 걸 측정한 척 흘려 신뢰를 깎는다. feel 축(명도·구도·빛)만
         #   남겨 정직한 진단으로. 단 사용자가 칩으로 직접 고른 경우(user_terms)는 가설형으로 surface(의도 존중).
         if tier != POSE_OK and sid in POSE_DEPENDENT and sid not in user_terms:
-            continue
+            # VLM 관찰자 보유축 예외(hand_structure/facial_proportion 가 주입블록서 받는 것과 동형):
+            #   action_line·weight_balance 를 VLM 포즈 관찰자가 confident하게 표면화(pose_vlm 에 키 존재)했으면
+            #   통과시켜 아래서 measured=False 로 surface. 관찰자 침묵/낮음(키 없음)이면 기존대로 억제(continue).
+            if sid not in pose_vlm:
+                continue
         if any(p in personas for p in e["personas"]) or sid in user_terms:
             # 측정 근거 없음 → signal 비움(내부 라벨이 사용자 문구로 새지 않게). 프롬프트가 measured=False를 보고
             # 결핍을 단정하지 않고 '함께 어디를 볼지'로만, 가설형으로 안내한다.
@@ -729,6 +763,11 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                     pil
                 )  # FACE_VLM off/키없음/불확실·초상아님이면 None → 빈 관찰 폴백
                 hits[sid] = vf if vf else (0.25 if e.get("auto") else 0.15, "")
+            elif sid in ("action_line", "weight_balance"):
+                # 포즈도 검출(BlazePose)이 드로잉에 장님 → VLM 포즈 관찰 주입(measured=False=관찰).
+                #   gate 를 통과했으면 pose_vlm 에 positive 관찰이 반드시 있음. tier==POSE_OK 면 pose_vlm={}
+                #   이라 빈 placeholder = 기존 동작 유지(키포인트 스코어러 영역, VLM 미개입).
+                hits[sid] = pose_vlm.get(sid) or (0.25 if e.get("auto") else 0.15, "")
             else:
                 hits[sid] = (0.25 if e.get("auto") else 0.15, "")
 

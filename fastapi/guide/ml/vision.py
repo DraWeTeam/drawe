@@ -539,6 +539,123 @@ def observe_face(image, runs=2):
     return result
 
 
+# ── 포즈 관찰자(observe_hand/face 패턴 이식) ──────────────────────────────────────────────
+#   BlazePose(MediaPipe PoseLandmarker)가 해부도·선화 인물에 *아예 응답 안 함*(실측 4/6
+#   no_person_detected, kp=0 — 퇴화 스켈레톤도 아닌 순수 미검출) → 임계 튜닝으론 못 살림.
+#   hand/face 와 동일하게 VLM 관찰로 간다. 측정 아니라 *관찰(가설)* → placeholder measured=False.
+#   ★검출 복구가 아니라 *주제 표면화*: 키포인트 복원→기존 스코어러는 트리거가 정반대(s_action_line은
+#   '너무 정적'에 발화, 라벨은 역동 포즈에 동세를 기대) → VLM은 style-invariant 성격(역동/균형)만
+#   positive-only 로 관찰해 주제로 올린다. 정적·안정·중립엔 침묵(chibi/normal over-fire 방지).
+#   가드(face 동형): 전신/부분 인물 아님(is_full_body=false) 또는 dynamism·balance 둘 다 불확실 → '낮음'.
+_POSE_PROMPT = (
+    "그림의 주 대상이 '전신 또는 부분 인물(몸)'인지 관찰하고, 맞으면 포즈의 성격을 관찰합니다. "
+    "평가·판정 금지 — '부족/어색/틀림/실력/잘함/못함' 같은 말 금지. 보이는 사실만.\n"
+    "아래 JSON 객체 하나만 출력(마크다운·설명·코드펜스 없이 순수 JSON):\n"
+    "{\n"
+    '  "is_full_body": true|false,  // 주 대상이 전신·반신 등 몸이 보이는 인물이면 true, 얼굴만·사물·풍경이면 false\n'
+    '  "dynamism": "동적"|"정적"|"불확실",  // 걷기·달리기·기울임 등 움직임이 느껴지면 "동적", 직립·정지면 "정적"\n'
+    '  "balance": "안정"|"불안정"|"불확실",  // 한 발 지지·뚜렷한 무게 쏠림이면 "불안정", 양발 고른 지지면 "안정"\n'
+    '  "notes": "보이는 사실 한 문장"\n'
+    "}\n"
+    "dynamism·balance 는 포즈 성격의 관찰입니다(잘잘못 아님). 얼굴만·사물·풍경이면 is_full_body=false.\n"
+    '보이지 않으면 값에 "불확실". 반드시 JSON 하나만.'
+)
+_DYNAMISM = {"동적", "정적", "불확실"}
+_BALANCE = {"안정", "불안정", "불확실"}
+
+
+def _pose_on():
+    return os.environ.get("POSE_VLM", "0").strip().lower() not in ("", "0", "false", "no")
+
+
+def _parse_pose(text):
+    t = (text or "").strip()
+    a, b = t.find("{"), t.rfind("}")
+    if a < 0 or b <= a:
+        return None
+    try:
+        d = json.loads(t[a : b + 1])
+    except Exception:
+        return None
+    dyn = str(d.get("dynamism", "불확실")).strip()
+    bal = str(d.get("balance", "불확실")).strip()
+    return {
+        "is_full_body": bool(d.get("is_full_body", False)),
+        "dynamism": dyn if dyn in _DYNAMISM else "불확실",
+        "balance": bal if bal in _BALANCE else "불확실",
+        "notes": str(d.get("notes", "")).strip(),
+    }
+
+
+def _pose_agree(a, b):
+    """일관성: 둘 다 전신 인물로 봤고, dynamism·balance 가 일치(또는 한쪽 '불확실')할 때만 True.
+    (face 의 _face_agree 동형 — is_portrait→is_full_body, view→dynamism/balance 두 축.)"""
+    if not a or not b:
+        return False
+    if not (a["is_full_body"] and b["is_full_body"]):
+        return False
+    if a["dynamism"] != b["dynamism"] and "불확실" not in (a["dynamism"], b["dynamism"]):
+        return False
+    if a["balance"] != b["balance"] and "불확실" not in (a["balance"], b["balance"]):
+        return False
+    return True
+
+
+def observe_pose(image, runs=2):
+    """그림 속 인물 포즈의 *성격*을 관찰(가설). 게이트 off·키 없음·전부 실패·비인물이면 낮음/None.
+    반환: dict(is_full_body, dynamism, balance, notes, consistent, confidence, runs_used, model).
+    confidence ∈ {관찰, 관찰(약), 낮음}. positive-only 발화는 호출부(_vlm_pose_signal)에서."""
+    if not _pose_on() or not _creds_ok():
+        trace("pose.vlm.gate", on=_pose_on(), creds=_creds_ok(), backend=_BACKEND)
+        return None
+    h = img_hash(image)
+    hit, cached, tier = vlm_get("pose", _MODEL, h)
+    if hit:
+        trace("vlm.cache", fn="pose", hit=True, tier=tier, model=_MODEL)
+        return cached
+    parsed = []
+    for _ in range(max(1, runs)):
+        try:
+            b64, mime = _to_b64(image)
+            raw = _call(b64, mime, _key(), prompt=_POSE_PROMPT, timeout=60)
+        except Exception as e:
+            print(f"[vision] 포즈 관찰 호출 실패(무시): {type(e).__name__}: {e}")
+            continue
+        p = _parse_pose(raw)
+        if p:
+            parsed.append(p)
+    if not parsed:
+        return None  # transient → 미캐시
+    base = parsed[0]
+    consistent = len(parsed) >= 2 and _pose_agree(parsed[0], parsed[1])
+    trace("pose.vlm", runs=len(parsed), consistent=consistent,
+          full=[p["is_full_body"] for p in parsed],
+          dyn=[p["dynamism"] for p in parsed], bal=[p["balance"] for p in parsed])
+    # 가드: 전신 인물 아님 또는 dynamism·balance 둘 다 불확실 → '낮음'(관찰된 것 없음). face 의 empty_obs 동형.
+    empty_obs = base["dynamism"] == "불확실" and base["balance"] == "불확실"
+    if not base["is_full_body"] or empty_obs:
+        confidence = "낮음"
+    elif consistent:
+        # 신뢰 3단: 두 성격 다 definite면 "관찰", 한쪽만 definite면 "관찰(약)"(단정 회피).
+        both = base["dynamism"] != "불확실" and base["balance"] != "불확실"
+        confidence = "관찰" if both else "관찰(약)"
+    else:
+        confidence = "낮음"
+    result = {
+        "model": _MODEL,
+        "is_full_body": base["is_full_body"],
+        "dynamism": base["dynamism"],
+        "balance": base["balance"],
+        "notes": base["notes"] if consistent else "",
+        "consistent": consistent,
+        "confidence": confidence,
+        "runs_used": len(parsed),
+    }
+    vlm_set("pose", _MODEL, h, result)
+    trace("vlm.cache", fn="pose", hit=False, tier="miss", model=_MODEL)
+    return result
+
+
 def _selftest():
     """키 없이 파싱·일관성 로직 검증."""
     r1 = '{"view":"손등","plane_facing":"아래-오른쪽","foreshortening":["중지","약지"],"structure":"입체","notes":"손등이 보인다"}'
@@ -557,7 +674,15 @@ def _selftest():
     assert set(_norm(x) for x in inter) == {"중지", "약지"}, f"교집합 오류: {inter}"
     # 정책표현 방어선
     assert FORBIDDEN.search("이건 실력이 부족"), "FORBIDDEN 동작 확인"
-    print("selftest OK — 파싱·일관성·교집합·방어선 정상")
+    # 포즈 관찰자: 파싱·일관성(전신+성격 일치)·비인물 가드
+    p1 = _parse_pose('{"is_full_body":true,"dynamism":"동적","balance":"불안정","notes":"걷는 포즈"}')
+    p2 = _parse_pose('```json\n{"is_full_body":true,"dynamism":"동적","balance":"불확실","notes":"걷는다"}\n```')
+    p3 = _parse_pose('{"is_full_body":false,"dynamism":"불확실","balance":"불확실","notes":"얼굴만"}')
+    assert p1 and p2 and p3, "pose parse 실패"
+    assert _pose_agree(p1, p2) is True, "일치해야 함(전신+동적, balance 한쪽 불확실 허용)"
+    assert _pose_agree(p1, p3) is False, "불일치여야 함(p3 비전신)"
+    assert p1["dynamism"] == "동적" and p1["balance"] == "불안정", "pose 값 정규화 오류"
+    print("selftest OK — 파싱·일관성·교집합·방어선·포즈 정상")
 
 
 if __name__ == "__main__":

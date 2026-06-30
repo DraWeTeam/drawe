@@ -147,6 +147,7 @@ services:
       SUBJECT_VLM: "1"
       STYLE_VLM: "1"
       FACE_VLM: "1"
+      POSE_VLM: "1"   # BlazePose 드로잉 미검출 보강(observe_pose, positive-only 역동/균형 관찰)
       REDIS_HOST: valkey
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-valkey_pass}
