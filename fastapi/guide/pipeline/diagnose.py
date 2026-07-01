@@ -691,7 +691,13 @@ def s_horizon_placement(s):
 #   → 측정 스코어러(SCORERS 루프)·persona placeholder 양쪽 auto 경로에서 빼고, *명시 요청(user_terms)*
 #   으로만 표면(다음 task: 키워드→교습 카드가 그 경로로 복원). dynamism 의 VLM-gate(tier=ok 에도 observer)
 #   는 ② 분포로 판단 빈도 본 뒤. 스코어러 함수 s_action_line/s_joint_articulation 은 카드 task 용으로 보존.
-SUPPRESSED_AUTO = {"action_line", "joint_articulation"}
+# [비-인체 2단계] composition_balance·light_direction 추가(동형 demote). 둘 다 인물/드로잉 medium 에서
+#   *정상 레퍼런스에 over-fire*하는데 클린 게이트가 없다(해석 벽): composition=focus_centeredness 가
+#   '중앙'만 봐 의도적 중앙(정면 초상·꽉 찬 인물)까지 발화(golden서 정확 발화 이력 0=순수 over-fire),
+#   light=light_ramp 가 '평면 렌더(선화)'와 '평면 조명 문제'를 못 가름(positive lfrac 0.90·0.97 이
+#   over-fire figure 0.80–0.99 에 인터리브 → both-sided 게이트 불가). value 는 보수적이라 유지.
+#   → auto 억제(user_terms=구도/빛 키워드로만 표면). 스코어러 함수는 보존.
+SUPPRESSED_AUTO = {"action_line", "joint_articulation", "composition_balance", "light_direction"}
 
 SCORERS = {
     "weight_balance": s_weight_balance,
