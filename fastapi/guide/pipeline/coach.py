@@ -1,7 +1,24 @@
+import re
+
 from guide.prompts import build_coach_prompt
 from guide.safety.validate import coach_with_guardrails, strip_redundant_text
 from guide.schemas import GuideResponse, NextSteps, GuideAsset
 from guide.pipeline import assets
+from guide.pipeline.roadmap import LABELS
+
+
+def _relabel_ids(text):
+    """LLM이 '앞으로 할 것' 자연 문장에 그대로 박은 raw axis-id(예: 'foreshortening을 살펴본 뒤')를
+    한글 라벨로 치환. LABELS 단일 출처 재사용, 표시 문자열만 손댐(진단 로직 무관). 긴 id 우선
+    치환(facial_proportion → proportion 부분매칭 방지). 한 축만 땜질 말고 전 축 일괄 보장."""
+    if not text:
+        return text
+    # 경계는 ascii id 문자([A-Za-z_])로만 판정한다. \b 는 한글 조사가 붙으면(예: "foreshortening을")
+    #   'g'↔'을' 사이를 단어경계로 안 봐서 매칭 실패 → id 앞뒤가 ascii id 문자가 아닐 때만 치환.
+    #   긴 id 우선(facial_proportion 이 proportion 으로 부분치환되지 않게).
+    for aid in sorted(LABELS, key=len, reverse=True):
+        text = re.sub(rf"(?<![A-Za-z_]){re.escape(aid)}(?![A-Za-z_])", LABELS[aid], text)
+    return text
 
 
 def _next_steps(growth, taxonomy):
@@ -55,6 +72,10 @@ def run_guide(
                 )
             )
         # LLM 이 *배열*한 자연 문장이 가드레일을 통과했으면 note 로 옮긴다(없으면 구조 필드로 폴백).
+        #   LLM 이 관찰의 raw sub_problem id 를 문장에 그대로 박는 경우가 있어(예: "foreshortening을
+        #   살펴본 뒤") 한글 라벨로 정규화한다 — LABELS 안 거치던 유일 narration 경로 보정.
+        if g.next_steps_note:
+            g.next_steps_note = _relabel_ids(g.next_steps_note)
         if ns and g.next_steps_note:
             ns.note = g.next_steps_note
         g.next_steps = ns
