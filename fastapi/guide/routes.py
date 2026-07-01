@@ -125,7 +125,11 @@ def _pipeline(
     refs_by_sp, retrieved, pending_by_sp = {}, set(), {}
     for o in dx["observations"]:
         sp = o["sub_problem"]
-        persona_hint = tax[sp]["personas"][0]
+        # 벽축 pseudo-axis(personas:[] = 자동 진단 차단 의도)가 user_terms 로 표면되면 [0] 이
+        #   IndexError → 500. persona 는 ref 검색의 soft-boost 힌트일 뿐(search_text 기본값 None) →
+        #   personas 없으면 None 으로 두고 검색은 폴백(레퍼런스 없으면 floor 도식 카드가 주경로).
+        _personas = tax[sp]["personas"]
+        persona_hint = _personas[0] if _personas else None
         # 손 문제엔 손 크롭(region=hand) 우선. 없으면 필터 없이 폴백.
         f = {"region": "hand"} if sp == "hand_structure" else None
         # delta4: medium/track 전달 → 같은 매체·트랙 ai_example 에 soft boost(MEDIUM/TRACK_BOOST).

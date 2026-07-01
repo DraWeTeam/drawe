@@ -49,6 +49,11 @@ LABELS = {
     "atmospheric_perspective": "대기원근",
     "depth_layering": "공간 깊이",
     "horizon_placement": "지평선 배치",
+    # E(face) 축 + 벽축 pseudo-axis: 라벨 누락 시 narration/why 에 raw id 누출(예: "facial_proportion을
+    #   향해") → 한글 라벨 매핑. 스코어보드는 라벨과 무관(표시 전용) → 무회귀.
+    "facial_proportion": "얼굴 비례",
+    "contrapposto": "콘트라포스토",
+    "body_shape": "체형",
 }
 
 STEADY_TRIES = 3
