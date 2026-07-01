@@ -38,6 +38,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             .findByEmail(attributes.getEmail())
             .map(
                 existingUser -> {
+                  if (existingUser.isWithdrawn()) {
+                    throw new OAuth2AuthenticationException("withdrawn_account");
+                  }
                   existingUser.updateProfile(
                       attributes.getNickname() != null
                           ? attributes.getNickname()

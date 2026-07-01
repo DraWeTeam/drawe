@@ -298,8 +298,10 @@ const Sidebar = () => {
               <button
                 type="button"
                 className={styles.userMenuItem}
-                disabled
-                title="준비 중"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  navigate("/settings");
+                }}
               >
                 <SettingsIcon />
                 <span>환경설정</span>
@@ -307,8 +309,10 @@ const Sidebar = () => {
               <button
                 type="button"
                 className={styles.userMenuItem}
-                disabled
-                title="준비 중"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  navigate("/plan");
+                }}
               >
                 <BillingIcon />
                 <span>요금제 보기</span>
