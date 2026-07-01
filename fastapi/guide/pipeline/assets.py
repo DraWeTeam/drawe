@@ -75,6 +75,8 @@ _FLOOR_CAPTION = {
     "horizon_placement": "지평선을 화면 위·아래 1/3에 두는 배치 도식이에요.",
     "atmospheric_perspective": "거리에 따라 대비·채도가 옅어지는 깊이 도식이에요.",
     "depth_layering": "근·중·원경 세 층으로 공간을 나눠 보는 도식이에요.",
+    "contrapposto": "콘트라포스토는 무게를 한 발에 실을 때 골반이 그쪽으로 올라가고 어깨는 반대로 기울며 척추가 완만한 S로 흐르는 자세예요 — 직립에 생기를 주는 *의도적 비대칭*입니다. 이 도식은 개념 안내이지 그림 판정이 아니에요. 무게중심이 지지발 밖으로 벗어나 넘어질 듯한 '균형 붕괴'(무게중심 교정)와는 다른 축 — 이쪽은 균형을 지키면서 주는 비대칭이에요.",
+    "body_shape": "체형은 '마름/통통' 같은 종류로 나누기보다 실루엣을 만드는 요소들의 조합으로 봐요 — 어깨너비·흉곽·허리·골반의 상대 폭과 팔다리 굵기가 어떻게 이어지는지. 이 도식은 그 요소를 짚는 개념 안내이며 특정 체형의 우열이나 당신 그림에 대한 판정이 아니에요. 스타일(사실·데포르메)·성별과 무관하게 실루엣 흐름만 봅니다.",
 }
 _GENERIC_CAPTION = "이 부분을 어떻게 나눠 보는지 도해로 정리한 예시예요."
 
@@ -194,6 +196,42 @@ _FLOOR_SVG = {
     '<line x1="180" y1="110" x2="163" y2="152" stroke="{i}"/>'
     '<line x1="180" y1="110" x2="202" y2="147" stroke="{i}"/>'
     '<text x="120" y="173" text-anchor="middle" fill="{s}" font-size="9">머리→발끝을 꿰는 한 줄(곧음=정적 · 휨=동적)</text>',
+    # 빛(light_direction): 한 광원 → 구(면)의 명부·암부(코어)·그림자 방향 일관. 개념 도해(그림 판정 아님).
+    "light_direction": '<circle cx="52" cy="30" r="9" fill="none" stroke="{s}"/>'
+    '<line x1="52" y1="15" x2="52" y2="8" stroke="{s}"/><line x1="37" y1="30" x2="30" y2="30" stroke="{s}"/>'
+    '<line x1="42" y1="20" x2="37" y2="15" stroke="{s}"/><line x1="42" y1="40" x2="37" y2="45" stroke="{s}"/>'
+    '<text x="52" y="60" text-anchor="middle" fill="{s}" font-size="10">광원</text>'
+    '<line x1="62" y1="40" x2="92" y2="66" stroke="{s}" stroke-dasharray="3"/>'
+    '<circle cx="120" cy="96" r="42" fill="none" stroke="{i}"/>'
+    '<path d="M92 70 A42 42 0 0 0 146 132" fill="none" stroke="{s}" stroke-dasharray="4"/>'
+    '<line x1="132" y1="74" x2="150" y2="92" stroke="{s}"/><line x1="126" y1="90" x2="150" y2="114" stroke="{s}"/>'
+    '<line x1="128" y1="108" x2="146" y2="126" stroke="{s}"/>'
+    '<ellipse cx="150" cy="150" rx="46" ry="8" fill="none" stroke="{s}"/>'
+    '<text x="96" y="96" fill="{i}" font-size="10">명부</text><text x="150" y="102" fill="{s}" font-size="10">암부</text>'
+    '<text x="150" y="167" text-anchor="middle" fill="{s}" font-size="9">그림자=광원 반대쪽(방향 일관)</text>',
+    # 콘트라포스토(개념 카드): 지지발 위로 골반↗·어깨↘ 역경사 + 척추 S + 머리→지지발 수직선.
+    #   weight_balance(균형 붕괴 교정)와 *별개 축* — 이쪽은 균형 지키며 주는 의도적 비대칭.
+    "contrapposto": '<line x1="106" y1="26" x2="106" y2="156" stroke="{s}" stroke-dasharray="4"/>'
+    '<text x="106" y="170" text-anchor="middle" fill="{s}" font-size="9">머리→지지발 수직선</text>'
+    '<circle cx="106" cy="34" r="8" fill="none" stroke="{i}"/>'
+    '<line x1="84" y1="60" x2="122" y2="52" stroke="{i}"/><text x="52" y="58" fill="{s}" font-size="10">어깨↘</text>'
+    '<path d="M104 50 C116 72 96 90 108 106" fill="none" stroke="{i}"/><text x="150" y="82" fill="{s}" font-size="10">척추 S</text>'
+    '<line x1="90" y1="104" x2="126" y2="112" stroke="{i}"/><text x="150" y="112" fill="{s}" font-size="10">골반↗</text>'
+    '<line x1="122" y1="110" x2="112" y2="154" stroke="{i}"/><line x1="92" y1="106" x2="80" y2="150" stroke="{i}"/>'
+    '<circle cx="112" cy="155" r="3" fill="{i}"/><text x="120" y="150" fill="{s}" font-size="9">지지발</text>',
+    # 체형(body_shape, 개념 카드): '종류' 아님 → 실루엣을 만드는 요소(어깨·흉곽·허리·골반 상대폭 + 팔다리
+    #   굵기)의 조합. 특정 체형 우열 없이·스타일/성별 무관·중립. 진단 미빌드 → 키워드 교습만.
+    "body_shape": '<line x1="110" y1="28" x2="110" y2="160" stroke="{s}" stroke-dasharray="3"/>'
+    '<circle cx="110" cy="34" r="7" fill="none" stroke="{i}"/>'
+    '<line x1="80" y1="52" x2="140" y2="52" stroke="{i}"/><text x="145" y="55" fill="{s}" font-size="9">어깨너비</text>'
+    '<line x1="87" y1="74" x2="133" y2="74" stroke="{i}"/><text x="145" y="77" fill="{s}" font-size="9">흉곽</text>'
+    '<line x1="95" y1="98" x2="125" y2="98" stroke="{i}"/><text x="145" y="101" fill="{s}" font-size="9">허리</text>'
+    '<line x1="85" y1="118" x2="135" y2="118" stroke="{i}"/><text x="145" y="121" fill="{s}" font-size="9">골반</text>'
+    '<line x1="87" y1="54" x2="95" y2="98" stroke="{s}"/><line x1="133" y1="54" x2="125" y2="98" stroke="{s}"/>'
+    '<line x1="95" y1="100" x2="85" y2="118" stroke="{s}"/><line x1="125" y1="100" x2="135" y2="118" stroke="{s}"/>'
+    '<line x1="100" y1="120" x2="94" y2="158" stroke="{i}"/><line x1="120" y1="120" x2="126" y2="158" stroke="{i}"/>'
+    '<line x1="82" y1="56" x2="70" y2="98" stroke="{i}"/><text x="38" y="118" fill="{s}" font-size="9">팔다리 굵기</text>'
+    '<text x="110" y="176" text-anchor="middle" fill="{s}" font-size="8">종류 아님 · 실루엣 요소의 조합</text>',
 }
 _GENERIC_SVG = (
     '<rect x="40" y="40" width="160" height="100" fill="none" stroke="{i}"/>'
