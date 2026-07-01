@@ -59,5 +59,35 @@
     "source": "ai_gen", "model": "chatgpt-dalle", "prompt_cell": "area5_normal",
     "gen_intent": "정상 손(over-fire control)", "style": "pencil sketch",
     "staging_src": "area5_normal_gpt_02.png", "gate": "blind ratio=보통 (h15). ChatGPT normal 1/4(3장이 단축으로 새어남)"
+  },
+  "figure_007_realistic_anatomy.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_realistic",
+    "gen_intent": "전신·사실 해부(스타일/전신 커버리지 control)", "style": "anatomical study",
+    "staging_src": "full_realistic_00.png", "gate": "1겹 pass(해부 ok·전신·텍스트 없음·중립 스탠스). 갈래1 일반확장."
+  },
+  "figure_008_anime_male.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_anime",
+    "gen_intent": "전신·애니(스타일 커버리지)", "style": "anime cel",
+    "staging_src": "full_anime_02.png", "gate": "1겹 pass(전신·중립·텍스트 없음). 갈래1."
+  },
+  "figure_009_casual_man.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_casual",
+    "gen_intent": "전신·캐주얼 일러스트(스타일 커버리지)", "style": "casual flat",
+    "staging_src": "full_casual_00.png", "gate": "1겹 pass(전신·중립). 갈래1 신규 스타일(캐주얼)."
+  },
+  "figure_010_casual_youth.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_casual",
+    "gen_intent": "전신·캐주얼 일러스트(스타일 커버리지)", "style": "casual flat",
+    "staging_src": "full_casual_02.png", "gate": "1겹 pass(전신·중립). 갈래1."
+  },
+  "figure_011_normal_woman.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_normal",
+    "gen_intent": "전신·사실 정상비례 여성(전신 커버리지 control)", "style": "realistic illustration",
+    "staging_src": "full_normal_03.png", "gate": "1겹 pass(전신·중립·일러스트). 갈래3 normal·여성 다양성."
+  },
+  "figure_012_chibi.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_chibi",
+    "gen_intent": "전신·치비(스타일 커버리지)", "style": "chibi/deformed",
+    "staging_src": "full_chibi_01.png", "gate": "hold 검토 승격(중립 스탠스·텍스트 없음·해부 ok). 블라인드 라벨=ambiguous style_intentional(figure_005 치비 동류, over-fire control)."
   }
 }
