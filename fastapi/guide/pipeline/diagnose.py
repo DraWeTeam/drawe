@@ -501,8 +501,14 @@ _DEFAULT_THRESHOLDS = {
     "value_structure.value_std": 0.16,  # < 이면 발화(전역 최후 폴백)
     "value_structure.figure_bg_contrast": 0.08,  # < 이면 발화(실루엣-배경 섞임)
     "composition_balance.focus_centeredness": 0.9,  # > 이면 발화(정중앙)
-    "color_harmony.sat_mean": 0.6,  # AND
-    "color_harmony.hue_spread": 0.55,  # AND (둘 다 > 이면 발화)
+    # [비-인체 갈래1] color dormant 해소 — garish(고채도·광폭색상) 발화하되 harmonious control·자연
+    #   풍경(저채도)·muddy(저채도)는 제외. 임계는 비-인체 골든 분포 갭에서(골든fit 아님):
+    #   sat: garish[0.55·0.57·0.88] vs 비대상[≤0.46] → 갭 0.46↔0.55 → 0.5. hue: 고채도군 중
+    #   garish[0.43·0.58·0.80] vs limited-palette control[0.03] → 갭 0.03↔0.43 → 0.35.
+    #   전 골든 69 검증: 발화=garish 3장뿐, over-fire 0(인체·풍경·control 무발화). ★muddy(저채도 탁함)는
+    #   고채도 gate 구조상 미포착 — 저-sat 신호는 별건(더 큰 변경, 보류).
+    "color_harmony.sat_mean": 0.5,  # AND (was 0.6 — dormant)
+    "color_harmony.hue_spread": 0.35,  # AND (was 0.55 — dormant. 둘 다 > 이면 발화)
     "light_direction.light_ramp": 0.015,  # < 이면 발화(평면 조명)
     "atmospheric_perspective.falloff_min": 0.02,  # < 이면 발화(원근 대비 약화 약함 = 깊이 평면적)
     "horizon_placement.center_half": 0.06,  # |horizon_y-0.5| < 이면 발화(지평선 정중앙)
