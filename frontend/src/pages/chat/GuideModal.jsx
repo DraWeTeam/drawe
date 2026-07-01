@@ -484,7 +484,11 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
             )}
           </div>
           {/* 지금 집중할 축(focus) + 자주 막히는 부분(recurring) — 응답에 있을 때만 */}
-          <ChipRow label="지금 집중" axes={next.focus ? [next.focus] : []} accent />
+          <ChipRow
+            label="지금 집중"
+            axes={next.focus ? [next.focus] : []}
+            accent
+          />
           <ChipRow label="자주 막히는 부분" axes={next.recurring} />
         </section>
       )}

@@ -153,7 +153,9 @@ const CompletedGalleryPage = () => {
                       e.stopPropagation();
                       handleDownload(item.drawingUrl);
                     }}
-                    aria-disabled={imageId != null && downloadingIds.has(imageId)}
+                    aria-disabled={
+                      imageId != null && downloadingIds.has(imageId)
+                    }
                     aria-label="이미지 다운로드"
                     title="다운로드"
                   >

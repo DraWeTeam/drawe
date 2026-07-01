@@ -6,6 +6,7 @@ import styles from "./ReferencePage.module.css";
 import { track } from "../../analytics";
 import { downloadImage } from "../gallery/download";
 import { addReference } from "../projects/api";
+import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import { unsplashSized } from "./imageUtils";
 
 const ReferencePage = () => {
@@ -93,6 +94,7 @@ const ReferencePage = () => {
     setSaving(true);
     try {
       await addReference(projectId, reference.id);
+      notifyArchiveChanged();
       alert("아카이브에 저장했어요!");
       track("reference_archived", {
         reference_id: reference.id,
@@ -101,7 +103,8 @@ const ReferencePage = () => {
     } catch (err) {
       // 백엔드 메시지를 그대로 노출.
       const message =
-        err.response?.data?.error?.message || "저장에 실패했어요. 다시 시도해주세요.";
+        err.response?.data?.error?.message ||
+        "저장에 실패했어요. 다시 시도해주세요.";
       alert(message);
     } finally {
       setSaving(false);
@@ -253,9 +256,7 @@ const ReferencePage = () => {
       <div className={styles.body}>
         <div className={styles.imageArea}>
           {imgFailed ? (
-            <div className={styles.imageError}>
-              이미지를 불러오지 못했어요.
-            </div>
+            <div className={styles.imageError}>이미지를 불러오지 못했어요.</div>
           ) : (
             <img
               src={unsplashSized(reference.url, 1080)}

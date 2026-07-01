@@ -13,10 +13,9 @@ import org.springframework.web.client.RestClient;
 /**
  * 레퍼런스/완성작 이미지 다운로드 — 출처(외부 URL vs 서버 저장 바이트)에 무관하게 파일 바이트를 돌려준다.
  *
- * <p>레퍼런스의 대부분은 Unsplash 등 <b>외부 URL</b>(예: {@code https://images.unsplash.com/...})이라 서버에 바이트가
- * 없다. 이 경우 서버가 그 URL 을 대신 받아(프록시) 돌려준다 — 브라우저가 외부 URL 을 직접 다운로드하면 CORS·{@code
- * Content-Disposition} 부재로 "새 탭에 열림"만 되기 때문. AI 생성/업로드 이미지는 {@link ImageStorage}(MySQL/S3)에
- * 바이트가 있으므로 그대로 읽는다.
+ * <p>레퍼런스의 대부분은 Unsplash 등 <b>외부 URL</b>(예: {@code https://images.unsplash.com/...})이라 서버에 바이트가 없다.
+ * 이 경우 서버가 그 URL 을 대신 받아(프록시) 돌려준다 — 브라우저가 외부 URL 을 직접 다운로드하면 CORS·{@code Content-Disposition} 부재로
+ * "새 탭에 열림"만 되기 때문. AI 생성/업로드 이미지는 {@link ImageStorage}(MySQL/S3)에 바이트가 있으므로 그대로 읽는다.
  */
 @Slf4j
 @Service
@@ -33,8 +32,8 @@ public class ImageDownloadService {
   /**
    * 이미지 id 로 다운로드 바이트를 해소한다.
    *
-   * <p>외부 URL 이미지(공개 레퍼런스)는 소유자 검증을 하지 않는다(누구나 볼 수 있는 검색 결과). 서버 저장 바이트 이미지(AI 생성/업로드)는
-   * {@link ImageStorage#load}의 소유자 검증을 그대로 따른다.
+   * <p>외부 URL 이미지(공개 레퍼런스)는 소유자 검증을 하지 않는다(누구나 볼 수 있는 검색 결과). 서버 저장 바이트 이미지(AI 생성/업로드)는 {@link
+   * ImageStorage#load}의 소유자 검증을 그대로 따른다.
    */
   public Download download(Long id, Long requesterId) {
     Image image =
@@ -57,12 +56,7 @@ public class ImageDownloadService {
 
   private Download downloadExternal(Long id, String url) {
     try {
-      var resp =
-          restClient
-              .get()
-              .uri(url)
-              .retrieve()
-              .toEntity(byte[].class);
+      var resp = restClient.get().uri(url).retrieve().toEntity(byte[].class);
       byte[] data = resp.getBody();
       if (data == null || data.length == 0) {
         throw new CustomException(ErrorCode.NOT_FOUND);
