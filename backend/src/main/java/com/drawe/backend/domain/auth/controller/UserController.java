@@ -59,8 +59,7 @@ public class UserController {
   /** 사용자 피드백 — 운영 이메일로 전달 (DB 저장 없음). */
   @PostMapping("/feedback")
   public ApiResponse<Void> sendFeedback(
-      @AuthenticationPrincipal PrincipalDetails user,
-      @Valid @RequestBody FeedbackRequest request) {
+      @AuthenticationPrincipal PrincipalDetails user, @Valid @RequestBody FeedbackRequest request) {
     feedbackService.sendFeedback(user.getUser().getId(), request);
     return ApiResponse.success();
   }

@@ -34,9 +34,17 @@ public class FeedbackService {
 
     String subject = "[DraWe 피드백] " + who;
     String body =
-        "보낸 사람: " + who + " <" + email + ">\n"
-            + "유저 ID: " + (user != null ? user.getId() : "(알 수 없음)") + "\n"
-            + "전송 시각: " + ZonedDateTime.now(KST).format(SENT_AT) + " (KST)\n"
+        "보낸 사람: "
+            + who
+            + " <"
+            + email
+            + ">\n"
+            + "유저 ID: "
+            + (user != null ? user.getId() : "(알 수 없음)")
+            + "\n"
+            + "전송 시각: "
+            + ZonedDateTime.now(KST).format(SENT_AT)
+            + " (KST)\n"
             + "------------------------------------------------------------\n"
             + request.getMessage();
 

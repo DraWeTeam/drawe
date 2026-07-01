@@ -123,8 +123,7 @@ const ProfileSection = ({ profile, onUpdated }) => {
     } catch (err) {
       setMessage({
         type: "error",
-        text:
-          err.response?.data?.error?.message || "닉네임 변경에 실패했어요.",
+        text: err.response?.data?.error?.message || "닉네임 변경에 실패했어요.",
       });
     } finally {
       setSaving(false);
@@ -163,9 +162,7 @@ const ProfileSection = ({ profile, onUpdated }) => {
         </div>
         {message && (
           <p
-            className={
-              message.type === "ok" ? styles.hintOk : styles.hintError
-            }
+            className={message.type === "ok" ? styles.hintOk : styles.hintError}
           >
             {message.text}
           </p>
@@ -184,9 +181,7 @@ const AccountSection = ({ social, onLogout, onWithdrawn }) => {
       <h2 className={styles.cardTitle}>계정</h2>
 
       {social ? (
-        <p className={styles.note}>
-          소셜 로그인 계정은 비밀번호가 없어요.
-        </p>
+        <p className={styles.note}>소셜 로그인 계정은 비밀번호가 없어요.</p>
       ) : (
         <PasswordChanger />
       )}
@@ -234,8 +229,7 @@ const PasswordChanger = () => {
     setMessage(null);
   };
 
-  const valid =
-    current.length > 0 && next.length >= 8 && next === confirm;
+  const valid = current.length > 0 && next.length >= 8 && next === confirm;
 
   const handleSave = async () => {
     if (!valid || saving) return;
@@ -410,7 +404,8 @@ const FeedbackSection = () => {
       setResult({
         type: "error",
         text:
-          err.response?.data?.error?.message || "전송에 실패했어요. 잠시 후 다시 시도해주세요.",
+          err.response?.data?.error?.message ||
+          "전송에 실패했어요. 잠시 후 다시 시도해주세요.",
       });
     } finally {
       setSending(false);
@@ -447,9 +442,7 @@ const FeedbackSection = () => {
         </div>
         {result && (
           <p
-            className={
-              result.type === "ok" ? styles.hintOk : styles.hintError
-            }
+            className={result.type === "ok" ? styles.hintOk : styles.hintError}
           >
             {result.text}
           </p>

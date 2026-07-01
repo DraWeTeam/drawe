@@ -34,9 +34,7 @@ const PlanPage = () => {
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>요금제</h1>
-        <span className={styles.subtitle}>
-          내게 맞는 플랜을 선택하세요.
-        </span>
+        <span className={styles.subtitle}>내게 맞는 플랜을 선택하세요.</span>
       </header>
 
       {loading ? (
