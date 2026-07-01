@@ -127,6 +127,11 @@ def image_signals(pil):
     out = {
         "value_std": float(g.std()),
         "value_range_robust": _subject_value_range(g),  # 배경-강건(degraded 폴백용)
+        # [비-인체 3단계] whole-image 명도 폭(p95-p5, 전체 화면). figure/밝은종이 게이트가 다 None인
+        #   채색 scene(colored bg·full-bleed)에서만 s_value_structure 가 폴백으로 쓴다(figure/종이엔
+        #   fvr/vrr 우선 — 무회귀). 배경-오염 우려는 여기 안 씀: 종이 배경 케이스는 vrr 이 먼저 잡으니
+        #   whole 은 '배경 없는 full-bleed 그림'에만 도달(그땐 전체가 작품이라 p5-p95 가 곧 명도구조).
+        "value_range_whole": float(np.subtract(*np.percentile(g, [95, 5]))),
         "line_sketch": _is_line_sketch(g),  # 선/옅은 스케치 → value 축 보류(D)
         "light_frac": float((g >= 0.78).mean()),  # 디버그/튜닝용(line_sketch 판정 근거)
     }
@@ -498,6 +503,7 @@ _DEFAULT_THRESHOLDS = {
     "joint_articulation.angle_max": 177.0,  # > 이면 발화(과신전)
     "value_structure.figure_value_range": 0.35,  # < 이면 발화(국소 명도폭)
     "value_structure.subject_value_range": 0.35,  # < 이면 발화(degraded 폴백, 배경 제거 후 명도폭)
+    "value_structure.whole_image_range": 0.48,  # [3단계] 채색 full-bleed 폴백(figure/종이 다 None). 분포 갭: 뚜렷 평평 ≤0.44 | 정상 그림/풍경 ≥0.53 → 0.48(보수적)
     "value_structure.value_std": 0.16,  # < 이면 발화(전역 최후 폴백)
     "value_structure.figure_bg_contrast": 0.08,  # < 이면 발화(실루엣-배경 섞임)
     "composition_balance.focus_centeredness": 0.9,  # > 이면 발화(정중앙)
@@ -619,7 +625,17 @@ def s_value_structure(s):
             parts.append(
                 f"배경(종이)을 뺀 그림의 밝은 곳·어두운 곳 차이가 좁음(명도 폭 ≈ {rr:.2f})"
             )
-        # rr 이 None(어두운 배경/마스크 불가)이면 값 주장 안 함 — 전역 std 폴백 제거(배경에 속으므로 신뢰 불가)
+        elif s.get("value_range_whole") is not None and s.get("value_range_whole") < _T(
+            "value_structure.whole_image_range"
+        ):
+            # [비-인체 3단계] figure·밝은종이 신호 다 None = 채색 scene(full-bleed) → whole-image 명도폭
+            #   으로만 폴백(보수적 임계). 채색 문제 다수는 정상 그림과 겹쳐(moderate) 못 가르니 *뚜렷이
+            #   평평한 것*(wr<0.48)만 발화 = over-abstain>over-fire 규율. 종이/figure 케이스는 위에서 처리됨.
+            wr = s.get("value_range_whole")
+            t = _T("value_structure.whole_image_range")
+            conf = max(conf, min(0.5, 0.3 + 0.4 * (t - wr)))
+            parts.append(f"화면 전체의 밝은 곳·어두운 곳 차이가 좁음(명도 폭 ≈ {wr:.2f})")
+        # rr·whole 다 None/미달이면 값 주장 안 함 — 전역 std 폴백 제거(배경에 속으므로 신뢰 불가)
     bg = s.get("figure_bg_contrast")
     tb = _T("value_structure.figure_bg_contrast")
     if (
