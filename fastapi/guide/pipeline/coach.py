@@ -53,9 +53,13 @@ def _chat_feedback(guide, user_focus):
         return None
     focus = list(user_focus or [])
     if not focus:
-        return diag_line  # (C) 관심 없음/판단만 → 진단만
+        # (C) none — 관심 축 없음(판단어/오프토픽/무키워드). 질문 인정하듯 가볍게 진단으로 잇는다.
+        #   무라벨 지시어형(라벨 재명명 중복 회피). diag_line 은 그대로(축·진단 불변).
+        return f"찬찬히 보니 — {diag_line}"
     if primary.sub_problem in focus:
-        return diag_line  # (A) aligned — 물은 축이 곧 진단 primary → 관찰이 곧 답
+        # (A) aligned — 물은 축이 곧 진단 primary → 관찰이 곧 답. 라벨 반복 없이 인정만 얹는다
+        #   ("입체"=value 처럼 관심축==진단축이라 '관심→진단' 다리는 동어반복 → 인정형).
+        return f"네, 바로 그 부분이에요 — {diag_line}"
     # (B) mismatch — 사용자 관심 축을 인정하되, 진단 primary 로 정직하게 우선순위를 잡는다.
     ulabels = [LABELS[sp] for sp in focus if sp in LABELS]
     plabel = LABELS.get(primary.sub_problem)
