@@ -125,7 +125,9 @@ const ProjectList = () => {
       const pid = String(detail.id);
       localStorage.setItem("drawe_show_project_tutorial", pid);
       localStorage.setItem("drawe_show_reaction_tutorial", pid);
-      navigate(`/projects/${detail.id}/chat`);
+      // 채팅 제거 → 새 레퍼런스 보드 워크스페이스로 진입.
+      // navigate(`/projects/${detail.id}/chat`);
+      navigate(`/projects/${detail.id}/board`);
     } else {
       fetchProjects();
     }
@@ -158,7 +160,9 @@ const ProjectList = () => {
 
   const handleCardClick = (projectId) => {
     if (openMenuId) return;
-    navigate(`/projects/${projectId}/chat`);
+    // 채팅 제거 → 새 레퍼런스 보드 워크스페이스로 진입.
+    // navigate(`/projects/${projectId}/chat`);
+    navigate(`/projects/${projectId}/board`);
   };
 
   return (

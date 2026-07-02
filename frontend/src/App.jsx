@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import ReferencePage from "./pages/chat/ReferencePage";
 import ProjectList from "./pages/projects/ProjectList";
 import ChatPage from "./pages/chat/ChatPage";
+import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
 import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -48,6 +49,10 @@ function App() {
               <Route path="/plan" element={<PlanPage />} />
               <Route path="/policy" element={<PolicyPage />} />
               <Route path="/projects/:projectId/chat" element={<ChatPage />} />
+              <Route
+                path="/projects/:projectId/board"
+                element={<ReferenceBoardPage />}
+              />
               {/* 온보딩 비활성화:
               <Route path="/onboarding" element={<OnboardingPage />} /> */}
               <Route path="/signup/complete" element={<SignupCompletePage />} />
