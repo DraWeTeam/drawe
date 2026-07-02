@@ -33,17 +33,6 @@ function esc(s) {
     .replace(/'/g, "&#39;");
 }
 
-function growthDelta(trend) {
-  if (!trend || trend.length < 2) return null;
-  const first = trend[0].difficulty_count || 0;
-  const last = trend[trend.length - 1].difficulty_count || 0;
-  if (first === 0 && last === 0) return null;
-  const diff = last - first;
-  const dir = diff < 0 ? "down" : diff > 0 ? "up" : "flat";
-  const pct = first > 0 ? Math.round((Math.abs(diff) / first) * 100) : null;
-  return { dir, pct };
-}
-
 // 성장 면적 차트 SVG(모달의 GrowthChart 와 동일한 형태) → 인쇄용 정적 마크업.
 function growthChartSvg(trend) {
   if (!trend || trend.length < 2) return "";
@@ -196,12 +185,14 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
   const growth = guide.growth;
   if (growth) {
     const trend = growth.trend || [];
-    const hasChart = trend.length >= 2;
-    const delta = hasChart ? growthDelta(trend) : null;
-    const msg = hasChart
-      ? deltaMessage(delta)
-      : growth.narration ||
-        "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.";
+    const hasChart = trend.length > 0; // 백엔드가 준 것만(이력<N 이면 trend=[])
+    // 단일 소스: 역사 서술은 백엔드 delta_note(이력≥N). 프론트 %-재계산 없음(GuideModal 과 동형).
+    const msg =
+      growth.delta_note ||
+      growth.narration ||
+      (hasChart
+        ? ""
+        : "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.");
     const current = growth.chips?.current_stage_axes || [];
     const improving = growth.chips?.improving_axes || [];
     out.push(`
@@ -209,12 +200,7 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
         <h3 class="secTitle accent">성장 흐름</h3>
         <div class="growthBox">
           ${hasChart ? `<p class="chartTitle">그림 한 장당 어려움을 느낀 횟수</p>${growthChartSvg(trend)}` : ""}
-          ${
-            delta && delta.pct != null && delta.dir !== "flat"
-              ? `<p class="deltaTag">${delta.pct}% ${delta.dir === "down" ? "감소" : "증가"}</p>`
-              : ""
-          }
-          <p class="growthMsg">${esc(msg)}</p>
+          ${msg ? `<p class="growthMsg">${esc(msg)}</p>` : ""}
         </div>
         ${current.length ? `<p class="chipRow"><span class="chipLabel">현재 그림 단계</span>${current.map((a) => chip(axisLabel(a))).join("")}</p>` : ""}
         ${improving.length ? `<p class="chipRow"><span class="chipLabel">최근에 덜 보이는 어려움</span>${improving.map((a) => chip(axisLabel(a))).join("")}</p>` : ""}
@@ -222,19 +208,6 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
   }
 
   return out.join("\n");
-}
-
-function deltaMessage(d) {
-  if (!d) return "";
-  if (d.dir === "down")
-    return d.pct != null
-      ? `처음 가이드를 받았을 때보다 어려움을 느낀 부분이 ${d.pct}% 줄었어요. 연습한 흐름이 그래프에 보여요.`
-      : "처음보다 어려움을 느낀 부분이 줄었어요.";
-  if (d.dir === "up")
-    return d.pct != null
-      ? `최근에 어려움을 느낀 부분이 ${d.pct}% 늘었어요. 지금 구간을 조금 더 챙겨보면 좋아요.`
-      : "최근에 어려움을 느낀 부분이 늘었어요.";
-  return "최근 어려움을 느낀 정도가 비슷하게 유지되고 있어요.";
 }
 
 const PRINT_CSS = `

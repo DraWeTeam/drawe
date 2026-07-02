@@ -6,12 +6,23 @@
     상위 가드(safety/validate.py)가 이미 차단하지만, 모든 응답이 지나는 *한 지점*에서 재확인(로그, 비치명).
 """
 
+import os
 import re
 import logging
 
+from guide._trace import trace
 from guide.schemas import Growth, GrowthChips, RecurringStat, TrendPoint
 
 log = logging.getLogger("drawe-fastapi.guide")
+
+# ── backward-growth 임계(over-fire 방지) ──────────────────────────────────────────
+# 과거 대비 서술(추세곡선·delta·재발·개선 chip)은 표본이 충분할 때만 낸다. 2 데이터포인트는
+# 추세가 아니라 노이즈다(1→3이면 "200%"라는 무의미한 값 → phantom growth).
+#   MIN_TREND: 추세차트·recurring·improving 최소 업로드 수. MIN_DELTA: '처음 대비' 역사 서술 최소.
+# ★골든fit 아님 — "2점은 추세 아님"이라는 통계 하한 + RECENT_N(5) 창 정합. 실사용 practice_log
+#   분포가 쌓이면 재튠(그래서 growth.gate 계측을 남긴다). forward(현재 집중 chip·next-step)는 항상 유지.
+_GROWTH_MIN_TREND = int(os.environ.get("GROWTH_MIN_TREND", "3"))
+_GROWTH_MIN_DELTA = int(os.environ.get("GROWTH_MIN_DELTA", "5"))
 
 # 내부 성장 단계 토큰(절대 비노출) — growth_stage.py 불변식
 _STAGE = re.compile(r"\b(foundation|developing|refining)\b|_stage")
@@ -63,18 +74,30 @@ def growth_from_raw(raw, note=None):
     window = int(raw.get("window", 5) or 5)
     timeline = raw.get("timeline", []) or []
     flag_count = raw.get("flag_count", {}) or {}
-    recurring = raw.get("recurring", []) or []
-    improved = raw.get("improved", []) or []
     current = raw.get("current_focus")
+    # ★backward-growth 게이트: 최근 창 업로드 수(=이력 표본)로 과거 대비 서술을 억제한다.
+    #   forward(current_stage chip·next-step narration)는 무관하게 항상 유지.
+    n_uploads = len(timeline)
+    show_trend = n_uploads >= _GROWTH_MIN_TREND
+    show_delta = n_uploads >= _GROWTH_MIN_DELTA
+    trace(  # 계측: 실사용 업로드 수 분포 → N 재튠 근거(shadow 계열, 동작 불변)
+        "growth.gate", n_uploads=n_uploads, show_trend=show_trend, show_delta=show_delta
+    )
+    recurring = (raw.get("recurring", []) or []) if show_trend else []
+    improved = (raw.get("improved", []) or []) if show_trend else []
 
-    tpoints = [
-        TrendPoint(
-            index=i + 1,
-            label=str(i + 1),
-            difficulty_count=int((p or {}).get("flagged_count", 0)),
-        )
-        for i, p in enumerate(timeline)
-    ]
+    tpoints = (
+        [
+            TrendPoint(
+                index=i + 1,
+                label=str(i + 1),
+                difficulty_count=int((p or {}).get("flagged_count", 0)),
+            )
+            for i, p in enumerate(timeline)
+        ]
+        if show_trend
+        else []
+    )
 
     rstat = None
     if recurring:
@@ -86,7 +109,7 @@ def growth_from_raw(raw, note=None):
             )
 
     delta = None
-    if len(timeline) >= 2:
+    if show_delta and len(timeline) >= 2:
         first = int((timeline[0] or {}).get("flagged_count", 0))
         last = int((timeline[-1] or {}).get("flagged_count", 0))
         if first > last:

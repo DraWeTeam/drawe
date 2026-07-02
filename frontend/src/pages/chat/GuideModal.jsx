@@ -9,30 +9,9 @@ const GUIDE_BASE = import.meta.env.VITE_GUIDE_PUBLIC_URL || "";
 const assetUrl = (refId) =>
   GUIDE_BASE && refId ? `${GUIDE_BASE}/guide-asset/${refId}` : null;
 
-// trend 첫 장 → 마지막 장의 difficulty_count 변화. 수치는 응답에 없으므로 여기서 계산(측정=사실).
-function growthDelta(trend) {
-  if (!trend || trend.length < 2) return null;
-  const first = trend[0].difficulty_count || 0;
-  const last = trend[trend.length - 1].difficulty_count || 0;
-  if (first === 0 && last === 0) return null;
-  const diff = last - first;
-  const dir = diff < 0 ? "down" : diff > 0 ? "up" : "flat";
-  const pct = first > 0 ? Math.round((Math.abs(diff) / first) * 100) : null;
-  return { dir, pct };
-}
-// 성장 메시지 — 어려움을 '느낀 횟수'의 흐름만 사실대로(실력/평가 금지).
-function deltaMessage(d) {
-  if (!d) return "";
-  if (d.dir === "down")
-    return d.pct != null
-      ? `처음 가이드를 받았을 때보다 어려움을 느낀 부분이 ${d.pct}% 줄었어요. 연습한 흐름이 그래프에 보여요.`
-      : "처음보다 어려움을 느낀 부분이 줄었어요. 연습한 흐름이 그래프에 보여요.";
-  if (d.dir === "up")
-    return d.pct != null
-      ? `최근에 어려움을 느낀 부분이 ${d.pct}% 늘었어요. 지금 구간을 조금 더 챙겨보면 좋아요.`
-      : "최근에 어려움을 느낀 부분이 늘었어요. 지금 구간을 조금 더 챙겨보면 좋아요.";
-  return "최근 어려움을 느낀 정도가 비슷하게 유지되고 있어요.";
-}
+// ★성장 서술의 단일 소스는 백엔드다(growth.delta_note/trend). 프론트가 trend 로 %를 재계산하던
+//   growthDelta/deltaMessage("처음 받았을 때보다 200%…")는 제거 — 이력<N 이면 백엔드가 trend/delta 를
+//   아예 안 보내므로(contract.py 임계), 프론트는 '받은 것만' 렌더한다. 이중 게이트·% 노이즈 제거.
 
 // 섹션 헤더: "n. 제목". accent=true 면 주황(한 끗 포인트·성장 흐름).
 const SectionTitle = ({ num, children, accent }) => (
@@ -175,8 +154,9 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
   );
 };
 
-// 면적 차트(성장): trend [{index, difficulty_count, label}] → 부드러운 area + 델타 배지.
-const GrowthChart = ({ trend, delta }) => {
+// 면적 차트(성장): trend [{index, difficulty_count, label}] → 부드러운 area.
+//   trend 는 백엔드가 이력≥N 일 때만 채워 보낸다(contract.py 임계). 아니면 [] → 차트 자체가 안 뜸.
+const GrowthChart = ({ trend }) => {
   if (!trend || trend.length < 2) return null;
   const W = 520;
   const H = 150;
@@ -221,11 +201,6 @@ const GrowthChart = ({ trend, delta }) => {
             strokeLinecap="round"
           />
         </svg>
-        {delta && delta.pct != null && delta.dir !== "flat" && (
-          <span className={styles.deltaTag}>
-            {delta.pct}% {delta.dir === "down" ? "감소" : "증가"}
-          </span>
-        )}
       </div>
     </div>
   );
@@ -248,20 +223,22 @@ const ChipRow = ({ label, axes }) => {
 const Growth = ({ growth }) => {
   if (!growth) return null;
   const trend = growth.trend || [];
-  const hasChart = trend.length >= 2;
+  const hasChart = trend.length > 0; // 백엔드가 준 것만(이력<N 이면 trend=[] → 차트·% 미발화)
   const current = growth.chips?.current_stage_axes || [];
   const improving = growth.chips?.improving_axes || [];
-  const delta = hasChart ? growthDelta(trend) : null;
-  // 차트 있으면 trend로 계산한 변화 한 줄(= next_steps.note 와 중복 안 됨).
-  const message = hasChart
-    ? deltaMessage(delta)
-    : growth.narration ||
-      "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.";
+  // 성장 메시지: 역사 서술은 백엔드 delta_note(이력≥N 게이트)만. 없으면 forward narration,
+  //   그마저 없으면 첫 사용 안내. 프론트에서 %를 재계산하지 않는다(단일 소스).
+  const message =
+    growth.delta_note ||
+    growth.narration ||
+    (hasChart
+      ? ""
+      : "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.");
   return (
     <section className={styles.growth}>
       <SectionTitle accent>성장 흐름</SectionTitle>
       <div className={styles.growthBox}>
-        {hasChart && <GrowthChart trend={trend} delta={delta} />}
+        {hasChart && <GrowthChart trend={trend} />}
         {message && (
           <p className={hasChart ? styles.growthMsg : styles.growthFirst}>
             {message}
