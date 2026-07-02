@@ -101,7 +101,20 @@ def run_guide(
     user_focus=(),
 ):
     if diagnosis.get("primary_focus") is None:
-        return GuideResponse(mode="clarify", message="무엇을 봐주면 좋을지 알려주세요.")
+        # 진단이 축을 못 잡은 clarify — 상황별 안내(copy 층만, 진단 미접촉: inexpressible 은
+        #   diagnose 가 이미 계산한 값을 *읽기만* 한다). (a)비-그림은 routes 에서 먼저 갈려 여기 안 옴.
+        #   inexpressible 있음 = 양식화/선화로 '측정 재료' 부재(치비 등 correct-abstain), 없음 = 결함 없이 깨끗.
+        if diagnosis.get("inexpressible"):
+            msg = (
+                "이 그림은 스타일 특성상 지금 제가 보는 방식으로는 짚어드릴 지점을 찾기 어려워요. "
+                "실사나 인물 드로잉처럼 형태가 잘 드러나는 그림일수록 더 정확하게 봐드릴 수 있어요."
+            )
+        else:
+            msg = (
+                "지금 이 그림에선 특별히 먼저 짚어드릴 부분이 두드러지지 않아요. "
+                "신경 쓰이는 부분이 있으면 알려주세요. 거기부터 같이 볼게요."
+            )
+        return GuideResponse(mode="clarify", message=msg)
     ns = _next_steps(
         growth, taxonomy
     )  # 결정적(무엇을 할지) — 먼저 계산해 프롬프트에 '사실'로 넣는다

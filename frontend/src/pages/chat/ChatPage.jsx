@@ -1012,8 +1012,13 @@ const ChatPage = () => {
                       //   없으면(구버전 응답 등) 현재 그림 관찰로 폴백. ★성장(next_steps.note/synthesis)은
                       //   더 이상 채팅에 안 끌어옴 — 성장 흐름은 한 끗 상세 모달에만.
                       const g = m.guide || {};
+                      // clarify/redirect 등 비-coach 응답은 chat_feedback·blocks 가 없으므로
+                      //   안내 문구(message)를 채팅에도 한 줄 띄운다(빈 버블 침묵 해소).
                       const utterance =
-                        g.chat_feedback || g.blocks?.[0]?.observation || "";
+                        g.chat_feedback ||
+                        g.blocks?.[0]?.observation ||
+                        (g.mode !== "coach" ? g.message : "") ||
+                        "";
                       return (
                         <div key={idx} className={styles.assistantMessage}>
                           {utterance && (
