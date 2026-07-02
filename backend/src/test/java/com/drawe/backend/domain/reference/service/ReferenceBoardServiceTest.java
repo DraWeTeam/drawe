@@ -53,6 +53,7 @@ class ReferenceBoardServiceTest {
   @Mock Project project;
 
   private static ImageResult img(long id, String source) {
+    // subject "cat" — 태그 게이트가 keyword "cat" 과 오버랩되게(관련 결과 시나리오)
     return new ImageResult(
         id,
         "src" + id,
@@ -61,7 +62,7 @@ class ReferenceBoardServiceTest {
         null,
         0.9f,
         null,
-        null,
+        "cat",
         null,
         null,
         null,
@@ -168,42 +169,72 @@ class ReferenceBoardServiceTest {
   }
 
   @Test
-  @DisplayName("검색: 관련성 낮으면(점수 가드) 빈 결과 — '검색 결과가 없습니다'")
-  void search_lowRelevance_returnsEmpty() {
+  @DisplayName("검색: 상위 결과 태그에 키워드 없으면(코퍼스에 없음) 빈 결과 — '검색 결과가 없습니다'")
+  void search_noTagOverlap_returnsEmpty() {
     when(user.getId()).thenReturn(USER_ID);
-    when(keywordExtractor.extract("xyz")).thenReturn(List.of("xyz"));
+    when(keywordExtractor.extract("hamburger")).thenReturn(List.of("hamburger"));
+    when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
+    when(project.getUser()).thenReturn(user);
+    when(project.getPinnedImageIds()).thenReturn(List.of());
+    // 결과는 subject "cat" 뿐 → "hamburger" 태그 미매치 → 코퍼스에 없음
+    when(searchService.search(any()))
+        .thenReturn(new SearchResponse(List.of(img(1L, "AI"), img(2L, "AI")), 2, "hamburger"));
+
+    ReferenceBoardSearchResponse res =
+        service.search(user, PROJECT_ID, "hamburger", ReferenceSource.ALL, 12);
+
+    assertThat(res.results()).isEmpty();
+    assertThat(res.total()).isZero();
+    assertThat(res.blocked()).isTrue(); // 태그 미매치 → 생성 유도 신호
+    verifyNoInteractions(sessionService, imageFeedbackRepository);
+  }
+
+  @Test
+  @DisplayName("검색: 태그는 맞아도 최상위 점수가 아주 낮으면 빈 결과(느슨한 score backstop)")
+  void search_tagMatchButVeryLowScore_returnsEmpty() {
+    when(user.getId()).thenReturn(USER_ID);
+    when(keywordExtractor.extract("cat")).thenReturn(List.of("cat"));
+    when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
+    when(project.getUser()).thenReturn(user);
+    when(project.getPinnedImageIds()).thenReturn(List.of());
+    // subject "cat" 태그는 맞지만 score 0.05 (< MIN_MAX_SCORE 0.18)
+    ImageResult lowCat =
+        new ImageResult(
+            1L, "src1", "u", null, null, 0.05f, null, "cat", null, null, null, null, "AI", null,
+            null);
+    when(searchService.search(any())).thenReturn(new SearchResponse(List.of(lowCat), 1, "cat"));
+
+    ReferenceBoardSearchResponse res =
+        service.search(user, PROJECT_ID, "cat", ReferenceSource.ALL, 12);
+
+    assertThat(res.results()).isEmpty();
+    assertThat(res.blocked()).isTrue();
+    verifyNoInteractions(sessionService, imageFeedbackRepository);
+  }
+
+  @Test
+  @DisplayName("검색: 기노출로 풀 고갈되면 노출이력 리셋하고 재노출(빈 화면 방지)")
+  void search_poolDepleted_recyclesShown() {
+    when(user.getId()).thenReturn(USER_ID);
+    when(keywordExtractor.extract("cat")).thenReturn(List.of("cat"));
     when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
     when(project.getUser()).thenReturn(user);
     when(project.getPinnedImageIds()).thenReturn(List.of());
     when(searchService.search(any()))
-        .thenReturn(new SearchResponse(List.of(lowScore(1L), lowScore(2L)), 2, "xyz"));
+        .thenReturn(new SearchResponse(List.of(img(200L, "AI"), img(300L, "AI")), 2, "cat"));
+    when(imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.DISLIKE))
+        .thenReturn(List.of());
+    when(imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.LIKE))
+        .thenReturn(List.of());
+    ReferenceBoardSession session = ReferenceBoardSession.start(USER_ID, PROJECT_ID);
+    session.markShown(List.of(200L, 300L)); // 이미 다 봄 → 고갈
+    when(sessionService.get(USER_ID, PROJECT_ID)).thenReturn(session);
 
     ReferenceBoardSearchResponse res =
-        service.search(user, PROJECT_ID, "xyz", ReferenceSource.ALL, 12);
+        service.search(user, PROJECT_ID, "cat", ReferenceSource.ALL, 12);
 
-    assertThat(res.results()).isEmpty();
-    assertThat(res.total()).isZero();
-    assertThat(res.blocked()).isTrue(); // 관련성 낮음 → 생성 유도 신호
-    verifyNoInteractions(sessionService, imageFeedbackRepository);
-  }
-
-  /** 점수 가드용 저점수 결과(avg/max 모두 floor 미만). */
-  private static ImageResult lowScore(long id) {
-    return new ImageResult(
-        id,
-        "src" + id,
-        "u",
-        null,
-        null,
-        0.1f,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        "AI",
-        null,
-        null);
+    // 고갈됐지만 리셋 후 재노출 → 빈 화면이 아니라 다시 보여줌
+    assertThat(res.results()).extracting(c -> c.image().id()).containsExactly(200L, 300L);
+    verify(sessionService).save(session);
   }
 }

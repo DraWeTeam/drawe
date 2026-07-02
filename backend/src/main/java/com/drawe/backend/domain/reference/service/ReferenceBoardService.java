@@ -53,10 +53,8 @@ public class ReferenceBoardService {
   /** topK 상한 — 프론트가 과도한 값을 보내도 이 이상은 반환하지 않는다(코퍼스 overfetch 폭과 동일). */
   private static final int MAX_TOP_K = CANDIDATE_K;
 
-  /** 관련성 가드 — 챗 {@code SearchExecutor} 와 동일. avg<0.2 AND max<0.24 이면 무관 결과로 보고 빈 결과 반환. */
-  private static final double AVG_SCORE_FLOOR = 0.2;
-
-  private static final double MAX_SCORE_FLOOR = 0.24;
+  /** score backstop — 태그가 잡혀도 최상위 CLIP 유사도가 이보다 낮으면 무관으로 본다. 카페 max≈0.204 는 통과하되 그 바로 아래로 잡음. */
+  private static final double MIN_MAX_SCORE = 0.18;
 
   private final SearchService searchService;
   private final KomoranKeywordExtractor keywordExtractor;
@@ -92,13 +90,28 @@ public class ReferenceBoardService {
     String searchQuery = keywords.isEmpty() ? query : String.join(" ", keywords);
     SearchResponse raw = searchService.search(new SearchRequest(searchQuery, CANDIDATE_K));
 
-    // 관련성 가드 — 최상위도 별로고(max<0.24) 평균도 낮으면(avg<0.2) 무관 결과로 보고 "검색 결과 없음".
-    if (isLowRelevance(raw.results())) {
-      log.info(
-          "reference-board search — 관련성 낮음(빈 결과): userId={}, projectId={}, source={}",
-          user.getId(),
-          projectId,
-          src);
+    // 관련성 게이트(주) — 상위 결과의 태그/설명에 키워드가 하나도 안 잡히면 코퍼스에 없는 주제로 보고 "검색 결과 없음"(→ 생성 유도).
+    // CLIP 점수는 쿼리마다 절대값이 달라(햄버거 0.239 > 카페 0.204) 주 판정엔 못 쓰고, max 가 아주 낮은 경우만 거르는 느슨한 backstop.
+    List<ImageResult> window =
+        raw.results().size() > DEFAULT_TOP_K
+            ? raw.results().subList(0, DEFAULT_TOP_K)
+            : raw.results();
+    double avg =
+        window.stream().mapToDouble(r -> r.score() != null ? r.score() : 0.0).average().orElse(0.0);
+    double max =
+        window.stream().mapToDouble(r -> r.score() != null ? r.score() : 0.0).max().orElse(0.0);
+    boolean tagRelevant = hasKeywordInTags(window, keywords.isEmpty() ? List.of(query) : keywords);
+    boolean blocked = raw.results().isEmpty() || !tagRelevant || max < MIN_MAX_SCORE;
+    log.info(
+        "reference-board search — q='{}' → kw='{}', raw={}, avg={}, max={}, tagRelevant={}, blocked={}",
+        query,
+        searchQuery,
+        raw.results().size(),
+        String.format("%.3f", avg),
+        String.format("%.3f", max),
+        tagRelevant,
+        blocked);
+    if (blocked) {
       return new ReferenceBoardSearchResponse(List.of(), 0, query, src.name(), true);
     }
 
@@ -111,14 +124,19 @@ public class ReferenceBoardService {
     Set<Long> shown = session.getShownImageIds();
 
     // 소스(AI/사진)는 서버에서 안 거른다 — 칩 필터는 클라이언트가 결과셋의 source 로 처리(칩 클릭 시 재검색 X).
-    // 서버는 핀·싫어요·기노출만 제외하고 AI+사진을 섞어서 반환한다.
-    List<ImageResult> filtered =
+    // 핀·싫어요는 항상 제외, 기노출(shown)은 "새로 노출"용으로 제외한다.
+    List<ImageResult> available =
         raw.results().stream()
             .filter(r -> !pinned.contains(r.id())) // 핀은 상단 고정 → 검색 업데이트에서 제외
             .filter(r -> !disliked.contains(r.id())) // 싫어요는 다시 안 보임
-            .filter(r -> !shown.contains(r.id())) // 이미 본 건 "새로 노출"에서 제외
-            .limit(limit)
             .toList();
+    List<ImageResult> filtered =
+        available.stream().filter(r -> !shown.contains(r.id())).limit(limit).toList();
+    // 풀 고갈(같은 검색 반복으로 다 본 상태) → 노출이력 리셋하고 처음부터 재노출(빈 화면 방지)
+    if (filtered.isEmpty() && !available.isEmpty()) {
+      shown.clear();
+      filtered = available.stream().limit(limit).toList();
+    }
 
     session.markShown(filtered.stream().map(ImageResult::id).toList());
     sessionService.save(session);
@@ -177,19 +195,50 @@ public class ReferenceBoardService {
     sessionService.save(session);
   }
 
-  /** 관련성 가드 판정 — 결과가 없거나 (avg<floor AND max<floor) 이면 무관 결과로 본다. */
-  private static boolean isLowRelevance(List<ImageResult> results) {
-    if (results.isEmpty()) {
-      return true;
+  /** 상위 결과의 태그/설명에 키워드(영문)가 하나라도 substring 으로 잡히면 관련 있다고 본다(코퍼스에 그 주제가 있음). */
+  private static boolean hasKeywordInTags(List<ImageResult> results, List<String> keywords) {
+    List<String> kws =
+        keywords.stream().filter(k -> k != null && !k.isBlank()).map(k -> k.toLowerCase()).toList();
+    if (kws.isEmpty()) {
+      return false;
     }
-    double avg =
-        results.stream()
-            .mapToDouble(r -> r.score() != null ? r.score() : 0.0)
-            .average()
-            .orElse(0.0);
-    double max =
-        results.stream().mapToDouble(r -> r.score() != null ? r.score() : 0.0).max().orElse(0.0);
-    return avg < AVG_SCORE_FLOOR && max < MAX_SCORE_FLOOR;
+    for (ImageResult r : results) {
+      String text = tagText(r);
+      for (String kw : kws) {
+        if (text.contains(kw)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 이미지의 태그·설명(subject/technique/mood/utility/freeTags/rawTags/prompt/aiDescription)을 소문자 한 덩어리로.
+   */
+  private static String tagText(ImageResult r) {
+    StringBuilder sb = new StringBuilder();
+    appendIf(sb, r.subject());
+    appendIf(sb, r.technique());
+    appendIf(sb, r.mood());
+    appendIf(sb, r.prompt());
+    appendIf(sb, r.aiDescription());
+    appendAll(sb, r.utility());
+    appendAll(sb, r.freeTags());
+    appendAll(sb, r.rawTags());
+    return sb.toString().toLowerCase();
+  }
+
+  private static void appendIf(StringBuilder sb, String s) {
+    if (s != null) {
+      sb.append(' ').append(s);
+    }
+  }
+
+  private static void appendAll(StringBuilder sb, List<String> items) {
+    if (items != null) {
+      items.forEach(s -> appendIf(sb, s));
+    }
   }
 
   /** 프로젝트 소유 검증 + 핀된 이미지 id 집합. 핀은 상단 고정이라 검색 결과(업데이트분)에서 제외한다. */
