@@ -988,15 +988,13 @@ const ChatPage = () => {
                     }
                     // 가이드 카드(채팅 반영) — 클릭 시 전체 보기, 아래 좋아요/싫어요/PDF
                     if (m.type === "guide") {
-                      // 채팅 인라인 AI 발화 — 모달과 *같은* guide 객체 재사용(단일 출처).
-                      //   리드 = 모달 intro 와 동일 폴백(next_steps.note || synthesis),
-                      //   콜드스타트(synthesis 없음) 대비 blocks[0].observation 까지.
+                      // 채팅 인라인 AI 발화 = 이 그림 '한 줄 피드백'(결정론). 백엔드가 조립한
+                      //   chat_feedback(현재 그림 진단 + 사용자 의도 진입, 성장 없음)을 우선 쓴다.
+                      //   없으면(구버전 응답 등) 현재 그림 관찰로 폴백. ★성장(next_steps.note/synthesis)은
+                      //   더 이상 채팅에 안 끌어옴 — 성장 흐름은 한 끗 상세 모달에만.
                       const g = m.guide || {};
                       const utterance =
-                        g.next_steps?.note ||
-                        g.synthesis ||
-                        g.blocks?.[0]?.observation ||
-                        "";
+                        g.chat_feedback || g.blocks?.[0]?.observation || "";
                       return (
                         <div key={idx} className={styles.assistantMessage}>
                           {utterance && (

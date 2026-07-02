@@ -18,7 +18,7 @@ from guide.ml.pose import extract
 from guide.ml.llm import get_llm
 from guide.pipeline.coach import run_guide
 from guide.schemas import PendingReference
-from guide.pipeline.router import resolve, detect_intent
+from guide.pipeline.router import resolve, detect_intent, detect_terms
 from guide.pipeline.diagnose import diagnose, taxonomy, instrument_version
 from guide.pipeline.roadmap import (
     get_roadmap,
@@ -350,6 +350,10 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
     if early:
         return early
     dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp = ctx
+    # 채팅 한 줄 피드백용 사용자 의도 = 작가가 *명시적으로 입력한* 키워드만(detect_terms(message)).
+    #   diagnose 의 from_user 는 subject 에스컬레이션(_extra_terms, 예: 손 이미지→hand_structure)까지 섞여
+    #   mismatch 를 (A)로 삼킨다 — 여기선 순수 텍스트 관심만 필요. 발화 프레이밍 전용(진단 경로 무영향).
+    user_focus = list(detect_terms(message))
     # 에이전트 선택층(grounded): 룰이 낸 후보 중에서 무엇을 먼저·어떤 레퍼런스로 보여줄지 *선택* → 검증 → 적용.
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
@@ -371,6 +375,7 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
         growth=growth,
         intent=intent,
         asset_index=asset_index,
+        user_focus=user_focus,
     )
     # ②v1 섀도우 계측(관측 전용·동작 불변): 확정된 dx 출력 + 실현 mode + end-to-end dt 만 read-only 로 emit.
     _shadow.emit(dx, resp, perf_counter() - _t0, track=track)
@@ -429,6 +434,8 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
         ]
         return StreamingResponse(iter(body), media_type="text/event-stream")
     dx, refs_by_sp, retrieved, tax, growth, intent, _pending = ctx
+    # 채팅 한 줄 피드백용 사용자 의도 = 명시 입력 키워드만(detect_terms). sync 경로와 동형.
+    user_focus = list(detect_terms(message))
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
     )
@@ -450,6 +457,7 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
         growth=growth,
         intent=intent,
         asset_index=asset_index,
+        user_focus=user_focus,
     )
     # ②v1 섀도우 계측(관측 전용·동작 불변): _guide_sync 와 동형 read-only emit.
     _shadow.emit(dx, resp, perf_counter() - _t0, track=track)

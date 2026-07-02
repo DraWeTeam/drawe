@@ -21,6 +21,52 @@ def _relabel_ids(text):
     return text
 
 
+def _josa(word, jong, no_jong):
+    """한글 받침 유무로 조사 선택(예: 이/가). 결정론 발화라 조사도 맞춘다('손 구조가'/'명암이')."""
+    if not word:
+        return no_jong
+    c = ord(word[-1])
+    if 0xAC00 <= c <= 0xD7A3:  # 한글 음절 → 종성(받침) 있으면 jong
+        return jong if (c - 0xAC00) % 28 else no_jong
+    return no_jong
+
+
+def _chat_feedback(guide, user_focus):
+    """채팅용 '이 그림 한 줄 피드백'을 *결정론적*으로 조립한다(LLM 안 씀, 성장 없음).
+
+    설계 3층:
+      L1 intent  = user_focus(= routes 가 detect_terms(message)로 뽑은 *명시 입력* 키워드 축).
+                   판단어("괜찮다/이상해요")는 어느 축에도 매핑 안 돼 자동 탈락 → 진단을 못 바꾼다.
+                   ★diagnose 의 from_user 가 아니라 순수 텍스트 키워드를 쓴다 — from_user 는 subject
+                   에스컬레이션(손 이미지→hand)까지 섞여 mismatch 를 (A)로 삼키기 때문.
+      L2 align   = 사용자 관심 축 vs 진단 primary 관계: aligned / mismatch / none.
+      L3 render  = 케이스별 결정론 문형.
+    ★진단 불변: diag_line 은 *이미지가 만든* primary 관찰(blocks[0].observation)만 쓴다. user_text 는
+      '어느 축을 인정하며 진입할지'(프레이밍)만 정하고 진단 내용·축을 못 바꾼다. '하나 중심' = primary 한 축만.
+    """
+    blocks = guide.blocks or []
+    if not blocks:
+        return None
+    primary = blocks[0]  # 하나 중심: primary 축만 (top-3 나열 금지)
+    diag_line = (primary.observation or "").strip()
+    if not diag_line:
+        return None
+    focus = list(user_focus or [])
+    if not focus:
+        return diag_line  # (C) 관심 없음/판단만 → 진단만
+    if primary.sub_problem in focus:
+        return diag_line  # (A) aligned — 물은 축이 곧 진단 primary → 관찰이 곧 답
+    # (B) mismatch — 사용자 관심 축을 인정하되, 진단 primary 로 정직하게 우선순위를 잡는다.
+    ulabels = [LABELS[sp] for sp in focus if sp in LABELS]
+    plabel = LABELS.get(primary.sub_problem)
+    if not ulabels or not plabel:
+        return diag_line  # 라벨 없으면 프레이밍 생략, 진단만(안전)
+    return (
+        f"{ulabels[0]} 궁금하셨죠. 다만 지금 이 그림에선 "
+        f"{plabel}{_josa(plabel, '이', '가')} 먼저 눈에 띄어요 — {diag_line}"
+    )
+
+
 def _next_steps(growth, taxonomy):
     """'앞으로 할 것' 블록을 로드맵 컨텍스트 + taxonomy로 결정적으로 구성(LLM 아님)."""
     if not growth or not growth.get("current_focus"):
@@ -48,6 +94,7 @@ def run_guide(
     growth=None,
     intent="open",
     asset_index=None,
+    user_focus=(),
 ):
     if diagnosis.get("primary_focus") is None:
         return GuideResponse(mode="clarify", message="무엇을 봐주면 좋을지 알려주세요.")
@@ -93,4 +140,6 @@ def run_guide(
             g.one_thing = g.next_steps.focus_practice
         # 렌더 중복 가드(보험): 인트로·추천연습·한끗포인트가 같은 문장으로 겹치면 비워 한 번만 보이게.
         g = strip_redundant_text(g)
+        # 채팅 한 줄 피드백(결정론) — 성장 없이 '이 그림 진단 + 사용자 의도 진입'. 상세 synthesis/growth 는 불변.
+        g.chat_feedback = _chat_feedback(g, user_focus)
     return g
