@@ -50,6 +50,9 @@ services:
   backend:
     build:
       context: ../backend
+      # 로컬 전용: 소스에서 직접 컴파일(멀티스테이지). CI/CD 는 기존 backend/Dockerfile 유지.
+      #   → docker compose build backend 만으로 항상 최신 소스 반영(stale jar 근절).
+      dockerfile: Dockerfile.local
     container_name: drawe-backend
     ports:
       - "${BACKEND_PORT:-8080}:8080"
@@ -82,6 +85,11 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       APP_OAUTH2_REDIRECT_URI: http://localhost:5173/oauth/callback
+      # 이메일 인증(회원가입 코드 발송)용 SMTP. application.properties 의 username/password 는
+      #   기본값이 없어(host/port 만 있음) 미설정 시 mailService 빈 생성 실패 → 컨텍스트 기동 실패.
+      #   로컬 테스트는 실제 발송이 불필요하니 dummy 로 빈만 뜨게. 실제 발송하려면 .env 로 override.
+      SMTP_USERNAME: ${SMTP_USERNAME:-localdev@example.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-localdevdummy}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-password}
     depends_on:
