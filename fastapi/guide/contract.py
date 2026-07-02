@@ -24,6 +24,13 @@ log = logging.getLogger("drawe-fastapi.guide")
 _GROWTH_MIN_TREND = int(os.environ.get("GROWTH_MIN_TREND", "3"))
 _GROWTH_MIN_DELTA = int(os.environ.get("GROWTH_MIN_DELTA", "5"))
 
+# ── chip 나열 상한(over-fire: 나열도 과다노출) ──────────────────────────────────────
+# 현재단계·개선 칩을 상위 N개로 절단(이력 쌓여도 우르르 나열 방지). current_focus 는 선두 고정,
+# 나머지(recurring/improved)는 재발빈도(flag_count) 높은 순 → 동점은 id 순(결정론, 매 호출 동일).
+#   표시층 전용(축 판정·predict_axis 무관). 시안 정합용 상수 — env 로 재튠 가능.
+_MAX_STAGE_CHIPS = int(os.environ.get("MAX_STAGE_CHIPS", "3"))
+_MAX_IMPROVING_CHIPS = int(os.environ.get("MAX_IMPROVING_CHIPS", "2"))
+
 # 내부 성장 단계 토큰(절대 비노출) — growth_stage.py 불변식
 _STAGE = re.compile(r"\b(foundation|developing|refining)\b|_stage")
 try:
@@ -117,11 +124,17 @@ def growth_from_raw(raw, note=None):
         elif last > first:
             delta = f"최근 {len(timeline)}장에서 함께 짚인 어려움이 {first}개에서 {last}개로 늘었어요."
 
+    # 나열 상한(over-fire): current_focus 선두 고정 + recurring 을 flag_count 우선 상위로 채워 최대 N.
+    #   improved 도 flag_count 우선 상위 M. 동점은 id 순 → 매 호출 동일 결과(비결정 금지).
+    def _rank(axes):
+        return sorted(axes, key=lambda sp: (-int(flag_count.get(sp, 0)), sp))
+
+    stage_axes = ([current] if current else []) + _rank(
+        [sp for sp in recurring if sp != current]
+    )
     chips = GrowthChips(
-        current_stage_axes=list(
-            dict.fromkeys(([current] if current else []) + list(recurring))
-        ),
-        improving_axes=list(improved),
+        current_stage_axes=list(dict.fromkeys(stage_axes))[:_MAX_STAGE_CHIPS],
+        improving_axes=_rank(list(improved))[:_MAX_IMPROVING_CHIPS],
     )
 
     narration = (note or "").strip()
