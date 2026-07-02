@@ -166,7 +166,9 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     }
   };
 
-  const canSubmit = !!file && !submitting;
+  // 텍스트 필수화(시안 SCR-GUIDE-01): 파일 + 비지 않은 메시지(칩 클릭도 setMessage 로 채움)여야 제출.
+  //   detect_terms 진입점 보장 → chat_feedback intent + request_text(B-2) 채워짐(우리 로직 스위치).
+  const canSubmit = !!file && message.trim().length > 0 && !submitting;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -237,7 +239,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
           {/* 걱정거리 */}
           <label className={styles.fieldLabel}>
-            어떤 점이 마음에 걸리나요?{" "}
+            어떤 점이 마음에 걸리나요? (필수){" "}
             <span
               className={styles.info}
               title="신경 쓰이는 부분을 적으면 그 부분 위주로 봐드려요."
