@@ -20,6 +20,9 @@ public record GuideResponse(
     boolean degraded,
     List<GuideBlock> blocks,
     String synthesis,
+    // 채팅 한 줄 피드백(fastapi 결정론 조립: intent-aware 프레이밍 + 현재 그림 진단). SnakeCaseStrategy 로
+    //   chat_feedback ↔ chatFeedback 매핑. Spring 은 순수 통과(생성·가공 0) — 값은 fastapi 가 만든 그대로.
+    String chatFeedback,
     String oneThing,
     String message,
     NextSteps nextSteps,
