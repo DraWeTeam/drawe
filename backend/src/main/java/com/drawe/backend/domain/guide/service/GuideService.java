@@ -81,7 +81,10 @@ public class GuideService {
     Optional<Guide> existing = guideRepository.findByRequestId(reqId);
     if (existing.isPresent()) {
       return buildResult(
-          existing.get().getPayload(), existing.get().getCreatedAt(), uploadUrl(existing.get()));
+          existing.get().getPayload(),
+          existing.get().getCreatedAt(),
+          uploadUrl(existing.get()),
+          existing.get().getRequestText());
     }
 
     byte[] bytes;
@@ -114,14 +117,20 @@ public class GuideService {
     // coach 모드만 영속(거절/재질문/리다이렉트는 히스토리에 남기지 않음).
     String uploadUrl = null;
     if ("coach".equals(resp.mode())) {
-      Guide saved = persistGuide(reqId, resp, user, project, bytes, file.getContentType());
+      Guide saved = persistGuide(reqId, resp, user, project, bytes, file.getContentType(), message);
       uploadUrl = saved != null ? uploadUrl(saved) : null;
     }
-    return buildResult(resp, Instant.now(), uploadUrl);
+    return buildResult(resp, Instant.now(), uploadUrl, message);
   }
 
   private Guide persistGuide(
-      String reqId, GuideResponse resp, User user, Project project, byte[] bytes, String mime) {
+      String reqId,
+      GuideResponse resp,
+      User user,
+      Project project,
+      byte[] bytes,
+      String mime,
+      String message) {
     Guide g = new Guide();
     g.setRequestId(reqId);
     g.setGuideId(resp.guideId());
@@ -129,6 +138,7 @@ public class GuideService {
     g.setProject(project);
     g.setPrimaryFocus(resp.primaryFocus());
     g.setDegraded(resp.degraded());
+    g.setRequestText((message == null || message.isBlank()) ? null : message);
     g.setPayload(resp);
     g.setUpload(storeUploadQuietly(user, bytes, mime)); // 원본 썸네일(선택). 실패 시 null.
     try {
@@ -174,7 +184,7 @@ public class GuideService {
     List<GuideResult> out = new ArrayList<>(guides.size());
     for (int i = guides.size() - 1; i >= 0; i--) {
       Guide g = guides.get(i);
-      out.add(buildResult(g.getPayload(), g.getCreatedAt(), uploadUrl(g)));
+      out.add(buildResult(g.getPayload(), g.getCreatedAt(), uploadUrl(g), g.getRequestText()));
     }
     return out;
   }
@@ -275,8 +285,9 @@ public class GuideService {
     guideFeedbackRepository.save(gf);
   }
 
-  private GuideResult buildResult(GuideResponse resp, Instant createdAt, String uploadUrl) {
-    return new GuideResult(resp, resolveReferences(resp), createdAt, uploadUrl);
+  private GuideResult buildResult(
+      GuideResponse resp, Instant createdAt, String uploadUrl, String requestText) {
+    return new GuideResult(resp, resolveReferences(resp), createdAt, uploadUrl, requestText);
   }
 
   /** 저장된 업로드 원본의 internal URL(/images/{id}). 없으면 null. 채팅 이미지와 동일 서빙 경로. */

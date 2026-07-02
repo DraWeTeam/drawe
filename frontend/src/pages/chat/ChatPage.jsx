@@ -324,21 +324,34 @@ const ChatPage = () => {
       }
 
       // 2) 영속된 가이드 — 세션 무관, projectId 단위로 항상 복원. 각 항목에 createdAt + uploadUrl.
+      //    사용자 질문(requestText)이 있으면 가이드 카드 앞에 주황 말풍선을 재구성한다
+      //    (라이브 전송 순서 user→assistant 를 복원에서도 보존). 빈 값이면 말풍선 생략.
       let guideCards = [];
       try {
         const guides = await getGuides(projectId);
         if (Array.isArray(guides) && guides.length > 0) {
-          guideCards = guides.map((g, i) => ({
-            role: "assistant",
-            type: "guide",
-            _gid: `restored-${i}`,
-            guide: g.guide,
-            references: g.references || [],
-            guideTitle: axisLabel(g.guide?.primary_focus) || "한 끗",
-            guidePreview: g.uploadUrl ?? null,
-            guideFeedback: null,
-            createdAt: g.createdAt ?? null,
-          }));
+          guideCards = guides.flatMap((g, i) => {
+            const card = {
+              role: "assistant",
+              type: "guide",
+              _gid: `restored-${i}`,
+              guide: g.guide,
+              references: g.references || [],
+              guideTitle: axisLabel(g.guide?.primary_focus) || "한 끗",
+              guidePreview: g.uploadUrl ?? null,
+              guideFeedback: null,
+              createdAt: g.createdAt ?? null,
+            };
+            const text = g.requestText?.trim();
+            if (!text) return [card];
+            const userBubble = {
+              role: "user",
+              content: g.requestText,
+              imageUrl: g.uploadUrl ?? null,
+              createdAt: g.createdAt ?? null,
+            };
+            return [userBubble, card];
+          });
         }
       } catch {
         /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
