@@ -35,7 +35,25 @@
 - **한계(중요):** 골든 15장은 통계 표본으로 작고, **테스트셋이 곧 개발셋**이라 일반화에 태생적으로 낙관적이다.
   그래서 이 규율(특히 골든fit 금지)이 일반화의 사실상 유일한 방어선이다 — 규율을 깨면 숫자는 올라도 실효는 안 따라온다.
 
+## 프로덕션 검증 (갱신 2026-07-02): "배선 ≠ 판정"이 실제로 잡은 것
+
+이 방법론의 핵심 전제 — **코드에 신호·지시가 있어도 실제로 작동하는지는 별개**(특히 LLM은 비결정적) —
+는 UI 진입 전 실측에서 반복 적중했다. 격리 단위검증만으로는 통과하지만 full 경로에서 깨지는 사례들:
+
+| 사례 | 격리 검증 | full 경로 실측 | 조치(커밋) |
+|---|---|---|---|
+| color AND-gate | 신호 계산됨 | 실발화 **0/69**(휴면 — 임계가 분포 밖) | 분포 갭에서 재튜닝 `e12e35d` |
+| 벽축 pseudo-axis 카드 | `floor_svg`·`/guide-asset` 렌더 OK | **HTTP 500** (`routes.py` `personas[0]` IndexError) | 빈-리스트 가드 `b4b5787` |
+| raw axis-id 라벨 | `LABELS.get` 경로 수정 완료 | **여전히 누출**(LLM이 next_steps_note에 raw id echo) | 표시 문자열 정규화 `cdb575e` |
+| 그 정규화의 `\b` 정규식 | — | **내 수정이 한글 조사("id을")에서 실패** — unit test가 자경 | lookaround 교정 `cdb575e` |
+| 연속발화(prompts.py:87-91 recurred) | LLM 프롬프트에 지시 있음 | per-block "지난번에도" **0/5 발화**(growth 채널이 실제 커버) | 프롬프트≠발화 확인, 표면화는 UI로 |
+
+교훈: **"배선 성공(신호가 계산됨·코드가 있음) ≠ 판정 성공(쓸 만한 발화가 실제로 나감)"**. 특히 LLM 경유
+경로는 코드 수정 후에도 격리검증을 우회하므로 full 경로 실측이 필수다. 이 표의 5건은 전부 단위검증을
+통과한 뒤 실측에서 드러났다 — 방법론이 없었다면 프로덕션에 그대로 나갔을 것들이다.
+
 ## 근거·관련
 
 - 측정: [scored_baseline.md](../scored_baseline.md)(before/after 전부), [stability_results.md](../stability_results.md)(N=5 안정성).
 - 이 위에서 동작하는 abstain/over-fire 가드: [0003](0003-abstain-over-fire-design.md). VLM 관찰자: [0001](0001-vlm-observer-pattern.md).
+- 이 방법론이 실측에서 잡은 벽축 크래시: [0005](0005-pseudo-axis-teaching-bypass.md).

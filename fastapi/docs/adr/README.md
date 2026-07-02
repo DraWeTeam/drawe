@@ -17,9 +17,13 @@
 
 ## 목록
 - [0001](0001-vlm-observer-pattern.md) — VLM 관찰자 패턴 (MediaPipe 드로잉 한계 → 순수 VLM 관찰, measured=False)
-- [0002](0002-accuracy-methodology.md) — 정확도 작업 방법론 (single-change isolation + 평가 위생)
+- [0002](0002-accuracy-methodology.md) — 정확도 작업 방법론 (single-change isolation + 평가 위생 · **2026-07 "배선≠판정" 프로덕션 검증 갱신**)
 - [0003](0003-abstain-over-fire-design.md) — abstain / over-fire 설계 (agree-or-abstain · 2-run · 낮음 게이트 · positive-only)
 - [0004](0004-latent-to-geometric-observable.md) — latent→geometric observable (모호 관찰축을 기하 binary로 재정의 → 측정 정의 붕괴 해소 · view 디커플)
+- [0005](0005-pseudo-axis-teaching-bypass.md) — pseudo-axis (진단 벽 축을 교습 카드로 우회 · personas:[] auto 차단 · 크래시는 가드로)
+- [0006](0006-golden-asset-management.md) — 골든셋 자산 관리 (public 레포엔 텍스트만 · 이미지는 sha256 대리추적·로컬 보존)
+- [0007](0007-tone-evaluation-rubric-stylecheck.md) — 톤 평가 (Rubric 사람 6기준 + Style Check 자동 지표 분리)
+- [0008](0008-operating-cost-measured-noop.md) — 운영 비용 (측정 후 근거 있는 비개입 · 게이팅·캐싱 이미 구현)
 
 ## 측정 근거 (이 디렉터리 `fastapi/docs/`)
 ADR이 링크하는 측정 md — 숫자·delta·안정성 결과의 출처. ADR은 "왜"만, 숫자는 여기.
