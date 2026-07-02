@@ -295,68 +295,74 @@ const ChatPage = () => {
   }, [projectId]);
 
   useEffect(() => {
-    if (!sessionId) return;
-    const fetchHistory = async () => {
-      try {
-        const data = await getHistory(projectId, sessionId);
-        const restored = (data?.messages ?? []).map((m) => ({
-          role: m.role,
-          content: m.content,
-          references: m.references,
-          imageUrl: m.imageUrl ?? null,
-          createdAt: m.createdAt ?? null,
-          // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
-          // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
-          isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
-        }));
-        setMessages(restored);
-
-        // 영속된 가이드 복원 — 채팅 히스토리엔 가이드 카드가 없으므로 별도로 불러와 시간순으로 합친다.
-        //   getGuides 는 오래된→최신, 각 항목에 createdAt + uploadUrl(저장된 업로드 원본) 포함.
-        //   주의: 가이드는 프로젝트 단위(세션 무관)라 같은 프로젝트의 가이드는 모두 표시됨.
+    // ★가이드 복원은 세션과 무관(프로젝트 단위 영속)하므로 sessionId 가 아니라 projectId 로 게이트한다.
+    //   이전엔 if(!sessionId) return 이 getGuides 까지 막아, 채팅 없이 가이드만 한 프로젝트에서
+    //   영속된 가이드가 새로고침 시 복원되지 않았다(이슈 B). getHistory 만 세션 조건부로 돌린다.
+    if (!projectId) return;
+    const fetchAll = async () => {
+      // 1) 채팅 히스토리 — 세션 있을 때만. 없으면 빈 배열(가이드-우선 흐름).
+      let restored = [];
+      if (sessionId) {
         try {
-          const guides = await getGuides(projectId);
-          if (Array.isArray(guides) && guides.length > 0) {
-            const guideCards = guides.map((g, i) => ({
-              role: "assistant",
-              type: "guide",
-              _gid: `restored-${i}`,
-              guide: g.guide,
-              references: g.references || [],
-              guideTitle: axisLabel(g.guide?.primary_focus) || "한 끗",
-              guidePreview: g.uploadUrl ?? null,
-              guideFeedback: null,
-              createdAt: g.createdAt ?? null,
-            }));
-            // 채팅 메시지 + 가이드 카드를 createdAt 기준으로 시간순 정렬(가이드가 맨 밑에 깔리지 않도록).
-            //   타임스탬프 없는 항목은 0으로 취급(맨 앞). sort 는 안정 정렬이라 동시각 순서는 보존.
-            setMessages((prev) =>
-              [...prev, ...guideCards].sort(
-                (a, b) =>
-                  (a.createdAt ? Date.parse(a.createdAt) : 0) -
-                  (b.createdAt ? Date.parse(b.createdAt) : 0),
-              ),
-            );
+          const data = await getHistory(projectId, sessionId);
+          restored = (data?.messages ?? []).map((m) => ({
+            role: m.role,
+            content: m.content,
+            references: m.references,
+            imageUrl: m.imageUrl ?? null,
+            createdAt: m.createdAt ?? null,
+            // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
+            // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
+            isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
+          }));
+        } catch (err) {
+          if (err.response?.status === 404) {
+            localStorage.removeItem(sessionKey(projectId));
+            setSessionId(null);
           }
-        } catch {
-          /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
-        }
-
-        const lastWithReferences = [...restored]
-          .reverse()
-          .find((m) => m.references && m.references.length > 0);
-
-        if (lastWithReferences) {
-          setReferences(lastWithReferences.references);
-        }
-      } catch (err) {
-        if (err.response?.status === 404) {
-          localStorage.removeItem(sessionKey(projectId));
-          setSessionId(null);
         }
       }
+
+      // 2) 영속된 가이드 — 세션 무관, projectId 단위로 항상 복원. 각 항목에 createdAt + uploadUrl.
+      let guideCards = [];
+      try {
+        const guides = await getGuides(projectId);
+        if (Array.isArray(guides) && guides.length > 0) {
+          guideCards = guides.map((g, i) => ({
+            role: "assistant",
+            type: "guide",
+            _gid: `restored-${i}`,
+            guide: g.guide,
+            references: g.references || [],
+            guideTitle: axisLabel(g.guide?.primary_focus) || "한 끗",
+            guidePreview: g.uploadUrl ?? null,
+            guideFeedback: null,
+            createdAt: g.createdAt ?? null,
+          }));
+        }
+      } catch {
+        /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
+      }
+
+      // 3) ★채팅 + 가이드를 createdAt 시간순으로 *한 번에* 병합해 set(REPLACE/APPEND 레이스 제거).
+      //    타임스탬프 없는 항목은 0(맨 앞). sort 는 안정 정렬이라 동시각 순서 보존.
+      setMessages(
+        [...restored, ...guideCards].sort(
+          (a, b) =>
+            (a.createdAt ? Date.parse(a.createdAt) : 0) -
+            (b.createdAt ? Date.parse(b.createdAt) : 0),
+        ),
+      );
+
+      // 4) 참고작 프리필 — 복원된 채팅 중 마지막 references.
+      const lastWithReferences = [...restored]
+        .reverse()
+        .find((m) => m.references && m.references.length > 0);
+      if (lastWithReferences) {
+        setReferences(lastWithReferences.references);
+      }
     };
-    fetchHistory();
+    fetchAll();
   }, [projectId, sessionId]);
 
   useEffect(() => {
