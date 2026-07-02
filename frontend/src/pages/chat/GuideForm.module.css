@@ -1,4 +1,6 @@
-/* 한 끗 가이드 입력 폼 — 와이어프레임 기준 1차. 팀 디자인 토큰에 맞춰 다듬으세요. */
+/* 한 끗 가이드 입력 폼 — 시안 SCR-GUIDE-01(노드 208:23774) 픽셀 정합.
+   값(색·radius·간격·크기)만 시안 토큰으로 교체. 레이아웃 구조·마크업 미접촉.
+   폰트(Wanted Sans Variable)는 전역 미로드 → 시스템 폰트 유지(별도 트랙). */
 .overlay {
   position: fixed;
   inset: 0;
@@ -11,96 +13,99 @@
 }
 .panel {
   width: 100%;
-  max-width: 480px;
+  max-width: 820px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(40, 30, 20, 0.22);
+  background: #fefeff;
+  border-radius: 32px;
+  box-shadow: 0 5px 25px rgba(15, 15, 15, 0.1);
   overflow: hidden;
 }
 .header {
   display: flex;
   align-items: center;
-  padding: 18px 20px 12px;
+  padding: 40px 40px 24px;
 }
 .title {
   margin: 0;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
-  color: #2b2826;
+  line-height: 32px;
+  color: #0f0f0f;
 }
 .closeBtn {
   margin-left: auto;
-  width: 30px;
-  height: 30px;
+  width: 48px;
+  height: 48px;
   border: none;
   background: transparent;
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1;
-  color: #8a8480;
+  color: #4a4846;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 .closeBtn:hover {
-  background: #f1ebe2;
+  background: #f6f6f6;
 }
 
 .body {
-  padding: 4px 20px 8px;
+  padding: 16px 40px;
   overflow-y: auto;
 }
 
 .fieldLabel {
   display: block;
-  margin: 16px 0 8px;
-  font-size: 13px;
+  margin: 24px 0 8px;
+  font-size: 14px;
   font-weight: 600;
-  color: #4a4642;
+  line-height: 20px;
+  color: #4a4846;
 }
 .info {
-  color: #b3aaa0;
-  font-size: 12px;
+  color: #888685;
+  font-size: 14px;
   cursor: help;
 }
 
 /* 드롭존 */
 .dropzone {
-  border: 1.5px dashed #e6b98f;
+  border: 1px dashed #ff8534;
   border-radius: 12px;
-  background: #fdf7ee;
-  padding: 22px 16px;
+  background: #fffbf5;
+  padding: 40px 16px;
   text-align: center;
 }
 .dropzone.dragOver {
-  background: #fbeedd;
-  border-color: #ef7b3f;
+  background: #fff3e6;
+  border-color: #ff8534;
 }
 .dropHint {
-  margin: 0 0 14px;
-  font-size: 13px;
-  color: #9a8f80;
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 22px;
+  color: #24221f;
 }
 .preview {
   display: block;
   max-width: 100%;
   max-height: 200px;
-  margin: 0 auto 12px;
+  margin: 0 auto 16px;
   border-radius: 8px;
 }
 .pickBtn {
   border: none;
-  background: #ef7b3f;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 18px;
+  background: #ff8534;
+  color: #fefeff;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 12px 24px 12px 16px;
   border-radius: 8px;
   cursor: pointer;
 }
 .pickBtn:hover {
-  background: #e26a2d;
+  background: #f2761f;
 }
 .pickBtn:disabled {
   opacity: 0.6;
@@ -116,40 +121,46 @@
 .textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e2d9cc;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13.5px;
+  border: 1px solid #edebea;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 22px;
   font-family: inherit;
-  color: #3c3733;
+  color: #24221f;
   resize: vertical;
+}
+.textarea::placeholder {
+  color: #888685;
 }
 .textarea:focus {
   outline: none;
-  border-color: #ef7b3f;
+  border-color: #ff8534;
 }
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 12px;
 }
 .chip {
-  border: 1px solid #e2d9cc;
-  background: #fff;
-  color: #6b6055;
-  font-size: 12.5px;
-  padding: 6px 12px;
-  border-radius: 999px;
+  border: 1px solid #d8d7d5;
+  background: #fefeff;
+  color: #888685;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
 }
 .chip:hover {
-  background: #f6efe5;
+  background: #f6f6f6;
 }
 .chip.chipActive {
-  background: #fbeedd;
-  border-color: #ef7b3f;
-  color: #b5683f;
+  background: #fffbf5;
+  border-color: #ff8534;
+  color: #ff8534;
 }
 .chip:disabled {
   opacity: 0.6;
@@ -160,41 +171,44 @@
 .select {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e2d9cc;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13.5px;
+  border: 1px solid #edebea;
+  border-radius: 8px;
+  padding: 12px 12px 12px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
   font-family: inherit;
-  color: #3c3733;
-  background: #fff;
+  color: #4a4846;
+  background: #fefeff;
   cursor: pointer;
 }
 .select:focus {
   outline: none;
-  border-color: #ef7b3f;
+  border-color: #ff8534;
 }
 
 /* 토글(작업중/완성작) */
 .toggle {
   display: inline-flex;
-  border: 1px solid #e2d9cc;
-  border-radius: 10px;
-  overflow: hidden;
+  gap: 4px;
+  padding: 4px;
+  background: #f6f6f6;
+  border-radius: 12px;
 }
 .toggleBtn {
   border: none;
-  background: #fff;
-  color: #6b6055;
-  font-size: 13px;
-  padding: 9px 22px;
+  background: transparent;
+  color: #888685;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
 }
-.toggleBtn + .toggleBtn {
-  border-left: 1px solid #e2d9cc;
-}
 .toggleBtn.toggleOn {
-  background: #ef7b3f;
-  color: #fff;
+  background: #ff8534;
+  color: #fefeff;
 }
 .toggleBtn:disabled {
   opacity: 0.6;
@@ -203,29 +217,30 @@
 
 /* 제출 */
 .footer {
-  padding: 14px 20px 18px;
+  padding: 32px 40px 40px;
 }
 .submitBtn {
   width: 100%;
   border: none;
-  border-radius: 10px;
-  padding: 13px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  background: #ef7b3f;
+  border-radius: 999px;
+  padding: 12px 24px;
+  min-height: 46px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fefeff;
+  background: #ff8534;
   cursor: pointer;
 }
 .submitBtn:hover:not(:disabled) {
-  background: #e26a2d;
+  background: #f2761f;
 }
 .submitBtn:disabled {
-  background: #d8d2c9;
-  color: #fbf8f4;
+  background: #d8d7d5;
+  color: #fefeff;
   cursor: default;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 860px) {
   .panel {
     max-width: 100%;
     max-height: 94vh;
