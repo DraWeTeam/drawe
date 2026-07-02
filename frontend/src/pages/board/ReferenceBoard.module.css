@@ -239,16 +239,17 @@
   color: #555;
 }
 
-/* 핀된 카드 — 항상 표시 + 강조(주황) */
+/* 핀된 카드 — 항상 표시. 기존 챗 ReferenceGrid 처럼 배경 없이 흰색 아이콘. */
 .pinBtnActive,
 .card:hover .pinBtnActive {
   opacity: 1;
-  background: #ff8534;
+  background: none;
   color: #fff;
 }
 
 .pinBtnActive:hover {
-  background: #ff7a25;
+  background: none;
+  transform: scale(1.08);
   color: #fff;
 }
 
@@ -405,13 +406,6 @@
   text-align: center;
   padding: 0 20px 60px;
   gap: 6px;
-}
-
-/* 카테고리 필터로만 비었을 때 — 그리드(핀) 아래에 붙는 안내 */
-.stateBoxInline {
-  flex: 0 0 auto;
-  justify-content: flex-start;
-  padding: 40px 20px 20px;
 }
 
 .stateTitle {

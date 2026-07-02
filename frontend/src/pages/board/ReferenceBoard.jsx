@@ -381,11 +381,15 @@ const ReferenceBoard = ({ projectId, onRequestGenerate, expanded }) => {
   //   noSearchResults — 검색 자체가 결과 0(핀 숨기고 생성 CTA + X)
   //   categoryEmpty   — 검색은 됐지만 이 카테고리 필터에만 결과 없음(기존 안내, 생성 문구 X)
   //   초기            — 검색 전(핀 없으면 빈 보드 안내)
-  const rawBase = source === "ARCHIVE" ? archiveItems : corpusItems;
+  //   생성 CTA(noSearchResults)는 코퍼스 계열(전체/AI/사진)에서 전체 검색이 아무것도
+  //   못 냈을 때만. 아카이브는 '생성'으로 채워지는 데이터가 아니므로, 비면 항상
+  //   categoryEmpty(다른 카테고리 안내)로 처리한다.
   const searched = submittedQuery !== "";
-  const noSearchResults = !loading && searched && rawBase.length === 0;
-  const categoryEmpty =
-    !loading && searched && rawBase.length > 0 && resultItems.length === 0;
+  const overallHasResults = corpusItems.length > 0 || archiveItems.length > 0;
+  const viewEmpty = !loading && searched && resultItems.length === 0;
+  const noSearchResults =
+    viewEmpty && source !== "ARCHIVE" && !overallHasResults;
+  const categoryEmpty = viewEmpty && !noSearchResults;
 
   // 핀 + 검색결과를 한 마소너리 그리드에(가로만 맞추고 비율 유지). 전체보기 3 / 분할 2컬럼.
   //   핀은 앞에("고정" 뱃지), 결과는 1..N. 핀된 이미지는 결과에서 이미 제외됨.
@@ -515,36 +519,25 @@ const ReferenceBoard = ({ projectId, onRequestGenerate, expanded }) => {
               레퍼런스 생성하러 가기
             </button>
           </div>
+        ) : categoryEmpty ? (
+          // 이 카테고리에 매칭 결과 없음 — 핀도 숨기고 안내만(핀은 검색 매칭이 아니므로).
+          <div className={styles.stateBox}>
+            <EmptyIcon />
+            <p className={styles.stateTitle}>검색 결과가 없어요</p>
+            <p className={styles.stateHint}>다른 카테고리를 선택해보세요.</p>
+          </div>
+        ) : hasCards ? (
+          // 핀 + 검색결과 그리드
+          renderColumns(columns)
         ) : (
-          <>
-            {hasCards && renderColumns(columns)}
-
-            {/* 이 카테고리에만 결과 없음 — 기존 안내(생성 문구/CTA 없음) */}
-            {categoryEmpty && (
-              <div
-                className={`${styles.stateBox} ${
-                  hasCards ? styles.stateBoxInline : ""
-                }`}
-              >
-                <EmptyIcon />
-                <p className={styles.stateTitle}>검색 결과가 없어요</p>
-                <p className={styles.stateHint}>
-                  다른 카테고리를 선택해보세요.
-                </p>
-              </div>
-            )}
-
-            {/* 초기(검색 전 + 핀 없음) — 빈 보드 안내 */}
-            {!searched && !hasCards && (
-              <div className={styles.stateBox}>
-                <EmptyIcon />
-                <p className={styles.stateTitle}>레퍼런스 보드가 비어있어요</p>
-                <p className={styles.stateHint}>
-                  검색창에 키워드를 입력하여 원하는 레퍼런스를 찾아보세요.
-                </p>
-              </div>
-            )}
-          </>
+          // 초기(검색 전 + 핀 없음) — 빈 보드 안내
+          <div className={styles.stateBox}>
+            <EmptyIcon />
+            <p className={styles.stateTitle}>레퍼런스 보드가 비어있어요</p>
+            <p className={styles.stateHint}>
+              검색창에 키워드를 입력하여 원하는 레퍼런스를 찾아보세요.
+            </p>
+          </div>
         )}
       </div>
 
