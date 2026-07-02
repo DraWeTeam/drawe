@@ -988,8 +988,27 @@ const ChatPage = () => {
                     }
                     // 가이드 카드(채팅 반영) — 클릭 시 전체 보기, 아래 좋아요/싫어요/PDF
                     if (m.type === "guide") {
+                      // 채팅 인라인 AI 발화 — 모달과 *같은* guide 객체 재사용(단일 출처).
+                      //   리드 = 모달 intro 와 동일 폴백(next_steps.note || synthesis),
+                      //   콜드스타트(synthesis 없음) 대비 blocks[0].observation 까지.
+                      const g = m.guide || {};
+                      const utterance =
+                        g.next_steps?.note ||
+                        g.synthesis ||
+                        g.blocks?.[0]?.observation ||
+                        "";
                       return (
                         <div key={idx} className={styles.assistantMessage}>
+                          {utterance && (
+                            <div className={styles.assistantBubble}>
+                              <img
+                                className={styles.assistantLogo}
+                                src={logo}
+                                alt=""
+                              />
+                              <span>{utterance}</span>
+                            </div>
+                          )}
                           <button
                             type="button"
                             className={styles.guideCard}
