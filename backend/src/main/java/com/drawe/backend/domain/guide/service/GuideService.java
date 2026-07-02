@@ -104,7 +104,8 @@ public class GuideService {
               intent,
               track,
               medium,
-              reqId);
+              reqId,
+              String.valueOf(projectId)); // growth 프로젝트 스코프 키
     } catch (RuntimeException e) {
       log.error("guide 호출 실패: project={}, error={}", projectId, e.getMessage());
       throw new CustomException(ErrorCode.AI_SERVICE_ERROR);

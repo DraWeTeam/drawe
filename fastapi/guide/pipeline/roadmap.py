@@ -66,7 +66,17 @@ GOAL_MIN_WINDOW = (
 )
 
 
-def record_practice(user_id, sub_problem, action, confidence=None, guide_id=None):
+# ── project 스코프 절 ─────────────────────────────────────────────────────────────
+# growth 이력을 프로젝트 단위로 가른다(크로스-프로젝트 누출 차단). project_id 가 있으면 그 프로젝트만,
+# None(anon/구 호출)이면 필터 없음(전 user_id — 하위호환). 구 row(project_id NULL)는 :p 지정 시
+# 'project_id = :p' 가 NULL 이라 자연 제외 = "마이그레이션 이전 이력 미표시"(의도된 동작). 모든
+# practice_log SELECT 는 이 절을 붙이고 파라미터 p 를 넘겨야 한다(누락 = 비결정 누출).
+_PROJ = " AND (:p IS NULL OR project_id = :p)"
+
+
+def record_practice(
+    user_id, sub_problem, action, confidence=None, guide_id=None, project_id=None
+):
     """버튼/진단 이벤트를 기록. action ∈ {seen, tried, later}."""
     from guide.pipeline.diagnose import (
         instrument_version,
@@ -76,8 +86,8 @@ def record_practice(user_id, sub_problem, action, confidence=None, guide_id=None
         with engine.begin() as cx:
             cx.execute(
                 text("""INSERT INTO practice_log
-                (user_id, sub_problem, action, confidence, guide_id, instrument_version)
-                VALUES (:u, :sp, :a, :c, :g, :iv)"""),
+                (user_id, sub_problem, action, confidence, guide_id, instrument_version, project_id)
+                VALUES (:u, :sp, :a, :c, :g, :iv, :p)"""),
                 dict(
                     u=user_id or "anon",
                     sp=sub_problem,
@@ -85,14 +95,15 @@ def record_practice(user_id, sub_problem, action, confidence=None, guide_id=None
                     c=confidence,
                     g=guide_id,
                     iv=instrument_version(),
+                    p=project_id,
                 ),
             )
     except Exception as e:
         print(f"[roadmap] practice 기록 실패(무시): {type(e).__name__}: {e}")
 
 
-def _history(user_id):
-    """user_id의 sub_problem별 집계.
+def _history(user_id, project_id=None):
+    """user_id(+project_id)의 sub_problem별 집계.
 
     - tries: 'tried' 전 기간 누적(노력은 사라지지 않음).
     - seen_recent / flag_count: **최근 RECENT_N회 업로드(guide_id)** 기준.
@@ -112,9 +123,9 @@ def _history(user_id):
             for sp, n in cx.execute(
                 text(
                     "SELECT sub_problem, COUNT(*) FROM practice_log "
-                    "WHERE user_id=:u AND action='tried' GROUP BY sub_problem"
+                    "WHERE user_id=:u" + _PROJ + " AND action='tried' GROUP BY sub_problem"
                 ),
-                {"u": user_id},
+                {"u": user_id, "p": project_id},
             ):
                 tries[sp] = int(n)
 
@@ -124,17 +135,17 @@ def _history(user_id):
                 for r in cx.execute(
                     text(
                         "SELECT guide_id FROM practice_log "
-                        "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL "
+                        "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IS NOT NULL "
                         "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"
                     ),
-                    {"u": user_id, "n": RECENT_N},
+                    {"u": user_id, "p": project_id, "n": RECENT_N},
                 ).fetchall()
             ]
 
             if recent_ids:
                 stmt = text(
                     "SELECT sub_problem, guide_id, confidence, ts FROM practice_log "
-                    "WHERE user_id=:u AND action='seen' AND guide_id IN :gids"
+                    "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IN :gids"
                 ).bindparams(bindparam("gids", expanding=True))
                 guides_by_sp = defaultdict(set)  # 재발: sub_problem이 뜬 '업로드' 집합
                 flags_per_guide = defaultdict(
@@ -142,7 +153,7 @@ def _history(user_id):
                 )  # 업로드(guide_id) -> 떴던 축 집합(→ trend)
                 latest = {}  # sub_problem -> (ts, confidence)
                 for sp, gid, conf, ts in cx.execute(
-                    stmt, {"u": user_id, "gids": recent_ids}
+                    stmt, {"u": user_id, "p": project_id, "gids": recent_ids}
                 ):
                     guides_by_sp[sp].add(gid)
                     flags_per_guide[gid].add(sp)
@@ -388,14 +399,14 @@ def _load_plan(user_id, track):
     return None
 
 
-def _upload_seq(cx, user_id):
-    """지금까지의 누적 업로드 수(서로 다른 guide_id 수) = N장 창의 좌표."""
+def _upload_seq(cx, user_id, project_id=None):
+    """지금까지의 누적 업로드 수(서로 다른 guide_id 수) = N장 창의 좌표. project 스코프."""
     r = cx.execute(
         text(
             "SELECT COUNT(DISTINCT guide_id) FROM practice_log "
-            "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL"
+            "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IS NOT NULL"
         ),
-        {"u": user_id},
+        {"u": user_id, "p": project_id},
     ).scalar()
     return int(r or 0)
 
@@ -520,8 +531,8 @@ def _resolve_goal(
         return None
 
 
-def get_roadmap(user_id="anon", track=None, degraded=False):
-    """현재 단계 → 다음 연습 → 다음 목표 + 전체 사다리(상태 포함). track 프로파일의 커리큘럼 기준.
+def get_roadmap(user_id="anon", track=None, degraded=False, project_id=None):
+    """현재 단계 → 다음 연습 → 다음 목표 + 전체 사다리(상태 포함). track 프로파일의 커리큘럼 기준. project 스코프.
 
     degraded=True면 포즈 의존 축을 제외하고 본다(이미지가 함께 온 경우). 표준 /roadmap 호출은
     이미지가 없어 degraded=False → 전체 커리큘럼(장기 그림)을 그대로 보여준다.
@@ -530,7 +541,7 @@ def get_roadmap(user_id="anon", track=None, degraded=False):
     curriculum = resolve_profile(track)["curriculum"]
     exclude = POSE_DEPENDENT if degraded else frozenset()
     cur = [sp for sp in curriculum if sp not in exclude] or list(curriculum)
-    tries, seen_recent, flag_count, trend, timeline = _history(user_id)
+    tries, seen_recent, flag_count, trend, timeline = _history(user_id, project_id)
     current_sp, nxt, statuses = _focus_and_next(tries, seen_recent, flag_count, cur)
 
     # N장 기준 목표 고정/진급(실패 시 None → 기존 재계산 동작 유지).
@@ -561,7 +572,7 @@ def get_roadmap(user_id="anon", track=None, degraded=False):
         )
 
     done = sum(1 for r in ladder if r["status"] == "steady")
-    observed_count, flagged_in_obs = _observed(user_id)
+    observed_count, flagged_in_obs = _observed(user_id, project_id)
     improved, observed = _improved_from(observed_count, flagged_in_obs, seen_recent)
     # Layer 3 영속 계획(AGENT_PLAN 켜졌을 때만): guide 가 저장한 같은 계획을 노출 → guide↔/roadmap 일관.
     # 결정적 current/goal/ladder 는 그대로 두고 별도 필드로만 더한다. 영속 focus 가 아직 유효(후보·미 steady)일 때만.
@@ -602,7 +613,7 @@ def get_roadmap(user_id="anon", track=None, degraded=False):
         "improved": improved,  # 관측 검증된 '최근에 덜 보이는 어려움'(부재 아님, 실제 개선)
         "observed": observed,  # 최근 측정된 축(핸드오프/게이팅용)
         "reduction_pct": _reduction(
-            user_id
+            user_id, project_id
         ),  # '처음 대비' 어려움 수 감소율(%) — 성장 흐름 한 줄 요약
         "goal": goal,  # N장 기준 고정 목표(진행/달성/진급)
         "why": _why(current_sp, nxt),
@@ -610,7 +621,7 @@ def get_roadmap(user_id="anon", track=None, degraded=False):
     }
 
 
-def _observed(user_id):
+def _observed(user_id, project_id=None):
     """관측층 집계 — 최근 창에서 각 축이 *측정 가능*했던(observable) 업로드 수와, 그 창 안에서 flagged(seen)된 수.
     flagged('seen')만 보던 _history 와 달리 '그렸지만 안 걸린' 경우를 센다 → 부재와 개선을 구분.
     창은 observable 기준(모든 업로드가 observable 을 남김)이라 약점 0인 업로드도 포함된다.
@@ -626,24 +637,28 @@ def _observed(user_id):
                 for r in cx.execute(
                     text(
                         "SELECT guide_id FROM practice_log "
-                        "WHERE user_id=:u AND action='observable' AND guide_id IS NOT NULL "
+                        "WHERE user_id=:u" + _PROJ + " AND action='observable' AND guide_id IS NOT NULL "
                         "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"
                     ),
-                    {"u": user_id, "n": RECENT_N},
+                    {"u": user_id, "p": project_id, "n": RECENT_N},
                 ).fetchall()
             ]
             if recent_ids:
                 obs_q = text(
                     "SELECT DISTINCT sub_problem, guide_id FROM practice_log "
-                    "WHERE user_id=:u AND action='observable' AND guide_id IN :gids"
+                    "WHERE user_id=:u" + _PROJ + " AND action='observable' AND guide_id IN :gids"
                 ).bindparams(bindparam("gids", expanding=True))
-                for sp, _g in cx.execute(obs_q, {"u": user_id, "gids": recent_ids}):
+                for sp, _g in cx.execute(
+                    obs_q, {"u": user_id, "p": project_id, "gids": recent_ids}
+                ):
                     observed_count[sp] += 1
                 seen_q = text(
                     "SELECT DISTINCT sub_problem, guide_id FROM practice_log "
-                    "WHERE user_id=:u AND action='seen' AND guide_id IN :gids"
+                    "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IN :gids"
                 ).bindparams(bindparam("gids", expanding=True))
-                for sp, _g in cx.execute(seen_q, {"u": user_id, "gids": recent_ids}):
+                for sp, _g in cx.execute(
+                    seen_q, {"u": user_id, "p": project_id, "gids": recent_ids}
+                ):
                     flagged_in_obs[sp] += 1
     except Exception as e:
         print(f"[roadmap] 관측 집계 실패(무시, 빈 관측): {type(e).__name__}: {e}")
@@ -667,19 +682,19 @@ def _improved_from(observed_count, flagged_in_obs, seen_recent):
     return improved, sorted(observed)
 
 
-def _reduction(user_id):
+def _reduction(user_id, project_id=None):
     """성장 흐름 요약: '처음 가이드 대비 그림 한 장당 약점(flagged) 수' 감소율(%). 전체 기간 기준.
     초반 1/3 평균 vs 최근 1/3 평균. 업로드 3장 미만이면 None(아직 흐름 판단 불가).
-    '60% 감소' 같은 한 줄 요약용 — 그래프(timeline)와 같은 seen 기반이라 일관."""
+    '60% 감소' 같은 한 줄 요약용 — 그래프(timeline)와 같은 seen 기반이라 일관. project 스코프."""
     try:
         with engine.begin() as cx:
             rows = cx.execute(
                 text(
                     "SELECT guide_id, COUNT(DISTINCT sub_problem) FROM practice_log "
-                    "WHERE user_id=:u AND action='seen' AND guide_id IS NOT NULL "
+                    "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IS NOT NULL "
                     "GROUP BY guide_id ORDER BY MIN(ts)"
                 ),
-                {"u": user_id},
+                {"u": user_id, "p": project_id},
             ).fetchall()
         counts = [int(c) for _g, c in rows]
         if len(counts) < 3:
@@ -694,9 +709,9 @@ def _reduction(user_id):
 
 
 def growth_context(
-    user_id="anon", track=None, curriculum=None, degraded=False, llm=None
+    user_id="anon", track=None, curriculum=None, degraded=False, llm=None, project_id=None
 ):
-    """가이드 파이프라인이 쓰는 '압축 이력'. 진단 랭킹·프롬프트·응답분기로 흘러간다.
+    """가이드 파이프라인이 쓰는 '압축 이력'. 진단 랭킹·프롬프트·응답분기로 흘러간다. project 스코프.
 
     LLM 없이 결정적. DB가 없거나 이력이 비면 빈 컨텍스트로 안전하게 폴백한다
     (콜드스타트 = current_focus는 커리큘럼 첫 단계, recurring 없음).
@@ -710,7 +725,7 @@ def growth_context(
     exclude = POSE_DEPENDENT if degraded else frozenset()
     cur = [sp for sp in curriculum if sp not in exclude] or list(curriculum)
     try:
-        tries, seen_recent, flag_count, trend, _timeline = _history(user_id)
+        tries, seen_recent, flag_count, trend, _timeline = _history(user_id, project_id)
         current_sp, nxt, statuses = _focus_and_next(tries, seen_recent, flag_count, cur)
         steady = [sp for sp in cur if statuses[sp] == "steady"]
         recurring = [
@@ -724,7 +739,7 @@ def growth_context(
         # 내부 성장 단계(노출 금지 — apply_cold_start·톤 힌트 전용. '_' 접두로 비노출 표식).
         stage, _ratio = estimate_stage(len(steady), len(cur), trend, total_tries)
         # 관측 기반 개선(SAFE 규칙) — steady(=부재일 수 있음)와 분리된 '정직한' 축별 개선 신호.
-        observed_count, flagged_in_obs = _observed(user_id)
+        observed_count, flagged_in_obs = _observed(user_id, project_id)
         improved, observed = _improved_from(observed_count, flagged_in_obs, seen_recent)
         # Layer 3: 다음 집중 축을 에이전트가 *후보 안에서* 선택(AGENT_PLAN ON + llm). 기본 OFF=결정적 폴백.
         reason_code = "rule_default"
@@ -799,22 +814,22 @@ def _why(current_sp, nxt):
     return msg
 
 
-def growth_view(user_id="anon", track=None, degraded=False):
+def growth_view(user_id="anon", track=None, degraded=False, project_id=None):
     """§4 '성장 흐름' 원자료(plain dict). 응답 셰이핑(schemas.Growth)은 contract.growth_from_raw 가 담당.
-    _stage 는 포함하지 않는다(노출 금지). DB/이력 없으면 빈 자료로 안전 폴백.
+    _stage 는 포함하지 않는다(노출 금지). DB/이력 없으면 빈 자료로 안전 폴백. project 스코프.
     """
     try:
         curriculum = resolve_profile(track)["curriculum"]
         exclude = POSE_DEPENDENT if degraded else frozenset()
         cur = [sp for sp in curriculum if sp not in exclude] or list(curriculum)
-        tries, seen_recent, flag_count, trend, timeline = _history(user_id)
+        tries, seen_recent, flag_count, trend, timeline = _history(user_id, project_id)
         current_sp, nxt, statuses = _focus_and_next(tries, seen_recent, flag_count, cur)
         recurring = [
             sp
             for sp in cur
             if flag_count.get(sp, 0) >= RECUR_MIN and statuses[sp] != "steady"
         ]
-        observed_count, flagged_in_obs = _observed(user_id)
+        observed_count, flagged_in_obs = _observed(user_id, project_id)
         improved, _obs = _improved_from(observed_count, flagged_in_obs, seen_recent)
         return {
             "window": RECENT_N,

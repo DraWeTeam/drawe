@@ -124,6 +124,8 @@ services:
     environment:
       # artref DB(스키마는 mysql init 으로 적용). 로컬은 root 접속.
       DB_DSN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-rootpass}@mysql:3306/drawe_guide
+      # 로컬: 기동 시 schema/migrations/*.sql 자동 적용(각 1회). 없으면 새 마이그레이션이 반영 안 됨.
+      GUIDE_AUTO_MIGRATE: "1"
       # 레퍼런스 벡터검색 — Qdrant Cloud(dev,768-dim) 또는 로컬 qdrant 를 .env 로 주입.
       #   EMBEDDING_MODEL 은 그 컬렉션 차원과 반드시 일치(Cloud dev=ViT-L-14/768).
       VECTOR_BACKEND: qdrant

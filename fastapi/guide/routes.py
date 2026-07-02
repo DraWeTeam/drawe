@@ -60,7 +60,13 @@ llm = get_llm()
 
 
 def _pipeline(
-    file_bytes, message, user_id="anon", intent="open", track=None, medium=None
+    file_bytes,
+    message,
+    user_id="anon",
+    intent="open",
+    track=None,
+    medium=None,
+    project_id=None,
 ):
     try:
         pil = normalize(
@@ -113,6 +119,7 @@ def _pipeline(
         curriculum=profile["curriculum"],
         degraded=(pose.get("status") != "ok"),
         llm=llm,
+        project_id=project_id,
     )
     dx = diagnose(
         scene, pose, pil, personas, user_terms, growth=growth, profile=profile
@@ -239,12 +246,12 @@ def _log_impressions(guide_id, refs_by_sp, tax):
         print(f"[guide] 노출 로깅 실패(무시): {type(e).__name__}: {e}")
 
 
-def _log_observable(user_id, measurable, guide_id):
+def _log_observable(user_id, measurable, guide_id, project_id=None):
     """이번 업로드에서 *측정 가능*했던 축(주제 등장)을 'observable'로 누적 — flagged('seen')과 분리 기록.
     roadmap 이 '부재(안 그림) → steady'를 '개선(그렸는데 덜 걸림)'과 구분하게 하는 관측층 신호.
     실패해도 /guide 는 정상 응답."""
     rows = [
-        dict(u=user_id or "anon", sp=sp, g=guide_id, iv=instrument_version())
+        dict(u=user_id or "anon", sp=sp, g=guide_id, iv=instrument_version(), p=project_id)
         for sp in (measurable or ())
     ]
     if not rows:
@@ -253,8 +260,8 @@ def _log_observable(user_id, measurable, guide_id):
         with engine.begin() as cx:
             cx.execute(
                 text(
-                    "INSERT INTO practice_log (user_id, sub_problem, action, guide_id, instrument_version) "
-                    "VALUES (:u, :sp, 'observable', :g, :iv)"
+                    "INSERT INTO practice_log (user_id, sub_problem, action, guide_id, instrument_version, project_id) "
+                    "VALUES (:u, :sp, 'observable', :g, :iv, :p)"
                 ),
                 rows,
             )
@@ -287,7 +294,7 @@ def _claim_request(request_id, guide_id):
         return True, guide_id
 
 
-def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
+def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id, project_id=None):
     """coach 부작용(노출/연습/관측 로그)을 request_id 로 at-most-once.
     재시도(같은 request_id)면 skip → practice_log/adoption_log 중복 집계 방지.
     guide_id 는 첫 처리 것으로 정렬(응답이 기록과 같은 guide_id 참조)."""
@@ -303,8 +310,9 @@ def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
             "seen",
             confidence=b.confidence,
             guide_id=resp.guide_id,
+            project_id=project_id,
         )
-    _log_observable(user_id, dx.get("measurable", ()), resp.guide_id)
+    _log_observable(user_id, dx.get("measurable", ()), resp.guide_id, project_id)
 
 
 def _make_overlay(dx, growth):
@@ -337,16 +345,29 @@ async def guide_ep(
     track: str = Form(None),
     medium: str = Form(None),
     request_id: str = Form(None),
+    project_id: str = Form(None),  # growth 를 프로젝트 단위로 스코프(없으면 user-scoped 하위호환)
 ):
     file_bytes = await file.read()
     return await asyncio.to_thread(
-        _guide_sync, file_bytes, message, user_id, intent, track, medium, request_id
+        _guide_sync,
+        file_bytes,
+        message,
+        user_id,
+        intent,
+        track,
+        medium,
+        request_id,
+        project_id,
     )
 
 
-def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+def _guide_sync(
+    file_bytes, message, user_id, intent, track, medium, request_id, project_id=None
+):
     _t0 = perf_counter()  # ②v1: end-to-end(순차 Grok 다회 포함) 레이턴시 측정용
-    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+    ctx, early = _pipeline(
+        file_bytes, message, user_id, intent, track, medium, project_id
+    )
     if early:
         return early
     dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp = ctx
@@ -390,11 +411,12 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
     growth_obj = None
     if resp.mode == "coach":
         resp.guide_id = str(uuid.uuid4())
-        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id)
+        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id, project_id)
         # §4 성장 흐름 — 방금 기록한 'seen'(이번 업로드 포함)까지 반영해 집계
         _note = resp.next_steps.note if resp.next_steps else None
         growth_obj = growth_from_raw(
-            growth_view(user_id, track=track, degraded=resp.degraded), note=_note
+            growth_view(user_id, track=track, degraded=resp.degraded, project_id=project_id),
+            note=_note,
         )
     payload = finalize_guide_response(resp, growth_obj=growth_obj)
     payload.update(_make_overlay(dx, growth))  # 모드 선택 → overlay_axes 만 렌더
@@ -410,6 +432,7 @@ async def guide_stream_ep(
     track: str = Form(None),
     medium: str = Form(None),
     request_id: str = Form(None),
+    project_id: str = Form(None),
 ):
     file_bytes = await file.read()
     return await asyncio.to_thread(
@@ -421,12 +444,17 @@ async def guide_stream_ep(
         track,
         medium,
         request_id,
+        project_id,
     )
 
 
-def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, request_id):
+def _guide_stream_sync(
+    file_bytes, message, user_id, intent, track, medium, request_id, project_id=None
+):
     _t0 = perf_counter()  # ②v1: end-to-end 레이턴시(스트림은 run_guide 완료까지가 무거운 Grok 구간)
-    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+    ctx, early = _pipeline(
+        file_bytes, message, user_id, intent, track, medium, project_id
+    )
     if early:
         body = [
             f"data: {json.dumps(early, ensure_ascii=False)}\n\n",
@@ -464,11 +492,12 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
     growth_obj = None
     if resp.mode == "coach":
         resp.guide_id = str(uuid.uuid4())
-        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id)
+        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id, project_id)
         # §4 성장 흐름 — 방금 기록한 'seen'(이번 업로드 포함)까지 반영해 집계
         _note = resp.next_steps.note if resp.next_steps else None
         growth_obj = growth_from_raw(
-            growth_view(user_id, track=track, degraded=resp.degraded), note=_note
+            growth_view(user_id, track=track, degraded=resp.degraded, project_id=project_id),
+            note=_note,
         )
 
     def gen():
@@ -620,9 +649,9 @@ class PracticeEvent(BaseModel):
 
 
 @router.get("/roadmap")
-def roadmap_ep(user_id: str = "anon", track: str = None):
-    """현재 단계 → 다음 연습 → 다음 목표 + 자주 막히는 부분(recurring). track 커리큘럼 기준."""
-    return get_roadmap(user_id, track=track)
+def roadmap_ep(user_id: str = "anon", track: str = None, project_id: str = None):
+    """현재 단계 → 다음 연습 → 다음 목표 + 자주 막히는 부분(recurring). track 커리큘럼 기준. project 스코프(옵션)."""
+    return get_roadmap(user_id, track=track, project_id=project_id)
 
 
 @router.post("/practice")
