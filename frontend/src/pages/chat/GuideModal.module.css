@@ -239,19 +239,19 @@
   padding: 14px 16px;
 }
 
-/* ── 2. 한 끗 포인트 ── */
+/* ── 3. 한 끗 포인트 (시안 114:15624): brand-weak 카드 ── */
 .tipBox {
-  background: #fdf4e8;
-  border: 1px solid #f6e3c8;
-  border-radius: 14px;
-  padding: var(--space-400);
+  background: var(--bg-brand-weak);
+  border: 1px solid #ffdba9; /* 시안 border/brand-weak (전역 토큰 미정 — 후속 토큰화 대상) */
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
 }
 .tipText {
   margin: 0;
   font-size: 14px;
-  line-height: 1.65;
-  color: #6b4e2e;
-  font-weight: 500;
+  line-height: 22px;
+  color: var(--text-tertiary);
+  font-weight: 600;
 }
 .assetFig {
   margin: 14px 0 0;
