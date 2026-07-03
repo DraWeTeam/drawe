@@ -264,6 +264,7 @@ const Coach = ({
   drawingPreviewUrl,
   onRefFeedback,
   createdAt,
+  requestText,
   onGuideFeedback,
   guideFeedback,
 }) => {
@@ -350,11 +351,17 @@ const Coach = ({
         </section>
       )}
 
-      {/* 2. 현재 그림 분석 — [사용자질문 bubble hidden] + 업로드 이미지 + 관찰/효과 통합 */}
-      {(drawingPreviewUrl || primary?.observation || primary?.effect) && (
+      {/* 2. 현재 그림 분석 — 사용자 질문 bubble(request_text 있을 때) + 업로드 이미지 + 관찰/효과 */}
+      {(requestText ||
+        drawingPreviewUrl ||
+        primary?.observation ||
+        primary?.effect) && (
         <section className={styles.section}>
           <SectionTitle>현재 그림 분석</SectionTitle>
           <div className={styles.analysisBox}>
+            {requestText && (
+              <p className={styles.userQuestion}>{requestText}</p>
+            )}
             {drawingPreviewUrl && (
               <AuthedImage
                 className={styles.analysisImg}
@@ -488,6 +495,7 @@ const GuideBody = ({
   onRetry,
   onRefFeedback,
   createdAt,
+  requestText,
   onGuideFeedback,
   guideFeedback,
 }) => (
@@ -525,6 +533,7 @@ const GuideBody = ({
           drawingPreviewUrl={drawingPreviewUrl}
           onRefFeedback={onRefFeedback}
           createdAt={createdAt}
+          requestText={requestText}
           onGuideFeedback={onGuideFeedback}
           guideFeedback={guideFeedback}
         />
@@ -550,6 +559,7 @@ export const GuideContent = ({
   const guide = result?.guide;
   const references = result?.references || [];
   const createdAt = result?.createdAt || null;
+  const requestText = result?.requestText || null;
   const title = guide?.primary_focus
     ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
     : "한 끗 가이드";
@@ -605,6 +615,7 @@ export const GuideContent = ({
         onRetry={onRetry}
         onRefFeedback={onRefFeedback}
         createdAt={createdAt}
+        requestText={requestText}
         onGuideFeedback={onGuideFeedback}
         guideFeedback={guideFeedback}
       />
@@ -624,6 +635,7 @@ const GuideModal = ({
   const guide = result?.guide;
   const references = result?.references || [];
   const createdAt = result?.createdAt || null;
+  const requestText = result?.requestText || null;
   const title = guide?.primary_focus
     ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
     : "한 끗 가이드";
@@ -659,6 +671,7 @@ const GuideModal = ({
           onRetry={onRetry}
           onRefFeedback={onRefFeedback}
           createdAt={createdAt}
+          requestText={requestText}
         />
       </div>
     </div>
