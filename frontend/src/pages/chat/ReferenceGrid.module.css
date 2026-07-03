@@ -11,7 +11,7 @@
 /* ===== 필터 탭 ===== */
 .filterTabs {
   display: flex;
-  gap: 8px;
+  gap: var(--space-200);
   padding: 8px 40px 24px 64px;
   flex-shrink: 0;
   align-items: center;
@@ -20,24 +20,24 @@
 
 .filterTab {
   background: #fbfcfa;
-  border: 1px solid #d8d7d5;
-  padding: 8px 16px;
-  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  padding: var(--space-200) var(--space-400);
+  border-radius: var(--radius-999);
   font-size: 13px;
-  color: #888685;
+  color: var(--text-quaternary);
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s ease;
 }
 
 .filterTab:hover:not(:disabled):not(.filterTabActive) {
-  border-color: #ff8534;
-  color: #ff8534;
+  border-color: var(--border-input-focus);
+  color: var(--text-brand);
 }
 
 .filterTabActive {
-  background: #ff8534;
-  border-color: #ff8534;
+  background: var(--bg-brand);
+  border-color: var(--border-input-focus);
   color: #fff;
 }
 
@@ -52,7 +52,7 @@
   color: #888;
   background: #f0f0f0;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
 }
 
 /* ===== 핀 에러 배너 ===== */
@@ -66,8 +66,8 @@
   align-items: center;
   border-bottom: 1px solid #fcc;
   flex-shrink: 0;
-  margin: 0 16px 8px;
-  border-radius: 8px;
+  margin: 0 var(--space-400) var(--space-200);
+  border-radius: var(--radius-200);
   animation: slide-down 0.2s ease;
 }
 
@@ -88,7 +88,7 @@
   color: #d83a3a;
   font-size: 18px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0 var(--space-100);
   line-height: 1;
 }
 
@@ -103,9 +103,9 @@
   color: white;
   font-size: 11px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
   font-weight: 600;
-  margin: 4px 0 0;
+  margin: var(--space-100) 0 0;
   animation:
     badge-in 0.3s ease,
     badge-out 0.3s ease 2.2s forwards;
@@ -160,7 +160,7 @@
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  padding: 8px;
+  padding: var(--space-200);
   box-sizing: border-box;
   cursor: pointer;
   border-radius: 10px;
@@ -196,7 +196,7 @@
   right: 6px;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
   border: none;
   background: #fcfbfa;
   opacity: 80%;
@@ -204,7 +204,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4a4846;
+  color: var(--text-tertiary);
   backdrop-filter: blur(4px);
   transition:
     transform 0.15s ease,
@@ -237,7 +237,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-100);
   padding: 0 2px;
 }
 
@@ -283,7 +283,7 @@
   border: none;
   cursor: pointer;
   color: #888;
-  padding: 4px;
+  padding: var(--space-100);
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -306,7 +306,7 @@
   border: 1px solid #e8e8e8;
   border-radius: 10px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-  padding: 4px;
+  padding: var(--space-100);
   min-width: 140px;
   z-index: 30;
   animation: pop-in 0.15s ease;
@@ -326,7 +326,7 @@
 .menuItem {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-200);
   width: 100%;
   padding: 8px 10px;
   background: none;
@@ -350,7 +350,7 @@
 
 /* 메뉴 아이템 활성 상태 (현재 피드백) */
 .menuItemActive {
-  color: #ff8534;
+  color: var(--text-brand);
   background: #fff7f0;
   font-weight: 600;
 }
@@ -361,7 +361,7 @@
 
 /* 아이콘도 색상 따라가도록 — ThumbsUpIcon/ThumbsDownIcon이 currentColor면 자동 적용 */
 .menuItemActive svg {
-  color: #ff8534;
+  color: var(--text-brand);
 }
 
 /* ===== 로딩 / 빈 상태 ===== */
@@ -378,14 +378,14 @@
 }
 
 .empty p {
-  margin: 4px 0;
+  margin: var(--space-100) 0;
 }
 
 .empty .emptyTitle {
   margin-top: 20px;
   font-size: 16px;
   font-weight: 700;
-  color: #4a4846;
+  color: var(--text-tertiary);
 }
 
 .emptyHint {
@@ -396,7 +396,7 @@
 .scopeText {
   font-size: 12px;
   color: #cccccc;
-  margin-top: 8px;
+  margin-top: var(--space-200);
 }
 
 .grid::-webkit-scrollbar {
