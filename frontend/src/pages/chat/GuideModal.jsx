@@ -464,24 +464,54 @@ const Coach = ({
       {/* 7. 피드백 — 가이드 도움 여부(chip 2). 핸들러 없으면 미렌더. */}
       {onGuideFeedback && (
         <section className={styles.section}>
-          <SectionTitle>이 가이드는 어땠나요?</SectionTitle>
-          <div className={styles.guideFb}>
-            <button
-              type="button"
-              className={`${styles.fbChip} ${guideFeedback === "up" ? styles.fbChipActive : ""}`}
-              aria-pressed={guideFeedback === "up"}
-              onClick={() => onGuideFeedback("up")}
-            >
-              도움이 됐어요
-            </button>
-            <button
-              type="button"
-              className={`${styles.fbChip} ${guideFeedback === "down" ? styles.fbChipActive : ""}`}
-              aria-pressed={guideFeedback === "down"}
-              onClick={() => onGuideFeedback("down")}
-            >
-              아쉬워요
-            </button>
+          <div className={styles.fbCard}>
+            <p className={styles.fbQuestion}>이 가이드가 도움이 되었나요?</p>
+            <div className={styles.guideFb}>
+              <button
+                type="button"
+                className={`${styles.fbChip} ${guideFeedback === "up" ? styles.fbChipActive : ""}`}
+                aria-pressed={guideFeedback === "up"}
+                onClick={() => onGuideFeedback("up")}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M7 10v11" />
+                  <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
+                </svg>
+                도움돼요
+              </button>
+              <button
+                type="button"
+                className={`${styles.fbChip} ${guideFeedback === "down" ? styles.fbChipActive : ""}`}
+                aria-pressed={guideFeedback === "down"}
+                onClick={() => onGuideFeedback("down")}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M17 14V3" />
+                  <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
+                </svg>
+                아쉬워요
+              </button>
+            </div>
           </div>
         </section>
       )}
