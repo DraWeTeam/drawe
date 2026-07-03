@@ -389,17 +389,19 @@ const Coach = ({
       {displayedRefs.length > 0 && (
         <section className={styles.section}>
           <SectionTitle>추천 레퍼런스</SectionTitle>
-          <div className={styles.refGrid}>
-            {displayedRefs.map((r) => (
-              <RefCard key={r.refId} reference={r} />
-            ))}
+          <div className={styles.refBoard}>
+            <div className={styles.refGrid}>
+              {displayedRefs.map((r) => (
+                <RefCard key={r.refId} reference={r} />
+              ))}
+            </div>
+            <RefFeedback
+              refIds={displayedRefs.map((r) => r.refId)}
+              canRefresh={canRefresh}
+              onFeedback={onRefFeedback}
+              onRefresh={cycleRefs}
+            />
           </div>
-          <RefFeedback
-            refIds={displayedRefs.map((r) => r.refId)}
-            canRefresh={canRefresh}
-            onFeedback={onRefFeedback}
-            onRefresh={cycleRefs}
-          />
         </section>
       )}
 
