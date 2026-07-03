@@ -251,19 +251,38 @@ const Growth = ({ growth }) => {
   );
 };
 
-// coach 본문 — 이미지4 흐름:
-// 인트로 → 1.추천 연습 → 2.한 끗 포인트 → 3.추천 레퍼런스(+피드백) → (보조 블록) → 4.앞으로 해야 할 것 → 성장 흐름
-const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
+// 요청일자 표기(시안 §1): ISO/Instant 문자열 → "YYYY.MM.DD.".
+const fmtReqDate = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}.`;
+};
+
+// coach 본문 — 시안 SCR-GUIDE-03 7섹션(단일 구조, hasPractice 분기 없음):
+//   1.타이틀 → 2.현재 그림 분석 → 3.한 끗 포인트 → 4.추천 레퍼런스 → 5.앞으로 해야 할 것 → 6.성장 흐름 → 7.피드백
+const Coach = ({
+  guide,
+  references,
+  drawingPreviewUrl,
+  onRefFeedback,
+  createdAt,
+  onGuideFeedback,
+  guideFeedback,
+}) => {
   const blocks = guide.blocks || [];
   const primary = blocks[0];
-  const extra = blocks.slice(1);
   const next = guide.next_steps;
-  // 레이아웃 분기(시안):
-  //  - 반복 가이드(로드맵 연습 있음) → "추천 연습" 선행(이미지6).
-  //  - 최초 가이드(연습 없음=콜드스타트) → "1.분석 / 2.읽히는 느낌" 선행(이미지5).
-  const hasPractice = !!next?.focus_practice;
-  // 이력 내레이션은 '한 번만' 상단에(중복 제거). note 없으면 synthesis 폴백.
-  const intro = next?.note || guide.synthesis || "";
+  // §1 타이틀: 요청일자 + 주요 키워드(진단된 축 = primary + 보조 블록, dedupe 후 최대 3).
+  const reqDate = fmtReqDate(createdAt);
+  const topKeywords = (() => {
+    const out = [];
+    for (const sp of [guide.primary_focus, ...blocks.map((b) => b.sub_problem)]) {
+      if (sp && !out.includes(sp)) out.push(sp);
+    }
+    return out.slice(0, 3);
+  })();
   // 레퍼런스 풀(🔄 새로고침용): 표시 중인 top-3(references, URL 보유) + 페이로드 전체 블록의 나머지 ref.
   //   URL 은 references[0].url 에서 base 를 떼어 합성 → GUIDE_BASE env 불일치와 무관하게 일관.
   const refBase = (() => {
@@ -313,35 +332,32 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
         });
   const canRefresh = refPool.length > 3;
   const cycleRefs = () => setRefOffset((o) => (o + 3) % refPool.length);
-  // 번호: 있는 섹션만 1,2,3… 연속 부여(빈 섹션은 번호 건너뜀).
-  let num = 0;
-  const goalShown = next && (next.next_goal_practice || next.next_goal);
+  const hasGoal = next && (next.focus || next.next_goal || next.next_goal_practice);
+  const hasChecklist = next && next.focus_practice;
 
   return (
     <>
-      {/* 반복 레이아웃에서만 상단 이미지/인트로(최초 레이아웃은 '1.분석' 안으로 들어감) */}
-      {hasPractice && drawingPreviewUrl && (
-        <OverlayImage
-          className={styles.userImg}
-          src={drawingPreviewUrl}
-          overlay={guide.overlay}
-          alt="첨부한 그림"
-        />
+      {/* 1. 타이틀 — 요청일자 + 주요 키워드(제목은 헤더 타이틀에 있음) */}
+      {(reqDate || topKeywords.length > 0) && (
+        <section className={styles.titleMeta}>
+          {reqDate && <p className={styles.reqDate}>요청일자 : {reqDate}</p>}
+          {topKeywords.length > 0 && (
+            <div className={styles.keywordRow}>
+              <span className={styles.keywordLabel}>주요 키워드 :</span>
+              {topKeywords.map((k) => (
+                <span key={k} className={styles.keywordBadge}>
+                  {axisLabel(k)}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
-      {hasPractice && intro && <p className={styles.intro}>{intro}</p>}
-
-      {hasPractice && primary?.observation && (
-        <p className={styles.lead}>
-          {primary.observation}
-          {primary.effect ? ` ${primary.effect}` : ""}
-        </p>
-      )}
-
-      {/* 최초 가이드 — 1. 분석 (첨부 그림 + 관찰) */}
-      {!hasPractice && primary?.observation && (
+      {/* 2. 현재 그림 분석 — [사용자질문 bubble hidden] + 업로드 이미지 + 관찰/효과 통합 */}
+      {(drawingPreviewUrl || primary?.observation || primary?.effect) && (
         <section className={styles.section}>
-          <SectionTitle num={++num}>분석</SectionTitle>
+          <SectionTitle>현재 그림 분석</SectionTitle>
           <div className={styles.analysisBox}>
             {drawingPreviewUrl && (
               <AuthedImage
@@ -350,37 +366,20 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
                 alt="첨부한 그림"
               />
             )}
-            <p className={styles.bodyText}>{primary.observation}</p>
+            {primary?.observation && (
+              <p className={styles.bodyText}>{primary.observation}</p>
+            )}
+            {primary?.effect && (
+              <p className={styles.bodyText}>{primary.effect}</p>
+            )}
           </div>
         </section>
       )}
 
-      {/* 최초 가이드 — 2. 읽히는 느낌 (effect) */}
-      {!hasPractice && primary?.effect && (
-        <section className={styles.section}>
-          <SectionTitle num={++num}>읽히는 느낌</SectionTitle>
-          <div className={styles.readBox}>
-            <p className={styles.bodyText}>{primary.effect}</p>
-          </div>
-        </section>
-      )}
-
-      {/* 1. 추천 연습 — 로드맵 연습(focus_practice). 없으면 섹션 생략. */}
-      {hasPractice && (
-        <section className={styles.section}>
-          <SectionTitle num={++num}>추천 연습</SectionTitle>
-          <div className={styles.practiceBox}>
-            <p className={styles.bodyText}>{next.focus_practice}</p>
-          </div>
-        </section>
-      )}
-
-      {/* 2. 한 끗 포인트 — direction + 도식 */}
+      {/* 3. 한 끗 포인트 — direction + 도식 [지금 바로 수정하기 hidden] */}
       {primary && (primary.direction || primary.guide_asset) && (
         <section className={styles.section}>
-          <SectionTitle num={++num} accent>
-            한 끗 포인트
-          </SectionTitle>
+          <SectionTitle accent>한 끗 포인트</SectionTitle>
           <div className={styles.tipBox}>
             {primary.direction && (
               <p className={styles.tipText}>{primary.direction}</p>
@@ -390,10 +389,10 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
         </section>
       )}
 
-      {/* 3. 추천 레퍼런스 (+ 피드백·새로고침) */}
+      {/* 4. 추천 레퍼런스 (+ 피드백·새로고침) */}
       {displayedRefs.length > 0 && (
         <section className={styles.section}>
-          <SectionTitle num={++num}>추천 레퍼런스</SectionTitle>
+          <SectionTitle>추천 레퍼런스</SectionTitle>
           <div className={styles.refGrid}>
             {displayedRefs.map((r) => (
               <RefCard key={r.refId} reference={r} />
@@ -408,41 +407,70 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
         </section>
       )}
 
-      {/* 함께 보면 좋은 것 — 보조 초점(있을 때만, 가볍게) */}
-      {extra.length > 0 && (
-        <section className={styles.section}>
-          <SectionTitle>함께 보면 좋은 것</SectionTitle>
-          {extra.map((b, i) => (
-            <p key={i} className={styles.extraLine}>
-              <strong className={styles.extraAxis}>
-                {axisLabel(b.sub_problem)}
-              </strong>{" "}
-              {b.direction || b.observation}
-            </p>
-          ))}
+      {/* 5. 앞으로 해야 할 것 — [5단계 프로그레스 hidden] + 현재/다음 단계 + 체크리스트(현재 연습 포함) */}
+      {(hasGoal || hasChecklist) && (
+        <section className={styles.nextSteps}>
+          <SectionTitle>앞으로 해야 할 것</SectionTitle>
+          {(next.focus || next.next_goal) && (
+            <div className={styles.stageRow}>
+              {next.focus && (
+                <span className={styles.stageItem}>
+                  <span className={styles.tenseLabel}>현재 단계</span>
+                  <span className={styles.goalAxis}>{axisLabel(next.focus)}</span>
+                </span>
+              )}
+              {next.next_goal && (
+                <span className={styles.stageItem}>
+                  <span className={styles.tenseLabel}>다음 단계</span>
+                  <span className={styles.goalAxis}>
+                    {axisLabel(next.next_goal)}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+          {next.next_goal_practice && (
+            <p className={styles.goalText}>{next.next_goal_practice}</p>
+          )}
+          {next.focus_practice && (
+            <div className={styles.checklist}>
+              <p className={styles.checklistTitle}>다음 그림에서 체크해보세요</p>
+              <p className={styles.checklistItem}>
+                <span className={styles.tenseTag}>현재 연습</span>{" "}
+                {next.focus_practice}
+              </p>
+            </div>
+          )}
         </section>
       )}
 
-      {/* 4. 앞으로 해야 할 것 — 다음 목표 카드만(note 는 상단으로 이동). */}
-      {goalShown && (
-        <section className={styles.nextSteps}>
-          <SectionTitle num={++num}>앞으로 해야 할 것</SectionTitle>
-          <div className={styles.nextGoal}>
-            <span className={styles.goalBadge}>다음 목표</span>
-            {next.next_goal && (
-              <span className={styles.goalAxis}>
-                {axisLabel(next.next_goal)}
-              </span>
-            )}
-            {next.next_goal_practice && (
-              <p className={styles.goalText}>{next.next_goal_practice}</p>
-            )}
+      {/* 6. 성장 흐름 */}
+      <Growth growth={guide.growth} />
+
+      {/* 7. 피드백 — 가이드 도움 여부(chip 2). 핸들러 없으면 미렌더. */}
+      {onGuideFeedback && (
+        <section className={styles.section}>
+          <SectionTitle>이 가이드는 어땠나요?</SectionTitle>
+          <div className={styles.guideFb}>
+            <button
+              type="button"
+              className={`${styles.fbChip} ${guideFeedback === "up" ? styles.fbChipActive : ""}`}
+              aria-pressed={guideFeedback === "up"}
+              onClick={() => onGuideFeedback("up")}
+            >
+              도움이 됐어요
+            </button>
+            <button
+              type="button"
+              className={`${styles.fbChip} ${guideFeedback === "down" ? styles.fbChipActive : ""}`}
+              aria-pressed={guideFeedback === "down"}
+              onClick={() => onGuideFeedback("down")}
+            >
+              아쉬워요
+            </button>
           </div>
         </section>
       )}
-
-      {/* 성장 흐름 */}
-      <Growth growth={guide.growth} />
     </>
   );
 };
@@ -456,6 +484,9 @@ const GuideBody = ({
   drawingPreviewUrl,
   onRetry,
   onRefFeedback,
+  createdAt,
+  onGuideFeedback,
+  guideFeedback,
 }) => (
   <div className={styles.body}>
     {loading && (
@@ -490,6 +521,9 @@ const GuideBody = ({
           references={references}
           drawingPreviewUrl={drawingPreviewUrl}
           onRefFeedback={onRefFeedback}
+          createdAt={createdAt}
+          onGuideFeedback={onGuideFeedback}
+          guideFeedback={guideFeedback}
         />
       ))}
   </div>
@@ -505,11 +539,14 @@ export const GuideContent = ({
   onClose,
   onRetry,
   onRefFeedback,
+  onGuideFeedback,
+  guideFeedback,
   onToggleFull,
   isFull,
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
+  const createdAt = result?.createdAt || null;
   const title = guide?.primary_focus
     ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
     : "한 끗 가이드";
@@ -564,6 +601,9 @@ export const GuideContent = ({
         drawingPreviewUrl={drawingPreviewUrl}
         onRetry={onRetry}
         onRefFeedback={onRefFeedback}
+        createdAt={createdAt}
+        onGuideFeedback={onGuideFeedback}
+        guideFeedback={guideFeedback}
       />
     </div>
   );
@@ -580,6 +620,7 @@ const GuideModal = ({
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
+  const createdAt = result?.createdAt || null;
   const title = guide?.primary_focus
     ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
     : "한 끗 가이드";
@@ -614,6 +655,7 @@ const GuideModal = ({
           drawingPreviewUrl={drawingPreviewUrl}
           onRetry={onRetry}
           onRefFeedback={onRefFeedback}
+          createdAt={createdAt}
         />
       </div>
     </div>

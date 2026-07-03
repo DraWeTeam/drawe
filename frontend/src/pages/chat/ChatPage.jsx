@@ -893,6 +893,22 @@ const ChatPage = () => {
                 onClose={closeGuide}
                 onRetry={retryGuide}
                 onRefFeedback={handleRefFeedback}
+                onGuideFeedback={(kind) => {
+                  // 열린 가이드(guideResult)에 해당하는 카드 메시지를 guide_id 로 찾아 토글
+                  //   (기존 setGuideCardFeedback 재사용 — 백엔드 guide_feedback 반영).
+                  const gid = guideResult?.guide?.guide_id;
+                  const msg = messages.find(
+                    (m) => m.type === "guide" && m.guide?.guide_id === gid,
+                  );
+                  if (msg) setGuideCardFeedback(msg._gid, kind);
+                }}
+                guideFeedback={
+                  messages.find(
+                    (m) =>
+                      m.type === "guide" &&
+                      m.guide?.guide_id === guideResult?.guide?.guide_id,
+                  )?.guideFeedback ?? null
+                }
                 onToggleFull={() =>
                   setMode((cur) => (cur === "refFull" ? "split" : "refFull"))
                 }

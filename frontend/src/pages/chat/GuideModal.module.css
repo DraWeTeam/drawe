@@ -497,3 +497,101 @@
   background: #f3f1ee;
   color: #4a4846;
 }
+
+/* ── SCR-GUIDE-03 C1 스캐폴딩 (시안 토큰) ───────────────────────────── */
+/* §1 타이틀 메타 — 요청일자 + 주요 키워드 badge */
+.titleMeta {
+  margin: 0 0 18px;
+}
+.reqDate {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #888685;
+}
+.keywordRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.keywordLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4846;
+}
+.keywordBadge {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ff8534;
+  background: #fffbf5;
+  border: 1px solid #ff8534;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+/* §5 현재/다음 단계 */
+.stageRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+.stageItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tenseLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a4846;
+  background: #f6f6f6;
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+/* §5 체크리스트 */
+.checklist {
+  margin-top: 10px;
+}
+.checklistTitle {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4846;
+}
+.checklistItem {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #24221f;
+}
+.tenseTag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ee6f2d;
+  background: #fdeede;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+/* §7 피드백 chip 2 */
+.guideFb {
+  display: flex;
+  gap: 8px;
+}
+.fbChip {
+  font-size: 14px;
+  font-weight: 500;
+  color: #888685;
+  background: #fefeff;
+  border: 1px solid #d8d7d5;
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.fbChip:hover {
+  background: #f6f6f6;
+}
+.fbChipActive {
+  color: #ff8534;
+  background: #fffbf5;
+  border-color: #ff8534;
+}
