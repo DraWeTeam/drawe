@@ -17,22 +17,22 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: #fefeff;
-  border-radius: 32px;
-  box-shadow: 0 5px 25px rgba(15, 15, 15, 0.1);
+  background: var(--bg-surface);
+  border-radius: var(--radius-800);
+  box-shadow: var(--shadow-200);
   overflow: hidden;
 }
 .header {
   display: flex;
   align-items: center;
-  padding: 40px 40px 24px;
+  padding: var(--space-1000) var(--space-1000) var(--space-600);
 }
 .title {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
   line-height: 32px;
-  color: #0f0f0f;
+  color: var(--text-primary);
 }
 .closeBtn {
   margin-left: auto;
@@ -42,66 +42,66 @@
   background: transparent;
   font-size: 28px;
   line-height: 1;
-  color: #4a4846;
+  color: var(--text-tertiary);
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
 }
 .closeBtn:hover {
-  background: #f6f6f6;
+  background: var(--bg-subtle);
 }
 
 .body {
-  padding: 16px 40px;
+  padding: var(--space-400) var(--space-1000);
   overflow-y: auto;
 }
 
 .fieldLabel {
   display: block;
-  margin: 24px 0 8px;
+  margin: var(--space-600) 0 var(--space-200);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
-  color: #4a4846;
+  color: var(--text-tertiary);
 }
 .info {
-  color: #888685;
+  color: var(--text-quaternary);
   font-size: 14px;
   cursor: help;
 }
 
 /* 드롭존 */
 .dropzone {
-  border: 1px dashed #ff8534;
-  border-radius: 12px;
-  background: #fffbf5;
-  padding: 40px 16px;
+  border: 1px dashed var(--border-input-focus);
+  border-radius: var(--radius-300);
+  background: var(--bg-brand-weak);
+  padding: var(--space-1000) var(--space-400);
   text-align: center;
 }
 .dropzone.dragOver {
   background: #fff3e6;
-  border-color: #ff8534;
+  border-color: var(--border-input-focus);
 }
 .dropHint {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-400);
   font-size: 14px;
   line-height: 22px;
-  color: #24221f;
+  color: var(--text-secondary);
 }
 .preview {
   display: block;
   max-width: 100%;
   max-height: 200px;
-  margin: 0 auto 16px;
-  border-radius: 8px;
+  margin: 0 auto var(--space-400);
+  border-radius: var(--radius-200);
 }
 .pickBtn {
   border: none;
-  background: #ff8534;
-  color: #fefeff;
+  background: var(--bg-brand);
+  color: var(--text-inverse);
   font-size: 16px;
   font-weight: 500;
-  padding: 12px 24px 12px 16px;
-  border-radius: 8px;
+  padding: var(--space-300) var(--space-600) var(--space-300) var(--space-400);
+  border-radius: var(--radius-200);
   cursor: pointer;
 }
 .pickBtn:hover {
@@ -112,7 +112,7 @@
   cursor: default;
 }
 .err {
-  margin: 8px 0 0;
+  margin: var(--space-200) 0 0;
   font-size: 12.5px;
   color: #c0492f;
 }
@@ -121,50 +121,50 @@
 .textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #edebea;
-  border-radius: 12px;
-  padding: 12px 16px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-300);
+  padding: var(--space-300) var(--space-400);
   font-size: 14px;
   line-height: 22px;
   font-family: inherit;
-  color: #24221f;
+  color: var(--text-secondary);
   resize: vertical;
 }
 .textarea::placeholder {
-  color: #888685;
+  color: var(--text-quaternary);
 }
 .textarea:focus {
   outline: none;
-  border-color: #ff8534;
+  border-color: var(--border-input-focus);
 }
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 12px;
+  margin-top: var(--space-300);
 }
 .chip {
-  border: 1px solid #d8d7d5;
-  background: #fefeff;
-  color: #888685;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-quaternary);
   /* 시안 칩 = Wanted Sans 16px·px16(행 715<내부 740, 1행). 현행은 시스템 폰트라 한글 글리프가
      넓어 5칩이 740 초과 → 줄바꿈. 폰트(별도 트랙) 미로드 상태에서 5칩 1행을 유지하도록 조임
      (font 14·padding 12·gap 6). Wanted Sans 도입 시 16/16 으로 복원 가능. */
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: var(--space-200) var(--space-300);
+  border-radius: var(--radius-200);
   cursor: pointer;
   white-space: nowrap;
 }
 .chip:hover {
-  background: #f6f6f6;
+  background: var(--bg-subtle);
 }
 .chip.chipActive {
-  background: #fffbf5;
-  border-color: #ff8534;
-  color: #ff8534;
+  background: var(--bg-brand-weak);
+  border-color: var(--border-input-focus);
+  color: var(--text-brand);
 }
 .chip:disabled {
   opacity: 0.6;
@@ -175,44 +175,44 @@
 .select {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #edebea;
-  border-radius: 8px;
-  padding: 12px 12px 12px 16px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-200);
+  padding: var(--space-300) var(--space-300) var(--space-300) var(--space-400);
   font-size: 16px;
   font-weight: 500;
   line-height: 22px;
   font-family: inherit;
-  color: #4a4846;
-  background: #fefeff;
+  color: var(--text-tertiary);
+  background: var(--bg-surface);
   cursor: pointer;
 }
 .select:focus {
   outline: none;
-  border-color: #ff8534;
+  border-color: var(--border-input-focus);
 }
 
 /* 토글(작업중/완성작) */
 .toggle {
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  background: #f6f6f6;
-  border-radius: 12px;
+  gap: var(--space-100);
+  padding: var(--space-100);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-300);
 }
 .toggleBtn {
   border: none;
   background: transparent;
-  color: #888685;
+  color: var(--text-quaternary);
   font-size: 16px;
   font-weight: 500;
   line-height: 22px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: var(--space-200) var(--space-400);
+  border-radius: var(--radius-200);
   cursor: pointer;
 }
 .toggleBtn.toggleOn {
-  background: #ff8534;
-  color: #fefeff;
+  background: var(--bg-brand);
+  color: var(--text-inverse);
 }
 .toggleBtn:disabled {
   opacity: 0.6;
@@ -221,26 +221,26 @@
 
 /* 제출 */
 .footer {
-  padding: 32px 40px 40px;
+  padding: var(--space-800) var(--space-1000) var(--space-1000);
 }
 .submitBtn {
   width: 100%;
   border: none;
-  border-radius: 999px;
-  padding: 12px 24px;
+  border-radius: var(--radius-999);
+  padding: var(--space-300) var(--space-600);
   min-height: 46px;
   font-size: 16px;
   font-weight: 500;
-  color: #fefeff;
-  background: #ff8534;
+  color: var(--text-inverse);
+  background: var(--bg-brand);
   cursor: pointer;
 }
 .submitBtn:hover:not(:disabled) {
   background: #f2761f;
 }
 .submitBtn:disabled {
-  background: #d8d7d5;
-  color: #fefeff;
+  background: var(--bg-disabled);
+  color: var(--text-inverse);
   cursor: default;
 }
 
