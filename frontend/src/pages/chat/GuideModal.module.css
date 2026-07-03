@@ -274,6 +274,10 @@
   font-weight: 700;
   line-height: 24px;
   color: var(--text-tertiary);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .refNum {
   position: absolute;
