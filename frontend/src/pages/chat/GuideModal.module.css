@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: var(--space-600);
   z-index: 1000;
 }
 
@@ -29,7 +29,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-300);
   padding: 18px 22px;
   border-bottom: 1px solid #f0ece6;
 }
@@ -51,7 +51,7 @@
   background: #fdf1df;
   border: 1px solid #f4e2c6;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
   white-space: nowrap;
 }
 .closeBtn {
@@ -62,7 +62,7 @@
   color: #9a9186;
   cursor: pointer;
   padding: 2px 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
 }
 .closeBtn:hover {
   background: #f4f1ec;
@@ -125,7 +125,7 @@
   object-fit: contain;
   background: #f6f4f1;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   margin-bottom: 14px;
 }
 /* 이력 반영 한 줄(= next_steps.note). 상단에 '한 번만' 노출(중복 제거). */
@@ -175,7 +175,7 @@
 .practiceBox {
   background: #ffffff;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   padding: 14px 16px;
 }
 
@@ -183,7 +183,7 @@
 .analysisBox {
   background: #ffffff;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   padding: 14px 16px;
 }
 .analysisImg {
@@ -198,7 +198,7 @@
 .readBox {
   background: #ffffff;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   padding: 14px 16px;
 }
 
@@ -207,7 +207,7 @@
   background: #fdf4e8;
   border: 1px solid #f6e3c8;
   border-radius: 14px;
-  padding: 16px;
+  padding: var(--space-400);
 }
 .tipText {
   margin: 0;
@@ -235,12 +235,12 @@
 .refGrid {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-600);
 }
 .refCard {
   margin: 0;
   display: flex;
-  gap: 16px;
+  gap: var(--space-400);
   align-items: flex-start;
 }
 .refThumb {
@@ -248,7 +248,7 @@
   width: 240px;
   height: 240px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   overflow: hidden;
   background: #ededed;
   border: 1px solid #e7e3dd;
@@ -256,14 +256,14 @@
 .refInfo {
   flex: 1 1 0;
   min-width: 0;
-  padding-top: 8px;
+  padding-top: var(--space-200);
 }
 .refTitle {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
   line-height: 24px;
-  color: #4a4846;
+  color: var(--text-tertiary);
 }
 .refNum {
   position: absolute;
@@ -280,7 +280,7 @@
   font-weight: 700;
   color: #fff;
   background: rgba(45, 42, 38, 0.78);
-  border-radius: 999px;
+  border-radius: var(--radius-999);
 }
 .refImg {
   width: 100%;
@@ -308,8 +308,8 @@
 /* 레퍼런스 묶음 피드백(👍 👎 🔄) */
 .refFeedback {
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-200);
+  margin-top: var(--space-300);
 }
 .fbBtn {
   display: inline-flex;
@@ -334,7 +334,7 @@
 }
 .fbBtnActive,
 .fbBtnActive:hover {
-  color: #ff8534;
+  color: var(--text-brand);
   background: #fff3e9;
   border-color: #f6e3c8;
 }
@@ -363,10 +363,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-200);
   background: #fbf8f4;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   padding: 12px 14px;
 }
 .goalBadge {
@@ -375,7 +375,7 @@
   color: #ee6f2d;
   background: #fdeede;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
 }
 .goalAxis {
   font-size: 14px;
@@ -398,7 +398,7 @@
   background: #fff5e9;
   border: 1px solid #f7e6cd;
   border-radius: 14px;
-  padding: 16px;
+  padding: var(--space-400);
 }
 .growthFirst {
   margin: 0;
@@ -433,7 +433,7 @@
   color: #c2632c;
   background: rgba(255, 245, 233, 0.85);
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
   pointer-events: none;
 }
 .growthMsg {
@@ -449,8 +449,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-200);
+  margin-top: var(--space-300);
 }
 .chipRowLabel {
   font-size: 12.5px;
@@ -463,7 +463,7 @@
   background: #f4f1ec;
   border: 1px solid #ebe6df;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
 }
 
 /* ── PDF 다운로드 버튼(복사 대신) ── */
@@ -477,7 +477,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -508,12 +508,12 @@
   border: none;
   background: transparent;
   color: #8a857e;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
   cursor: pointer;
 }
 .iconHeaderBtn:hover {
   background: #f3f1ee;
-  color: #4a4846;
+  color: var(--text-tertiary);
 }
 
 /* ── SCR-GUIDE-03 C1 스캐폴딩 (시안 토큰) ───────────────────────────── */
@@ -524,7 +524,7 @@
 .reqDate {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #888685;
+  color: var(--text-quaternary);
 }
 .keywordRow {
   display: flex;
@@ -535,15 +535,15 @@
 .keywordLabel {
   font-size: 13px;
   font-weight: 600;
-  color: #4a4846;
+  color: var(--text-tertiary);
 }
 .keywordBadge {
   font-size: 13px;
   font-weight: 500;
-  color: #ff8534;
-  background: #fffbf5;
-  border: 1px solid #ff8534;
-  border-radius: 999px;
+  color: var(--text-brand);
+  background: var(--bg-brand-weak);
+  border: 1px solid var(--border-input-focus);
+  border-radius: var(--radius-999);
   padding: 3px 10px;
 }
 /* §5 현재/다음 단계 */
@@ -561,8 +561,8 @@
 .tenseLabel {
   font-size: 11px;
   font-weight: 700;
-  color: #4a4846;
-  background: #f6f6f6;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
   border-radius: 6px;
   padding: 3px 8px;
 }
@@ -574,13 +574,13 @@
   margin: 0 0 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #4a4846;
+  color: var(--text-tertiary);
 }
 .checklistItem {
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
-  color: #24221f;
+  color: var(--text-secondary);
 }
 .tenseTag {
   font-size: 11px;
@@ -593,23 +593,23 @@
 /* §7 피드백 chip 2 */
 .guideFb {
   display: flex;
-  gap: 8px;
+  gap: var(--space-200);
 }
 .fbChip {
   font-size: 14px;
   font-weight: 500;
-  color: #888685;
-  background: #fefeff;
-  border: 1px solid #d8d7d5;
-  border-radius: 999px;
-  padding: 8px 16px;
+  color: var(--text-quaternary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-999);
+  padding: var(--space-200) var(--space-400);
   cursor: pointer;
 }
 .fbChip:hover {
-  background: #f6f6f6;
+  background: var(--bg-subtle);
 }
 .fbChipActive {
-  color: #ff8534;
-  background: #fffbf5;
-  border-color: #ff8534;
+  color: var(--text-brand);
+  background: var(--bg-brand-weak);
+  border-color: var(--border-input-focus);
 }
