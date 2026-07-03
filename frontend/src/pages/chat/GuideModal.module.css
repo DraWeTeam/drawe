@@ -179,21 +179,43 @@
   padding: 14px 16px;
 }
 
-/* ── 최초 가이드: 1. 분석 / 2. 읽히는 느낌 ── */
+/* ── 2. 현재 그림 분석 (시안 114:15609): surface 카드 = 업로드 이미지 + "AI가 발견한 문제" 소제목 + 설명 ── */
 .analysisBox {
-  background: #ffffff;
-  border: 1px solid #efeae3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-400);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-300);
-  padding: 14px 16px;
+  padding: var(--space-600);
 }
 .analysisImg {
   display: block;
-  max-width: 220px;
-  max-height: 220px;
-  border-radius: 10px;
-  margin: 0 0 10px;
-  object-fit: contain;
-  background: #f4f1ec;
+  width: 322px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  object-fit: cover;
+  border-radius: var(--radius-300);
+  background: var(--bg-subtle);
+}
+.analysisFindings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+.findingTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}
+.findingText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
 }
 .readBox {
   background: #ffffff;

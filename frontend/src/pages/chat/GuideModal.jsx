@@ -362,11 +362,16 @@ const Coach = ({
                 alt="첨부한 그림"
               />
             )}
-            {primary?.observation && (
-              <p className={styles.bodyText}>{primary.observation}</p>
-            )}
-            {primary?.effect && (
-              <p className={styles.bodyText}>{primary.effect}</p>
+            {(primary?.observation || primary?.effect) && (
+              <div className={styles.analysisFindings}>
+                <p className={styles.findingTitle}>AI가 발견한 문제</p>
+                {primary?.observation && (
+                  <p className={styles.findingText}>{primary.observation}</p>
+                )}
+                {primary?.effect && (
+                  <p className={styles.findingText}>{primary.effect}</p>
+                )}
+              </div>
             )}
           </div>
         </section>
