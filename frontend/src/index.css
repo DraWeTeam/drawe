@@ -46,11 +46,19 @@
   --font-caption2: 500 12px/20px;
 }
 
+@font-face {
+  font-family: "Wanted Sans";
+  src: url("/fonts/WantedSansVariable.woff2") format("woff2") tech(variations);
+  font-weight: 400 1000;
+  font-display: swap;
+}
+
 body {
   margin: 0;
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    "Wanted Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+    "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
