@@ -1,3 +1,51 @@
+/* Figma 정본 디자인 토큰 — 선언만(이 커밋은 참조 0, 치환 없음). 색·간격·radius 참조는
+   후속 커밋 C, 폰트 참조는 커밋 B. 폰트 토큰은 size/weight/lineHeight 값만(family 미포함). */
+:root {
+  /* 색 (15) */
+  --bg-surface: #fefeff;
+  --bg-brand: #ff8534;
+  --bg-brand-weak: #fffbf5;
+  --bg-brand-subtle: #fff1dc;
+  --bg-subtle: #f6f6f6;
+  --bg-disabled: #d8d7d5;
+  --text-primary: #0f0f0f;
+  --text-secondary: #24221f;
+  --text-tertiary: #4a4846;
+  --text-quaternary: #888685;
+  --text-inverse: #fefeff;
+  --text-brand: #ff8534;
+  --border-input: #edebea;
+  --border-input-focus: #ff8534;
+  --border-strong: #d8d7d5;
+
+  /* 간격 (7) */
+  --space-100: 4px;
+  --space-200: 8px;
+  --space-300: 12px;
+  --space-400: 16px;
+  --space-600: 24px;
+  --space-800: 32px;
+  --space-1000: 40px;
+
+  /* radius (4) */
+  --radius-200: 8px;
+  --radius-300: 12px;
+  --radius-800: 32px;
+  --radius-999: 999px;
+
+  /* shadow (1) */
+  --shadow-200: 0 5px 25px rgba(15, 15, 15, 0.1);
+
+  /* 폰트 (7) — 값만, family 없음 */
+  --font-heading3: 700 24px/32px;
+  --font-subtitle2: 700 18px/24px;
+  --font-subtitle3: 600 14px/20px;
+  --font-body1: 500 16px/22px;
+  --font-body2: 400 14px/22px;
+  --font-caption1: 600 14px/22px;
+  --font-caption2: 500 12px/20px;
+}
+
 body {
   margin: 0;
   font-family:
