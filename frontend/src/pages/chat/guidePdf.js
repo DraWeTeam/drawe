@@ -149,9 +149,9 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
       .map(
         (r) => `<figure class="ref">
           <div class="refThumb">${
-            r.url ? `<img src="${esc(r.url)}" alt="참고 ${r.ordinal}"/>` : ""
+            r.url ? `<img src="${esc(r.url)}" alt="추천 레퍼런스 ${r.ordinal}"/>` : ""
           }<span class="refNum">${esc(r.ordinal)}</span></div>
-          <figcaption>참고 ${esc(r.ordinal)}</figcaption>
+          <div class="refInfo"><p class="refTitle">추천 레퍼런스 ${esc(r.ordinal)}</p></div>
         </figure>`,
       )
       .join("");
@@ -222,13 +222,14 @@ const PRINT_CSS = `
   .box, .tip, .goal, .growthBox { border: 1px solid #f0ece6; border-radius: 12px; padding: 14px 16px; }
   .tip, .growthBox { background: #fff8ef; border-color: #f4e2c6; }
   .userImg { max-width: 220px; max-height: 220px; border-radius: 10px; display: block; margin: 0 0 10px; }
-  .refGrid { display: flex; gap: 12px; }
-  .ref { margin: 0; flex: 1; }
-  .refThumb { position: relative; aspect-ratio: 1; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #f4f1ec; }
+  .refGrid { display: flex; flex-direction: column; gap: 16px; }
+  .ref { margin: 0; display: flex; gap: 16px; align-items: flex-start; }
+  .refThumb { position: relative; width: 220px; height: 220px; flex-shrink: 0; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #f4f1ec; }
   .refThumb img { width: 100%; height: 100%; object-fit: cover; }
   .refNum { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.6); color: #fff;
             font-size: 11px; width: 18px; height: 18px; border-radius: 50%; display:flex; align-items:center; justify-content:center; }
-  .ref figcaption { font-size: 12px; color: #6b655d; margin-top: 6px; text-align: center; }
+  .refInfo { flex: 1; min-width: 0; padding-top: 6px; }
+  .refTitle { margin: 0; font-size: 16px; font-weight: 700; color: #4a4846; }
   .extra { font-size: 14px; margin: 6px 0; }
   .badge { background: #fdf1df; color: #9a7b4a; border: 1px solid #f4e2c6; border-radius: 999px; padding: 2px 8px; font-size: 11px; margin-right: 8px; }
   .goalAxis { font-weight: 700; }

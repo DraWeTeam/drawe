@@ -42,7 +42,8 @@ const AssetSvg = ({ asset }) => {
   );
 };
 
-// 추천 레퍼런스 썸네일: 번호(보드 순번) + 캡션.
+// 추천 레퍼런스 카드: 이미지(좌) + 우측 제목. 시안 SCR-GUIDE-02 세로 스택.
+//   추천 이유·키워드 badge 는 데이터 결손이라 이번 범위 아님(DOM 노드 자체를 만들지 않음).
 const RefCard = ({ reference }) => {
   const [failed, setFailed] = useState(false);
   return (
@@ -55,15 +56,15 @@ const RefCard = ({ reference }) => {
           <img
             className={styles.refImg}
             src={reference.url}
-            alt={`참고 ${reference.ordinal}`}
+            alt={`추천 레퍼런스 ${reference.ordinal}`}
             loading="lazy"
             onError={() => setFailed(true)}
           />
         )}
       </div>
-      <figcaption className={styles.refLabel}>
-        참고 {reference.ordinal}
-      </figcaption>
+      <div className={styles.refInfo}>
+        <p className={styles.refTitle}>추천 레퍼런스 {reference.ordinal}</p>
+      </div>
     </figure>
   );
 };
