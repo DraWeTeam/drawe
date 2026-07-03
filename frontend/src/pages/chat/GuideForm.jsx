@@ -13,14 +13,13 @@ const CONCERNS = [
   "톤을 바꾸고 싶어요",
 ];
 
-// 화풍 → 백엔드 track enum. '자동'은 track 미전달(파이프라인이 자동 판단).
-// NOTE: 와이어프레임의 '스케치' 등은 현재 backend track enum 에 없음 — 옵션은 팀과 정합 필요.
+// 화풍 → 백엔드 track. 기획: 인물 주력 + 배경 지원. 실사/애니/치비 세분은 "자동"이 스타일을
+//   감지해 norm 을 켜므로 UI 에선 인물/배경 2택 + 자동. "인물"=figure(레인 강제·norm OFF 안전),
+//   "배경"=landscape(_SCENE_ORDER). "자동"은 track 미전달(prominence 로 인물↔배경 자동 판정).
 const TRACKS = [
   { value: "", label: "자동 (AI 자동 판단)" },
-  { value: "realistic_figure", label: "실사 인물" },
-  { value: "anime_figure", label: "애니 인물" },
-  { value: "chibi_figure", label: "치비 / SD" },
-  { value: "landscape", label: "풍경" },
+  { value: "figure", label: "인물" },
+  { value: "landscape", label: "배경" },
 ];
 
 const GuideForm = ({ onSubmit, onClose, submitting }) => {

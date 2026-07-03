@@ -139,6 +139,12 @@ _FIGURE_AUTO = {
     "norms": _NORM_OFF,
 }
 
+# "인물" 명시 track(UI 화풍 = 자동/인물/배경). PROFILES 에 있으면 prominence 판정을 건너뛰고
+#   figure 레인을 강제한다(auto 오라우팅 교정용). 스타일은 사용자가 안 정했으므로 norms=_NORM_OFF
+#   로 비율 오발화를 막는다(realistic 강제 시 애니/치비 비율 오발화 회피). 축 풀·게이트·검출 미접촉 —
+#   track 매핑(별칭)만. 스타일별 norm 이 필요하면 "자동"이 감지해 켠다.
+PROFILES["figure"] = _FIGURE_AUTO
+
 
 # ── 스타일→norm 라우팅(인물 자동 전용) ───────────────────────────────────────────────────
 #   비례 노름은 스타일마다 달라(real 7~8등신 / anime 다리길게 / chibi 머리큼), 스타일을 모르면
