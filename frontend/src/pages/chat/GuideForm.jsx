@@ -30,9 +30,9 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState("");
-  // 인물-우선 제품 → 기본을 figure 레인(실사 인물)으로. 명시 track 이 백엔드 자동판단을 덮으므로
-  // 스케치 CLIP 오분류(인물→풍경)를 결정적으로 회피. 풍경/애니/치비는 사용자가 직접 선택.
-  const [track, setTrack] = useState("realistic_figure");
+  // 시안 SCR-GUIDE-01 화풍 기본값 = "자동 (AI 자동 판단)". 백엔드 auto 가 person.prominence 로
+  // figure↔landscape 를 정확히 가름(풍경 오판 0, 실측). 사용자가 원하면 드롭다운으로 화풍 직접 지정 가능.
+  const [track, setTrack] = useState("");
   const [intent, setIntent] = useState("practice"); // 작업중
   const [dragOver, setDragOver] = useState(false);
   const [err, setErr] = useState(null);
