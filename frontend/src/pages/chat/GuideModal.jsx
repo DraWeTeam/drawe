@@ -189,15 +189,15 @@ const GrowthChart = ({ trend }) => {
         >
           <defs>
             <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f2853f" stopOpacity="0.34" />
-              <stop offset="100%" stopColor="#f2853f" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#ff8534" stopOpacity="0.34" />
+              <stop offset="100%" stopColor="#ff8534" stopOpacity="0.02" />
             </linearGradient>
           </defs>
           <path d={area} fill="url(#growthFill)" />
           <path
             d={line}
             fill="none"
-            stroke="#ee6f2d"
+            stroke="#ff8534"
             strokeWidth="2.5"
             strokeLinecap="round"
           />

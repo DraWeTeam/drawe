@@ -422,16 +422,16 @@
   margin: 0;
 }
 .growthBox {
-  background: #fff5e9;
-  border: 1px solid #f7e6cd;
-  border-radius: 14px;
-  padding: var(--space-400);
+  background: var(--bg-brand-weak);
+  border: 1px solid #ffdba9; /* 시안 border/brand-weak (전역 토큰 미정 — §3와 공통 잔여) */
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
 }
 .growthFirst {
   margin: 0;
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: #7a6a52;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
 }
 .chartWrap {
   margin: 0;
@@ -464,11 +464,10 @@
   pointer-events: none;
 }
 .growthMsg {
-  margin: 14px 0 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: #c2632c;
-  font-weight: 600;
+  margin: var(--space-400) 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
 }
 
 /* ── 칩 ── */
