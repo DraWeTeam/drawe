@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { axisLabel } from "./guideLabels";
+import { axisLabel, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
 import styles from "./GuideModal.module.css";
@@ -226,23 +226,9 @@ const Growth = ({ growth }) => {
   const hasChart = trend.length > 0; // 백엔드가 준 것만(이력<N 이면 trend=[] → 차트·% 미발화)
   const current = growth.chips?.current_stage_axes || [];
   const improving = growth.chips?.improving_axes || [];
-  // 성장 메시지: delta_note(과거 대비)만 택일하면, 백엔드 narration 에 함께 있던 반복 지표(rstat)
-  //   문장이 delta 표시에 가려져 증발한다. 그래서 delta_note 가 있을 땐 recurring_stat 으로 rstat
-  //   문장을 재조립해 delta_note 와 나란히 보인다(narration split 아님 — 구조 필드 소비).
-  //   문형은 백엔드 contract.py narration 조립("한 가지 어려움이 N번 보였어요")과 동일 — 델타가
-  //   없을 땐 narration 을 그대로 써 회귀 0. note(LLM 자유문장)는 이번 범위 밖(narration=note 케이스
-  //   에도 recurring_stat 은 항상 계산되므로 rstat 은 뜬다). 프론트에서 %는 재계산하지 않는다.
-  const rs = growth.recurring_stat;
-  const rstatLine =
-    rs && rs.hits > 0
-      ? `최근 ${rs.window}장 중 한 가지 어려움이 ${rs.hits}번 보였어요.`
-      : "";
-  const message = growth.delta_note
-    ? [rstatLine, growth.delta_note].filter(Boolean).join(" ")
-    : growth.narration ||
-      (hasChart
-        ? ""
-        : "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.");
+  // 성장 메시지: 화면·PDF 공용 growthMessage(guideLabels)로 조립 — rstat(recurring_stat)과
+  //   delta(delta_note)를 한 문형으로 잇고, delta 없으면 narration 폴백(note 경로 보존).
+  const message = growthMessage(growth, hasChart);
   return (
     <section className={styles.growth}>
       <SectionTitle accent>성장 흐름</SectionTitle>

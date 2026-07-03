@@ -120,9 +120,9 @@ def growth_from_raw(raw, note=None):
         first = int((timeline[0] or {}).get("flagged_count", 0))
         last = int((timeline[-1] or {}).get("flagged_count", 0))
         if first > last:
-            delta = f"최근 {len(timeline)}장에서 함께 짚인 어려움이 {first}개에서 {last}개로 줄었어요."
+            delta = f"함께 짚인 어려움의 종류는 {first}개에서 {last}개로 줄었어요."
         elif last > first:
-            delta = f"최근 {len(timeline)}장에서 함께 짚인 어려움이 {first}개에서 {last}개로 늘었어요."
+            delta = f"함께 짚인 어려움의 종류는 {first}개에서 {last}개로 늘었어요."
 
     # 나열 상한(over-fire): current_focus 선두 고정 + recurring 을 flag_count 우선 상위로 채워 최대 N.
     #   improved 도 flag_count 우선 상위 M. 동점은 id 순 → 매 호출 동일 결과(비결정 금지).
@@ -141,7 +141,7 @@ def growth_from_raw(raw, note=None):
     if not narration:
         bits = []
         if rstat:
-            bits.append(f"최근 {window}장 중 한 가지 어려움이 {rstat.hits}번 보였어요.")
+            bits.append(f"최근 {window}장 중 같은 부분이 {rstat.hits}번 짚였어요.")
         if delta:
             bits.append(delta)
         narration = " ".join(bits).strip()

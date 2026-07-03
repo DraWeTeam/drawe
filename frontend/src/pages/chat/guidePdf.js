@@ -1,3 +1,5 @@
+import { growthMessage } from "./guideLabels";
+
 // guidePdf.js — 한 끗 가이드 → PDF (클라이언트). 디자인 메모: "가이드는 복사 대신 PDF 다운로드 버튼".
 //
 // 무거운 의존성(jspdf/html2canvas) 없이, 브라우저의 인쇄 파이프라인("PDF로 저장")을 쓴다.
@@ -186,21 +188,8 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
   if (growth) {
     const trend = growth.trend || [];
     const hasChart = trend.length > 0; // 백엔드가 준 것만(이력<N 이면 trend=[])
-    // 단일 소스: 역사 서술은 백엔드 delta_note(이력≥N). 프론트 %-재계산 없음(GuideModal 과 동형).
-    //   ★1bcc3fe 와 동일: delta_note 만 택일하면 백엔드 narration 에 함께 있던 반복 지표(rstat)
-    //   문장이 delta 에 가려져 증발한다. delta_note 있을 땐 recurring_stat 으로 rstat 문장을
-    //   재조립해 delta_note 와 나란히(문형·로직 화면과 글자 단위 동일). 없으면 narration 그대로(회귀 0).
-    const rs = growth.recurring_stat;
-    const rstatLine =
-      rs && rs.hits > 0
-        ? `최근 ${rs.window}장 중 한 가지 어려움이 ${rs.hits}번 보였어요.`
-        : "";
-    const msg = growth.delta_note
-      ? [rstatLine, growth.delta_note].filter(Boolean).join(" ")
-      : growth.narration ||
-        (hasChart
-          ? ""
-          : "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.");
+    // 성장 메시지: 화면(GuideModal)과 같은 공용 growthMessage(guideLabels) 사용 — 글자 동일 보장.
+    const msg = growthMessage(growth, hasChart);
     const current = growth.chips?.current_stage_axes || [];
     const improving = growth.chips?.improving_axes || [];
     out.push(`
