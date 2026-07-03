@@ -417,40 +417,44 @@ const Coach = ({
         </section>
       )}
 
-      {/* 5. 앞으로 해야 할 것 — [5단계 프로그레스 hidden] + 현재/다음 단계 + 체크리스트(현재 연습 포함) */}
+      {/* 5. 앞으로 해야 할 것 — [5단계 프로그레스 미생성: 필드 결손·키스톤 의존, Wave 3] + 현재/다음 단계 + 서술 + 체크리스트 */}
       {(hasGoal || hasChecklist) && (
         <section className={styles.nextSteps}>
           <SectionTitle>앞으로 해야 할 것</SectionTitle>
-          {(next.focus || next.next_goal) && (
-            <div className={styles.stageRow}>
-              {next.focus && (
-                <span className={styles.stageItem}>
-                  <span className={styles.tenseLabel}>현재 단계</span>
-                  <span className={styles.goalAxis}>{axisLabel(next.focus)}</span>
-                </span>
-              )}
-              {next.next_goal && (
-                <span className={styles.stageItem}>
-                  <span className={styles.tenseLabel}>다음 단계</span>
-                  <span className={styles.goalAxis}>
-                    {axisLabel(next.next_goal)}
+          <div className={styles.nextStepsBox}>
+            {(next.focus || next.next_goal) && (
+              <div className={styles.stageRow}>
+                {next.focus && (
+                  <span className={styles.stageItem}>
+                    <span className={styles.stageLabel}>현재 단계 :</span>
+                    <span className={styles.stageBadge}>
+                      {axisLabel(next.focus)}
+                    </span>
                   </span>
-                </span>
-              )}
-            </div>
-          )}
-          {next.next_goal_practice && (
-            <p className={styles.goalText}>{next.next_goal_practice}</p>
-          )}
-          {next.focus_practice && (
-            <div className={styles.checklist}>
-              <p className={styles.checklistTitle}>다음 그림에서 체크해보세요</p>
-              <p className={styles.checklistItem}>
-                <span className={styles.tenseTag}>현재 연습</span>{" "}
-                {next.focus_practice}
-              </p>
-            </div>
-          )}
+                )}
+                {next.next_goal && (
+                  <span className={styles.stageItem}>
+                    <span className={styles.stageLabel}>다음 단계 :</span>
+                    <span className={styles.stageBadgeNext}>
+                      {axisLabel(next.next_goal)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
+            {next.next_goal_practice && (
+              <p className={styles.goalText}>{next.next_goal_practice}</p>
+            )}
+            {next.focus_practice && (
+              <div className={styles.checklist}>
+                <p className={styles.checklistTitle}>다음 그림에서 체크해보세요</p>
+                <div className={styles.checkItem}>
+                  <span className={styles.checkbox} aria-hidden />
+                  <span className={styles.checkText}>{next.focus_practice}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </section>
       )}
 

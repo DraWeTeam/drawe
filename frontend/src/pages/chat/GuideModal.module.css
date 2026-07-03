@@ -406,39 +406,15 @@
   font-weight: 700;
 }
 
-/* ── 4. 앞으로 해야 할 것 ── */
+/* ── 5. 앞으로 해야 할 것 ── */
 .nextSteps {
   margin: 0 0 20px;
 }
-.nextGoal {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-200);
-  background: #fbf8f4;
-  border: 1px solid #efeae3;
-  border-radius: var(--radius-300);
-  padding: 12px 14px;
-}
-.goalBadge {
-  font-size: 11px;
-  font-weight: 700;
-  color: #ee6f2d;
-  background: #fdeede;
-  padding: 3px 9px;
-  border-radius: var(--radius-999);
-}
-.goalAxis {
-  font-size: 14px;
-  font-weight: 700;
-  color: #2d2a26;
-}
 .goalText {
-  flex: 1 1 100%;
-  margin: 2px 0 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: #4a443d;
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
 }
 
 /* ── 성장 흐름 ── */
@@ -599,49 +575,80 @@
   border-radius: var(--radius-200);
   padding: var(--space-100) var(--space-300);
 }
+/* §5 감싸는 surface 카드(시안 114:15703) */
+.nextStepsBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-600);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
+}
 /* §5 현재/다음 단계 */
 .stageRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 0 0 10px;
+  gap: var(--space-400);
+  margin: 0;
 }
 .stageItem {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-100);
 }
-.tenseLabel {
-  font-size: 11px;
-  font-weight: 700;
+.stageLabel {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.stageBadge {
+  font-size: 14px;
+  line-height: 22px;
   color: var(--text-tertiary);
   background: var(--bg-subtle);
-  border-radius: 6px;
-  padding: 3px 8px;
+  padding: var(--space-100) var(--space-300);
+  border-radius: var(--radius-200);
+}
+.stageBadgeNext {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-brand);
+  background: var(--bg-brand-subtle);
+  padding: var(--space-100) var(--space-300);
+  border-radius: var(--radius-200);
 }
 /* §5 체크리스트 */
 .checklist {
-  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-400);
+  margin: 0;
 }
 .checklistTitle {
-  margin: 0 0 6px;
-  font-size: 13px;
-  font-weight: 600;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
   color: var(--text-tertiary);
 }
-.checklistItem {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-secondary);
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
 }
-.tenseTag {
-  font-size: 11px;
-  font-weight: 700;
-  color: #ee6f2d;
-  background: #fdeede;
-  border-radius: 6px;
-  padding: 2px 7px;
+.checkbox {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--space-100);
+}
+.checkText {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
 }
 /* §7 피드백 chip 2 */
 .guideFb {
