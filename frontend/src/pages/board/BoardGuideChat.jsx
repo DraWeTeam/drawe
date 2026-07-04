@@ -308,6 +308,7 @@ const BoardGuideChat = ({
       {guideOpen && (
         <GuideModal
           result={guideResult}
+          projectId={projectId}
           drawingPreviewUrl={guidePreview}
           onClose={() => {
             setGuideOpen(false);

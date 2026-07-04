@@ -1042,6 +1042,7 @@ const ChatPage = () => {
                   setMode((cur) => (cur === "refFull" ? "split" : "refFull"))
                 }
                 isFull={mode === "refFull"}
+                projectId={projectId}
               />
             </div>
           )}

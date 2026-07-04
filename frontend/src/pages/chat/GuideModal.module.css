@@ -333,6 +333,42 @@
   background: rgba(45, 42, 38, 0.78);
   border-radius: var(--radius-999);
 }
+/* ⑤ 아카이브 담기 — 썸네일 우상단 glass 버튼(114:15652) */
+.refArchiveBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-200);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.refThumb:hover .refArchiveBtn,
+.refArchiveBtn:focus-visible {
+  opacity: 1;
+}
+.refArchiveBtn:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+.refArchiveBtn[data-archived] {
+  opacity: 1;
+  background: var(--bg-brand);
+  color: #fff;
+  cursor: default;
+}
 .refImg {
   width: 100%;
   height: 100%;

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { axisLabel, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
+import { addReference } from "../projects/api";
 import styles from "./GuideModal.module.css";
 
 // guide 서비스 에셋(SVG 도식) 공개 base. 미설정이면 도식 영역 자체를 숨김(빈 박스 금지).
@@ -44,7 +45,8 @@ const AssetSvg = ({ asset }) => {
 
 // 추천 레퍼런스 카드: 이미지(좌) + 우측 제목. 시안 SCR-GUIDE-02 세로 스택.
 //   추천 이유·키워드 badge 는 데이터 결손이라 이번 범위 아님(DOM 노드 자체를 만들지 않음).
-const RefCard = ({ reference }) => {
+//   ⑤ 아카이브 담기 — 썸네일 위 glass 버튼(114:15652). projectId 있을 때만 노출, addReference 재사용.
+const RefCard = ({ reference, archived, onArchive }) => {
   const [failed, setFailed] = useState(false);
   return (
     <figure className={styles.refCard}>
@@ -61,6 +63,19 @@ const RefCard = ({ reference }) => {
             onError={() => setFailed(true)}
           />
         )}
+        {onArchive && (
+          <button
+            type="button"
+            className={styles.refArchiveBtn}
+            data-archived={archived ? "" : undefined}
+            onClick={onArchive}
+            disabled={archived}
+            aria-label={archived ? "아카이브에 담김" : "아카이브에 담기"}
+            title={archived ? "담김" : "아카이브 담기"}
+          >
+            {archived ? <RefCheckIcon /> : <RefArchiveIcon />}
+          </button>
+        )}
       </div>
       <div className={styles.refInfo}>
         <p className={styles.refTitle}>추천 레퍼런스 {reference.ordinal}</p>
@@ -68,6 +83,37 @@ const RefCard = ({ reference }) => {
     </figure>
   );
 };
+
+const RefArchiveIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" />
+    <path d="M10 12h4" />
+  </svg>
+);
+const RefCheckIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.1"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M20 6L9 17l-5-5" />
+  </svg>
+);
 
 // 레퍼런스 묶음 피드백 — 👍👎 시각 토글(주황) + 🔄 새로고침.
 //   👍/👎: 선택 시 onFeedback(kind, refIds) 로 백엔드 전송(adoption_log). 같은 버튼 재클릭=해제(전송 안 함).
@@ -267,10 +313,23 @@ const Coach = ({
   requestText,
   onGuideFeedback,
   guideFeedback,
+  projectId,
 }) => {
   const blocks = guide.blocks || [];
   const primary = blocks[0];
   const next = guide.next_steps;
+
+  // ⑤ 아카이브 담기 — 좌측 그리드와 동일한 addReference(그쪽 공유 API) 재사용. 멱등(중복 무해).
+  const [archivedRefs, setArchivedRefs] = useState(() => new Set());
+  const handleArchive = async (refId) => {
+    if (!projectId || !refId || archivedRefs.has(refId)) return;
+    try {
+      await addReference(projectId, refId);
+    } catch {
+      /* 멱등 — 실패해도 담김 표시(중복/네트워크는 조용히) */
+    }
+    setArchivedRefs((prev) => new Set(prev).add(refId));
+  };
   // §1 타이틀: 요청일자 + 주요 키워드(진단된 축 = primary + 보조 블록, dedupe 후 최대 3).
   const reqDate = fmtReqDate(createdAt);
   const topKeywords = (() => {
@@ -408,7 +467,14 @@ const Coach = ({
           <div className={styles.refBoard}>
             <div className={styles.refGrid}>
               {displayedRefs.map((r) => (
-                <RefCard key={r.refId} reference={r} />
+                <RefCard
+                  key={r.refId}
+                  reference={r}
+                  archived={archivedRefs.has(r.refId)}
+                  onArchive={
+                    projectId ? () => handleArchive(r.refId) : undefined
+                  }
+                />
               ))}
             </div>
             <RefFeedback
@@ -540,6 +606,7 @@ const GuideBody = ({
   requestText,
   onGuideFeedback,
   guideFeedback,
+  projectId,
 }) => (
   <div className={styles.body}>
     {loading && (
@@ -578,6 +645,7 @@ const GuideBody = ({
           requestText={requestText}
           onGuideFeedback={onGuideFeedback}
           guideFeedback={guideFeedback}
+          projectId={projectId}
         />
       ))}
   </div>
@@ -597,6 +665,7 @@ export const GuideContent = ({
   guideFeedback,
   onToggleFull,
   isFull,
+  projectId,
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
@@ -660,6 +729,7 @@ export const GuideContent = ({
         requestText={requestText}
         onGuideFeedback={onGuideFeedback}
         guideFeedback={guideFeedback}
+        projectId={projectId}
       />
     </div>
   );
@@ -673,6 +743,7 @@ const GuideModal = ({
   onClose,
   onRetry,
   onRefFeedback,
+  projectId,
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
@@ -714,6 +785,7 @@ const GuideModal = ({
           onRefFeedback={onRefFeedback}
           createdAt={createdAt}
           requestText={requestText}
+          projectId={projectId}
         />
       </div>
     </div>
