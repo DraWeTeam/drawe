@@ -11,6 +11,7 @@ import ProjectList from "./pages/projects/ProjectList";
 import ChatPage from "./pages/chat/ChatPage";
 import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
+import ReferenceListPage from "./pages/gallery/ReferenceListPage";
 import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import PlanPage from "./pages/settings/PlanPage";
@@ -44,6 +45,10 @@ function App() {
               />
               <Route path="/projects" element={<ProjectList />} />
               <Route path="/archive" element={<ArchivePage />} />
+              <Route
+                path="/archive/references"
+                element={<ReferenceListPage />}
+              />
               <Route path="/gallery" element={<CompletedGalleryPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/plan" element={<PlanPage />} />

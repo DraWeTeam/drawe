@@ -3,6 +3,7 @@ import Tooltip from "../../components/Tooltip";
 import TutorialCoachmark from "../chat/TutorialCoachmark";
 import GuideForm from "../chat/GuideForm";
 import GuideModal from "../chat/GuideModal";
+import BoardGuideChat from "./BoardGuideChat";
 import { requestGuide, uploadImage } from "../chat/api";
 import { resizeImage, validateImageFile } from "../chat/imageUtils";
 import { updateProject } from "../projects/api";
@@ -48,6 +49,9 @@ const GeneratePromptPanel = ({
   onExpand,
   onSplit,
   onCollapse,
+  collectionOpen = false,
+  onCollectionChange,
+  onGuidesCount,
 }) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef(null);
@@ -60,6 +64,9 @@ const GeneratePromptPanel = ({
   const [guideError, setGuideError] = useState("");
   const [guidePreview, setGuidePreview] = useState(null);
   const lastGuideArgs = useRef(null);
+  // /board 인라인 가이드 챗(BoardGuideChat): 복원 메시지 수로 인트로/스트림 토글 + 생성 후 새로고침.
+  const [chatCount, setChatCount] = useState(0);
+  const [chatReload, setChatReload] = useState(0);
 
   // 프로젝트 완료 — 완성 그림 파일 업로드
   const [completing, setCompleting] = useState(false);
@@ -119,6 +126,7 @@ const GeneratePromptPanel = ({
       });
       setGuideResult(result);
       setGuidePreview(result?.uploadUrl || previewUrl || null);
+      setChatReload((s) => s + 1); // 새 가이드 → 인라인 챗 재복원(새 결과카드 반영)
     } catch (err) {
       setGuideError(
         err.response?.data?.error?.message ||
@@ -251,12 +259,23 @@ const GeneratePromptPanel = ({
         )}
       </div>
 
-      {/* 메시지 영역 — 생성 결과가 들어올 자리(셸) */}
+      {/* 메시지 영역 — 복원된 인라인 가이드 챗(BoardGuideChat, BOARD-01 66:26420 정본).
+          가이드가 없으면 인트로, 있으면 버블+인라인 결과카드 스트림. ChatPage 미접촉 조립. */}
       <div className={styles.messages}>
-        <div className={styles.intro}>
-          <img className={styles.introLogo} src={logo} alt="" />
-          <h2 className={styles.introTitle}>어떤 도움이 필요하신가요?</h2>
-        </div>
+        {chatCount === 0 && (
+          <div className={styles.intro}>
+            <img className={styles.introLogo} src={logo} alt="" />
+            <h2 className={styles.introTitle}>어떤 도움이 필요하신가요?</h2>
+          </div>
+        )}
+        <BoardGuideChat
+          projectId={projectId}
+          reloadSignal={chatReload}
+          onCount={setChatCount}
+          collectionOpen={collectionOpen}
+          onCollectionChange={onCollectionChange}
+          onGuidesCount={onGuidesCount}
+        />
       </div>
 
       {/* 프롬프트 바 */}
