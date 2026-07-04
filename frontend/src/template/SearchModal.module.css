@@ -51,7 +51,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-300);
-  padding: var(--space-1000) var(--space-1000) var(--space-600);
+  padding: var(--space-1000) var(--space-1000) 0;
 }
 
 .searchIcon {
@@ -107,7 +107,8 @@
 .filters {
   display: flex;
   gap: var(--space-200);
-  padding: var(--space-400) var(--space-1000);
+  /* 위/아래 40(space-1000) */
+  padding: var(--space-1000);
   flex-wrap: wrap;
 }
 
@@ -155,7 +156,7 @@
   font-size: 14px;
   line-height: 20px;
   font-weight: 600;
-  color: var(--text-quaternary);
+  color: #888685;
 }
 
 /* divider 뒤에 오는 라벨 — 위 여백 제거해 divider 간격(아카이브~divider)과 맞춤 */
@@ -185,11 +186,11 @@
   margin-top: 12px;
 }
 
-/* 레퍼런스/완성작 결과 행 썸네일 — rowIcon 과 같은 크기 박스 */
+/* 레퍼런스/완성작 결과 행 썸네일 — rowIcon(48×48) 과 같은 크기 박스 */
 .thumb {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-200);
   object-fit: cover;
   background: #f0eeec;
   flex-shrink: 0;
