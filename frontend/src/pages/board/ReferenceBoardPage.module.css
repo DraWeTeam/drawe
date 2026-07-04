@@ -116,6 +116,7 @@
 }
 
 .leftPanel {
+  position: relative; /* ⑧ 가이드 상세 오버레이(guideOverlay) 기준 */
   flex: 1 1 50%;
   min-width: 0;
   height: 100%;
@@ -127,6 +128,17 @@
   transition:
     flex-basis 0.35s ease,
     flex-grow 0.35s ease;
+}
+
+/* ⑧ 가이드 상세 — 좌측 반을 덮는 오버레이(SCR-GUIDE-03-1 split). 그쪽 보드는 아래에 유지, 닫으면 복귀. */
+.guideOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: #fff;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .rightPanel {

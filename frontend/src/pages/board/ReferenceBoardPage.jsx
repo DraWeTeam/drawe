@@ -6,6 +6,7 @@ import ProjectFormModal from "../projects/ProjectFormModal";
 import ConfirmModal from "../projects/ConfirmModal";
 import ReferenceBoard from "./ReferenceBoard";
 import GeneratePromptPanel from "./GeneratePromptPanel";
+import { GuideContent } from "../chat/GuideModal";
 import styles from "./ReferenceBoardPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 
@@ -30,6 +31,8 @@ const ReferenceBoardPage = () => {
   // 가이드 모아보기 — 헤더 아이콘(가이드 1회+ 게이팅) → BoardGuideChat 오버레이 제어(Figma 66:26453).
   const [collectionOpen, setCollectionOpen] = useState(false);
   const [guidesCount, setGuidesCount] = useState(0);
+  // ⑧ 가이드 상세 — 좌측 반 오버레이(SCR-GUIDE-03-1 split). 카드 클릭 → 좌측 보드 위를 덮고, 닫기 → 보드 복귀.
+  const [guideDetail, setGuideDetail] = useState(null);
 
   // 헤더 ⋮ 메뉴(프로젝트 수정/삭제)
   const [menuOpen, setMenuOpen] = useState(false);
@@ -173,6 +176,17 @@ const ReferenceBoardPage = () => {
             onRequestGenerate={handleRequestGenerate}
             expanded={mode === "boardFull"}
           />
+          {/* ⑧ 가이드 상세 — 좌측 반 오버레이(그쪽 ReferenceBoard 무변, z-index 표시 레이어만) */}
+          {guideDetail && (
+            <div className={styles.guideOverlay}>
+              <GuideContent
+                result={guideDetail}
+                projectId={projectId}
+                drawingPreviewUrl={guideDetail.guidePreview}
+                onClose={() => setGuideDetail(null)}
+              />
+            </div>
+          )}
         </aside>
 
         <section
@@ -191,6 +205,7 @@ const ReferenceBoardPage = () => {
             collectionOpen={collectionOpen}
             onCollectionChange={setCollectionOpen}
             onGuidesCount={setGuidesCount}
+            onOpenGuide={setGuideDetail}
           />
         </section>
       </div>

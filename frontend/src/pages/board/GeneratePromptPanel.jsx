@@ -52,6 +52,7 @@ const GeneratePromptPanel = ({
   collectionOpen = false,
   onCollectionChange,
   onGuidesCount,
+  onOpenGuide,
 }) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef(null);
@@ -275,6 +276,7 @@ const GeneratePromptPanel = ({
           collectionOpen={collectionOpen}
           onCollectionChange={onCollectionChange}
           onGuidesCount={onGuidesCount}
+          onOpenGuide={onOpenGuide}
         />
       </div>
 
