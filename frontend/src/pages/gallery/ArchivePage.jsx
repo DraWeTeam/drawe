@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getReferenceArchive } from "./api";
+import { getReferenceArchive, getCompletedGallery } from "./api";
 import { downloadImage } from "./download";
 import AuthedImage from "../chat/AuthedImage";
 import styles from "./ArchivePage.module.css";
@@ -12,6 +12,30 @@ const ArchivePage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   // 다운로드 중인 imageId 집합 (버튼 중복 클릭 방지)
   const [downloadingIds, setDownloadingIds] = useState(() => new Set());
+  // ARCH-02 완성작 갤러리 섹션(프리뷰). 데이터는 /gallery 와 동일 소스(getCompletedGallery).
+  //   ★셸: UI 구조·빈 상태만. '완성작' 의미(완성 그림 drawingUrl vs 가이딩 기록 집계)는 ③ 트랙 —
+  //   여기선 미결정. ③ 에서 소스가 바뀌어도 이 섹션 구조는 유지된다(셸이 ③ 에 비종속).
+  const [completed, setCompleted] = useState([]);
+  const [completedLoading, setCompletedLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    const fetchCompleted = async () => {
+      setCompletedLoading(true);
+      try {
+        const data = await getCompletedGallery({ page: 0, size: 8 }); // 프리뷰 한 줄
+        if (alive) setCompleted(data?.items ?? []);
+      } catch {
+        if (alive) setCompleted([]);
+      } finally {
+        if (alive) setCompletedLoading(false);
+      }
+    };
+    fetchCompleted();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -119,8 +143,83 @@ const ArchivePage = () => {
           </section>
         ))
       )}
+
+      {/* ARCH-02(117:17540) 완성작 갤러리 섹션 — 레퍼런스 섹션 아래(divider 로 구분).
+          카드는 레퍼런스와 다름: 썸네일 + Label + Date(badge 없음). 데이터/의미는 ③ 트랙. */}
+      <div className={styles.divider} />
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionLabel}>완성작 갤러리</h2>
+          <button
+            type="button"
+            className={styles.moreLink}
+            onClick={() => navigate("/gallery")}
+          >
+            더보기
+          </button>
+        </div>
+
+        {completedLoading ? (
+          <div className={styles.stateBox}>불러오는 중…</div>
+        ) : completed.length === 0 ? (
+          <div className={styles.stateBox}>
+            아직 완성작이 없어요.
+            <br />
+            프로젝트를 완성하면 여기에 그림이 모여요.
+          </div>
+        ) : (
+          <div className={styles.completedGrid}>
+            {completed.map((item) => {
+              const imageId = imageIdFromUrl(item.drawingUrl);
+              return (
+                <div key={item.projectId} className={styles.completedCard}>
+                  <div className={styles.completedThumbBox}>
+                    <AuthedImage
+                      src={item.drawingUrl}
+                      alt={item.projectName || "완성작"}
+                      className={styles.completedThumb}
+                    />
+                    <button
+                      type="button"
+                      className={styles.downloadBtn}
+                      onClick={() => handleDownload(imageId, item.drawingUrl)}
+                      disabled={imageId != null && downloadingIds.has(imageId)}
+                      aria-label="이미지 다운로드"
+                      title="다운로드"
+                    >
+                      <DownloadIcon />
+                    </button>
+                  </div>
+                  <div className={styles.completedMeta}>
+                    <span className={styles.completedLabel}>
+                      {item.projectName || "완성작"}
+                    </span>
+                    <span className={styles.completedDate}>
+                      {formatDate(item.completedAt ?? item.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
+};
+
+// 완성 그림 서빙 경로 "/images/{id}" 에서 이미지 id 추출(CompletedGalleryPage 와 동일 규칙).
+const imageIdFromUrl = (url) => {
+  const m = /\/images\/(\d+)/.exec(url || "");
+  return m ? Number(m[1]) : null;
+};
+
+// 완성 일자(있으면) 표시 — 없으면 빈 문자열(셸: 소스에 date 없어도 안전).
+const formatDate = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 };
 
 const DownloadIcon = () => (
