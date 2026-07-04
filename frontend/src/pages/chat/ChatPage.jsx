@@ -1053,19 +1053,42 @@ const ChatPage = () => {
                             onClick={() => openGuideFromCard(m)}
                           >
                             <span className={styles.guideCardThumb}>
-                              <ImgPlaceholderIcon />
+                              {m.guidePreview ? (
+                                <img
+                                  className={styles.guideCardThumbImg}
+                                  src={m.guidePreview}
+                                  alt=""
+                                />
+                              ) : (
+                                <ImgPlaceholderIcon />
+                              )}
                             </span>
-                            <span className={styles.guideCardBody}>
-                              <span className={styles.guideCardTitle}>
-                                {m.guideTitle}
+                            <span className={styles.guideCardFooter}>
+                              <span className={styles.guideCardBody}>
+                                <span className={styles.guideCardTitle}>
+                                  {m.guideTitle}
+                                </span>
+                                <span className={styles.guideCardSub}>
+                                  가이드 보기
+                                </span>
                               </span>
-                              <span className={styles.guideCardSub}>
-                                한 끗 가이드 보기
-                              </span>
+                              <ChevronRightIcon />
                             </span>
-                            <ChevronRightIcon />
                           </button>
                           <div className={styles.guideActions}>
+                            <button
+                              type="button"
+                              className={styles.guideActBtn}
+                              aria-label="PDF 다운로드"
+                              onClick={() =>
+                                downloadGuidePdf(
+                                  { guide: m.guide, references: m.references },
+                                  m.guidePreview,
+                                )
+                              }
+                            >
+                              <DownloadIcon />
+                            </button>
                             <button
                               type="button"
                               className={styles.guideActBtn}
@@ -1085,19 +1108,6 @@ const ChatPage = () => {
                               }
                             >
                               <ThumbDownIcon />
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.guideActBtn}
-                              aria-label="PDF 다운로드"
-                              onClick={() =>
-                                downloadGuidePdf(
-                                  { guide: m.guide, references: m.references },
-                                  m.guidePreview,
-                                )
-                              }
-                            >
-                              <DownloadIcon />
                             </button>
                           </div>
                         </div>
@@ -1128,13 +1138,8 @@ const ChatPage = () => {
                                 className={
                                   m.isAi ? styles.aiImage : styles.bubbleImage
                                 }
-                                onClick={
-                                  m.isAi
-                                    ? () =>
-                                        setLightboxSrc(
-                                          m.localPreviewUrl || m.imageUrl,
-                                        )
-                                    : undefined
+                                onClick={() =>
+                                  setLightboxSrc(m.localPreviewUrl || m.imageUrl)
                                 }
                               />
                               {m.isAi && (

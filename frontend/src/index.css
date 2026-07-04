@@ -28,9 +28,10 @@
   --space-800: 32px;
   --space-1000: 40px;
 
-  /* radius (4) */
+  /* radius (5) */
   --radius-200: 8px;
   --radius-300: 12px;
+  --radius-600: 24px;
   --radius-800: 32px;
   --radius-999: 999px;
 
