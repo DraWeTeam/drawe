@@ -10,6 +10,53 @@ const GUIDE_BASE = import.meta.env.VITE_GUIDE_PUBLIC_URL || "";
 const assetUrl = (refId) =>
   GUIDE_BASE && refId ? `${GUIDE_BASE}/guide-asset/${refId}` : null;
 
+// ④ 추천 레퍼런스 badge — fastapi reference_meta 원값 → 한글 라벨(라벨 정책은 여기서만 수정).
+//   조합(최대 3): 출처(source_type, 필수) + 부위(region) + 변별 persona(있으면) / 없으면 category.
+const REF_BADGE_LABELS = {
+  source: {
+    self_render: "3D 참조",
+    museum: "미술 자료",
+    ai_example: "AI 생성",
+  },
+  region: { full: "전신", head: "얼굴", hand: "손", foot: "발" },
+  category: {
+    action: "동작",
+    locomotion: "이동",
+    expressive: "표현",
+    rest: "정지",
+    other: "기타",
+  },
+  persona: {
+    light: "빛",
+    color: "색",
+    mood: "분위기",
+    composition: "구도",
+    technique: "기법",
+  },
+};
+const DISCRIMINATIVE_PERSONAS = [
+  "light",
+  "color",
+  "mood",
+  "composition",
+  "technique",
+];
+const refBadges = (ref) => {
+  const out = [];
+  const src = REF_BADGE_LABELS.source[ref?.sourceType];
+  if (src) out.push(src);
+  const reg = REF_BADGE_LABELS.region[ref?.region];
+  if (reg) out.push(reg);
+  const disc = (ref?.personas || []).find((p) =>
+    DISCRIMINATIVE_PERSONAS.includes(p),
+  );
+  const third = disc
+    ? REF_BADGE_LABELS.persona[disc]
+    : REF_BADGE_LABELS.category[ref?.category];
+  if (third) out.push(third);
+  return out.slice(0, 3);
+};
+
 // ★성장 서술의 단일 소스는 백엔드다(growth.delta_note/trend). 프론트가 trend 로 %를 재계산하던
 //   growthDelta/deltaMessage("처음 받았을 때보다 200%…")는 제거 — 이력<N 이면 백엔드가 trend/delta 를
 //   아예 안 보내므로(contract.py 임계), 프론트는 '받은 것만' 렌더한다. 이중 게이트·% 노이즈 제거.
@@ -48,6 +95,7 @@ const AssetSvg = ({ asset }) => {
 //   ⑤ 아카이브 담기 — 썸네일 위 glass 버튼(114:15652). projectId 있을 때만 노출, addReference 재사용.
 const RefCard = ({ reference, archived, onArchive }) => {
   const [failed, setFailed] = useState(false);
+  const badges = refBadges(reference);
   return (
     <figure className={styles.refCard}>
       <div className={styles.refThumb}>
@@ -79,6 +127,15 @@ const RefCard = ({ reference, archived, onArchive }) => {
       </div>
       <div className={styles.refInfo}>
         <p className={styles.refTitle}>추천 레퍼런스 {reference.ordinal}</p>
+        {badges.length > 0 && (
+          <div className={styles.refBadges}>
+            {badges.map((bd) => (
+              <span key={bd} className={styles.refBadge}>
+                {bd}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </figure>
   );
@@ -382,12 +439,25 @@ const Coach = ({
     setPrevPoolKey(poolKey);
     setRefOffset(0); // 가이드(풀)가 바뀌면 처음으로
   }
+  // ④ badge 메타(source_type·region·personas·category)를 refId 로 병합 — references(ResolvedReference)가 원천.
+  const refMetaById = Object.fromEntries(
+    (references || []).filter((r) => r?.refId).map((r) => [r.refId, r]),
+  );
   const displayedRefs =
     refPool.length === 0
       ? []
       : Array.from({ length: Math.min(3, refPool.length) }, (_, i) => {
           const refId = refPool[(refOffset + i) % refPool.length];
-          return { ordinal: i + 1, refId, url: urlFor(refId) };
+          const m = refMetaById[refId] || {};
+          return {
+            ordinal: i + 1,
+            refId,
+            url: urlFor(refId),
+            sourceType: m.sourceType,
+            region: m.region,
+            personas: m.personas,
+            category: m.category,
+          };
         });
   const canRefresh = refPool.length > 3;
   const cycleRefs = () => setRefOffset((o) => (o + 3) % refPool.length);

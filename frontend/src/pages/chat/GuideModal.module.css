@@ -316,6 +316,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* ④ 추천 레퍼런스 badge(114:15652 49×30) — 출처+부위+persona/category. 중립 pill(키워드 주황과 구분). */
+.refBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-100);
+  margin-top: var(--space-200);
+}
+.refBadge {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-quaternary);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
 .refNum {
   position: absolute;
   top: 6px;
