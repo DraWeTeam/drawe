@@ -149,7 +149,9 @@ function bodyHtml(guide, references, drawingPreviewUrl) {
       .map(
         (r) => `<figure class="ref">
           <div class="refThumb">${
-            r.url ? `<img src="${esc(r.url)}" alt="추천 레퍼런스 ${r.ordinal}"/>` : ""
+            r.url
+              ? `<img src="${esc(r.url)}" alt="추천 레퍼런스 ${r.ordinal}"/>`
+              : ""
           }<span class="refNum">${esc(r.ordinal)}</span></div>
           <div class="refInfo"><p class="refTitle">추천 레퍼런스 ${esc(r.ordinal)}</p></div>
         </figure>`,

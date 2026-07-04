@@ -22,7 +22,8 @@ const GuideCollectionPanel = ({ guides, onClose, onCardClick }) => {
 
       <div className={styles.list}>
         {guides.map((g, i) => {
-          const title = axisLabel(g.guide?.primary_focus) || g.guideTitle || "한 끗";
+          const title =
+            axisLabel(g.guide?.primary_focus) || g.guideTitle || "한 끗";
           const axes = (g.guide?.blocks || [])
             .map((b) => b.sub_problem)
             .filter(Boolean)

@@ -1161,7 +1161,9 @@ const ChatPage = () => {
                                   m.isAi ? styles.aiImage : styles.bubbleImage
                                 }
                                 onClick={() =>
-                                  setLightboxSrc(m.localPreviewUrl || m.imageUrl)
+                                  setLightboxSrc(
+                                    m.localPreviewUrl || m.imageUrl,
+                                  )
                                 }
                               />
                               {m.isAi && (

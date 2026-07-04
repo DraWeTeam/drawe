@@ -275,7 +275,10 @@ const Coach = ({
   const reqDate = fmtReqDate(createdAt);
   const topKeywords = (() => {
     const out = [];
-    for (const sp of [guide.primary_focus, ...blocks.map((b) => b.sub_problem)]) {
+    for (const sp of [
+      guide.primary_focus,
+      ...blocks.map((b) => b.sub_problem),
+    ]) {
       if (sp && !out.includes(sp)) out.push(sp);
     }
     return out.slice(0, 3);
@@ -329,7 +332,8 @@ const Coach = ({
         });
   const canRefresh = refPool.length > 3;
   const cycleRefs = () => setRefOffset((o) => (o + 3) % refPool.length);
-  const hasGoal = next && (next.focus || next.next_goal || next.next_goal_practice);
+  const hasGoal =
+    next && (next.focus || next.next_goal || next.next_goal_practice);
   const hasChecklist = next && next.focus_practice;
 
   return (
@@ -447,10 +451,14 @@ const Coach = ({
             )}
             {next.focus_practice && (
               <div className={styles.checklist}>
-                <p className={styles.checklistTitle}>다음 그림에서 체크해보세요</p>
+                <p className={styles.checklistTitle}>
+                  다음 그림에서 체크해보세요
+                </p>
                 <div className={styles.checkItem}>
                   <span className={styles.checkbox} aria-hidden />
-                  <span className={styles.checkText}>{next.focus_practice}</span>
+                  <span className={styles.checkText}>
+                    {next.focus_practice}
+                  </span>
                 </div>
               </div>
             )}
