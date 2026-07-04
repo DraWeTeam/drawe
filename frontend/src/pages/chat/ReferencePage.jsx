@@ -268,28 +268,30 @@ const ReferencePage = () => {
         </div>
 
         <div className={styles.infoPanel}>
-          <h2 className={styles.title}>
-            {isAiGenerated
-              ? "AI 생성 이미지"
-              : reference.photographerName || "레퍼런스"}
-          </h2>
+          <div className={styles.nameGroup}>
+            <h2 className={styles.title}>
+              {isAiGenerated
+                ? "AI 생성 이미지"
+                : reference.photographerName || "레퍼런스"}
+            </h2>
 
-          {isAiGenerated ? (
-            <span className={styles.aiSource}>
-              <SparkleIcon /> AI Generated
-            </span>
-          ) : photographerLink ? (
-            <a
-              href={photographerLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.source}
-            >
-              Unsplash · @{reference.photographerUsername}
-            </a>
-          ) : (
-            <span className={styles.source}>Unsplash</span>
-          )}
+            {isAiGenerated ? (
+              <span className={styles.aiSource}>
+                <SparkleIcon /> AI Generated
+              </span>
+            ) : photographerLink ? (
+              <a
+                href={photographerLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.source}
+              >
+                Unsplash · @{reference.photographerUsername}
+              </a>
+            ) : (
+              <span className={styles.source}>Unsplash</span>
+            )}
+          </div>
 
           {(isAiGenerated || tags.length > 0) && (
             <div className={styles.tags}>

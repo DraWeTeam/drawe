@@ -5,8 +5,11 @@ from io import BytesIO
 import json
 import uuid
 import asyncio
+from time import perf_counter
 from sqlalchemy import text, bindparam
 
+from guide._trace import trace
+from guide import _shadow
 from guide.stores.db import engine
 from guide.stores.s3 import presigned_url
 from guide.ml.normalize import normalize
@@ -15,7 +18,7 @@ from guide.ml.pose import extract
 from guide.ml.llm import get_llm
 from guide.pipeline.coach import run_guide
 from guide.schemas import PendingReference
-from guide.pipeline.router import resolve, detect_intent
+from guide.pipeline.router import resolve, detect_intent, detect_terms
 from guide.pipeline.diagnose import diagnose, taxonomy, instrument_version
 from guide.pipeline.roadmap import (
     get_roadmap,
@@ -57,7 +60,13 @@ llm = get_llm()
 
 
 def _pipeline(
-    file_bytes, message, user_id="anon", intent="open", track=None, medium=None
+    file_bytes,
+    message,
+    user_id="anon",
+    intent="open",
+    track=None,
+    medium=None,
+    project_id=None,
 ):
     try:
         pil = normalize(
@@ -75,6 +84,14 @@ def _pipeline(
             "message": "이 업로드는 처리할 수 없어요. 작품 이미지를 올려주세요.",
         }
     scene = analyze(pil)
+    # [경계1] scene: person 채널만 track 게이팅(resolve_profile)에 쓰이고, lighting/camera 서술은 미사용.
+    #   prompt 까지 닿는 건 사실상 track 결정 1비트뿐 — 나머지 분포가 여기서 멈춘다.
+    trace(
+        "scene",
+        person=round(scene["subject"]["person"]["prominence"], 2),
+        lighting=scene["render"]["lighting"],
+        camera=scene["framing"]["camera"],
+    )
     pose = extract(scene, pil)
     mode, personas, user_terms = resolve(message, scene)
     if mode == "redirect":
@@ -95,13 +112,14 @@ def _pipeline(
     if _extra_terms:
         user_terms = set(user_terms) | _extra_terms
     # track 프로파일: 명시 track 우선, 없으면 scene(인물 유무)로 자동. 진단 게이팅·norm과 로드맵 커리큘럼에 동시 적용.
-    profile = resolve_profile(track, scene)
+    profile = resolve_profile(track, scene, pil)
     growth = growth_context(
         user_id,
         track=track,
         curriculum=profile["curriculum"],
         degraded=(pose.get("status") != "ok"),
         llm=llm,
+        project_id=project_id,
     )
     dx = diagnose(
         scene, pose, pil, personas, user_terms, growth=growth, profile=profile
@@ -114,7 +132,11 @@ def _pipeline(
     refs_by_sp, retrieved, pending_by_sp = {}, set(), {}
     for o in dx["observations"]:
         sp = o["sub_problem"]
-        persona_hint = tax[sp]["personas"][0]
+        # 벽축 pseudo-axis(personas:[] = 자동 진단 차단 의도)가 user_terms 로 표면되면 [0] 이
+        #   IndexError → 500. persona 는 ref 검색의 soft-boost 힌트일 뿐(search_text 기본값 None) →
+        #   personas 없으면 None 으로 두고 검색은 폴백(레퍼런스 없으면 floor 도식 카드가 주경로).
+        _personas = tax[sp]["personas"]
+        persona_hint = _personas[0] if _personas else None
         # 손 문제엔 손 크롭(region=hand) 우선. 없으면 필터 없이 폴백.
         f = {"region": "hand"} if sp == "hand_structure" else None
         # delta4: medium/track 전달 → 같은 매체·트랙 ai_example 에 soft boost(MEDIUM/TRACK_BOOST).
@@ -224,12 +246,18 @@ def _log_impressions(guide_id, refs_by_sp, tax):
         print(f"[guide] 노출 로깅 실패(무시): {type(e).__name__}: {e}")
 
 
-def _log_observable(user_id, measurable, guide_id):
+def _log_observable(user_id, measurable, guide_id, project_id=None):
     """이번 업로드에서 *측정 가능*했던 축(주제 등장)을 'observable'로 누적 — flagged('seen')과 분리 기록.
     roadmap 이 '부재(안 그림) → steady'를 '개선(그렸는데 덜 걸림)'과 구분하게 하는 관측층 신호.
     실패해도 /guide 는 정상 응답."""
     rows = [
-        dict(u=user_id or "anon", sp=sp, g=guide_id, iv=instrument_version())
+        dict(
+            u=user_id or "anon",
+            sp=sp,
+            g=guide_id,
+            iv=instrument_version(),
+            p=project_id,
+        )
         for sp in (measurable or ())
     ]
     if not rows:
@@ -238,8 +266,8 @@ def _log_observable(user_id, measurable, guide_id):
         with engine.begin() as cx:
             cx.execute(
                 text(
-                    "INSERT INTO practice_log (user_id, sub_problem, action, guide_id, instrument_version) "
-                    "VALUES (:u, :sp, 'observable', :g, :iv)"
+                    "INSERT INTO practice_log (user_id, sub_problem, action, guide_id, instrument_version, project_id) "
+                    "VALUES (:u, :sp, 'observable', :g, :iv, :p)"
                 ),
                 rows,
             )
@@ -272,7 +300,9 @@ def _claim_request(request_id, guide_id):
         return True, guide_id
 
 
-def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
+def _record_side_effects(
+    resp, refs_by_sp, tax, user_id, dx, request_id, project_id=None
+):
     """coach 부작용(노출/연습/관측 로그)을 request_id 로 at-most-once.
     재시도(같은 request_id)면 skip → practice_log/adoption_log 중복 집계 방지.
     guide_id 는 첫 처리 것으로 정렬(응답이 기록과 같은 guide_id 참조)."""
@@ -288,8 +318,9 @@ def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id):
             "seen",
             confidence=b.confidence,
             guide_id=resp.guide_id,
+            project_id=project_id,
         )
-    _log_observable(user_id, dx.get("measurable", ()), resp.guide_id)
+    _log_observable(user_id, dx.get("measurable", ()), resp.guide_id, project_id)
 
 
 def _make_overlay(dx, growth):
@@ -322,18 +353,38 @@ async def guide_ep(
     track: str = Form(None),
     medium: str = Form(None),
     request_id: str = Form(None),
+    project_id: str = Form(
+        None
+    ),  # growth 를 프로젝트 단위로 스코프(없으면 user-scoped 하위호환)
 ):
     file_bytes = await file.read()
     return await asyncio.to_thread(
-        _guide_sync, file_bytes, message, user_id, intent, track, medium, request_id
+        _guide_sync,
+        file_bytes,
+        message,
+        user_id,
+        intent,
+        track,
+        medium,
+        request_id,
+        project_id,
     )
 
 
-def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id):
-    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+def _guide_sync(
+    file_bytes, message, user_id, intent, track, medium, request_id, project_id=None
+):
+    _t0 = perf_counter()  # ②v1: end-to-end(순차 Grok 다회 포함) 레이턴시 측정용
+    ctx, early = _pipeline(
+        file_bytes, message, user_id, intent, track, medium, project_id
+    )
     if early:
         return early
     dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp = ctx
+    # 채팅 한 줄 피드백용 사용자 의도 = 작가가 *명시적으로 입력한* 키워드만(detect_terms(message)).
+    #   diagnose 의 from_user 는 subject 에스컬레이션(_extra_terms, 예: 손 이미지→hand_structure)까지 섞여
+    #   mismatch 를 (A)로 삼킨다 — 여기선 순수 텍스트 관심만 필요. 발화 프레이밍 전용(진단 경로 무영향).
+    user_focus = list(detect_terms(message))
     # 에이전트 선택층(grounded): 룰이 낸 후보 중에서 무엇을 먼저·어떤 레퍼런스로 보여줄지 *선택* → 검증 → 적용.
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
@@ -355,7 +406,10 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
         growth=growth,
         intent=intent,
         asset_index=asset_index,
+        user_focus=user_focus,
     )
+    # ②v1 섀도우 계측(관측 전용·동작 불변): 확정된 dx 출력 + 실현 mode + end-to-end dt 만 read-only 로 emit.
+    _shadow.emit(dx, resp, perf_counter() - _t0, track=track)
     # '생성 중' 레퍼런스 신호 — 보여줄 블록(sub_problem)에 해당하는 미스 job 만 노출(없으면 빈 리스트).
     if pending_by_sp:
         shown = {b.sub_problem for b in resp.blocks}
@@ -367,11 +421,14 @@ def _guide_sync(file_bytes, message, user_id, intent, track, medium, request_id)
     growth_obj = None
     if resp.mode == "coach":
         resp.guide_id = str(uuid.uuid4())
-        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id)
+        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id, project_id)
         # §4 성장 흐름 — 방금 기록한 'seen'(이번 업로드 포함)까지 반영해 집계
         _note = resp.next_steps.note if resp.next_steps else None
         growth_obj = growth_from_raw(
-            growth_view(user_id, track=track, degraded=resp.degraded), note=_note
+            growth_view(
+                user_id, track=track, degraded=resp.degraded, project_id=project_id
+            ),
+            note=_note,
         )
     payload = finalize_guide_response(resp, growth_obj=growth_obj)
     payload.update(_make_overlay(dx, growth))  # 모드 선택 → overlay_axes 만 렌더
@@ -387,6 +444,7 @@ async def guide_stream_ep(
     track: str = Form(None),
     medium: str = Form(None),
     request_id: str = Form(None),
+    project_id: str = Form(None),
 ):
     file_bytes = await file.read()
     return await asyncio.to_thread(
@@ -398,11 +456,19 @@ async def guide_stream_ep(
         track,
         medium,
         request_id,
+        project_id,
     )
 
 
-def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, request_id):
-    ctx, early = _pipeline(file_bytes, message, user_id, intent, track, medium)
+def _guide_stream_sync(
+    file_bytes, message, user_id, intent, track, medium, request_id, project_id=None
+):
+    _t0 = (
+        perf_counter()
+    )  # ②v1: end-to-end 레이턴시(스트림은 run_guide 완료까지가 무거운 Grok 구간)
+    ctx, early = _pipeline(
+        file_bytes, message, user_id, intent, track, medium, project_id
+    )
     if early:
         body = [
             f"data: {json.dumps(early, ensure_ascii=False)}\n\n",
@@ -410,6 +476,8 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
         ]
         return StreamingResponse(iter(body), media_type="text/event-stream")
     dx, refs_by_sp, retrieved, tax, growth, intent, _pending = ctx
+    # 채팅 한 줄 피드백용 사용자 의도 = 명시 입력 키워드만(detect_terms). sync 경로와 동형.
+    user_focus = list(detect_terms(message))
     decision, _ = agent.decide(
         dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
     )
@@ -431,15 +499,21 @@ def _guide_stream_sync(file_bytes, message, user_id, intent, track, medium, requ
         growth=growth,
         intent=intent,
         asset_index=asset_index,
+        user_focus=user_focus,
     )
+    # ②v1 섀도우 계측(관측 전용·동작 불변): _guide_sync 와 동형 read-only emit.
+    _shadow.emit(dx, resp, perf_counter() - _t0, track=track)
     growth_obj = None
     if resp.mode == "coach":
         resp.guide_id = str(uuid.uuid4())
-        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id)
+        _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id, project_id)
         # §4 성장 흐름 — 방금 기록한 'seen'(이번 업로드 포함)까지 반영해 집계
         _note = resp.next_steps.note if resp.next_steps else None
         growth_obj = growth_from_raw(
-            growth_view(user_id, track=track, degraded=resp.degraded), note=_note
+            growth_view(
+                user_id, track=track, degraded=resp.degraded, project_id=project_id
+            ),
+            note=_note,
         )
 
     def gen():
@@ -591,9 +665,9 @@ class PracticeEvent(BaseModel):
 
 
 @router.get("/roadmap")
-def roadmap_ep(user_id: str = "anon", track: str = None):
-    """현재 단계 → 다음 연습 → 다음 목표 + 자주 막히는 부분(recurring). track 커리큘럼 기준."""
-    return get_roadmap(user_id, track=track)
+def roadmap_ep(user_id: str = "anon", track: str = None, project_id: str = None):
+    """현재 단계 → 다음 연습 → 다음 목표 + 자주 막히는 부분(recurring). track 커리큘럼 기준. project 스코프(옵션)."""
+    return get_roadmap(user_id, track=track, project_id=project_id)
 
 
 @router.post("/practice")

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { axisLabel } from "./guideLabels";
+import { axisLabel, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
 import styles from "./GuideModal.module.css";
@@ -9,30 +9,9 @@ const GUIDE_BASE = import.meta.env.VITE_GUIDE_PUBLIC_URL || "";
 const assetUrl = (refId) =>
   GUIDE_BASE && refId ? `${GUIDE_BASE}/guide-asset/${refId}` : null;
 
-// trend 첫 장 → 마지막 장의 difficulty_count 변화. 수치는 응답에 없으므로 여기서 계산(측정=사실).
-function growthDelta(trend) {
-  if (!trend || trend.length < 2) return null;
-  const first = trend[0].difficulty_count || 0;
-  const last = trend[trend.length - 1].difficulty_count || 0;
-  if (first === 0 && last === 0) return null;
-  const diff = last - first;
-  const dir = diff < 0 ? "down" : diff > 0 ? "up" : "flat";
-  const pct = first > 0 ? Math.round((Math.abs(diff) / first) * 100) : null;
-  return { dir, pct };
-}
-// 성장 메시지 — 어려움을 '느낀 횟수'의 흐름만 사실대로(실력/평가 금지).
-function deltaMessage(d) {
-  if (!d) return "";
-  if (d.dir === "down")
-    return d.pct != null
-      ? `처음 가이드를 받았을 때보다 어려움을 느낀 부분이 ${d.pct}% 줄었어요. 연습한 흐름이 그래프에 보여요.`
-      : "처음보다 어려움을 느낀 부분이 줄었어요. 연습한 흐름이 그래프에 보여요.";
-  if (d.dir === "up")
-    return d.pct != null
-      ? `최근에 어려움을 느낀 부분이 ${d.pct}% 늘었어요. 지금 구간을 조금 더 챙겨보면 좋아요.`
-      : "최근에 어려움을 느낀 부분이 늘었어요. 지금 구간을 조금 더 챙겨보면 좋아요.";
-  return "최근 어려움을 느낀 정도가 비슷하게 유지되고 있어요.";
-}
+// ★성장 서술의 단일 소스는 백엔드다(growth.delta_note/trend). 프론트가 trend 로 %를 재계산하던
+//   growthDelta/deltaMessage("처음 받았을 때보다 200%…")는 제거 — 이력<N 이면 백엔드가 trend/delta 를
+//   아예 안 보내므로(contract.py 임계), 프론트는 '받은 것만' 렌더한다. 이중 게이트·% 노이즈 제거.
 
 // 섹션 헤더: "n. 제목". accent=true 면 주황(한 끗 포인트·성장 흐름).
 const SectionTitle = ({ num, children, accent }) => (
@@ -63,7 +42,8 @@ const AssetSvg = ({ asset }) => {
   );
 };
 
-// 추천 레퍼런스 썸네일: 번호(보드 순번) + 캡션.
+// 추천 레퍼런스 카드: 이미지(좌) + 우측 제목. 시안 SCR-GUIDE-02 세로 스택.
+//   추천 이유·키워드 badge 는 데이터 결손이라 이번 범위 아님(DOM 노드 자체를 만들지 않음).
 const RefCard = ({ reference }) => {
   const [failed, setFailed] = useState(false);
   return (
@@ -76,15 +56,15 @@ const RefCard = ({ reference }) => {
           <img
             className={styles.refImg}
             src={reference.url}
-            alt={`참고 ${reference.ordinal}`}
+            alt={`추천 레퍼런스 ${reference.ordinal}`}
             loading="lazy"
             onError={() => setFailed(true)}
           />
         )}
       </div>
-      <figcaption className={styles.refLabel}>
-        참고 {reference.ordinal}
-      </figcaption>
+      <div className={styles.refInfo}>
+        <p className={styles.refTitle}>추천 레퍼런스 {reference.ordinal}</p>
+      </div>
     </figure>
   );
 };
@@ -175,8 +155,9 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
   );
 };
 
-// 면적 차트(성장): trend [{index, difficulty_count, label}] → 부드러운 area + 델타 배지.
-const GrowthChart = ({ trend, delta }) => {
+// 면적 차트(성장): trend [{index, difficulty_count, label}] → 부드러운 area.
+//   trend 는 백엔드가 이력≥N 일 때만 채워 보낸다(contract.py 임계). 아니면 [] → 차트 자체가 안 뜸.
+const GrowthChart = ({ trend }) => {
   if (!trend || trend.length < 2) return null;
   const W = 520;
   const H = 150;
@@ -208,42 +189,31 @@ const GrowthChart = ({ trend, delta }) => {
         >
           <defs>
             <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f2853f" stopOpacity="0.34" />
-              <stop offset="100%" stopColor="#f2853f" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#ff8534" stopOpacity="0.34" />
+              <stop offset="100%" stopColor="#ff8534" stopOpacity="0.02" />
             </linearGradient>
           </defs>
           <path d={area} fill="url(#growthFill)" />
           <path
             d={line}
             fill="none"
-            stroke="#ee6f2d"
+            stroke="#ff8534"
             strokeWidth="2.5"
             strokeLinecap="round"
           />
         </svg>
-        {delta && delta.pct != null && delta.dir !== "flat" && (
-          <span className={styles.deltaTag}>
-            {delta.pct}% {delta.dir === "down" ? "감소" : "증가"}
-          </span>
-        )}
       </div>
     </div>
   );
 };
 
-// 축 키 배열 → 칩 줄. accent=true 면 주황 강조 칩. 빈 배열이면 줄 자체를 숨긴다.
-//   중복 축은 한 번만(여러 소스를 합칠 때 안전).
-const ChipRow = ({ label, axes, accent, className }) => {
-  const uniq = [...new Set((axes || []).filter(Boolean))];
-  if (uniq.length === 0) return null;
+const ChipRow = ({ label, axes }) => {
+  if (!axes || axes.length === 0) return null;
   return (
-    <div className={`${styles.chipRow} ${className || ""}`}>
-      {label && <span className={styles.chipRowLabel}>{label}</span>}
-      {uniq.map((a) => (
-        <span
-          key={a}
-          className={`${styles.chip} ${accent ? styles.chipAccent : ""}`}
-        >
+    <div className={styles.chipRow}>
+      <span className={styles.chipRowLabel}>{label}</span>
+      {axes.map((a) => (
+        <span key={a} className={styles.chip}>
           {axisLabel(a)}
         </span>
       ))}
@@ -254,52 +224,65 @@ const ChipRow = ({ label, axes, accent, className }) => {
 const Growth = ({ growth }) => {
   if (!growth) return null;
   const trend = growth.trend || [];
-  const hasChart = trend.length >= 2;
+  const hasChart = trend.length > 0; // 백엔드가 준 것만(이력<N 이면 trend=[] → 차트·% 미발화)
   const current = growth.chips?.current_stage_axes || [];
   const improving = growth.chips?.improving_axes || [];
-  const topRecurring = growth.recurring_stat?.sub_problem;
-  const delta = hasChart ? growthDelta(trend) : null;
-  // 차트 있으면 trend로 계산한 변화 한 줄(= next_steps.note 와 중복 안 됨).
-  const message = hasChart
-    ? deltaMessage(delta)
-    : growth.narration ||
-      "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.";
+  // 성장 메시지: 화면·PDF 공용 growthMessage(guideLabels)로 조립 — rstat(recurring_stat)과
+  //   delta(delta_note)를 한 문형으로 잇고, delta 없으면 narration 폴백(note 경로 보존).
+  const message = growthMessage(growth, hasChart);
   return (
     <section className={styles.growth}>
       <SectionTitle accent>성장 흐름</SectionTitle>
       <div className={styles.growthBox}>
-        {hasChart && <GrowthChart trend={trend} delta={delta} />}
+        {hasChart && <GrowthChart trend={trend} />}
         {message && (
           <p className={hasChart ? styles.growthMsg : styles.growthFirst}>
             {message}
           </p>
         )}
       </div>
-      {/* 가장 자주 막힌 축 — recurring_stat 있을 때 강조 칩(차트 통계와 짝) */}
-      <ChipRow
-        label="가장 자주 막힌 부분"
-        axes={topRecurring ? [topRecurring] : []}
-        accent
-      />
       <ChipRow label="현재 그림 단계" axes={current} />
       <ChipRow label="최근에 덜 보이는 어려움" axes={improving} />
     </section>
   );
 };
 
-// coach 본문 — 이미지4 흐름:
-// 인트로 → 1.추천 연습 → 2.한 끗 포인트 → 3.추천 레퍼런스(+피드백) → (보조 블록) → 4.앞으로 해야 할 것 → 성장 흐름
-const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
+// 요청일자 표기(시안 §1): ISO/Instant 문자열 → "YYYY.MM.DD.".
+const fmtReqDate = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}.`;
+};
+
+// coach 본문 — 시안 SCR-GUIDE-03 7섹션(단일 구조, hasPractice 분기 없음):
+//   1.타이틀 → 2.현재 그림 분석 → 3.한 끗 포인트 → 4.추천 레퍼런스 → 5.앞으로 해야 할 것 → 6.성장 흐름 → 7.피드백
+const Coach = ({
+  guide,
+  references,
+  drawingPreviewUrl,
+  onRefFeedback,
+  createdAt,
+  requestText,
+  onGuideFeedback,
+  guideFeedback,
+}) => {
   const blocks = guide.blocks || [];
   const primary = blocks[0];
-  const extra = blocks.slice(1);
   const next = guide.next_steps;
-  // 레이아웃 분기(시안):
-  //  - 반복 가이드(로드맵 연습 있음) → "추천 연습" 선행(이미지6).
-  //  - 최초 가이드(연습 없음=콜드스타트) → "1.분석 / 2.읽히는 느낌" 선행(이미지5).
-  const hasPractice = !!next?.focus_practice;
-  // 이력 내레이션은 '한 번만' 상단에(중복 제거). note 없으면 synthesis 폴백.
-  const intro = next?.note || guide.synthesis || "";
+  // §1 타이틀: 요청일자 + 주요 키워드(진단된 축 = primary + 보조 블록, dedupe 후 최대 3).
+  const reqDate = fmtReqDate(createdAt);
+  const topKeywords = (() => {
+    const out = [];
+    for (const sp of [
+      guide.primary_focus,
+      ...blocks.map((b) => b.sub_problem),
+    ]) {
+      if (sp && !out.includes(sp)) out.push(sp);
+    }
+    return out.slice(0, 3);
+  })();
   // 레퍼런스 풀(🔄 새로고침용): 표시 중인 top-3(references, URL 보유) + 페이로드 전체 블록의 나머지 ref.
   //   URL 은 references[0].url 에서 base 를 떼어 합성 → GUIDE_BASE env 불일치와 무관하게 일관.
   const refBase = (() => {
@@ -349,45 +332,40 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
         });
   const canRefresh = refPool.length > 3;
   const cycleRefs = () => setRefOffset((o) => (o + 3) % refPool.length);
-  // 번호: 있는 섹션만 1,2,3… 연속 부여(빈 섹션은 번호 건너뜀).
-  let num = 0;
-  const goalShown = next && (next.next_goal_practice || next.next_goal);
-  // 이번 가이드가 다룬 축 요약(본문 최상단 칩). 블록의 sub_problem 들 — 중복은 ChipRow가 정리.
-  const coveredAxes = blocks.map((b) => b.sub_problem).filter(Boolean);
+  const hasGoal =
+    next && (next.focus || next.next_goal || next.next_goal_practice);
+  const hasChecklist = next && next.focus_practice;
 
   return (
     <>
-      {/* 이번에 다룬 축 요약 — 본문 맨 위에서 '무엇을 짚었는지' 한눈에 */}
-      <ChipRow
-        label="이번에 짚은 부분"
-        axes={coveredAxes}
-        className={styles.summaryChips}
-      />
-
-      {/* 반복 레이아웃에서만 상단 이미지/인트로(최초 레이아웃은 '1.분석' 안으로 들어감) */}
-      {hasPractice && drawingPreviewUrl && (
-        <OverlayImage
-          className={styles.userImg}
-          src={drawingPreviewUrl}
-          overlay={guide.overlay}
-          alt="첨부한 그림"
-        />
+      {/* 1. 타이틀 — 요청일자 + 주요 키워드(제목은 헤더 타이틀에 있음) */}
+      {(reqDate || topKeywords.length > 0) && (
+        <section className={styles.titleMeta}>
+          {reqDate && <p className={styles.reqDate}>요청일자 : {reqDate}</p>}
+          {topKeywords.length > 0 && (
+            <div className={styles.keywordRow}>
+              <span className={styles.keywordLabel}>주요 키워드 :</span>
+              {topKeywords.map((k) => (
+                <span key={k} className={styles.keywordBadge}>
+                  {axisLabel(k)}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
-      {hasPractice && intro && <p className={styles.intro}>{intro}</p>}
-
-      {hasPractice && primary?.observation && (
-        <p className={styles.lead}>
-          {primary.observation}
-          {primary.effect ? ` ${primary.effect}` : ""}
-        </p>
-      )}
-
-      {/* 최초 가이드 — 1. 분석 (첨부 그림 + 관찰) */}
-      {!hasPractice && primary?.observation && (
+      {/* 2. 현재 그림 분석 — 사용자 질문 bubble(request_text 있을 때) + 업로드 이미지 + 관찰/효과 */}
+      {(requestText ||
+        drawingPreviewUrl ||
+        primary?.observation ||
+        primary?.effect) && (
         <section className={styles.section}>
-          <SectionTitle num={++num}>분석</SectionTitle>
+          <SectionTitle>현재 그림 분석</SectionTitle>
           <div className={styles.analysisBox}>
+            {requestText && (
+              <p className={styles.userQuestion}>{requestText}</p>
+            )}
             {drawingPreviewUrl && (
               <AuthedImage
                 className={styles.analysisImg}
@@ -395,37 +373,25 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
                 alt="첨부한 그림"
               />
             )}
-            <p className={styles.bodyText}>{primary.observation}</p>
+            {(primary?.observation || primary?.effect) && (
+              <div className={styles.analysisFindings}>
+                <p className={styles.findingTitle}>AI가 발견한 문제</p>
+                {primary?.observation && (
+                  <p className={styles.findingText}>{primary.observation}</p>
+                )}
+                {primary?.effect && (
+                  <p className={styles.findingText}>{primary.effect}</p>
+                )}
+              </div>
+            )}
           </div>
         </section>
       )}
 
-      {/* 최초 가이드 — 2. 읽히는 느낌 (effect) */}
-      {!hasPractice && primary?.effect && (
-        <section className={styles.section}>
-          <SectionTitle num={++num}>읽히는 느낌</SectionTitle>
-          <div className={styles.readBox}>
-            <p className={styles.bodyText}>{primary.effect}</p>
-          </div>
-        </section>
-      )}
-
-      {/* 1. 추천 연습 — 로드맵 연습(focus_practice). 없으면 섹션 생략. */}
-      {hasPractice && (
-        <section className={styles.section}>
-          <SectionTitle num={++num}>추천 연습</SectionTitle>
-          <div className={styles.practiceBox}>
-            <p className={styles.bodyText}>{next.focus_practice}</p>
-          </div>
-        </section>
-      )}
-
-      {/* 2. 한 끗 포인트 — direction + 도식 */}
+      {/* 3. 한 끗 포인트 — direction + 도식 [지금 바로 수정하기 hidden] */}
       {primary && (primary.direction || primary.guide_asset) && (
         <section className={styles.section}>
-          <SectionTitle num={++num} accent>
-            한 끗 포인트
-          </SectionTitle>
+          <SectionTitle accent>한 끗 포인트</SectionTitle>
           <div className={styles.tipBox}>
             {primary.direction && (
               <p className={styles.tipText}>{primary.direction}</p>
@@ -435,66 +401,128 @@ const Coach = ({ guide, references, drawingPreviewUrl, onRefFeedback }) => {
         </section>
       )}
 
-      {/* 3. 추천 레퍼런스 (+ 피드백·새로고침) */}
+      {/* 4. 추천 레퍼런스 (+ 피드백·새로고침) */}
       {displayedRefs.length > 0 && (
         <section className={styles.section}>
-          <SectionTitle num={++num}>추천 레퍼런스</SectionTitle>
-          <div className={styles.refGrid}>
-            {displayedRefs.map((r) => (
-              <RefCard key={r.refId} reference={r} />
-            ))}
+          <SectionTitle>추천 레퍼런스</SectionTitle>
+          <div className={styles.refBoard}>
+            <div className={styles.refGrid}>
+              {displayedRefs.map((r) => (
+                <RefCard key={r.refId} reference={r} />
+              ))}
+            </div>
+            <RefFeedback
+              refIds={displayedRefs.map((r) => r.refId)}
+              canRefresh={canRefresh}
+              onFeedback={onRefFeedback}
+              onRefresh={cycleRefs}
+            />
           </div>
-          <RefFeedback
-            refIds={displayedRefs.map((r) => r.refId)}
-            canRefresh={canRefresh}
-            onFeedback={onRefFeedback}
-            onRefresh={cycleRefs}
-          />
         </section>
       )}
 
-      {/* 함께 보면 좋은 것 — 보조 초점(있을 때만, 가볍게) */}
-      {extra.length > 0 && (
-        <section className={styles.section}>
-          <SectionTitle>함께 보면 좋은 것</SectionTitle>
-          {extra.map((b, i) => (
-            <p key={i} className={styles.extraLine}>
-              <strong className={styles.extraAxis}>
-                {axisLabel(b.sub_problem)}
-              </strong>{" "}
-              {b.direction || b.observation}
-            </p>
-          ))}
-        </section>
-      )}
-
-      {/* 4. 앞으로 해야 할 것 — 다음 목표 카드 + 지금 집중/자주 막히는 부분 칩. */}
-      {goalShown && (
+      {/* 5. 앞으로 해야 할 것 — [5단계 프로그레스 미생성: 필드 결손·키스톤 의존, Wave 3] + 현재/다음 단계 + 서술 + 체크리스트 */}
+      {(hasGoal || hasChecklist) && (
         <section className={styles.nextSteps}>
-          <SectionTitle num={++num}>앞으로 해야 할 것</SectionTitle>
-          <div className={styles.nextGoal}>
-            <span className={styles.goalBadge}>다음 목표</span>
-            {next.next_goal && (
-              <span className={styles.goalAxis}>
-                {axisLabel(next.next_goal)}
-              </span>
+          <SectionTitle>앞으로 해야 할 것</SectionTitle>
+          <div className={styles.nextStepsBox}>
+            {(next.focus || next.next_goal) && (
+              <div className={styles.stageRow}>
+                {next.focus && (
+                  <span className={styles.stageItem}>
+                    <span className={styles.stageLabel}>현재 단계 :</span>
+                    <span className={styles.stageBadge}>
+                      {axisLabel(next.focus)}
+                    </span>
+                  </span>
+                )}
+                {next.next_goal && (
+                  <span className={styles.stageItem}>
+                    <span className={styles.stageLabel}>다음 단계 :</span>
+                    <span className={styles.stageBadgeNext}>
+                      {axisLabel(next.next_goal)}
+                    </span>
+                  </span>
+                )}
+              </div>
             )}
             {next.next_goal_practice && (
               <p className={styles.goalText}>{next.next_goal_practice}</p>
             )}
+            {next.focus_practice && (
+              <div className={styles.checklist}>
+                <p className={styles.checklistTitle}>
+                  다음 그림에서 체크해보세요
+                </p>
+                <div className={styles.checkItem}>
+                  <span className={styles.checkbox} aria-hidden />
+                  <span className={styles.checkText}>
+                    {next.focus_practice}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-          {/* 지금 집중할 축(focus) + 자주 막히는 부분(recurring) — 응답에 있을 때만 */}
-          <ChipRow
-            label="지금 집중"
-            axes={next.focus ? [next.focus] : []}
-            accent
-          />
-          <ChipRow label="자주 막히는 부분" axes={next.recurring} />
         </section>
       )}
 
-      {/* 성장 흐름 */}
+      {/* 6. 성장 흐름 */}
       <Growth growth={guide.growth} />
+
+      {/* 7. 피드백 — 가이드 도움 여부(chip 2). 핸들러 없으면 미렌더. */}
+      {onGuideFeedback && (
+        <section className={styles.section}>
+          <div className={styles.fbCard}>
+            <p className={styles.fbQuestion}>이 가이드가 도움이 되었나요?</p>
+            <div className={styles.guideFb}>
+              <button
+                type="button"
+                className={`${styles.fbChip} ${guideFeedback === "up" ? styles.fbChipActive : ""}`}
+                aria-pressed={guideFeedback === "up"}
+                onClick={() => onGuideFeedback("up")}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M7 10v11" />
+                  <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
+                </svg>
+                도움돼요
+              </button>
+              <button
+                type="button"
+                className={`${styles.fbChip} ${guideFeedback === "down" ? styles.fbChipActive : ""}`}
+                aria-pressed={guideFeedback === "down"}
+                onClick={() => onGuideFeedback("down")}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M17 14V3" />
+                  <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
+                </svg>
+                아쉬워요
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
     </>
   );
 };
@@ -508,6 +536,10 @@ const GuideBody = ({
   drawingPreviewUrl,
   onRetry,
   onRefFeedback,
+  createdAt,
+  requestText,
+  onGuideFeedback,
+  guideFeedback,
 }) => (
   <div className={styles.body}>
     {loading && (
@@ -542,6 +574,10 @@ const GuideBody = ({
           references={references}
           drawingPreviewUrl={drawingPreviewUrl}
           onRefFeedback={onRefFeedback}
+          createdAt={createdAt}
+          requestText={requestText}
+          onGuideFeedback={onGuideFeedback}
+          guideFeedback={guideFeedback}
         />
       ))}
   </div>
@@ -557,11 +593,15 @@ export const GuideContent = ({
   onClose,
   onRetry,
   onRefFeedback,
+  onGuideFeedback,
+  guideFeedback,
   onToggleFull,
   isFull,
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
+  const createdAt = result?.createdAt || null;
+  const requestText = result?.requestText || null;
   const title = guide?.primary_focus
     ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
     : "한 끗 가이드";
@@ -616,6 +656,10 @@ export const GuideContent = ({
         drawingPreviewUrl={drawingPreviewUrl}
         onRetry={onRetry}
         onRefFeedback={onRefFeedback}
+        createdAt={createdAt}
+        requestText={requestText}
+        onGuideFeedback={onGuideFeedback}
+        guideFeedback={guideFeedback}
       />
     </div>
   );
@@ -632,6 +676,8 @@ const GuideModal = ({
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
+  const createdAt = result?.createdAt || null;
+  const requestText = result?.requestText || null;
   const title = guide?.primary_focus
     ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
     : "한 끗 가이드";
@@ -666,6 +712,8 @@ const GuideModal = ({
           drawingPreviewUrl={drawingPreviewUrl}
           onRetry={onRetry}
           onRefFeedback={onRefFeedback}
+          createdAt={createdAt}
+          requestText={requestText}
         />
       </div>
     </div>

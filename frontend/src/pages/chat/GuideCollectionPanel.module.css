@@ -1,0 +1,135 @@
+/* 가이드 모아보기 오버레이 — Figma 66:27860(패널)/120:15184(헤더)/70:34401(카드).
+   우측 채팅 위에 덧씌우는 레이어(뒤 채팅 유지). rightPanel이 position:relative 라 inset:0 로 덮는다. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-subtle);
+  border-left: 1px solid var(--border-input);
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 패널 헤더 — "한 끗 가이드" + 닫기 */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  padding: var(--space-300) var(--space-800);
+  flex-shrink: 0;
+}
+.title {
+  flex: 1;
+  margin: 0;
+  padding-left: var(--space-400);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-200);
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.closeBtn:hover {
+  background: #ececea;
+}
+
+/* 카드 리스트 — 세로 스택 */
+.list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-400);
+  padding: var(--space-600) var(--space-600) var(--space-1000);
+}
+
+/* 가로 리스트카드 — 좌 썸네일 + 우 제목·태그 */
+.card {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-300);
+  border: none;
+  border-radius: var(--radius-600);
+  background: var(--bg-surface);
+  box-shadow: 0 2px 7.5px rgba(15, 15, 15, 0.05);
+  cursor: pointer;
+  text-align: left;
+  transition: box-shadow 0.15s ease;
+}
+.card:hover {
+  box-shadow: 0 2px 12px rgba(15, 15, 15, 0.1);
+}
+
+.thumb {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 117px;
+  border-radius: var(--radius-400);
+  background: var(--bg-subtle);
+  color: #b9b4ad;
+  overflow: hidden;
+}
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-200);
+  padding: var(--space-300) var(--space-100) var(--space-300) var(--space-600);
+}
+.cardTitle {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tags {
+  display: flex;
+  gap: var(--space-100);
+  flex-wrap: wrap;
+}
+.tag {
+  background: var(--bg-subtle);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+  font-size: 14px;
+  line-height: 22px;
+  white-space: nowrap;
+}

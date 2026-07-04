@@ -94,6 +94,10 @@ class GuideResponse(BaseModel):
     degraded: bool = False
     blocks: list[GuideBlock] = []
     synthesis: Optional[str] = None
+    chat_feedback: Optional[str] = (
+        None  # 채팅 한 줄 피드백 — 코드가 결정론적 조립(LLM/성장 없음). 현재 그림 진단(primary 관찰) +
+        # 사용자 의도(from_user 축) 진입 프레이밍. 성장 흐름은 synthesis/growth 로 분리 유지.
+    )
     one_thing: Optional[str] = None
     message: Optional[str] = None
     next_steps: Optional[NextSteps] = (

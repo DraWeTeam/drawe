@@ -47,7 +47,7 @@ def predict_axis(path, message="", track=None, debug=False):
     eff_track, extra_terms = resolve_subject(scene, pil, track)
     if extra_terms:
         user_terms = set(user_terms) | extra_terms
-    profile = resolve_profile(eff_track, scene)
+    profile = resolve_profile(eff_track, scene, pil)
     dx = diagnose(scene, pose, pil, personas, user_terms, growth=None, profile=profile)
     obs = dx.get("observations") or []
     primary = dx.get("primary_focus") or (obs[0]["sub_problem"] if obs else None)

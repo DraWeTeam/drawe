@@ -3,6 +3,7 @@ import yaml
 import numpy as np
 from functools import lru_cache
 from guide.pipeline.profiles import POSE_DEPENDENT, ALL_AXES
+from guide._trace import trace
 
 # 파일 위치 기준 → repo 루트/CWD 어디서 실행해도 동작(eval 포함). 환경변수로 override 가능.
 TAXONOMY_PATH = os.environ.get(
@@ -126,6 +127,11 @@ def image_signals(pil):
     out = {
         "value_std": float(g.std()),
         "value_range_robust": _subject_value_range(g),  # 배경-강건(degraded 폴백용)
+        # [비-인체 3단계] whole-image 명도 폭(p95-p5, 전체 화면). figure/밝은종이 게이트가 다 None인
+        #   채색 scene(colored bg·full-bleed)에서만 s_value_structure 가 폴백으로 쓴다(figure/종이엔
+        #   fvr/vrr 우선 — 무회귀). 배경-오염 우려는 여기 안 씀: 종이 배경 케이스는 vrr 이 먼저 잡으니
+        #   whole 은 '배경 없는 full-bleed 그림'에만 도달(그땐 전체가 작품이라 p5-p95 가 곧 명도구조).
+        "value_range_whole": float(np.subtract(*np.percentile(g, [95, 5]))),
         "line_sketch": _is_line_sketch(g),  # 선/옅은 스케치 → value 축 보류(D)
         "light_frac": float((g >= 0.78).mean()),  # 디버그/튜닝용(line_sketch 판정 근거)
     }
@@ -221,9 +227,19 @@ def hand_signals(pil):
         from guide.ml.hands import detect, hand_signal
 
         h = detect(pil)
+        # [v2 make-or-break] HandLandmarker 는 '실제 손 사진'으로 학습됨 → 손 '그림'에 검출되는지가
+        #   v2 의 전제. available/n_hands/conf 가 0 이면 MediaPipe 경로는 그림엔 안 맞음(→ VLM 측정으로).
+        _hands = h.get("hands") or []
         if not h.get("available"):
+            trace("hand.detect", available=False, n_hands=0, conf=0.0)
             return {}
-        conf, sig = hand_signal(h["hands"])
+        conf, sig = hand_signal(_hands)
+        trace(
+            "hand.detect",
+            available=True,
+            n_hands=len(_hands),
+            conf=round(float(conf), 2),
+        )
         if conf > 0:
             return {"_hand": (round(float(conf), 2), sig)}
     except Exception as e:
@@ -238,32 +254,107 @@ def _vlm_hand_signal(pil):
     placeholder 블록에서 주입돼 measured=False 로 surface된다(측정=사실 원칙 보호).
     게이트(HAND_VLM)·키·일관성(2회) 판단은 ml.vision.observe_hand 내부에서. 꺼졌으면 None → 기존 빈 관찰로 폴백.
     """
+    trace("hand.vlm.enter", stage="fn_start")  # [진단] 이게 안 뜨면 호출 자체가 안 됨
     try:
         from guide.ml.vision import observe_hand
 
+        trace("hand.vlm.enter", stage="pre_call")  # [진단] 여기까지 오면 import 성공
         o = observe_hand(pil)
     except Exception as e:
         print(f"[diagnose] VLM 손 관찰 실패(무시): {type(e).__name__}: {e}")
         return None
-    if not o or o.get("confidence") != "관찰":  # 2회 불일치(낮음)면 구체관찰 보류
+    if not o:
         return None
+    conf = o.get("confidence")
+    fs_tier = o.get("foreshortening_tier", "NONE")
+    trace("hand.vlm.enter", stage="post_call", got=True, conf=conf, fs_tier=fs_tier)
+    view_ok = conf in ("관찰", "관찰(약)")  # view/structure surface 게이트(낮음=보류)
+    # 단축은 view 와 *독립*: 기하-binary 2-run STRONG 합의면 view 신뢰와 무관하게 surface(측정 정의 고정).
+    #   자유형 손가락 리스트(run마다 흔들림=정의 붕괴)는 안 씀 → 부위 단정 없이 tier 로만 발화.
+    if not view_ok and fs_tier != "STRONG":
+        return None  # 안정적으로 말할 게 없음
+    strong = conf == "관찰"
     parts = []
-    if o.get("view") and o["view"] != "불확실":
+    if view_ok and o.get("view") and o["view"] != "불확실":
         parts.append(f"{o['view']}이 보임")
-    if o.get("plane_facing"):
+    if view_ok and o.get("plane_facing"):
         parts.append(f"손 평면은 {o['plane_facing']} 방향")
-    fs = o.get("foreshortening") or []
-    if fs:
-        parts.append(f"{'·'.join(fs)}가 보는 쪽으로 단축돼 보임")
+    if fs_tier == "STRONG":
+        parts.append("손가락이 보는 쪽으로 단축돼(원근 압축) 보임")
+    # structure 는 §2 에서 view 일치 케이스에서도 흔들려 → strong(관찰)일 때만 표기. 약이면 view 만.
     st = o.get("structure")
-    if st == "입체":
+    if view_ok and strong and st == "입체":
         parts.append("덩어리(상자+원통)로 읽힘")
-    elif st == "평면":
+    elif view_ok and strong and st == "평면":
         parts.append("외곽선 위주로 읽힘")
-    elif st == "혼합":
+    elif view_ok and strong and st == "혼합":
         parts.append("덩어리·외곽선 혼합으로 읽힘")
     sig = ", ".join(parts)
     return (0.4, sig) if sig else None
+
+
+def _vlm_face_signal(pil):
+    """Gemini VLM 얼굴 *관찰*을 (conf, 관찰문장)으로. FaceLandmarker 가 드로잉·측면에 약해(실측 2/3)
+    그 대체 지각. 측정 아니라 *관찰(가설)* → placeholder 로 measured=False surface(측정=사실 보호).
+    초상 아님·view·eye_line 둘 다 불확실이면 observe_face 가 '낮음' → 여기서 None(보류)."""
+    try:
+        from guide.ml.vision import observe_face
+
+        o = observe_face(pil)
+    except Exception as e:
+        print(f"[diagnose] VLM 얼굴 관찰 실패(무시): {type(e).__name__}: {e}")
+        return None
+    if not o or o.get("confidence") not in (
+        "관찰",
+        "관찰(약)",
+    ):  # 낮음만 보류; 약은 통과
+        return None
+    strong = o.get("confidence") == "관찰"
+    parts = []
+    if o.get("view") and o["view"] != "불확실":
+        parts.append(f"{o['view']} 얼굴로 보임")
+    el = o.get("eye_line")
+    # eye_line 은 strong(관찰)일 때만 표기 — 약이면 view 만(단정 회피, hand 의 structure 게이팅과 동형).
+    if strong and el and el != "불확실":
+        where = {
+            "위": "머리 절반보다 위",
+            "중앙": "머리 절반 부근",
+            "아래": "머리 절반보다 아래",
+        }.get(el, el)
+        parts.append(f"눈높이가 {where}에 놓인 것으로 보임")
+    sig = ", ".join(parts)
+    return (0.4, sig) if sig else None
+
+
+def _vlm_pose_signal(pil):
+    """Gemini VLM 포즈 *관찰*을 {axis: (conf, 관찰문장)} 으로. BlazePose 가 드로잉·선화에 장님이라
+    (실측 4/6 no_person_detected, kp=0) 그 대체 지각. 측정 아니라 *관찰(가설)* → placeholder measured=False.
+    ★positive-only(검출 복구가 아니라 주제 표면화): 동적→action_line / 불안정→weight_balance 만 surface.
+    정적·안정·중립·불확실이면 그 축 침묵 — figure_005(chibi)·001(normal) over-fire 방지(handoff §3-2 가드).
+    전신 인물 아님·둘 다 불확실이면 observe_pose 가 '낮음' → 빈 dict(전 축 보류). proportion 은 VLM 비대상."""
+    try:
+        from guide.ml.vision import observe_pose
+
+        o = observe_pose(pil)
+    except Exception as e:
+        print(f"[diagnose] VLM 포즈 관찰 실패(무시): {type(e).__name__}: {e}")
+        return {}
+    if not o or o.get("confidence") not in (
+        "관찰",
+        "관찰(약)",
+    ):  # 낮음만 보류; 약은 통과
+        return {}
+    out = {}
+    # 동적 → action_line 주제 표면화(정적·불확실이면 침묵 = 정적-결함 스코어러 영역, over-fire 방지).
+    if o.get("dynamism") == "동적":
+        out["action_line"] = (0.4, "동적인(움직임 있는) 포즈로 보임")
+    # 불안정 → weight_balance 주제 표면화(안정·불확실이면 침묵).
+    if o.get("balance") == "불안정":
+        out["weight_balance"] = (
+            0.4,
+            "무게가 한쪽으로 쏠린(한 발 지지·기울임) 포즈로 보임",
+        )
+    return out
 
 
 VIS_KP = 0.3  # 개별 키포인트 가시성 하한(bbox 계산용; 파일 평균 VIS와 별개)
@@ -430,11 +521,18 @@ _DEFAULT_THRESHOLDS = {
     "joint_articulation.angle_max": 177.0,  # > 이면 발화(과신전)
     "value_structure.figure_value_range": 0.35,  # < 이면 발화(국소 명도폭)
     "value_structure.subject_value_range": 0.35,  # < 이면 발화(degraded 폴백, 배경 제거 후 명도폭)
+    "value_structure.whole_image_range": 0.48,  # [3단계] 채색 full-bleed 폴백(figure/종이 다 None). 분포 갭: 뚜렷 평평 ≤0.44 | 정상 그림/풍경 ≥0.53 → 0.48(보수적)
     "value_structure.value_std": 0.16,  # < 이면 발화(전역 최후 폴백)
     "value_structure.figure_bg_contrast": 0.08,  # < 이면 발화(실루엣-배경 섞임)
     "composition_balance.focus_centeredness": 0.9,  # > 이면 발화(정중앙)
-    "color_harmony.sat_mean": 0.6,  # AND
-    "color_harmony.hue_spread": 0.55,  # AND (둘 다 > 이면 발화)
+    # [비-인체 갈래1] color dormant 해소 — garish(고채도·광폭색상) 발화하되 harmonious control·자연
+    #   풍경(저채도)·muddy(저채도)는 제외. 임계는 비-인체 골든 분포 갭에서(골든fit 아님):
+    #   sat: garish[0.55·0.57·0.88] vs 비대상[≤0.46] → 갭 0.46↔0.55 → 0.5. hue: 고채도군 중
+    #   garish[0.43·0.58·0.80] vs limited-palette control[0.03] → 갭 0.03↔0.43 → 0.35.
+    #   전 골든 69 검증: 발화=garish 3장뿐, over-fire 0(인체·풍경·control 무발화). ★muddy(저채도 탁함)는
+    #   고채도 gate 구조상 미포착 — 저-sat 신호는 별건(더 큰 변경, 보류).
+    "color_harmony.sat_mean": 0.5,  # AND (was 0.6 — dormant)
+    "color_harmony.hue_spread": 0.35,  # AND (was 0.55 — dormant. 둘 다 > 이면 발화)
     "light_direction.light_ramp": 0.015,  # < 이면 발화(평면 조명)
     "atmospheric_perspective.falloff_min": 0.02,  # < 이면 발화(원근 대비 약화 약함 = 깊이 평면적)
     "horizon_placement.center_half": 0.06,  # |horizon_y-0.5| < 이면 발화(지평선 정중앙)
@@ -498,7 +596,13 @@ def s_proportion(s):
         "leg_torso", (0.75, 1.7)
     )  # track norm; None이면 발화 끔
     if r is not None and band and (r < band[0] or r > band[1]):
-        return (0.3, f"다리/몸통 길이비 ≈ {r:.2f}")
+        # [밀도] 비율만 주면 LLM이 '얼마나 벗어났는지'를 모른다 → 기댓값 밴드와 벗어난 정도까지 복원.
+        #   (타입은 그대로 str 유지 — build_coach_prompt/guardrails 계약 불변. 추가 정보만 실음.)
+        off = round(min(abs(r - band[0]), abs(r - band[1])), 2)
+        return (
+            0.3,
+            f"다리/몸통 길이비 ≈ {r:.2f} (정상대 {band[0]}–{band[1]} 밖, 벗어난 정도 ≈ {off})",
+        )
 
 
 def s_action_line(s):
@@ -539,7 +643,19 @@ def s_value_structure(s):
             parts.append(
                 f"배경(종이)을 뺀 그림의 밝은 곳·어두운 곳 차이가 좁음(명도 폭 ≈ {rr:.2f})"
             )
-        # rr 이 None(어두운 배경/마스크 불가)이면 값 주장 안 함 — 전역 std 폴백 제거(배경에 속으므로 신뢰 불가)
+        elif s.get("value_range_whole") is not None and s.get("value_range_whole") < _T(
+            "value_structure.whole_image_range"
+        ):
+            # [비-인체 3단계] figure·밝은종이 신호 다 None = 채색 scene(full-bleed) → whole-image 명도폭
+            #   으로만 폴백(보수적 임계). 채색 문제 다수는 정상 그림과 겹쳐(moderate) 못 가르니 *뚜렷이
+            #   평평한 것*(wr<0.48)만 발화 = over-abstain>over-fire 규율. 종이/figure 케이스는 위에서 처리됨.
+            wr = s.get("value_range_whole")
+            t = _T("value_structure.whole_image_range")
+            conf = max(conf, min(0.5, 0.3 + 0.4 * (t - wr)))
+            parts.append(
+                f"화면 전체의 밝은 곳·어두운 곳 차이가 좁음(명도 폭 ≈ {wr:.2f})"
+            )
+        # rr·whole 다 None/미달이면 값 주장 안 함 — 전역 std 폴백 제거(배경에 속으므로 신뢰 불가)
     bg = s.get("figure_bg_contrast")
     tb = _T("value_structure.figure_bg_contrast")
     if (
@@ -603,6 +719,27 @@ def s_horizon_placement(s):
         return (0.3, f"지평선이 화면 세로 중앙 부근({y:.2f})에 위치")
 
 
+# [영역3 scorer 재설계 ①] action_line·joint_articulation 자동 발화 억제(over-fire 제거).
+#   geometric proxy(action_line=torso_lean<0.03 / joint_articulation=angle>177)는 '의도적 정적(chibi)'과
+#   '동적(걷기)'을 못 가른다 — 둘 다 수직 몸통 → 서있는 figure 마다 measured 로 over-fire 하고 chibi
+#   abstain 을 깬다(영역4 콘트라포스토와 동류의 *해석* 한계, 검출 문제 아님). 검출기 BlazePose→ViTPose
+#   로 전신 검출이 7/12→12/12 되며 이 기본값-발화가 모든 figure 에 노출돼 드러남.
+#   → 측정 스코어러(SCORERS 루프)·persona placeholder 양쪽 auto 경로에서 빼고, *명시 요청(user_terms)*
+#   으로만 표면(다음 task: 키워드→교습 카드가 그 경로로 복원). dynamism 의 VLM-gate(tier=ok 에도 observer)
+#   는 ② 분포로 판단 빈도 본 뒤. 스코어러 함수 s_action_line/s_joint_articulation 은 카드 task 용으로 보존.
+# [비-인체 2단계] composition_balance·light_direction 추가(동형 demote). 둘 다 인물/드로잉 medium 에서
+#   *정상 레퍼런스에 over-fire*하는데 클린 게이트가 없다(해석 벽): composition=focus_centeredness 가
+#   '중앙'만 봐 의도적 중앙(정면 초상·꽉 찬 인물)까지 발화(golden서 정확 발화 이력 0=순수 over-fire),
+#   light=light_ramp 가 '평면 렌더(선화)'와 '평면 조명 문제'를 못 가름(positive lfrac 0.90·0.97 이
+#   over-fire figure 0.80–0.99 에 인터리브 → both-sided 게이트 불가). value 는 보수적이라 유지.
+#   → auto 억제(user_terms=구도/빛 키워드로만 표면). 스코어러 함수는 보존.
+SUPPRESSED_AUTO = {
+    "action_line",
+    "joint_articulation",
+    "composition_balance",
+    "light_direction",
+}
+
 SCORERS = {
     "weight_balance": s_weight_balance,
     "foreshortening": s_foreshortening,
@@ -646,21 +783,57 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         landscape_signals(pil)
     )  # 풍경 전용(대기원근·지평선) — figure track은 게이팅으로 제외
     sig["_norms"] = norms  # 스코어러(예: s_proportion)가 track norm을 읽게
+    # [경계2a] sig: 업스트림(pose/image/region/color/light/hand/landscape)이 만든 원시 측정 총량.
+    trace(
+        "sig",
+        n=len([k for k in sig if k != "_norms"]),
+        keys=[k for k in sig if k != "_norms"],
+    )
 
     hits = {}
     for sid, fn in SCORERS.items():
+        if sid in SUPPRESSED_AUTO:
+            continue  # auto 측정 억제(위 SUPPRESSED_AUTO 주석) — 명시 요청은 아래 placeholder 에서만
         r = fn(sig)
         if r:
             hits[sid] = r
     measured_ids = set(hits)  # 자동 측정으로 잡힌 것 = 근거 있음
+    # VLM 포즈 관찰자(BlazePose 미검출 보강) — pose fail일 때만, positive-only.
+    #   동적→action_line / 불안정→weight_balance 만 {axis:(conf,sig)} 로 담긴다. 정적·안정·중립·비인물·
+    #   불일치면 빈 dict(전 축 보류) = figure_005(chibi)·001(normal) over-fire 방지. tier==POSE_OK 면
+    #   기존 키포인트 스코어러가 담당하므로 호출 안 함(빈 dict → 아래 placeholder 기존 동작 유지).
+    pose_vlm = _vlm_pose_signal(pil) if tier != POSE_OK else {}
+    # [영역3 ①] 포즈 빈-가설 억제(대칭 확장): 포즈가 '근거 없음' = 검출 실패(tier!=ok) *또는* 검출됐어도
+    #   측정된 포즈 결함이 0(measured_ids 에 POSE_DEPENDENT 없음). 그러면 persona 만으로 포즈축 빈 관찰
+    #   (weight_balance·foreshortening 등)을 surface 하지 않는다. ViTPose 가 모든 figure 를 검출(tier=ok)
+    #   하면서 결함 0인 깨끗/의도적-정적(chibi) figure 에 빈 포즈 가설이 새 chibi abstain 을 깨던 것을 차단
+    #   — tier=fail 가드와 대칭. user_terms·VLM 관찰 보유축은 아래서 예외.
+    pose_unsupported = (tier != POSE_OK) or not (measured_ids & POSE_DEPENDENT)
     for sid, e in tax.items():
+        if sid == "hand_structure":
+            # [라우팅 진단] observe_hand 도달 못 하는 원인 격리: 셋 중 무엇이 막나.
+            #   in_hits=True → MediaPipe _hand 로 s_hand_structure 발화(placeholder 스킵)
+            #   in_terms=False → user_terms 에 없음(line 677 스킵) / 둘 다 정상이면 도달해야 함.
+            trace(
+                "hand.route",
+                in_hits=(sid in hits),
+                in_terms=(sid in user_terms),
+                pose_ok=(tier == POSE_OK),
+                in_pose_dep=(sid in POSE_DEPENDENT),
+            )
         if sid in hits:
             continue
+        if sid in SUPPRESSED_AUTO and sid not in user_terms:
+            continue  # [영역3 ①] auto 억제 — persona 만으로 표면 금지, 명시 요청(키워드 카드)일 때만 통과
         # 흉상/얼굴(degraded=형체 미검출): 포즈 의존 축은 측정 불가 → persona 만으로 빈 관찰을 채우지 않는다.
         #   포즈축 빈 관찰이 새면 "무게중심/단축" 같은 걸 측정한 척 흘려 신뢰를 깎는다. feel 축(명도·구도·빛)만
         #   남겨 정직한 진단으로. 단 사용자가 칩으로 직접 고른 경우(user_terms)는 가설형으로 surface(의도 존중).
-        if tier != POSE_OK and sid in POSE_DEPENDENT and sid not in user_terms:
-            continue
+        if pose_unsupported and sid in POSE_DEPENDENT and sid not in user_terms:
+            # VLM 관찰자 보유축 예외(hand_structure/facial_proportion 가 주입블록서 받는 것과 동형):
+            #   action_line·weight_balance 를 VLM 포즈 관찰자가 confident하게 표면화(pose_vlm 에 키 존재)했으면
+            #   통과시켜 아래서 measured=False 로 surface. 관찰자 침묵/낮음(키 없음)이면 기존대로 억제(continue).
+            if sid not in pose_vlm:
+                continue
         if any(p in personas for p in e["personas"]) or sid in user_terms:
             # 측정 근거 없음 → signal 비움(내부 라벨이 사용자 문구로 새지 않게). 프롬프트가 measured=False를 보고
             # 결핍을 단정하지 않고 '함께 어디를 볼지'로만, 가설형으로 안내한다.
@@ -670,6 +843,17 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
                     pil
                 )  # HAND_VLM off/키없음/2회불일치면 None → 빈 관찰 폴백
                 hits[sid] = vh if vh else (0.25 if e.get("auto") else 0.15, "")
+            elif sid == "facial_proportion":
+                # 얼굴도 검출(FaceLandmarker)이 드로잉에 약함 → VLM 관찰 주입(measured=False=관찰).
+                vf = _vlm_face_signal(
+                    pil
+                )  # FACE_VLM off/키없음/불확실·초상아님이면 None → 빈 관찰 폴백
+                hits[sid] = vf if vf else (0.25 if e.get("auto") else 0.15, "")
+            elif sid in ("action_line", "weight_balance"):
+                # 포즈도 검출(BlazePose)이 드로잉에 장님 → VLM 포즈 관찰 주입(measured=False=관찰).
+                #   gate 를 통과했으면 pose_vlm 에 positive 관찰이 반드시 있음. tier==POSE_OK 면 pose_vlm={}
+                #   이라 빈 placeholder = 기존 동작 유지(키포인트 스코어러 영역, VLM 미개입).
+                hits[sid] = pose_vlm.get(sid) or (0.25 if e.get("auto") else 0.15, "")
             else:
                 hits[sid] = (0.25 if e.get("auto") else 0.15, "")
 
@@ -691,6 +875,14 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         }
 
     ranked = sorted(hits.items(), key=lambda kv: -kv[1][0])
+    # [경계2b] hits: 스코어러 통과 축 + 측정 여부 + '빈 signal'(=내용 없이 LLM에 가는 축).
+    #   empty_signal 에 from_user 축이 끼면 그게 '결과가 안 나온다'의 1순위 용의자.
+    trace(
+        "hits",
+        n=len(hits),
+        measured=sorted(measured_ids),
+        empty_signal=[sid for sid, (c, s) in hits.items() if not s],
+    )
     # 이력 연속성 보정: steady는 뒤로, 재발/현재집중은 앞으로 — 정렬 키에만(표시 confidence 불변).
     recurring_set = set((growth or {}).get("recurring", []))
     if growth:
@@ -715,6 +907,15 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         ranked.sort(
             key=lambda kv: kv[0] not in user_terms
         )  # 안정 정렬: user_terms를 앞으로
+    # [경계3] Retention: 진짜 손실 지점. hits(최대 14축) → 상위 3축. 나머지는 LLM이 영영 모름.
+    #   더 많은 관찰을 살리고 싶으면 손댈 레버는 agent가 아니라 '이 캡'(인지부하 UX 트레이드오프).
+    #   prompt 단계 retention 은 build_coach_prompt 의 [경계4] trace(post-agent)가 그대로 반영.
+    trace(
+        "retain",
+        hits=len(ranked),
+        kept=[s for s, _ in ranked[:3]],
+        dropped=[s for s, _ in ranked[3:]],
+    )
     ranked = ranked[:3]
     obs = []
     for sid, (conf, sigtext) in ranked:
@@ -755,12 +956,32 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
         "centroid": _subject_centroid(_g),
         "horizon_y": sig.get("horizon_y"),
     }
+    # inexpressible: 이번 그림에 '재료가 없는' 축 — growth 인정에서 제외용(선화에 '색 좋아졌어요' 누수 차단).
+    #   substrate 기반: 색이 (거의) 없으면 color, 톤이 없으면 value/light 는 표현 자체가 불가.
+    #   주의: color_signals 는 'std<1e-3'(완전 균일)에만 빈 dict → 흑백 선화는 sat_mean 이 *있지만 ≈0*.
+    #   그래서 '부재'가 아니라 '값이 매우 낮음'으로 본다. 임계는 trace 의 실측으로 확정/튜닝.
+    _sat = sig.get("sat_mean")
+    _mid = float(((_g > 0.2) & (_g < 0.8)).mean())
+    inexpressible = set()
+    if (
+        _sat is None or _sat < 0.05
+    ):  # 빈 dict(완전 균일) or 거의 무채(흑백/선화) → 색 부재
+        inexpressible.add("color_harmony")
+    if _mid < 0.15:  # 중간톤 거의 없음 → 톤/명암 부재
+        inexpressible |= {"value_structure", "light_direction"}
+    trace(
+        "substrate",
+        sat_mean=(round(_sat, 3) if _sat is not None else None),
+        mid=round(_mid, 3),
+        inexpressible=sorted(inexpressible),
+    )
     return {
         "primary_focus": obs[0]["sub_problem"] if obs else None,
         "observations": obs,
         "degraded": degraded,
         "persona": personas,
         "measurable": measurable,
+        "inexpressible": sorted(inexpressible),
         "instrument_version": instrument_version(),
         "pose_tier": tier,
         "spatial": _spatial,

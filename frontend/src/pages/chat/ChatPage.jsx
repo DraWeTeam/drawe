@@ -29,6 +29,7 @@ import { resizeImage, validateImageFile } from "./imageUtils";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import GuideForm from "./GuideForm";
+import GuideCollectionPanel from "./GuideCollectionPanel";
 import { GuideContent } from "./GuideModal";
 import { axisLabel } from "./guideLabels";
 import { downloadGuidePdf } from "./guidePdf";
@@ -67,6 +68,8 @@ const ChatPage = () => {
 
   const [project, setProject] = useState(null);
   const [messages, setMessages] = useState([]);
+  // 가이드 모아보기 오버레이 — getGuides 결과(복원된 guide 메시지) 재사용, 새 fetch 없음.
+  const [guideListOpen, setGuideListOpen] = useState(false);
   const [sessionId, setSessionId] = useState(null);
 
   const [input, setInput] = useState("");
@@ -326,29 +329,43 @@ const ChatPage = () => {
   }, [projectId]);
 
   useEffect(() => {
-    if (!sessionId) return;
-    const fetchHistory = async () => {
-      try {
-        const data = await getHistory(projectId, sessionId);
-        const restored = (data?.messages ?? []).map((m) => ({
-          role: m.role,
-          content: m.content,
-          references: m.references,
-          imageUrl: m.imageUrl ?? null,
-          createdAt: m.createdAt ?? null,
-          // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
-          // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
-          isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
-        }));
-        setMessages(restored);
-
-        // 영속된 가이드 복원 — 채팅 히스토리엔 가이드 카드가 없으므로 별도로 불러와 시간순으로 합친다.
-        //   getGuides 는 오래된→최신, 각 항목에 createdAt + uploadUrl(저장된 업로드 원본) 포함.
-        //   주의: 가이드는 프로젝트 단위(세션 무관)라 같은 프로젝트의 가이드는 모두 표시됨.
+    // ★가이드 복원은 세션과 무관(프로젝트 단위 영속)하므로 sessionId 가 아니라 projectId 로 게이트한다.
+    //   이전엔 if(!sessionId) return 이 getGuides 까지 막아, 채팅 없이 가이드만 한 프로젝트에서
+    //   영속된 가이드가 새로고침 시 복원되지 않았다(이슈 B). getHistory 만 세션 조건부로 돌린다.
+    if (!projectId) return;
+    const fetchAll = async () => {
+      // 1) 채팅 히스토리 — 세션 있을 때만. 없으면 빈 배열(가이드-우선 흐름).
+      let restored = [];
+      if (sessionId) {
         try {
-          const guides = await getGuides(projectId);
-          if (Array.isArray(guides) && guides.length > 0) {
-            const guideCards = guides.map((g, i) => ({
+          const data = await getHistory(projectId, sessionId);
+          restored = (data?.messages ?? []).map((m) => ({
+            role: m.role,
+            content: m.content,
+            references: m.references,
+            imageUrl: m.imageUrl ?? null,
+            createdAt: m.createdAt ?? null,
+            // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
+            // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
+            isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
+          }));
+        } catch (err) {
+          if (err.response?.status === 404) {
+            localStorage.removeItem(sessionKey(projectId));
+            setSessionId(null);
+          }
+        }
+      }
+
+      // 2) 영속된 가이드 — 세션 무관, projectId 단위로 항상 복원. 각 항목에 createdAt + uploadUrl.
+      //    사용자 질문(requestText)이 있으면 가이드 카드 앞에 주황 말풍선을 재구성한다
+      //    (라이브 전송 순서 user→assistant 를 복원에서도 보존). 빈 값이면 말풍선 생략.
+      let guideCards = [];
+      try {
+        const guides = await getGuides(projectId);
+        if (Array.isArray(guides) && guides.length > 0) {
+          guideCards = guides.flatMap((g, i) => {
+            const card = {
               role: "assistant",
               type: "guide",
               _gid: `restored-${i}`,
@@ -358,36 +375,41 @@ const ChatPage = () => {
               guidePreview: g.uploadUrl ?? null,
               guideFeedback: null,
               createdAt: g.createdAt ?? null,
-            }));
-            // 채팅 메시지 + 가이드 카드를 createdAt 기준으로 시간순 정렬(가이드가 맨 밑에 깔리지 않도록).
-            //   타임스탬프 없는 항목은 0으로 취급(맨 앞). sort 는 안정 정렬이라 동시각 순서는 보존.
-            setMessages((prev) =>
-              [...prev, ...guideCards].sort(
-                (a, b) =>
-                  (a.createdAt ? Date.parse(a.createdAt) : 0) -
-                  (b.createdAt ? Date.parse(b.createdAt) : 0),
-              ),
-            );
-          }
-        } catch {
-          /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
+            };
+            const text = g.requestText?.trim();
+            if (!text) return [card];
+            const userBubble = {
+              role: "user",
+              content: g.requestText,
+              imageUrl: g.uploadUrl ?? null,
+              createdAt: g.createdAt ?? null,
+            };
+            return [userBubble, card];
+          });
         }
+      } catch {
+        /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
+      }
 
-        const lastWithReferences = [...restored]
-          .reverse()
-          .find((m) => m.references && m.references.length > 0);
+      // 3) ★채팅 + 가이드를 createdAt 시간순으로 *한 번에* 병합해 set(REPLACE/APPEND 레이스 제거).
+      //    타임스탬프 없는 항목은 0(맨 앞). sort 는 안정 정렬이라 동시각 순서 보존.
+      setMessages(
+        [...restored, ...guideCards].sort(
+          (a, b) =>
+            (a.createdAt ? Date.parse(a.createdAt) : 0) -
+            (b.createdAt ? Date.parse(b.createdAt) : 0),
+        ),
+      );
 
-        if (lastWithReferences) {
-          setReferences(lastWithReferences.references);
-        }
-      } catch (err) {
-        if (err.response?.status === 404) {
-          localStorage.removeItem(sessionKey(projectId));
-          setSessionId(null);
-        }
+      // 4) 참고작 프리필 — 복원된 채팅 중 마지막 references.
+      const lastWithReferences = [...restored]
+        .reverse()
+        .find((m) => m.references && m.references.length > 0);
+      if (lastWithReferences) {
+        setReferences(lastWithReferences.references);
       }
     };
-    fetchHistory();
+    fetchAll();
   }, [projectId, sessionId]);
 
   useEffect(() => {
@@ -900,6 +922,10 @@ const ChatPage = () => {
   const goToRefFull = () => setMode("refFull");
   const goToSplit = () => setMode("split");
 
+  // 모아보기용 가이드 목록 = 복원/생성된 guide 카드 메시지. 1건+ 있을 때만 진입 아이콘 노출.
+  const guideMessages = messages.filter((m) => m.type === "guide");
+  const hasGuides = guideMessages.length > 0;
+
   return (
     <div className={styles.layout}>
       {/* 페이지 헤더 — 상단 전체 */}
@@ -915,6 +941,21 @@ const ChatPage = () => {
           </button>
         </Tooltip>
         <h1 className={styles.pageTitle}>{project?.name ?? "..."}</h1>
+        {hasGuides && (
+          <Tooltip label="가이드 모아보기" placement="bottom">
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${
+                guideListOpen ? styles.iconBtnActive : ""
+              }`}
+              onClick={() => setGuideListOpen((o) => !o)}
+              aria-label="가이드 모아보기"
+              aria-pressed={guideListOpen}
+            >
+              <GuideCollectionIcon />
+            </button>
+          </Tooltip>
+        )}
         <Tooltip label="대화 초기화" placement="bottom">
           <button
             type="button"
@@ -962,6 +1003,22 @@ const ChatPage = () => {
                 onClose={closeGuide}
                 onRetry={retryGuide}
                 onRefFeedback={handleRefFeedback}
+                onGuideFeedback={(kind) => {
+                  // 열린 가이드(guideResult)에 해당하는 카드 메시지를 guide_id 로 찾아 토글
+                  //   (기존 setGuideCardFeedback 재사용 — 백엔드 guide_feedback 반영).
+                  const gid = guideResult?.guide?.guide_id;
+                  const msg = messages.find(
+                    (m) => m.type === "guide" && m.guide?.guide_id === gid,
+                  );
+                  if (msg) setGuideCardFeedback(msg._gid, kind);
+                }}
+                guideFeedback={
+                  messages.find(
+                    (m) =>
+                      m.type === "guide" &&
+                      m.guide?.guide_id === guideResult?.guide?.guide_id,
+                  )?.guideFeedback ?? null
+                }
                 onToggleFull={() =>
                   setMode((cur) => (cur === "refFull" ? "split" : "refFull"))
                 }
@@ -1076,27 +1133,72 @@ const ChatPage = () => {
                     }
                     // 가이드 카드(채팅 반영) — 클릭 시 전체 보기, 아래 좋아요/싫어요/PDF
                     if (m.type === "guide") {
+                      // 채팅 인라인 AI 발화 = 이 그림 '한 줄 피드백'(결정론). 백엔드가 조립한
+                      //   chat_feedback(현재 그림 진단 + 사용자 의도 진입, 성장 없음)을 우선 쓴다.
+                      //   없으면(구버전 응답 등) 현재 그림 관찰로 폴백. ★성장(next_steps.note/synthesis)은
+                      //   더 이상 채팅에 안 끌어옴 — 성장 흐름은 한 끗 상세 모달에만.
+                      const g = m.guide || {};
+                      // clarify/redirect 등 비-coach 응답은 chat_feedback·blocks 가 없으므로
+                      //   안내 문구(message)를 채팅에도 한 줄 띄운다(빈 버블 침묵 해소).
+                      const utterance =
+                        g.chat_feedback ||
+                        g.blocks?.[0]?.observation ||
+                        (g.mode !== "coach" ? g.message : "") ||
+                        "";
                       return (
                         <div key={idx} className={styles.assistantMessage}>
+                          {utterance && (
+                            <div className={styles.assistantBubble}>
+                              <img
+                                className={styles.assistantLogo}
+                                src={logo}
+                                alt=""
+                              />
+                              <span>{utterance}</span>
+                            </div>
+                          )}
                           <button
                             type="button"
                             className={styles.guideCard}
                             onClick={() => openGuideFromCard(m)}
                           >
                             <span className={styles.guideCardThumb}>
-                              <ImgPlaceholderIcon />
+                              {m.guidePreview ? (
+                                <AuthedImage
+                                  className={styles.guideCardThumbImg}
+                                  src={m.guidePreview}
+                                  alt=""
+                                />
+                              ) : (
+                                <ImgPlaceholderIcon />
+                              )}
                             </span>
-                            <span className={styles.guideCardBody}>
-                              <span className={styles.guideCardTitle}>
-                                {m.guideTitle}
+                            <span className={styles.guideCardFooter}>
+                              <span className={styles.guideCardBody}>
+                                <span className={styles.guideCardTitle}>
+                                  {m.guideTitle}
+                                </span>
+                                <span className={styles.guideCardSub}>
+                                  가이드 보기
+                                </span>
                               </span>
-                              <span className={styles.guideCardSub}>
-                                한 끗 가이드 보기
-                              </span>
+                              <ChevronRightIcon />
                             </span>
-                            <ChevronRightIcon />
                           </button>
                           <div className={styles.guideActions}>
+                            <button
+                              type="button"
+                              className={styles.guideActBtn}
+                              aria-label="PDF 다운로드"
+                              onClick={() =>
+                                downloadGuidePdf(
+                                  { guide: m.guide, references: m.references },
+                                  m.guidePreview,
+                                )
+                              }
+                            >
+                              <DownloadIcon />
+                            </button>
                             <button
                               type="button"
                               className={styles.guideActBtn}
@@ -1116,19 +1218,6 @@ const ChatPage = () => {
                               }
                             >
                               <ThumbDownIcon />
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.guideActBtn}
-                              aria-label="PDF 다운로드"
-                              onClick={() =>
-                                downloadGuidePdf(
-                                  { guide: m.guide, references: m.references },
-                                  m.guidePreview,
-                                )
-                              }
-                            >
-                              <DownloadIcon />
                             </button>
                           </div>
                         </div>
@@ -1159,13 +1248,10 @@ const ChatPage = () => {
                                 className={
                                   m.isAi ? styles.aiImage : styles.bubbleImage
                                 }
-                                onClick={
-                                  m.isAi
-                                    ? () =>
-                                        setLightboxSrc(
-                                          m.localPreviewUrl || m.imageUrl,
-                                        )
-                                    : undefined
+                                onClick={() =>
+                                  setLightboxSrc(
+                                    m.localPreviewUrl || m.imageUrl,
+                                  )
                                 }
                               />
                               {m.isAi && (
@@ -1314,6 +1400,18 @@ const ChatPage = () => {
               </div>
             </form>
           </div>
+
+          {/* 가이드 모아보기 — 채팅 위 오버레이(뒤 채팅 유지) */}
+          {guideListOpen && hasGuides && (
+            <GuideCollectionPanel
+              guides={guideMessages}
+              onClose={() => setGuideListOpen(false)}
+              onCardClick={(g) => {
+                setGuideListOpen(false);
+                openGuideFromCard(g);
+              }}
+            />
+          )}
         </section>
       </div>
 
@@ -1408,6 +1506,23 @@ const BackIcon = () => (
       d="M10 20L0 10L10 0L11.775 1.775L3.55 10L11.775 18.225L10 20Z"
       fill="#4A4846"
     />
+  </svg>
+);
+
+// 가이드 모아보기 진입 — 겹친 카드(컬렉션) 글리프
+const GuideCollectionIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="7" width="14" height="14" rx="2" />
+    <path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
   </svg>
 );
 

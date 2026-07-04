@@ -13,15 +13,44 @@ const CONCERNS = [
   "톤을 바꾸고 싶어요",
 ];
 
-// 화풍 → 백엔드 track enum. '자동'은 track 미전달(파이프라인이 자동 판단).
-// NOTE: 와이어프레임의 '스케치' 등은 현재 backend track enum 에 없음 — 옵션은 팀과 정합 필요.
+// 화풍 → 백엔드 track. 기획: 인물 주력 + 배경 지원. 실사/애니/치비 세분은 "자동"이 스타일을
+//   감지해 norm 을 켜므로 UI 에선 인물/배경 2택 + 자동. "인물"=figure(레인 강제·norm OFF 안전),
+//   "배경"=landscape(_SCENE_ORDER). "자동"은 track 미전달(prominence 로 인물↔배경 자동 판정).
 const TRACKS = [
   { value: "", label: "자동 (AI 자동 판단)" },
-  { value: "realistic_figure", label: "실사 인물" },
-  { value: "anime_figure", label: "애니 인물" },
-  { value: "chibi_figure", label: "치비 / SD" },
-  { value: "landscape", label: "풍경" },
+  { value: "figure", label: "인물" },
+  { value: "landscape", label: "배경" },
 ];
+
+// 아이콘 — 프로젝트 관례(파일 내 인라인 SVG·currentColor)를 따름. Figma close_lg/info_sm/down_md 대응.
+const CloseIcon = () => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+  >
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
+const InfoIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.4"
+  >
+    <circle cx="8" cy="8" r="6.3" />
+    <path d="M8 7.4v3.4" strokeLinecap="round" />
+    <circle cx="8" cy="5" r="0.5" fill="currentColor" stroke="none" />
+  </svg>
+);
 
 const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const { projectId } = useParams();
@@ -30,9 +59,9 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState("");
-  // 인물-우선 제품 → 기본을 figure 레인(실사 인물)으로. 명시 track 이 백엔드 자동판단을 덮으므로
-  // 스케치 CLIP 오분류(인물→풍경)를 결정적으로 회피. 풍경/애니/치비는 사용자가 직접 선택.
-  const [track, setTrack] = useState("realistic_figure");
+  // 시안 SCR-GUIDE-01 화풍 기본값 = "자동 (AI 자동 판단)". 백엔드 auto 가 person.prominence 로
+  // figure↔landscape 를 정확히 가름(풍경 오판 0, 실측). 사용자가 원하면 드롭다운으로 화풍 직접 지정 가능.
+  const [track, setTrack] = useState("");
   const [intent, setIntent] = useState("practice"); // 작업중
   const [dragOver, setDragOver] = useState(false);
   const [err, setErr] = useState(null);
@@ -166,7 +195,9 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     }
   };
 
-  const canSubmit = !!file && !submitting;
+  // 텍스트 필수화(시안 SCR-GUIDE-01): 파일 + 비지 않은 메시지(칩 클릭도 setMessage 로 채움)여야 제출.
+  //   detect_terms 진입점 보장 → chat_feedback intent + request_text(B-2) 채워짐(우리 로직 스위치).
+  const canSubmit = !!file && message.trim().length > 0 && !submitting;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -185,7 +216,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
             onClick={onClose}
             aria-label="닫기"
           >
-            ×
+            <CloseIcon />
           </button>
         </header>
 
@@ -211,7 +242,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
               <img className={styles.preview} src={preview} alt="미리보기" />
             ) : (
               <p className={styles.dropHint}>
-                첨부할 파일 한 장을 여기다 끌어다 놓거나, 직접 선택해주세요.
+                첨부할 파일을 여기에 끌어다 놓거나, 직접 선택해주세요.
               </p>
             )}
             <input
@@ -237,12 +268,12 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
           {/* 걱정거리 */}
           <label className={styles.fieldLabel}>
-            어떤 점이 마음에 걸리나요?{" "}
+            어떤 점이 마음에 걸리시나요? (필수){" "}
             <span
               className={styles.info}
               title="신경 쓰이는 부분을 적으면 그 부분 위주로 봐드려요."
             >
-              ⓘ
+              <InfoIcon />
             </span>
           </label>
           <textarea
@@ -270,7 +301,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
           </div>
 
           {/* 화풍 */}
-          <label className={styles.fieldLabel}>이 그림 화풍은</label>
+          <label className={styles.fieldLabel}>이 그림의 화풍은</label>
           <select
             className={styles.select}
             value={track}
@@ -284,29 +315,33 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
             ))}
           </select>
 
-          {/* 상태 */}
-          <label className={styles.fieldLabel}>이 그림의 상태는</label>
-          <div className={styles.toggle}>
-            <button
-              type="button"
-              className={`${styles.toggleBtn} ${
-                intent === "practice" ? styles.toggleOn : ""
-              }`}
-              onClick={() => setIntent("practice")}
-              disabled={submitting}
-            >
-              작업중
-            </button>
-            <button
-              type="button"
-              className={`${styles.toggleBtn} ${
-                intent === "finished" ? styles.toggleOn : ""
-              }`}
-              onClick={() => setIntent("finished")}
-              disabled={submitting}
-            >
-              완성작
-            </button>
+          {/* 상태 — Figma 208:23767: 라벨과 토글이 한 행 */}
+          <div className={styles.statusRow}>
+            <label className={`${styles.fieldLabel} ${styles.statusLabel}`}>
+              이 그림의 상태는
+            </label>
+            <div className={styles.toggle}>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${
+                  intent === "practice" ? styles.toggleOn : ""
+                }`}
+                onClick={() => setIntent("practice")}
+                disabled={submitting}
+              >
+                작업중
+              </button>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${
+                  intent === "finished" ? styles.toggleOn : ""
+                }`}
+                onClick={() => setIntent("finished")}
+                disabled={submitting}
+              >
+                완성작
+              </button>
+            </div>
           </div>
         </div>
 

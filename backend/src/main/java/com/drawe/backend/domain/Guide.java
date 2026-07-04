@@ -68,6 +68,10 @@ public class Guide {
   @Column(name = "degraded", nullable = false)
   private boolean degraded;
 
+  /** 사용자가 업로드 시 함께 보낸 질문/메시지(주황 말풍선). 없으면 null. 히스토리 복원용. */
+  @Column(name = "request_text", columnDefinition = "text")
+  private String requestText;
+
   /** GuideResponse 전체(JSON). reference_ids 형태로 영속. */
   @Column(name = "payload", nullable = false, columnDefinition = "json")
   @JdbcTypeCode(SqlTypes.JSON)

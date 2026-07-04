@@ -1,0 +1,1129 @@
+{
+  "_meta": {
+    "purpose": "Blind ground-truth labels for the drawe golden-set. Authored by viewing each image directly BEFORE reading any system/axis output, to avoid anchoring to current behavior.",
+    "authored": "2026-06-29",
+    "clarity": "clear = a competent artist would agree on the primary issue; ambiguous = the input is intrinsically unstable (stylized, conflicting cues, or the 'defect' is a deliberate style choice). Accuracy is scored on clear set only; ambiguous set is scored by abstain / weak-grade ratio.",
+    "fields": "track=expected routing; expected_primary=most teachable single issue (artist judgment); acceptable=axes that would also be a defensible primary; for hands view/structure/foreshort = expected VLM read."
+  },
+  "intended_tracks": {
+    "_note": "Production-faithful path a real user/UI provides. null = auto-detection IS the best path (hands/landscapes route correctly auto, and auto adds the hand_structure intent term that explicit track='hand' drops — a known asymmetry). Non-null ONLY for figures, where a STYLE hint (real/anime/chibi) adds info auto-detect can't reliably get. face/edge → null (no face profile = E gap; no-subject).",
+    "edge_001_blank_canvas.png": null,
+    "edge_002_ambiguous_scribble.png": null,
+    "edge_003_hand_with_face_message.png": null,
+    "face_001_front_normal.png": null,
+    "face_002_profile_side.png": null,
+    "face_003_three_quarter.png": null,
+    "figure_001_standing_front_normal.png": "realistic_figure",
+    "figure_002_short_legs.png": "anime_figure",
+    "figure_003_unbalanced_pose.png": "realistic_figure",
+    "figure_004_walking_pose.png": "realistic_figure",
+    "figure_005_sd_chibi.png": "chibi_figure",
+    "figure_006_message_color.png": "anime_figure",
+    "figure_007_realistic_anatomy.png": "realistic_figure",
+    "figure_008_anime_male.png": "anime_figure",
+    "figure_009_casual_man.png": null,
+    "figure_010_casual_youth.png": null,
+    "figure_011_normal_woman.png": "realistic_figure",
+    "figure_012_chibi.png": "chibi_figure",
+    "hand_001_v_sign_line.png": null,
+    "hand_002_colored_palm.png": null,
+    "hand_003_long_fingers.png": null,
+    "hand_004_foreshortened.png": null,
+    "hand_005_message_ratio.png": null,
+    "hand_006_foreshorten_palm.png": null,
+    "hand_007_foreshorten_angled.png": null,
+    "hand_008_foreshorten_down.png": null,
+    "hand_009_foreshorten_fist.png": null,
+    "hand_010_longfinger.png": null,
+    "hand_012_longfinger.png": null,
+    "hand_014_normal.png": null,
+    "hand_015_normal.png": null,
+    "hand_018_shortfinger.png": null,
+    "hand_019_shortfinger.png": null,
+    "hand_020_longfinger.png": null,
+    "hand_021_normal.png": null,
+    "landscape_001_normal.png": null,
+    "landscape_002_flat_perspective.png": null,
+    "landscape_003_still_life.png": null,
+    "color_clash_00.png": null,
+    "color_clash_01.png": null,
+    "color_clash_02.png": null,
+    "color_muddy_00.png": null,
+    "color_muddy_01.png": null,
+    "color_harmony_ctrl_00.png": null,
+    "color_harmony_ctrl_01.png": null,
+    "value_flat_00.png": null,
+    "value_flat_01.png": null,
+    "value_flat2_00.png": null,
+    "value_flat2_02.png": null,
+    "value_flat3_01.png": null,
+    "value_strong_ctrl_00.png": null,
+    "value_strong_ctrl_01.png": null,
+    "value_flat3_00.png": null,
+    "light_flat_00.png": null,
+    "light_flat_01.png": null,
+    "light_conflict_00.png": null,
+    "light_conflict_01.png": null,
+    "light_clear_ctrl_00.png": null,
+    "light_clear_ctrl_01.png": null,
+    "comp_center_01.png": null,
+    "comp_cramped_01.png": null,
+    "comp_ctrl3_00.png": null,
+    "comp_ctrl3_01.png": null,
+    "comp_center_00.png": null,
+    "comp_cramped_00.png": null,
+    "comp_good_ctrl_00.png": null,
+    "comp_ctrl2_00.png": null,
+    "comp_ctrl2_01.png": null,
+    "comp_ctrl2_02.png": null,
+    "value_draw_norm_00.png": null,
+    "value_draw_norm_01.png": null,
+    "value_draw_prob_00.png": null,
+    "value_draw_prob_02.png": null,
+    "light_draw_norm_00.png": null,
+    "light_draw_norm_01.png": null,
+    "light_draw_prob_01.png": null,
+    "light_draw_prob_02.png": null,
+    "comp_draw_center_ok_00.png": null,
+    "comp_draw_center_ok_01.png": null,
+    "comp_draw_prob_00.png": null,
+    "comp_draw_prob_01.png": null,
+    "comp_draw_prob_02.png": null,
+    "comp_paint_center_ok_00.png": null,
+    "comp_paint_center_ok_01.png": null,
+    "light_scene_norm_00.png": null,
+    "light_scene_norm_01.png": null,
+    "light_scene_prob_00.png": null,
+    "light_scene_prob_01.png": null,
+    "light_scene_prob_02.png": null
+  },
+  "images": [
+    {
+      "file": "hand_001_v_sign_line.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "평면",
+      "foreshorten": false,
+      "expected_primary": "line_quality",
+      "acceptable": [
+        "line_quality",
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "V-sign, clean line art, back of hand. Flat/line — structure read should NOT be 입체."
+    },
+    {
+      "file": "hand_002_colored_palm.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "structure": "입체",
+      "foreshorten": false,
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "value_structure",
+        "proportion"
+      ],
+      "notes": "Palm facing, 5 fingers spread, colored/shaded -> 입체 ok."
+    },
+    {
+      "file": "hand_003_long_fingers.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "혼합",
+      "foreshorten": false,
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "Elongated fingers with skeletal underdrawing — proportion is the teachable issue."
+    },
+    {
+      "file": "hand_004_foreshortened.png",
+      "track": "hand",
+      "clarity": "ambiguous",
+      "view": "불확실",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "foreshortening",
+        "proportion"
+      ],
+      "notes": "Hand pointing at viewer, strong foreshortening + crosshatch. View is genuinely hard to call — VLM view flips expected; acceptable to abstain on view but structure=입체."
+    },
+    {
+      "file": "hand_005_message_ratio.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "structure": "입체",
+      "foreshorten": false,
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "Palm-up at angle, intended for a ratio/proportion message. Should respond to proportion ask."
+    },
+    {
+      "file": "hand_006_foreshorten_palm.png",
+      "track": "hand",
+      "clarity": "ambiguous",
+      "view": "손바닥",
+      "structure": "혼합",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "foreshortening",
+        "proportion"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Open palm reaching toward viewer, MILD foreshortening (fingers ~normal), 5 fingers ok, flat color. Ambiguous = foreshortening subtle."
+    },
+    {
+      "file": "hand_007_foreshorten_angled.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "foreshortening",
+        "proportion"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Pencil sketch, hand+forearm angled, fingers receding into space — clear foreshortening, anatomy ok."
+    },
+    {
+      "file": "hand_008_foreshorten_down.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "foreshortening",
+        "proportion"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Pencil sketch, back of hand, fingers point down toward viewer, compressed/stubby — clear foreshortening."
+    },
+    {
+      "file": "hand_009_foreshorten_fist.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "structure": "입체",
+      "foreshorten": true,
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "foreshortening",
+        "proportion"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind-labeled). Pencil sketch, clenched fist, forearm receding, knuckles toward viewer — foreshortening, anatomy ok."
+    },
+    {
+      "file": "hand_010_longfinger.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "길다",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Middle finger clearly LONGER than palm, flat (not foreshortened), pencil. Tests finger-proportion observable (not yet built)."
+    },
+    {
+      "file": "hand_012_longfinger.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "길다",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Spread fingers longer than palm, pencil."
+    },
+    {
+      "file": "hand_014_normal.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "보통",
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "proportion"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Natural proportion, pencil. OVER-FIRE control — finger-proportion/foreshortening must stay silent."
+    },
+    {
+      "file": "hand_015_normal.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "보통",
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "proportion"
+      ],
+      "notes": "AI-gen(imagen-4.0, blind ratio-labeled). Natural proportion, pencil. Over-fire control."
+    },
+    {
+      "file": "hand_018_shortfinger.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "짧다",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Short stubby fingers on large palm, pencil. Replaced weak flat-color Imagen short (model diversity: ChatGPT makes short far better)."
+    },
+    {
+      "file": "hand_019_shortfinger.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "짧다",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Short fingers, large rounded palm, pencil."
+    },
+    {
+      "file": "hand_020_longfinger.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손등",
+      "foreshorten": false,
+      "finger_vs_palm": "길다",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "hand_structure"
+      ],
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Long slender elongated fingers, pencil. Replaced weak flat-color Imagen long."
+    },
+    {
+      "file": "hand_021_normal.png",
+      "track": "hand",
+      "clarity": "clear",
+      "view": "손바닥",
+      "foreshorten": false,
+      "finger_vs_palm": "보통",
+      "expected_primary": "hand_structure",
+      "acceptable": [
+        "hand_structure",
+        "proportion"
+      ],
+      "notes": "AI-gen(ChatGPT/DALL-E, blind ratio-labeled). Natural proportion, pencil. Over-fire control. Replaced weak flat-color Imagen normal."
+    },
+    {
+      "file": "edge_001_blank_canvas.png",
+      "track": "none",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain",
+        "refuse",
+        "no_subject"
+      ],
+      "notes": "Blank paper. MUST NOT confabulate an axis — expect refuse/clarify/no-subject."
+    },
+    {
+      "file": "edge_002_ambiguous_scribble.png",
+      "track": "none",
+      "clarity": "ambiguous",
+      "expected_primary": "clarify",
+      "acceptable": [
+        "clarify",
+        "abstain",
+        "no_subject"
+      ],
+      "notes": "Dense scribble, no readable subject. Expect clarify/abstain, not a confident axis."
+    },
+    {
+      "file": "edge_003_hand_with_face_message.png",
+      "track": "hand",
+      "clarity": "ambiguous",
+      "expected_primary": "routing_conflict",
+      "acceptable": [
+        "clarify",
+        "hand_structure",
+        "line_quality"
+      ],
+      "notes": "Image is a hand but message says face. Routing-conflict test: should either follow image (hand) or clarify, NOT hallucinate face feedback."
+    },
+    {
+      "file": "face_001_front_normal.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "facial_proportion",
+      "acceptable": [
+        "facial_proportion",
+        "proportion",
+        "value_structure",
+        "composition"
+      ],
+      "notes": "Front head/shoulders, pencil, light shading. facial_proportion(이목구비 배치/눈선) is the right face axis (blind label said 'proportion' generically before that axis existed)."
+    },
+    {
+      "file": "face_002_profile_side.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "facial_proportion",
+      "acceptable": [
+        "facial_proportion",
+        "line_quality",
+        "proportion"
+      ],
+      "notes": "Profile, pure outline. facial_proportion(눈선·이목구비) valid for a profile face; line/edge also defensible."
+    },
+    {
+      "file": "face_003_three_quarter.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "facial_proportion",
+      "acceptable": [
+        "facial_proportion",
+        "proportion",
+        "color",
+        "value_structure"
+      ],
+      "notes": "3/4 anime portrait, colored. facial_proportion(이목구비 배치) right face axis; color/value plausible since painted."
+    },
+    {
+      "file": "figure_001_standing_front_normal.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "anatomy",
+        "value_structure"
+      ],
+      "notes": "Full anatomical male, front, normal. Pose should extract cleanly. 'normal' control case — no severe single defect."
+    },
+    {
+      "file": "figure_002_short_legs.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion"
+      ],
+      "notes": "Manga full-body, legs short relative to torso. Proportion is the designed defect."
+    },
+    {
+      "file": "figure_003_unbalanced_pose.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "weight_balance",
+      "acceptable": [
+        "weight_balance",
+        "action_line",
+        "pose"
+      ],
+      "notes": "Young man leaning strongly off-axis. Balance/center-of-gravity is the teachable issue."
+    },
+    {
+      "file": "figure_004_walking_pose.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "action_line",
+      "acceptable": [
+        "action_line",
+        "weight_balance",
+        "pose"
+      ],
+      "notes": "Anatomical male mid-stride walking. Gesture/weight-shift is the focus."
+    },
+    {
+      "file": "figure_005_sd_chibi.png",
+      "track": "figure",
+      "clarity": "ambiguous",
+      "expected_primary": "style_intentional",
+      "acceptable": [
+        "abstain",
+        "proportion"
+      ],
+      "notes": "Chibi/SD — huge head, tiny body. The 'proportion defect' is a deliberate style. Flagging proportion here would be WRONG advice; ideal is to recognize stylization. Ambiguous by design."
+    },
+    {
+      "file": "figure_006_message_color.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "color",
+      "acceptable": [
+        "color",
+        "value_structure",
+        "composition"
+      ],
+      "notes": "Vibrant colored mage, dynamic. Designed for a color-focused message — should route to color when asked, not default to pose/proportion."
+    },
+    {
+      "file": "figure_007_realistic_anatomy.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "anatomy",
+        "value_structure"
+      ],
+      "notes": "AI-gen(imagen-4.0) coverage. Écorché full-body anatomy study, normal proportion, neutral symmetric stance — realistic control (no severe single defect). NOT balance/contrapposto."
+    },
+    {
+      "file": "figure_008_anime_male.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "value_structure",
+        "line_quality"
+      ],
+      "notes": "AI-gen(imagen-4.0) coverage. Neutral anime male full-body, even stance — anime-style routing control. NOT balance/contrapposto."
+    },
+    {
+      "file": "figure_009_casual_man.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "value_structure",
+        "color"
+      ],
+      "notes": "AI-gen(imagen-4.0) coverage. Casual cartoon older man full-body, relaxed neutral stance — casual-style auto-routing control. NOT balance/contrapposto."
+    },
+    {
+      "file": "figure_010_casual_youth.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "value_structure",
+        "color"
+      ],
+      "notes": "AI-gen(imagen-4.0) coverage. Casual cartoon youth full-body, even stance — casual-style control."
+    },
+    {
+      "file": "figure_011_normal_woman.png",
+      "track": "figure",
+      "clarity": "clear",
+      "expected_primary": "proportion",
+      "acceptable": [
+        "proportion",
+        "value_structure"
+      ],
+      "notes": "AI-gen(imagen-4.0) coverage. Realistic female full-body, normal proportion, neutral stance — realistic control (female). NOT balance/contrapposto."
+    },
+    {
+      "file": "figure_012_chibi.png",
+      "track": "figure",
+      "clarity": "ambiguous",
+      "expected_primary": "style_intentional",
+      "acceptable": [
+        "abstain",
+        "proportion"
+      ],
+      "notes": "AI-gen(imagen-4.0) coverage. Chibi full-body (big head, small body), neutral stance — deliberate deformed proportion is the style; flagging proportion would be WRONG advice (abstain ideal). Like figure_005, a chibi over-fire control. NOT balance/contrapposto."
+    },
+    {
+      "file": "landscape_001_normal.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "atmospheric_perspective",
+      "acceptable": [
+        "atmospheric_perspective",
+        "composition",
+        "value_structure"
+      ],
+      "notes": "Realistic oil mountains with good aerial perspective. Control case — strong depth."
+    },
+    {
+      "file": "landscape_002_flat_perspective.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "atmospheric_perspective",
+      "acceptable": [
+        "atmospheric_perspective",
+        "depth",
+        "value_structure"
+      ],
+      "notes": "Ink line landscape, uniform line weight, no aerial gradation -> flat depth is the designed defect."
+    },
+    {
+      "file": "landscape_003_still_life.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "routing_mismatch",
+      "acceptable": [
+        "composition",
+        "value_structure",
+        "form"
+      ],
+      "notes": "Filename says landscape but it's a still life (fruit bowl, bottle, cloth). Routing test: should treat as object/still-life, NOT force a landscape/perspective read."
+    },
+    {
+      "file": "color_clash_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "color_harmony",
+      "acceptable": [
+        "color_harmony"
+      ],
+      "notes": "Garish oversaturated clashing hues (magenta/blue/green/orange) — high-sat clash. AND-gate positive target (should fire)."
+    },
+    {
+      "file": "color_clash_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "color_harmony",
+      "acceptable": [
+        "color_harmony"
+      ],
+      "notes": "Saturated clashing drapery+fruit, no dominant color. High-sat clash."
+    },
+    {
+      "file": "color_clash_02.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "color_harmony",
+      "acceptable": [
+        "color_harmony"
+      ],
+      "notes": "Oversaturated loud palette (red/orange/blue), competing chroma."
+    },
+    {
+      "file": "color_muddy_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "color_harmony",
+      "acceptable": [
+        "color_harmony"
+      ],
+      "notes": "Muddy desaturated brown-gray, colors turned to mud. LOW-sat color problem — current AND-gate MISSES this (documents the gap)."
+    },
+    {
+      "file": "color_muddy_01.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "color_harmony",
+      "acceptable": [
+        "color_harmony",
+        "value_structure"
+      ],
+      "notes": "Muddy AND low-key dark — color/value confound. photoreal medium."
+    },
+    {
+      "file": "color_harmony_ctrl_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — harmonious limited terracotta/teal palette; color_harmony must NOT fire (over-fire test)."
+    },
+    {
+      "file": "color_harmony_ctrl_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — harmonious warm+blue accent; color OK. photoreal medium."
+    },
+    {
+      "file": "value_flat_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "value_structure",
+      "acceptable": [
+        "value_structure"
+      ],
+      "notes": "Grayscale, narrow mid-gray range, low contrast, flat tonal separation."
+    },
+    {
+      "file": "value_flat_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "value_structure",
+      "acceptable": [
+        "value_structure"
+      ],
+      "notes": "High-key flat grayscale, no strong darks."
+    },
+    {
+      "file": "value_flat2_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "value_structure",
+      "acceptable": [
+        "value_structure"
+      ],
+      "notes": "High-key light-gray still life, no darks, washed out."
+    },
+    {
+      "file": "value_flat2_02.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "value_structure",
+      "acceptable": [
+        "value_structure"
+      ],
+      "notes": "Moderate low-contrast gray-tan; flatness present but not extreme."
+    },
+    {
+      "file": "value_flat3_01.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "value_structure",
+      "acceptable": [
+        "value_structure"
+      ],
+      "notes": "Light pencil, moderate flatness."
+    },
+    {
+      "file": "value_strong_ctrl_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — strong darks/lights (black sphere+orange); value_structure must NOT fire. photoreal."
+    },
+    {
+      "file": "value_strong_ctrl_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — decent value range with light/shadow."
+    },
+    {
+      "file": "value_flat3_00.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain",
+        "value_structure"
+      ],
+      "notes": "Pencil drawing with normal contrast (intended flat but came out with darks) — value-OK control."
+    },
+    {
+      "file": "light_flat_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "notes": "Flat ambient lighting, no clear direction, minimal shadow, unmodeled forms."
+    },
+    {
+      "file": "light_flat_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "notes": "Flat even lighting, forms un-modeled."
+    },
+    {
+      "file": "light_conflict_00.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "notes": "Intended conflicting light but reads soft/even — conflict not clearly rendered."
+    },
+    {
+      "file": "light_conflict_01.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "notes": "Conflict did not render; brightly/evenly lit illustration."
+    },
+    {
+      "file": "light_clear_ctrl_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — single clear light upper-left, consistent shadows; light_direction must NOT fire."
+    },
+    {
+      "file": "light_clear_ctrl_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — coherent single-source lighting."
+    },
+    {
+      "file": "comp_center_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "composition_balance",
+      "acceptable": [
+        "composition_balance"
+      ],
+      "notes": "Subject (teapot) dead-center of frame; focus_centeredness target (should fire)."
+    },
+    {
+      "file": "comp_cramped_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "composition_balance",
+      "acceptable": [
+        "composition_balance"
+      ],
+      "notes": "Subject cut off in top corner, rest dead empty — unbalanced composition."
+    },
+    {
+      "file": "comp_ctrl3_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — off-center triangle, well-composed; composition must NOT fire. photoreal."
+    },
+    {
+      "file": "comp_ctrl3_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — balanced still-life arrangement."
+    },
+    {
+      "file": "comp_center_00.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "composition_balance",
+      "acceptable": [
+        "composition_balance"
+      ],
+      "notes": "Tree dead-center, symmetric bullseye composition."
+    },
+    {
+      "file": "comp_cramped_00.png",
+      "track": "landscape",
+      "clarity": "ambiguous",
+      "expected_primary": "composition_balance",
+      "acceptable": [
+        "composition_balance",
+        "abstain"
+      ],
+      "notes": "Parrot lower-left with large empty sky — unbalanced OR intentional minimalism."
+    },
+    {
+      "file": "comp_good_ctrl_00.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — canyon rule-of-thirds, balanced negative space; composition must NOT fire. Small hiker (low prominence)."
+    },
+    {
+      "file": "comp_ctrl2_00.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — lighthouse on left third, balanced sky/sea."
+    },
+    {
+      "file": "comp_ctrl2_01.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — lighthouse scene, reasonably composed."
+    },
+    {
+      "file": "comp_ctrl2_02.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "notes": "NEGATIVE CONTROL — lighthouse left, path, balanced."
+    },
+    {
+      "file": "value_draw_norm_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "drawing",
+      "notes": "연필 정물, 강한 명도폭(다크+화이트) — value 정상 control."
+    },
+    {
+      "file": "value_draw_norm_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "drawing",
+      "notes": "연필 정물, 풍부한 대비 — value 정상 control."
+    },
+    {
+      "file": "value_draw_prob_00.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "value_structure",
+      "acceptable": [
+        "value_structure"
+      ],
+      "medium": "drawing",
+      "notes": "연필 정물(흰종이), 좁은 high-key 명도폭·다크 없음 — 명암 문제."
+    },
+    {
+      "file": "value_draw_prob_02.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "value_structure",
+      "acceptable": [
+        "value_structure"
+      ],
+      "medium": "drawing",
+      "notes": "아주 옅은 연필, 좁은 명도폭 — 명암 문제."
+    },
+    {
+      "file": "light_draw_norm_00.png",
+      "track": "realistic_figure",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "drawing",
+      "notes": "연필 인체, 일관 광원+캐스트섀도(control)."
+    },
+    {
+      "file": "light_draw_norm_01.png",
+      "track": "realistic_figure",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "drawing",
+      "notes": "연필 인체, 일관 조명 control."
+    },
+    {
+      "file": "light_draw_prob_01.png",
+      "track": "realistic_figure",
+      "clarity": "clear",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "medium": "drawing",
+      "notes": "연필 인체, 평면 균등 음영·광원방향 없음 — 조명 문제."
+    },
+    {
+      "file": "light_draw_prob_02.png",
+      "track": "realistic_figure",
+      "clarity": "clear",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "medium": "drawing",
+      "notes": "평면 음영 인체, 광원논리 없음 — 조명 문제."
+    },
+    {
+      "file": "comp_draw_center_ok_00.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "drawing",
+      "notes": "★중앙이지만 정상: 강한 의도적 중앙 정면 초상 — composition 발화 금지(over-fire 검증)."
+    },
+    {
+      "file": "comp_draw_center_ok_01.png",
+      "track": "face",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "drawing",
+      "notes": "★중앙이지만 정상 초상 control(over-fire 검증)."
+    },
+    {
+      "file": "comp_draw_prob_00.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "composition_balance",
+      "acceptable": [
+        "composition_balance"
+      ],
+      "medium": "drawing",
+      "notes": "작은 깃털 하나가 빈 여백에 고립 — 존재감 약함(고립, dead-center 아님)."
+    },
+    {
+      "file": "comp_draw_prob_01.png",
+      "track": "still_life",
+      "clarity": "clear",
+      "expected_primary": "composition_balance",
+      "acceptable": [
+        "composition_balance"
+      ],
+      "medium": "drawing",
+      "notes": "작은 단추가 흰종이 정중앙·거대 여백 — bullseye 중앙고정."
+    },
+    {
+      "file": "comp_draw_prob_02.png",
+      "track": "still_life",
+      "clarity": "ambiguous",
+      "expected_primary": "composition_balance",
+      "acceptable": [
+        "composition_balance"
+      ],
+      "medium": "drawing",
+      "notes": "작은 달팽이껍질 고립·여백 — 고립형 구도."
+    },
+    {
+      "file": "comp_paint_center_ok_00.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "painted",
+      "notes": "★중앙이지만 정상: 마터호른 중앙+호수 대칭반영, 강한 의도적 중앙대칭 — composition 발화 금지."
+    },
+    {
+      "file": "comp_paint_center_ok_01.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "painted",
+      "notes": "★중앙이지만 정상 대칭 산 control."
+    },
+    {
+      "file": "light_scene_norm_00.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "painted",
+      "notes": "일관 석양광 풍경 control(scene light)."
+    },
+    {
+      "file": "light_scene_norm_01.png",
+      "track": "landscape",
+      "clarity": "clear",
+      "expected_primary": "abstain",
+      "acceptable": [
+        "abstain"
+      ],
+      "medium": "painted",
+      "notes": "일관 golden-hour 광 control."
+    },
+    {
+      "file": "light_scene_prob_00.png",
+      "track": "landscape",
+      "clarity": "ambiguous",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "medium": "painted",
+      "notes": "모순광 의도했으나 일반 주광으로 렌더 — 문제 불명확(3단계 scene-light 데이터, 약함)."
+    },
+    {
+      "file": "light_scene_prob_01.png",
+      "track": "landscape",
+      "clarity": "ambiguous",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "medium": "painted",
+      "notes": "impasto 풍경, 균등 밝음 — 모순광 미렌더."
+    },
+    {
+      "file": "light_scene_prob_02.png",
+      "track": "landscape",
+      "clarity": "ambiguous",
+      "expected_primary": "light_direction",
+      "acceptable": [
+        "light_direction"
+      ],
+      "medium": "painted",
+      "notes": "오로라+석양 이중광 — 모순광 같으나 의도적 극적 scene으로 읽힘."
+    }
+  ]
+}

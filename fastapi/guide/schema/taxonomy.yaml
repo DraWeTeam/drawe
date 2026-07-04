@@ -52,6 +52,15 @@
   reference_query: "hand structure planes box gesture reference"
   practice_prompt: "손을 먼저 벙어리장갑(손바닥 덩어리+엄지)으로 단순화해 방향만 잡고 손가락은 나중에."
 
+- id: facial_proportion
+  personas: [face]
+  auto: false
+  trigger: "주 대상이 얼굴/머리 초상 (VLM 관찰로 검출·관찰; mediapipe FaceLandmarker 는 드로잉·측면에 약함)"
+  what_to_observe: "이목구비를 따로 그리기 전에 머리를 하나의 덩어리(공+턱)로 보고, 눈높이가 머리끝~턱의 절반 부근인지, 좌우 눈·귀의 높이가 맞는지 먼저 잡으세요. 눈선이 인상의 절반을 좌우합니다."
+  default_effect: "눈높이를 머리 절반 부근에 두면 두개골 공간이 자연스럽게 확보되고, 눈을 너무 위로 올리면 이마가 좁고 어려 보이는 인상이 됩니다."
+  reference_query: "head proportions loomis eye line placement portrait reference"
+  practice_prompt: "머리를 공+턱으로 단순화하고 눈선·중심선을 먼저 그은 뒤 이목구비를 얹어보세요."
+
 - id: value_structure
   personas: [light, technique]
   auto: true
@@ -126,3 +135,24 @@
   default_effect: "지평선을 위나 아래 1/3 쯤에 두면 하늘 또는 땅 한쪽이 주연이 되어 화면에 의도가 생기고, 정중앙이면 둘이 비겨 밋밋해집니다."
   reference_query: "landscape horizon line placement rule of thirds sky ground"
   practice_prompt: "지평선을 화면 위 1/3과 아래 1/3 두 위치에 각각 두고 같은 장면을 비교해 인상 차이를 보기."
+
+# ── 진단 불가(벽) 축의 *교습 카드 전용* 항목 ──────────────────────────────────────────────
+# personas: [] + auto: false → 자동 진단에 절대 안 뜬다(스코어러 없음·persona 매칭 없음). 오직
+#   user_terms(intake 키워드)로만 표면 = 개념 교습 카드 경로(스코어보드 byte-identical). SCORERS 에도 없음.
+- id: contrapposto
+  personas: []
+  auto: false
+  trigger: "사용자가 콘트라포스토/역경사 언급 (진단 아님 — 개념 교습 카드 전용)"
+  what_to_observe: "무게를 한 발에 실었을 때 골반이 그쪽으로 올라가고 어깨가 반대로 기우는 역경사, 척추의 완만한 S 흐름을 보세요. 균형을 지키면서 주는 의도적 비대칭입니다."
+  default_effect: "역경사와 S 흐름이 살면 직립도 생기 있게 읽히고, 좌우가 평행하면 뻣뻣하게 굳어 보입니다."
+  reference_query: "contrapposto pose hip shoulder counter-tilt spine s-curve"
+  practice_prompt: "지지발을 정하고 그 위로 골반을 올린 뒤 어깨를 반대로 내려, 머리→지지발 수직선은 유지한 채 척추 S 흐름을 잡아보기."
+
+- id: body_shape
+  personas: []
+  auto: false
+  trigger: "사용자가 체형/실루엣 언급 (진단 미빌드 — 개념 교습 카드 전용, 중립)"
+  what_to_observe: "체형을 종류로 나누기보다 어깨너비·흉곽·허리·골반의 상대 폭과 팔다리 굵기가 어떻게 이어져 실루엣을 만드는지 보세요. 특정 체형의 우열은 없습니다."
+  default_effect: "실루엣 요소가 일관되게 이어지면 인물의 인상이 또렷해지고, 폭 관계가 흔들리면 같은 인물이 다르게 읽힙니다."
+  reference_query: "body silhouette shoulder ribcage waist hip proportion figure drawing"
+  practice_prompt: "어깨·흉곽·허리·골반의 폭을 상대 비율로 먼저 잡고 팔다리 굵기를 이어, 종류가 아니라 실루엣 흐름으로 그려보기."
