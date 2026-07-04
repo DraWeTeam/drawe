@@ -1,6 +1,6 @@
 /* 한 끗 가이드 입력 폼 — 시안 SCR-GUIDE-01(노드 208:23774) 픽셀 정합.
-   값(색·radius·간격·크기)만 시안 토큰으로 교체. 레이아웃 구조·마크업 미접촉.
-   폰트(Wanted Sans Variable)는 전역 미로드 → 시스템 폰트 유지(별도 트랙). */
+   값(색·radius·간격·크기)을 시안 토큰으로 교체. 폰트(Wanted Sans Variable)는 f300536에서
+   전역 로드됨 → 칩은 시안 원값(16/px16)으로 복원. 상태 라벨은 토글과 한 행(208:23767). */
 .overlay {
   position: fixed;
   inset: 0;
@@ -36,12 +36,13 @@
 }
 .closeBtn {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 48px;
   height: 48px;
   border: none;
   background: transparent;
-  font-size: 28px;
-  line-height: 1;
   color: var(--text-tertiary);
   cursor: pointer;
   border-radius: var(--radius-300);
@@ -64,34 +65,44 @@
   color: var(--text-tertiary);
 }
 .info {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
   color: var(--text-quaternary);
-  font-size: 14px;
   cursor: help;
 }
 
-/* 드롭존 */
+/* 드롭존 — Figma 208:23747: dashed 박스(text_field_s h190 = 라벨20+gap8+박스162).
+   빈 상태 박스 높이 162, flex 세로 중앙 gap16. min-height라 미리보기(최대 200)는 커진다. */
 .dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-400);
+  min-height: 162px;
+  box-sizing: border-box;
   border: 1px dashed var(--border-input-focus);
   border-radius: var(--radius-300);
   background: var(--bg-brand-weak);
-  padding: var(--space-1000) var(--space-400);
-  text-align: center;
+  padding: var(--space-400);
 }
 .dropzone.dragOver {
   background: #fff3e6;
   border-color: var(--border-input-focus);
 }
 .dropHint {
-  margin: 0 0 var(--space-400);
+  margin: 0;
   font-size: 14px;
   line-height: 22px;
   color: var(--text-secondary);
+  text-align: center;
 }
 .preview {
   display: block;
   max-width: 100%;
   max-height: 200px;
-  margin: 0 auto var(--space-400);
+  margin: 0;
   border-radius: var(--radius-200);
 }
 .pickBtn {
@@ -140,20 +151,23 @@
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-200);
   margin-top: var(--space-300);
 }
 .chip {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--border-strong);
   background: var(--bg-surface);
   color: var(--text-quaternary);
-  /* 시안 칩 = Wanted Sans 16px·px16(행 715<내부 740, 1행). 현행은 시스템 폰트라 한글 글리프가
-     넓어 5칩이 740 초과 → 줄바꿈. 폰트(별도 트랙) 미로드 상태에서 5칩 1행을 유지하도록 조임
-     (font 14·padding 12·gap 6). Wanted Sans 도입 시 16/16 으로 복원 가능. */
-  font-size: 14px;
+  /* 시안 칩(208:23753) = Wanted Sans 16/22·px16 py8·h44·gap8. Wanted Sans가 f300536에서
+     로드돼 시안 원값으로 복원(Wave1 폰트 미로드 임시조임 해제). */
+  font-size: 16px;
   font-weight: 500;
-  line-height: 20px;
-  padding: var(--space-200) var(--space-300);
+  line-height: 22px;
+  padding: var(--space-200) var(--space-400);
   border-radius: var(--radius-200);
   cursor: pointer;
   white-space: nowrap;
@@ -177,18 +191,34 @@
   box-sizing: border-box;
   border: 1px solid var(--border-input);
   border-radius: var(--radius-200);
-  padding: var(--space-300) var(--space-300) var(--space-300) var(--space-400);
+  padding: var(--space-300) 44px var(--space-300) var(--space-400);
   font-size: 16px;
   font-weight: 500;
   line-height: 22px;
   font-family: inherit;
   color: var(--text-tertiary);
-  background: var(--bg-surface);
+  /* down_md 아이콘(Figma 208:23766) — native 화살표 숨기고 시안 셰브론 표시 */
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a4846' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right var(--space-300) center;
   cursor: pointer;
 }
 .select:focus {
   outline: none;
   border-color: var(--border-input-focus);
+}
+
+/* 상태 행(Figma 208:23767) — 라벨과 토글이 한 행, gap 12 */
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+  margin-top: var(--space-600);
+}
+.statusLabel {
+  margin: 0;
 }
 
 /* 토글(작업중/완성작) */

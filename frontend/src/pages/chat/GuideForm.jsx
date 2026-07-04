@@ -22,6 +22,36 @@ const TRACKS = [
   { value: "landscape", label: "배경" },
 ];
 
+// 아이콘 — 프로젝트 관례(파일 내 인라인 SVG·currentColor)를 따름. Figma close_lg/info_sm/down_md 대응.
+const CloseIcon = () => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+  >
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
+const InfoIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.4"
+  >
+    <circle cx="8" cy="8" r="6.3" />
+    <path d="M8 7.4v3.4" strokeLinecap="round" />
+    <circle cx="8" cy="5" r="0.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const { projectId } = useParams();
   const inputRef = useRef(null);
@@ -186,7 +216,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
             onClick={onClose}
             aria-label="닫기"
           >
-            ×
+            <CloseIcon />
           </button>
         </header>
 
@@ -212,7 +242,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
               <img className={styles.preview} src={preview} alt="미리보기" />
             ) : (
               <p className={styles.dropHint}>
-                첨부할 파일 한 장을 여기다 끌어다 놓거나, 직접 선택해주세요.
+                첨부할 파일을 여기에 끌어다 놓거나, 직접 선택해주세요.
               </p>
             )}
             <input
@@ -238,12 +268,12 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
           {/* 걱정거리 */}
           <label className={styles.fieldLabel}>
-            어떤 점이 마음에 걸리나요? (필수){" "}
+            어떤 점이 마음에 걸리시나요? (필수){" "}
             <span
               className={styles.info}
               title="신경 쓰이는 부분을 적으면 그 부분 위주로 봐드려요."
             >
-              ⓘ
+              <InfoIcon />
             </span>
           </label>
           <textarea
@@ -271,7 +301,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
           </div>
 
           {/* 화풍 */}
-          <label className={styles.fieldLabel}>이 그림 화풍은</label>
+          <label className={styles.fieldLabel}>이 그림의 화풍은</label>
           <select
             className={styles.select}
             value={track}
@@ -285,29 +315,33 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
             ))}
           </select>
 
-          {/* 상태 */}
-          <label className={styles.fieldLabel}>이 그림의 상태는</label>
-          <div className={styles.toggle}>
-            <button
-              type="button"
-              className={`${styles.toggleBtn} ${
-                intent === "practice" ? styles.toggleOn : ""
-              }`}
-              onClick={() => setIntent("practice")}
-              disabled={submitting}
-            >
-              작업중
-            </button>
-            <button
-              type="button"
-              className={`${styles.toggleBtn} ${
-                intent === "finished" ? styles.toggleOn : ""
-              }`}
-              onClick={() => setIntent("finished")}
-              disabled={submitting}
-            >
-              완성작
-            </button>
+          {/* 상태 — Figma 208:23767: 라벨과 토글이 한 행 */}
+          <div className={styles.statusRow}>
+            <label className={`${styles.fieldLabel} ${styles.statusLabel}`}>
+              이 그림의 상태는
+            </label>
+            <div className={styles.toggle}>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${
+                  intent === "practice" ? styles.toggleOn : ""
+                }`}
+                onClick={() => setIntent("practice")}
+                disabled={submitting}
+              >
+                작업중
+              </button>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${
+                  intent === "finished" ? styles.toggleOn : ""
+                }`}
+                onClick={() => setIntent("finished")}
+                disabled={submitting}
+              >
+                완성작
+              </button>
+            </div>
           </div>
         </div>
 
