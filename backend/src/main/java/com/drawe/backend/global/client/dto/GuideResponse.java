@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.util.List;
+import java.util.Map;
 
 /**
  * FastAPI guide 서비스의 /guide 응답 계약(= Frontend ↔ Spring ↔ FastAPI 공유 형태).
@@ -28,7 +29,14 @@ public record GuideResponse(
     NextSteps nextSteps,
     Growth growth,
     String reason,
-    String nextStepsNote) {
+    String nextStepsNote,
+    // ④ 추천 레퍼런스 badge용 메타(ref_id → source_type/region/personas/category). fastapi 표시 전용, 순수 통과.
+    Map<String, ReferenceMeta> referenceMeta) {
+
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record ReferenceMeta(
+      String sourceType, String region, List<String> personas, String category) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
