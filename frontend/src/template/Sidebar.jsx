@@ -118,7 +118,9 @@ const Sidebar = () => {
 
   const isProjectActive = location.pathname.startsWith("/projects");
   const isArchiveActive =
-    location.pathname === "/archive" || location.pathname === "/gallery";
+    location.pathname === "/archive" ||
+    location.pathname === "/archive/references" ||
+    location.pathname === "/gallery";
 
   return (
     <>
@@ -238,7 +240,10 @@ const Sidebar = () => {
                 className={`${styles.menuItem} ${
                   !archiveOpen && isArchiveActive ? styles.active : ""
                 }`}
-                onClick={() => setArchiveOpen((o) => !o)}
+                onClick={() => {
+                  navigate("/archive"); // 아카이브 홈
+                  setArchiveOpen(true);
+                }}
               >
                 <span className={styles.menuIcon}>
                   <ArchiveIcon />
@@ -259,9 +264,11 @@ const Sidebar = () => {
                 aria-hidden={!archiveOpen}
               >
                 <Link
-                  to="/archive"
+                  to="/archive/references"
                   className={`${styles.submenuItem} ${
-                    location.pathname === "/archive" ? styles.active : ""
+                    location.pathname === "/archive/references"
+                      ? styles.active
+                      : ""
                   }`}
                   tabIndex={archiveOpen ? 0 : -1}
                 >
