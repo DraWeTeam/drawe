@@ -6,6 +6,7 @@ import com.drawe.backend.domain.llm.service.GrokService;
 import com.drawe.backend.domain.project.dto.KeywordClassification;
 import com.drawe.backend.domain.project.dto.KeywordExtractionResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,14 +31,11 @@ public class ProjectKeywordService {
 
   private static final String EXTRACT_PROMPT =
       """
-      너는 그림 창작 주제 문장에서 프로젝트 정보를 뽑는 추출기다.
-      입력 주제를 보고 JSON 객체만 반환하라:
-      - name: 주제를 간결한 프로젝트 이름으로(짧으면 거의 그대로, 최대 100자)
-      - keywords: 그림 레퍼런스 검색용 핵심 한국어 키워드 최대 %d개.
-        분위기 형용사·주제 명사·색감·구도 등, 자연스러운 한국어 형태("따뜻한","밝은","카페","여성").
-        "그려줘/찾아줘/만들어줘" 같은 요청 동사는 제외.
-      설명·코드펜스 없이 JSON 객체만.
-      예: {"name":"햇빛이 드는 카페의 창가에 앉아있는 여성","keywords":["따뜻한","햇빛","밝은","카페","여성"]}
+      너는 그림 창작 주제 문장에서 레퍼런스 검색 키워드를 뽑는 추출기다.
+      입력 주제에서 그림 레퍼런스 검색용 핵심 한국어 키워드를 최대 %d개 골라 JSON 문자열 배열로만 반환하라.
+      - 분위기 형용사·주제 명사·색감·구도 등, 자연스러운 한국어 형태("따뜻한","밝은","카페","여성")
+      - "그려줘/찾아줘/만들어줘" 같은 요청 동사는 제외
+      설명·코드펜스 없이 JSON 배열만. 예: ["따뜻한","햇빛","밝은","카페","여성"]
       """
           .formatted(MAX_KEYWORDS);
 
@@ -54,26 +52,24 @@ public class ProjectKeywordService {
   private final GrokService grokService;
   private final ObjectMapper objectMapper;
 
-  /** 주제 문장 → 프로젝트 이름 + 키워드. Grok 실패 시 이름=주제, 키워드=빈 리스트로 degrade. */
+  /** 주제 문장 → 키워드 추출. 프로젝트 이름은 사용자 입력(주제) 그대로 쓰고, 키워드만 Grok. Grok 실패 시 키워드 빈 리스트로 degrade. */
   public KeywordExtractionResponse extract(String topic) {
+    return new KeywordExtractionResponse(truncate(topic, 100), extractKeywords(topic));
+  }
+
+  private List<String> extractKeywords(String topic) {
     try {
-      KeywordExtractionResponse parsed =
-          objectMapper.readValue(
-              extractJsonObject(call(EXTRACT_PROMPT, topic)), KeywordExtractionResponse.class);
-      String name = (parsed.name() == null || parsed.name().isBlank()) ? topic : parsed.name();
-      List<String> keywords =
-          parsed.keywords() == null
-              ? List.of()
-              : parsed.keywords().stream()
-                  .filter(k -> k != null && !k.isBlank())
-                  .map(String::trim)
-                  .distinct()
-                  .limit(MAX_KEYWORDS)
-                  .toList();
-      return new KeywordExtractionResponse(truncate(name, 100), keywords);
+      String[] arr =
+          objectMapper.readValue(extractJsonArray(call(EXTRACT_PROMPT, topic)), String[].class);
+      return Arrays.stream(arr)
+          .filter(k -> k != null && !k.isBlank())
+          .map(String::trim)
+          .distinct()
+          .limit(MAX_KEYWORDS)
+          .toList();
     } catch (Exception e) {
-      log.warn("주제 키워드 추출 실패 — degrade: error_class={}", e.getClass().getSimpleName());
-      return new KeywordExtractionResponse(truncate(topic, 100), List.of());
+      log.warn("주제 키워드 추출 실패 — 빈 키워드로 degrade: error_class={}", e.getClass().getSimpleName());
+      return List.of();
     }
   }
 
@@ -108,6 +104,16 @@ public class ProjectKeywordService {
             null,
             null);
     return grokService.generate(ctx).content();
+  }
+
+  /** 코드펜스/설명이 섞여도 첫 '[' ~ 마지막 ']' 구간만 잘라 JSON 배열로 시도. */
+  private static String extractJsonArray(String content) {
+    if (content == null) {
+      return "[]";
+    }
+    int s = content.indexOf('[');
+    int e = content.lastIndexOf(']');
+    return (s >= 0 && e > s) ? content.substring(s, e + 1) : content;
   }
 
   /** 코드펜스/설명이 섞여도 첫 '{' ~ 마지막 '}' 구간만 잘라 JSON 객체로 시도. */

@@ -36,15 +36,13 @@ class ProjectKeywordServiceTest {
   }
 
   @Test
-  @DisplayName("추출: 주제 → 이름 + 키워드 파싱")
-  void extract_parsesNameAndKeywords() {
-    when(grokService.generate(any()))
-        .thenReturn(
-            grokReturns("{\"name\":\"햇빛이 드는 카페\",\"keywords\":[\"따뜻한\",\"햇빛\",\"카페\",\"여성\"]}"));
+  @DisplayName("추출: 이름은 주제 입력 그대로, 키워드만 Grok으로 추출")
+  void extract_nameIsTopic_keywordsFromGrok() {
+    when(grokService.generate(any())).thenReturn(grokReturns("[\"따뜻한\",\"햇빛\",\"카페\",\"여성\"]"));
 
     KeywordExtractionResponse res = service.extract("햇빛이 드는 카페의 창가에 앉아있는 여성");
 
-    assertThat(res.name()).isEqualTo("햇빛이 드는 카페");
+    assertThat(res.name()).isEqualTo("햇빛이 드는 카페의 창가에 앉아있는 여성"); // 입력 그대로
     assertThat(res.keywords()).containsExactly("따뜻한", "햇빛", "카페", "여성");
   }
 
