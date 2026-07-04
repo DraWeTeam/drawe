@@ -351,8 +351,21 @@ const ChatPage = () => {
           }));
         } catch (err) {
           if (err.response?.status === 404) {
+            // stale 세션(대화 초기화·세션 정리로 삭제됨) — localStorage 를 비우고 서버의 최신
+            //   세션으로 재해결한다. 폴백 없이 null 만 두면, DB 에 유효 세션·메시지가 있어도
+            //   initSession 이 재실행되지 않아(deps [projectId]) 채팅이 복원되지 않는다.
             localStorage.removeItem(sessionKey(projectId));
-            setSessionId(null);
+            try {
+              const latest = await getLatestSession(projectId);
+              if (latest?.sessionId && latest.sessionId !== sessionId) {
+                localStorage.setItem(sessionKey(projectId), latest.sessionId);
+                setSessionId(latest.sessionId); // → fetchAll 재실행 → 유효 세션 복원
+              } else {
+                setSessionId(null);
+              }
+            } catch {
+              setSessionId(null);
+            }
           }
         }
       }
