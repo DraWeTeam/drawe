@@ -1054,7 +1054,7 @@ const ChatPage = () => {
                           >
                             <span className={styles.guideCardThumb}>
                               {m.guidePreview ? (
-                                <img
+                                <AuthedImage
                                   className={styles.guideCardThumbImg}
                                   src={m.guidePreview}
                                   alt=""
