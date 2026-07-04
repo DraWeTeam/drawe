@@ -123,6 +123,7 @@ const BoardGuideChat = ({
               guidePreview: g.uploadUrl ?? null,
               guideFeedback: null,
               createdAt: g.createdAt ?? null,
+              requestText: g.requestText ?? null, // ① 상세 §2 사용자 버블
             };
             const text = g.requestText?.trim();
             if (!text) return [card];
@@ -157,7 +158,11 @@ const BoardGuideChat = ({
   }, [projectId, sessionId, reloadSignal]);
 
   const openGuideFromCard = (m) => {
-    setGuideResult({ guide: m.guide, references: m.references });
+    setGuideResult({
+      guide: m.guide,
+      references: m.references,
+      requestText: m.requestText, // ① 상세 §2 사용자 버블
+    });
     setGuidePreview(m.guidePreview || null);
     setGuideOpen(true);
   };

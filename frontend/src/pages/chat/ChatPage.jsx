@@ -166,6 +166,7 @@ const ChatPage = () => {
                 guideTitle: axisLabel(result?.guide?.primary_focus) || "한 끗",
                 guidePreview: result?.uploadUrl || previewUrl || null,
                 guideFeedback: null,
+                requestText: message, // ① 상세 §2 사용자 버블용
               }
             : m,
         ),
@@ -192,7 +193,11 @@ const ChatPage = () => {
 
   // 채팅의 가이드 카드 클릭 → 전체 가이드 모달 열기(카드에 담아둔 결과 사용)
   const openGuideFromCard = (m) => {
-    setGuideResult({ guide: m.guide, references: m.references });
+    setGuideResult({
+      guide: m.guide,
+      references: m.references,
+      requestText: m.requestText, // ① 상세 §2 사용자 버블
+    });
     setGuidePreview(m.guidePreview || null);
     setGuideError("");
     setGuideOpen(true);
@@ -388,6 +393,7 @@ const ChatPage = () => {
               guidePreview: g.uploadUrl ?? null,
               guideFeedback: null,
               createdAt: g.createdAt ?? null,
+              requestText: g.requestText ?? null, // ① 상세 §2 사용자 버블
             };
             const text = g.requestText?.trim();
             if (!text) return [card];
