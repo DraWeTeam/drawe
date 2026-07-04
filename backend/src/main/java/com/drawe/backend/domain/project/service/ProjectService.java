@@ -9,6 +9,7 @@ import com.drawe.backend.domain.llm.repository.ChatSessionRepository;
 import com.drawe.backend.domain.llm.repository.LlmMessageRepository;
 import com.drawe.backend.domain.log.SearchLogRepository;
 import com.drawe.backend.domain.project.dto.CreateProjectRequest;
+import com.drawe.backend.domain.project.dto.KeywordClassification;
 import com.drawe.backend.domain.project.dto.ProjectDetailResponse;
 import com.drawe.backend.domain.project.dto.ProjectListItem;
 import com.drawe.backend.domain.project.dto.ProjectListResponse;
@@ -17,6 +18,7 @@ import com.drawe.backend.domain.project.repository.ProjectReferenceRepository;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -32,15 +34,21 @@ public class ProjectService {
   private final ChatSessionRepository chatSessionRepository;
   private final LlmMessageRepository llmMessageRepository;
   private final SearchLogRepository searchLogRepository;
+  private final ProjectKeywordService projectKeywordService;
 
   @Transactional
   public ProjectDetailResponse create(User user, CreateProjectRequest request) {
+    List<String> keywords = request.keywords() == null ? List.of() : request.keywords();
+    // 백그라운드 분류 — 키워드에서 subject(필수)/mood/technique 를 뽑아 채운다(downstream: AI 색인·전역검색·어드민 유지).
+    KeywordClassification cls = projectKeywordService.classify(keywords);
+
     Project project = new Project();
     project.setUser(user);
     project.setName(request.name());
-    project.setSubject(request.subject());
-    project.setTechnique(request.technique());
-    project.setMood(request.mood());
+    project.setKeywords(new ArrayList<>(keywords));
+    project.setSubject(cls.subject());
+    project.setTechnique(cls.technique());
+    project.setMood(cls.mood());
     project.setDescription(request.description());
     project.setStatus(ProjectStatus.IN_PROGRESS);
     Project saved = projectRepository.save(project);
