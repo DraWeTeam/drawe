@@ -25,6 +25,7 @@ import {
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import GuideForm from "./GuideForm";
+import GuideCollectionPanel from "./GuideCollectionPanel";
 import { GuideContent } from "./GuideModal";
 import { axisLabel } from "./guideLabels";
 import { downloadGuidePdf } from "./guidePdf";
@@ -63,6 +64,8 @@ const ChatPage = () => {
 
   const [project, setProject] = useState(null);
   const [messages, setMessages] = useState([]);
+  // 가이드 모아보기 오버레이 — getGuides 결과(복원된 guide 메시지) 재사용, 새 fetch 없음.
+  const [guideListOpen, setGuideListOpen] = useState(false);
   const [sessionId, setSessionId] = useState(null);
 
   const [input, setInput] = useState("");
@@ -833,6 +836,10 @@ const ChatPage = () => {
   const goToRefFull = () => setMode("refFull");
   const goToSplit = () => setMode("split");
 
+  // 모아보기용 가이드 목록 = 복원/생성된 guide 카드 메시지. 1건+ 있을 때만 진입 아이콘 노출.
+  const guideMessages = messages.filter((m) => m.type === "guide");
+  const hasGuides = guideMessages.length > 0;
+
   return (
     <div className={styles.layout}>
       {/* 페이지 헤더 — 상단 전체 */}
@@ -848,6 +855,21 @@ const ChatPage = () => {
           </button>
         </Tooltip>
         <h1 className={styles.pageTitle}>{project?.name ?? "..."}</h1>
+        {hasGuides && (
+          <Tooltip label="가이드 모아보기" placement="bottom">
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${
+                guideListOpen ? styles.iconBtnActive : ""
+              }`}
+              onClick={() => setGuideListOpen((o) => !o)}
+              aria-label="가이드 모아보기"
+              aria-pressed={guideListOpen}
+            >
+              <GuideCollectionIcon />
+            </button>
+          </Tooltip>
+        )}
         <Tooltip label="대화 초기화" placement="bottom">
           <button
             type="button"
@@ -1261,6 +1283,18 @@ const ChatPage = () => {
               </div>
             </form>
           </div>
+
+          {/* 가이드 모아보기 — 채팅 위 오버레이(뒤 채팅 유지) */}
+          {guideListOpen && hasGuides && (
+            <GuideCollectionPanel
+              guides={guideMessages}
+              onClose={() => setGuideListOpen(false)}
+              onCardClick={(g) => {
+                setGuideListOpen(false);
+                openGuideFromCard(g);
+              }}
+            />
+          )}
         </section>
       </div>
 
@@ -1355,6 +1389,23 @@ const BackIcon = () => (
       d="M10 20L0 10L10 0L11.775 1.775L3.55 10L11.775 18.225L10 20Z"
       fill="#4A4846"
     />
+  </svg>
+);
+
+// 가이드 모아보기 진입 — 겹친 카드(컬렉션) 글리프
+const GuideCollectionIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="7" width="14" height="14" rx="2" />
+    <path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
   </svg>
 );
 

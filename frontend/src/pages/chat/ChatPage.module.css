@@ -61,6 +61,7 @@
   min-width: 0;
   height: 100%;
   overflow: hidden;
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
@@ -116,6 +117,11 @@
 
 .iconBtn:hover:not(:disabled) {
   background: #f5f5f5;
+}
+
+.iconBtnActive {
+  background: #f0eeec;
+  color: var(--text-tertiary);
 }
 
 .iconBtn:disabled {
