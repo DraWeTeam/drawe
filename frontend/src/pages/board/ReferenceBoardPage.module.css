@@ -1,0 +1,205 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ===== 헤더 ===== */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 32px 16px 48px;
+  flex-shrink: 0;
+  height: 96px;
+  box-sizing: border-box;
+  background: #fefeff;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f0f0f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.iconBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.iconBtn:hover {
+  background: #f5f5f5;
+}
+
+/* ===== 헤더 ⋮ 메뉴 ===== */
+.menuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menuPopup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 160px;
+  z-index: 40;
+  animation: menu-pop 0.15s ease;
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #24221f;
+  font-family: inherit;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.menuItem:hover {
+  background: #f5f5f5;
+}
+
+.menuItemDanger {
+  color: #dd3a2e;
+}
+
+.menuItemDanger:hover {
+  background: #fef2f2;
+}
+
+/* ===== 본문 좌/우 분할 ===== */
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.leftPanel {
+  flex: 1 1 50%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #fefeff;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #edebea;
+  transition:
+    flex-basis 0.35s ease,
+    flex-grow 0.35s ease;
+}
+
+.rightPanel {
+  flex: 1 1 50%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fefeff;
+  transition:
+    flex-basis 0.35s ease,
+    flex-grow 0.35s ease,
+    opacity 0.25s ease;
+}
+
+/* 우측 접힘 — 보드가 전체폭 */
+.panelHidden {
+  flex-basis: 0;
+  flex-grow: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+@media (max-width: 900px) {
+  .body {
+    flex-direction: column;
+  }
+  .leftPanel {
+    border-right: none;
+    border-bottom: 1px solid #edebea;
+  }
+}
+
+/* ===== FAB (보드 전체보기 상태) ===== */
+.fabTip {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 100;
+  opacity: 0;
+  transform: translateY(20px) scale(0.9);
+  pointer-events: none;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.25s ease;
+}
+
+.fabTipVisible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.fab {
+  width: 80px;
+  height: 80px;
+  background: transparent;
+  padding: 0;
+  border-radius: 25px;
+  border: none;
+  cursor: pointer;
+  display: block;
+  transition: box-shadow 0.15s ease;
+}
+
+.fab:hover {
+  box-shadow: 0 5px 24px rgba(250, 154, 90, 0.4);
+}
+
+.fabIcon {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}

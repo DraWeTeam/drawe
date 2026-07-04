@@ -1,0 +1,106 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  animation: fade-in 0.15s ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  animation: pop-in 0.18s ease;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.iconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff1e6 0%, #ffe0c7 100%);
+  color: #ff8534;
+}
+
+.title {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #24221f;
+}
+
+.desc {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+  color: #6f6b66;
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.laterBtn,
+.generateBtn {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.laterBtn {
+  background: #f3f1ee;
+  color: #4a4846;
+}
+
+.laterBtn:hover {
+  background: #e9e6e2;
+}
+
+.generateBtn {
+  background: #ff8534;
+  color: #fff;
+}
+
+.generateBtn:hover {
+  background: #ff7a25;
+}
