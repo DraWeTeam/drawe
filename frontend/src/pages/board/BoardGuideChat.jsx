@@ -13,7 +13,6 @@ import GuideCollectionPanel from "../chat/GuideCollectionPanel";
 // ★ChatPage.module.css 를 read-only 로 재사용 — ChatPage 파일은 미접촉(0 diff)이고 결과카드·버블
 //   스타일 값이 /chat 과 문자 동일(Fidelity 무손실). 신규 board 클래스는 board 모듈에서 얹는다.
 import styles from "../chat/ChatPage.module.css";
-import board from "./BoardGuideChat.module.css";
 import logo from "../../assets/drawe_logo.png";
 
 // ★sessionKey 는 ChatPage 와 동일 상수 — /chat↔/board 가 같은 세션을 공유해 대화가 이어진다.
@@ -23,18 +22,29 @@ const sessionKey = (projectId) => `chat_session_${projectId}`;
 //   ChatPage 를 가르지 않고 standalone 부품을 조립. 복원 로직은 ChatPage 의 a2fe4b0 폴백 패턴을
 //   동일하게 구현(stale localStorage → getHistory 404 → getLatestSession 재해결).
 //   ★상세는 /chat 의 '좌측 오버레이' 대신 GuideModal 팝업 — /board 좌측은 그쪽 보드라 덮기 금지.
-const BoardGuideChat = ({ projectId, reloadSignal = 0, onCount }) => {
+const BoardGuideChat = ({
+  projectId,
+  reloadSignal = 0,
+  onCount,
+  collectionOpen = false,
+  onCollectionChange,
+  onGuidesCount,
+}) => {
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideResult, setGuideResult] = useState(null);
   const [guidePreview, setGuidePreview] = useState(null);
-  const [listOpen, setListOpen] = useState(false);
 
-  // 부모(GeneratePromptPanel)가 인트로/스트림을 토글할 수 있게 메시지 수를 올려준다.
+  // 부모(ReferenceBoardPage/GeneratePromptPanel)가 인트로 토글·헤더 모아보기 게이팅을 하도록
+  //   메시지 수와 가이드 수를 올려준다. 모아보기 오버레이는 부모가 collectionOpen 으로 제어.
   useEffect(() => {
     if (onCount) onCount(messages.length);
   }, [messages.length, onCount]);
+  useEffect(() => {
+    if (onGuidesCount)
+      onGuidesCount(messages.filter((m) => m.type === "guide").length);
+  }, [messages, onGuidesCount]);
 
   // 세션 초기화 — localStorage 우선, 없으면 서버 최신 세션(ChatPage initSession 동일).
   useEffect(() => {
@@ -171,26 +181,9 @@ const BoardGuideChat = ({ projectId, reloadSignal = 0, onCount }) => {
   };
 
   const guides = messages.filter((m) => m.type === "guide");
-  // 모아보기 게이팅 — 가이드 1회 이상일 때만 진입(Figma 헤더 아이콘 정본과 동일 조건).
-  const canCollect = guides.length > 0;
 
   return (
     <>
-      {/* 모아보기 진입 — 가이드 1회+ 게이팅. Figma 헤더 우상단 아이콘(66:26453)에 대응. */}
-      {canCollect && (
-        <div className={board.collectRow}>
-          <button
-            type="button"
-            className={board.collectBtn}
-            onClick={() => setListOpen(true)}
-            aria-label="가이드 모아보기"
-          >
-            <CollectionIcon />
-            <span>모아보기</span>
-          </button>
-        </div>
-      )}
-
       {/* 메시지 스트림 — 버블 + 인라인 결과카드(Figma 0:56) */}
       {messages.map((m, idx) => {
         if (m.type === "guide") {
@@ -318,13 +311,13 @@ const BoardGuideChat = ({ projectId, reloadSignal = 0, onCount }) => {
         />
       )}
 
-      {/* 모아보기 오버레이 — getGuides 결과 재사용(새 fetch 없음) */}
-      {listOpen && (
+      {/* 모아보기 오버레이 — getGuides 결과 재사용(새 fetch 없음). 진입은 board 헤더 아이콘. */}
+      {collectionOpen && (
         <GuideCollectionPanel
           guides={guides}
-          onClose={() => setListOpen(false)}
+          onClose={() => onCollectionChange?.(false)}
           onCardClick={(g) => {
-            setListOpen(false);
+            onCollectionChange?.(false);
             openGuideFromCard(g);
           }}
         />
@@ -333,23 +326,6 @@ const BoardGuideChat = ({ projectId, reloadSignal = 0, onCount }) => {
   );
 };
 
-const CollectionIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="18"
-    height="18"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-  </svg>
-);
 const ImgPlaceholderIcon = () => (
   <svg
     viewBox="0 0 24 24"

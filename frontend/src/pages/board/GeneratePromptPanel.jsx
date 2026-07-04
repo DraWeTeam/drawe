@@ -49,6 +49,9 @@ const GeneratePromptPanel = ({
   onExpand,
   onSplit,
   onCollapse,
+  collectionOpen = false,
+  onCollectionChange,
+  onGuidesCount,
 }) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef(null);
@@ -269,6 +272,9 @@ const GeneratePromptPanel = ({
           projectId={projectId}
           reloadSignal={chatReload}
           onCount={setChatCount}
+          collectionOpen={collectionOpen}
+          onCollectionChange={onCollectionChange}
+          onGuidesCount={onGuidesCount}
         />
       </div>
 

@@ -27,6 +27,10 @@ const ReferenceBoardPage = () => {
   const [promptMode, setPromptMode] = useState(null); // 첫 화면: 토글 둘 다 미선택
   const [mode, setMode] = useState("split");
 
+  // 가이드 모아보기 — 헤더 아이콘(가이드 1회+ 게이팅) → BoardGuideChat 오버레이 제어(Figma 66:26453).
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [guidesCount, setGuidesCount] = useState(0);
+
   // 헤더 ⋮ 메뉴(프로젝트 수정/삭제)
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -101,6 +105,20 @@ const ReferenceBoardPage = () => {
         </Tooltip>
         <h1 className={styles.title}>{project?.name ?? "..."}</h1>
 
+        {/* 가이드 모아보기 — 가이드 1회+ 일 때 노출(Figma 헤더 우상단 66:26453). */}
+        {guidesCount > 0 && (
+          <Tooltip label="가이드 모아보기" placement="bottom">
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={() => setCollectionOpen(true)}
+              aria-label="가이드 모아보기"
+            >
+              <CollectionIcon />
+            </button>
+          </Tooltip>
+        )}
+
         <div className={styles.menuWrap} ref={menuRef}>
           <Tooltip label="더보기" placement="bottom">
             <button
@@ -170,6 +188,9 @@ const ReferenceBoardPage = () => {
             onExpand={() => setMode("genFull")}
             onSplit={() => setMode("split")}
             onCollapse={() => setMode("boardFull")}
+            collectionOpen={collectionOpen}
+            onCollectionChange={setCollectionOpen}
+            onGuidesCount={setGuidesCount}
           />
         </section>
       </div>
@@ -223,6 +244,24 @@ const BackIcon = () => (
       d="M10 20L0 10L10 0L11.775 1.775L3.55 10L11.775 18.225L10 20Z"
       fill="#4A4846"
     />
+  </svg>
+);
+
+const CollectionIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="#4A4846"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
   </svg>
 );
 
