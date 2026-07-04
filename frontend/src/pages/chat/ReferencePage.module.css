@@ -100,6 +100,14 @@
   background: var(--bg-subtle);
 }
 
+/* 이미지 로드 실패 폴백 */
+.imageError {
+  align-self: center;
+  padding: 40px 24px;
+  color: #9a9186;
+  font-size: 14px;
+}
+
 /* 우측: 정보 패널 */
 .infoPanel {
   width: 442px;

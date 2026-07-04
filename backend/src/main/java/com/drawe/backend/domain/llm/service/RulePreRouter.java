@@ -145,6 +145,23 @@ public class RulePreRouter {
       return Decision.hit("generate_verb", ExtractionResult.generateNow(trimmed));
     }
 
+    // 우선순위 1.5 (SCRUM-112): 명확한 "[N]번/고정 N번 + 유사" → 룰로 끝낸다(Grok 콜 절약). 핀 먼저.
+    // 모호한 표현은 여기서 MISS → 아래 Grok(KeywordExtractor)가 REFERENCE_SIMILAR/PIN_SIMILAR 로 분류(robust).
+    if (isPinSimilar(trimmed)) {
+      Integer n = extractPinIndex(trimmed);
+      if (n != null) {
+        log.info("룰 매치: PIN_SIMILAR (rule=pin_similar, n={})", n);
+        return Decision.hit("pin_similar", ExtractionResult.pinSimilar(n));
+      }
+    }
+    if (isReferenceSimilar(trimmed)) {
+      Integer n = extractReferenceIndex(trimmed);
+      if (n != null) {
+        log.info("룰 매치: REFERENCE_SIMILAR (rule=reference_similar, n={})", n);
+        return Decision.hit("reference_similar", ExtractionResult.referenceSimilar(n));
+      }
+    }
+
     // 우선순위 2: 짧은 단독 인사·감사 → SKIP.
     if (trimmed.length() <= SKIP_MAX_LENGTH && THANKS_GREETING.matcher(trimmed).find()) {
       log.info("룰 매치: SKIP (rule=thanks_greeting)");
@@ -153,6 +170,85 @@ public class RulePreRouter {
 
     // 그 외 전부 MISS → 기존 Grok 풀 분류 (NEW_SEARCH/KEEP/앵커/미술의도 등).
     return Decision.miss();
+  }
+
+  // ── 레퍼런스 유사검색 (SCRUM-112) ──────────────────────
+  // "[N]번이랑 유사한 사진 보여줘" — 직전 레퍼런스 [N] 과 시각적으로 비슷한 이미지를 요청.
+  // 유사 의도 + 레퍼런스 번호 지칭이 동시에 있어야 발화. 핀("고정 N번"/"핀 N번")은 별도 맥락이라 제외.
+  private static final Pattern SIMILAR_INTENT =
+      Pattern.compile(
+          "유사|비슷|닮(은|네)|처럼"
+              + "|같은\\s*(느낌|거|것|스타일|분위기|톤|그림|사진|이미지|색감|색)"
+              + "|이런\\s*(느낌|거|스타일|그림|사진|이미지)"
+              + "|similar|like\\s+this",
+          Pattern.CASE_INSENSITIVE);
+
+  /** 핀 지칭 — 레퍼런스 번호 탐색 전 제거(레퍼런스가 아니라 보드 고정). */
+  private static final Pattern PIN_REF = Pattern.compile("(고정|핀)\\s*\\d+\\s*번?");
+
+  /** 핀 앵커 — "고정 N번"/"핀 N번" 의 N 추출(group 1). */
+  private static final Pattern PIN_ANCHOR = Pattern.compile("(?:고정|핀)\\s*(\\d+)\\s*번?");
+
+  /** 레퍼런스 번호 지칭: "[3]번", "3번", "3번 이미지", "레퍼런스 2". group(1) 또는 group(2) 가 숫자. */
+  private static final Pattern REF_ANCHOR =
+      Pattern.compile("(?:\\[)?(\\d+)(?:\\])?\\s*번|레퍼런스\\s*(\\d+)");
+
+  /**
+   * 메시지가 "[N]번과 유사한 이미지" 요청인지 (SCRUM-112 REFERENCE_SIMILAR 후보). 결정론적·LLM 콜 0.
+   *
+   * <p>유사 의도 + 레퍼런스 번호 지칭이 모두 있어야 true. 핀 지칭만 있으면 false. 호출 측({@code ChatLlmService})이 명시적 생성
+   * (GENERATE_NOW) 분기 뒤에 이 신호를 확인해 전용 핸들러로 보낸다. 신호가 약하면 false → 기존 검색 경로로 흘린다(회귀 없음).
+   */
+  public boolean isReferenceSimilar(String userMessage) {
+    if (userMessage == null || userMessage.isBlank()) {
+      return false;
+    }
+    return SIMILAR_INTENT.matcher(userMessage).find() && extractReferenceIndex(userMessage) != null;
+  }
+
+  /**
+   * 메시지가 "고정 N번과 유사한 이미지" 요청인지 (SCRUM-112 PIN_SIMILAR 후보). 유사 의도 + 핀 지칭("고정/핀 N번")이 모두 있어야 true.
+   * 레퍼런스("[N]번")와 달리 앵커를 보드 핀(DB)에서 찾는다.
+   */
+  public boolean isPinSimilar(String userMessage) {
+    if (userMessage == null || userMessage.isBlank()) {
+      return false;
+    }
+    return SIMILAR_INTENT.matcher(userMessage).find() && extractPinIndex(userMessage) != null;
+  }
+
+  /** 메시지에서 핀 번호 N 추출("고정 N번"/"핀 N번", 1-based). 없으면 {@code null}. */
+  public Integer extractPinIndex(String userMessage) {
+    if (userMessage == null || userMessage.isBlank()) {
+      return null;
+    }
+    java.util.regex.Matcher m = PIN_ANCHOR.matcher(userMessage);
+    if (m.find()) {
+      try {
+        return Integer.parseInt(m.group(1));
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /** 메시지에서 레퍼런스 번호 N 을 추출(1-based, 사용자 표시 [N]). 핀 지칭은 먼저 제거해 레퍼런스만 본다. 없으면 {@code null}. */
+  public Integer extractReferenceIndex(String userMessage) {
+    if (userMessage == null || userMessage.isBlank()) {
+      return null;
+    }
+    String withoutPins = PIN_REF.matcher(userMessage).replaceAll(" ");
+    java.util.regex.Matcher m = REF_ANCHOR.matcher(withoutPins);
+    if (m.find()) {
+      String n = m.group(1) != null ? m.group(1) : m.group(2);
+      try {
+        return Integer.parseInt(n);
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   /**

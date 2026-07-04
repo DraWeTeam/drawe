@@ -63,9 +63,33 @@ public class User {
   @Column(name = "terms_agreed_at")
   private Instant termsAgreeAt; // 약관 동의 시각
 
+  // 회원탈퇴 시각. null = 활성. soft delete — 탈퇴해도 자식 데이터(프로젝트/이미지 등)는 보존하고
+  // 로그인/조회에서만 제외한다. 추후 hard delete 배치로 실제 삭제 가능.
+  @Column(name = "deleted_at")
+  private Instant deletedAt;
+
   public void updateProfile(String nickname, String picture) {
     this.nickname = nickname;
     this.picture = picture;
+  }
+
+  /** 닉네임만 변경(프로필 사진은 유지). */
+  public void updateNickname(String nickname) {
+    this.nickname = nickname;
+  }
+
+  /** 비밀번호 변경(이미 인코딩된 값을 받는다). */
+  public void changePassword(String encodedPassword) {
+    this.password = encodedPassword;
+  }
+
+  /** 회원탈퇴(soft delete) — 탈퇴 시각을 찍는다. 이미 탈퇴 상태면 호출 측에서 막는다. */
+  public void withdraw() {
+    this.deletedAt = Instant.now();
+  }
+
+  public boolean isWithdrawn() {
+    return this.deletedAt != null;
   }
 
   public void updateOAuthInfo(String provider, String providerId) {

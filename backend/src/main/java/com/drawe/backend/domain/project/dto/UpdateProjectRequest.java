@@ -10,4 +10,5 @@ public record UpdateProjectRequest(
     @Size(max = 30) String mood,
     String description,
     String status,
+    @Size(max = 500) String drawingUrl,
     Map<String, Object> detailAnswers) {}

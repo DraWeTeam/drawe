@@ -16,12 +16,29 @@ public record LlmCallContext(
     String newPrompt,
     byte[] imageBytes,
     String imageMimeType,
-    String responseSchemaName) {
+    String responseSchemaName,
+    String conversationId) {
 
-  /** 평문 응답(스키마 없음) 편의 생성자 — 기존 호출 지점(TRANSLATE·KeywordExtractor·레거시 chat)이 그대로 쓴다. */
+  /**
+   * 평문 응답(스키마 없음) 편의 생성자 — 기존 호출 지점(TRANSLATE·KeywordExtractor·레거시 chat)이 그대로 쓴다. conversationId 도
+   * null(=헤더 미부착).
+   */
   public LlmCallContext(
       List<Turn> history, String newPrompt, byte[] imageBytes, String imageMimeType) {
-    this(history, newPrompt, imageBytes, imageMimeType, null);
+    this(history, newPrompt, imageBytes, imageMimeType, null, null);
+  }
+
+  /**
+   * 스키마 지정·conversationId 미지정 편의 생성자 — 기존 5-arg 호출 지점 호환. conversationId 는 멀티턴 캐시 라우팅이 의미있는 COMPOSE
+   * 경로만 채운다(Grok {@code x-grok-conv-id}).
+   */
+  public LlmCallContext(
+      List<Turn> history,
+      String newPrompt,
+      byte[] imageBytes,
+      String imageMimeType,
+      String responseSchemaName) {
+    this(history, newPrompt, imageBytes, imageMimeType, responseSchemaName, null);
   }
 
   public record Turn(MessageRole role, String content) {}

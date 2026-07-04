@@ -5,13 +5,15 @@ import com.drawe.backend.domain.llm.contract.IntentCode;
 /**
  * 검색/생성 의도 분류 결과.
  *
- * @param action 기능 분기 (검색/유지/스킵/생성)
+ * @param action 기능 분기 (검색/유지/스킵/생성/유사)
  * @param keywords NEW_SEARCH 면 영문 검색 키워드, GENERATE_NOW 면 생성 프롬프트(또는 한국어 원문). 그 외 null.
  * @param artIntent KEEP 일 때 미술 의도 세분류 (001 구도/002 빛/003 색/004 기법). 분류 불가·미분류 또는 KEEP 이 아니면 null. 트랙
  *     A ②-2차에서 KEEP 을 IntentCode 001~004 로 세분화하기 위한 슬롯. 어댑터가 이 값으로 IntentResult.code 를 정한다(null 이면
  *     006 KEEP 유지).
+ * @param anchorIndex REFERENCE_SIMILAR/PIN_SIMILAR 일 때 앵커 번호 N(1-based). 그 외 null. (SCRUM-112)
  */
-public record ExtractionResult(Action action, String keywords, IntentCode artIntent) {
+public record ExtractionResult(
+    Action action, String keywords, IntentCode artIntent, Integer anchorIndex) {
   public enum Action {
     NEW_SEARCH,
     KEEP,
@@ -29,16 +31,26 @@ public record ExtractionResult(Action action, String keywords, IntentCode artInt
      * 검색·생성을 안 하고 이미 맥락에 있는 것을 비교·대조해 설명한다. NEW_SEARCH(새 이미지 요청)나 GENERATE_NOW(생성)와 달리 새 자료를 만들지
      * 않으므로 'AI 생성 권유'가 아니라 비교 설명으로 답해야 한다.
      */
-    COMPARE
+    COMPARE,
+    /**
+     * SCRUM-112: "[N]번이랑 유사한 사진 보여줘" — 직전 레퍼런스 [N] 을 앵커로 그 이미지 벡터로 유사검색(텍스트 키워드 추측이 아님). {@code
+     * anchorIndex} 에 N. 전용 핸들러({@code ChatLlmService.handleReferenceSimilar})가 처리.
+     */
+    REFERENCE_SIMILAR,
+    /**
+     * SCRUM-112: "고정 N번이랑 유사한 사진" — 보드에 고정(핀)한 이미지 N 을 앵커로 유사검색. {@code anchorIndex} 에 N. 전용
+     * 핸들러({@code ChatLlmService.handlePinSimilar})가 처리(앵커는 DB pinnedItems).
+     */
+    PIN_SIMILAR
   }
 
   public static ExtractionResult newSearch(String keywords) {
-    return new ExtractionResult(Action.NEW_SEARCH, keywords, null);
+    return new ExtractionResult(Action.NEW_SEARCH, keywords, null, null);
   }
 
   /** 미분류 KEEP (미술 의도 라벨 없음 → 어댑터에서 006 유지). */
   public static ExtractionResult keep() {
-    return new ExtractionResult(Action.KEEP, null, null);
+    return new ExtractionResult(Action.KEEP, null, null, null);
   }
 
   /**
@@ -46,25 +58,35 @@ public record ExtractionResult(Action action, String keywords, IntentCode artInt
    * TECHNIQUE 중 하나여야 한다.
    */
   public static ExtractionResult keep(IntentCode artIntent) {
-    return new ExtractionResult(Action.KEEP, null, artIntent);
+    return new ExtractionResult(Action.KEEP, null, artIntent, null);
   }
 
   public static ExtractionResult skip() {
-    return new ExtractionResult(Action.SKIP, null, null);
+    return new ExtractionResult(Action.SKIP, null, null, null);
   }
 
   /** 직전 답변에 대한 부연·후속 질문 (012). 검색·생성 없이 직전 답변을 이어서 설명한다. keywords/artIntent 없음. */
   public static ExtractionResult followup() {
-    return new ExtractionResult(Action.FOLLOWUP, null, null);
+    return new ExtractionResult(Action.FOLLOWUP, null, null, null);
   }
 
   /** 이미 맥락에 있는 대상(레퍼런스 [1] vs [2] 등)을 비교 설명 (013). 검색·생성 없음. keywords/artIntent 없음. */
   public static ExtractionResult compare() {
-    return new ExtractionResult(Action.COMPARE, null, null);
+    return new ExtractionResult(Action.COMPARE, null, null, null);
   }
 
   /** keywords 에는 생성에 쓸 영문 프롬프트(또는 시드 한국어)를 담는다. */
   public static ExtractionResult generateNow(String prompt) {
-    return new ExtractionResult(Action.GENERATE_NOW, prompt, null);
+    return new ExtractionResult(Action.GENERATE_NOW, prompt, null, null);
+  }
+
+  /** SCRUM-112: "[N]번 유사" — 직전 레퍼런스 N 을 앵커로 유사검색. */
+  public static ExtractionResult referenceSimilar(int anchorIndex) {
+    return new ExtractionResult(Action.REFERENCE_SIMILAR, null, null, anchorIndex);
+  }
+
+  /** SCRUM-112: "고정 N번 유사" — 보드 핀 N 을 앵커로 유사검색. */
+  public static ExtractionResult pinSimilar(int anchorIndex) {
+    return new ExtractionResult(Action.PIN_SIMILAR, null, null, anchorIndex);
   }
 }

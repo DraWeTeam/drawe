@@ -14,7 +14,13 @@ const ConsentContext = createContext(null);
 export const useConsent = () => useContext(ConsentContext);
 
 // 약관 동의 게이트에서 제외할(공개) 경로
-const PUBLIC_PATHS = ["/login", "/signup", "/oauth/callback", "/terms"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/oauth/callback",
+  "/terms",
+  "/policy",
+];
 const isPublicPath = (path) =>
   PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
 

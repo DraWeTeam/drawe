@@ -9,6 +9,11 @@ import Home from "./pages/Home";
 import ReferencePage from "./pages/chat/ReferencePage";
 import ProjectList from "./pages/projects/ProjectList";
 import ChatPage from "./pages/chat/ChatPage";
+import ArchivePage from "./pages/gallery/ArchivePage";
+import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
+import SettingsPage from "./pages/settings/SettingsPage";
+import PlanPage from "./pages/settings/PlanPage";
+import PolicyPage from "./pages/settings/PolicyPage";
 // 온보딩 비활성화:
 // import OnboardingPage from "./pages/onboarding/OnboardingPage";
 // import OnboardingCompletePage from "./pages/onboarding/OnboardingCompletePage";
@@ -37,6 +42,11 @@ function App() {
                 element={<ReferencePage />}
               />
               <Route path="/projects" element={<ProjectList />} />
+              <Route path="/archive" element={<ArchivePage />} />
+              <Route path="/gallery" element={<CompletedGalleryPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/plan" element={<PlanPage />} />
+              <Route path="/policy" element={<PolicyPage />} />
               <Route path="/projects/:projectId/chat" element={<ChatPage />} />
               {/* 온보딩 비활성화:
               <Route path="/onboarding" element={<OnboardingPage />} /> */}

@@ -9,8 +9,8 @@ import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.ProjectReference;
 import com.drawe.backend.domain.User;
 import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse;
-import com.drawe.backend.domain.image.repository.ImageRepository;
 import com.drawe.backend.domain.project.repository.ProjectReferenceRepository;
+import com.drawe.backend.domain.project.repository.ProjectRepository;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,12 +18,12 @@ import org.junit.jupiter.api.Test;
 /** GalleryService 단위 테스트 — 레퍼런스 아카이브의 프로젝트별 그룹핑 로직 검증. */
 class GalleryServiceTest {
 
-  private final ImageRepository imageRepository = mock(ImageRepository.class);
+  private final ProjectRepository projectRepository = mock(ProjectRepository.class);
   private final ProjectReferenceRepository projectReferenceRepository =
       mock(ProjectReferenceRepository.class);
 
   private final GalleryService service =
-      new GalleryService(imageRepository, projectReferenceRepository);
+      new GalleryService(projectRepository, projectReferenceRepository);
 
   private static Project project(long id, String name) {
     Project p = new Project();

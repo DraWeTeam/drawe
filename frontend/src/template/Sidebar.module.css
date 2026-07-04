@@ -3,14 +3,14 @@
   width: 334px;
   height: 100vh;
   background: #fcfbfa;
-  border-right: 1px solid var(--border-input);
+  border-right: 1px solid #edebea;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   box-sizing: border-box;
-  padding: var(--space-600) var(--space-600) var(--space-1000);
+  padding: 24px 24px 40px;
   z-index: 100;
   transition:
     width 0.2s ease,
@@ -19,7 +19,7 @@
 
 .sidebar.collapsed {
   width: 120px;
-  padding: var(--space-600) var(--space-600) var(--space-1000);
+  padding: 24px 24px 40px;
 }
 
 /* ===== 상단: 로고 + 토글 ===== */
@@ -30,7 +30,7 @@
   flex-shrink: 0;
   width: 100%;
   height: 65px;
-  margin-bottom: var(--space-300);
+  margin-bottom: 12px;
 }
 
 .collapsed .top {
@@ -40,7 +40,7 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: var(--space-200);
+  gap: 8px;
   text-decoration: none;
   color: inherit;
   margin-left: 14px;
@@ -61,7 +61,7 @@
 }
 
 .logoHighlight {
-  color: var(--text-brand);
+  color: #ff8534;
 }
 
 .toggleBtn {
@@ -69,11 +69,11 @@
   border: none;
   cursor: pointer;
   padding: 6px;
-  border-radius: var(--radius-200);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: back-ground 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .toggleBtn:hover {
@@ -83,15 +83,15 @@
 .line {
   height: 1px;
   background-color: #e9e9e9;
-  margin-bottom: var(--space-400);
+  margin-bottom: 16px;
 }
 
 /* ===== 검색 ===== */
 .searchArea {
   width: 100%;
   flex-shrink: 0;
-  margin-bottom: var(--space-300);
-  margin-top: var(--space-200);
+  margin-bottom: 12px;
+  margin-top: 8px;
 }
 
 .collapsed .searchArea {
@@ -101,7 +101,7 @@
 .searchBox {
   display: flex;
   align-items: center;
-  gap: var(--space-300);
+  gap: 12px;
   width: 100%;
   padding: 14px 16px;
   background: #f5f5f5;
@@ -158,14 +158,14 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-300);
+  gap: 12px;
   overflow-y: auto;
 }
 
 .collapsed .nav {
   width: auto;
   align-items: center;
-  gap: var(--space-300);
+  gap: 12px;
   /* 우측 툴팁이 사이드바 밖으로 나갈 수 있도록 클리핑 해제 (접힘 메뉴는 짧아 스크롤 불필요) */
   overflow: visible;
 }
@@ -183,13 +183,13 @@
 .menuItem {
   display: flex;
   align-items: center;
-  gap: var(--space-300);
+  gap: 12px;
   width: 100%;
   height: 64px;
-  padding: 0 var(--space-400);
+  padding: 0 16px;
   background: none;
   border: none;
-  border-radius: var(--radius-300);
+  border-radius: 12px;
   cursor: pointer;
   font-size: 16px;
   font-weight: 500;
@@ -199,7 +199,7 @@
   text-align: left;
   box-sizing: border-box;
   transition:
-    back-ground 0.15s ease,
+    background 0.15s ease,
     color 0.15s ease;
   white-space: nowrap;
   overflow: hidden;
@@ -218,11 +218,11 @@
   height: 64px;
   padding: 0;
   justify-content: center;
-  border-radius: var(--radius-300);
+  border-radius: 12px;
 }
 
 .active {
-  background: var(--bg-brand);
+  background: #ff8534;
   color: #fff;
 }
 
@@ -231,7 +231,7 @@
 }
 
 .iconOnly.active {
-  background: var(--bg-brand);
+  background: #ff8534;
 }
 
 .menuIcon {
@@ -256,49 +256,92 @@
   transform: rotate(180deg);
 }
 
+/* 닫힌 채로 active일 때 셰브론도 흰색 */
+.active .chevron {
+  color: #fff;
+}
+
 .submenu {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  height: 64px;
-  padding: 0 var(--space-800);
-  gap: var(--space-100);
+  box-sizing: border-box;
+  max-height: 0;
+  padding: 0 8px;
+  margin-top: -12px;
+  gap: 8px;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 0.22s ease,
+    padding 0.22s ease,
+    opacity 0.18s ease;
+}
+
+.submenuOpen {
+  max-height: 120px;
+  padding: 8px;
+  opacity: 1;
 }
 
 .submenuItem {
   display: flex;
   align-items: center;
-  padding: 9px 14px;
+  gap: 12px;
+  height: 46px;
+  padding: 12px 56px 12px;
+  box-sizing: border-box;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   color: #666;
   font-family: inherit;
-  border-radius: var(--radius-200);
+  text-decoration: none;
+  border-radius: 12px;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
-  margin-left: 15px;
 }
 
-.submenuItem:hover:not(:disabled) {
+/* 카운트 배지 */
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: #fff0e3;
+  color: #ff8534;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.submenuItem.active {
+  color: #fff;
+  background: #ff8534;
+}
+
+.submenuItem.active:hover {
+  background: #ff7a25;
+}
+
+/* active 상태에서는 카운트 배지도 흰색 계열로 */
+.submenuItem.active .count {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.submenuItem:hover:not(:disabled):not(.active) {
   background: #f5f5f5;
 }
 
 .submenuItem:disabled {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-.count {
-  font-size: 12px;
-  color: var(--text-brand);
-  background: #fff3ea;
-  padding: 1px 9px;
-  border-radius: var(--radius-999);
-  font-weight: 500;
-  margin-left: var(--space-300);
 }
 
 /* ===== 하단: 유저 ===== */
@@ -317,19 +360,19 @@
 .userCard {
   display: flex;
   align-items: center;
-  gap: var(--space-300);
+  gap: 12px;
   width: 100%;
   padding: 10px;
   background: none;
   border: none;
-  border-radius: var(--radius-300);
+  border-radius: 12px;
   cursor: pointer;
   text-align: left;
   text-decoration: none;
   color: inherit;
   font-family: inherit;
   box-sizing: border-box;
-  transition: back-ground 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .userCard:hover {
@@ -340,15 +383,15 @@
   background: none;
   border: none;
   cursor: pointer;
-  border-radius: var(--radius-300);
+  border-radius: 12px;
   padding: 0;
 }
 
 .avatar {
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-300);
-  background: var(--bg-brand);
+  border-radius: 12px;
+  background: #ff8534;
   color: #fff;
   display: flex;
   align-items: center;
@@ -393,7 +436,7 @@
   right: 0;
   background: #fff;
   border: 1px solid #e8e8e8;
-  border-radius: var(--radius-300);
+  border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   padding: 6px;
   display: flex;
@@ -430,7 +473,7 @@
   font-size: 14px;
   color: #444;
   font-family: inherit;
-  border-radius: var(--radius-200);
+  border-radius: 8px;
   text-align: left;
 }
 

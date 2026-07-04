@@ -143,11 +143,11 @@
   cursor: not-allowed;
 }
 
-/* 본문 — Figma modal_footer(pt32 pb40 px40) */
+/* 본문 — Figma 좌우/하단 여백 유지(px40 pb40) + sticky 라벨 위해 상단 패딩 제거(병합) */
 .bodyArea {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-800) var(--space-1000) var(--space-1000);
+  padding: 0 var(--space-1000) var(--space-1000);
 }
 
 .sectionLabel {
@@ -161,6 +161,39 @@
 /* divider 뒤에 오는 라벨 — 위 여백 제거해 divider 간격(아카이브~divider)과 맞춤 */
 .sectionLabelTight {
   margin-top: 0;
+}
+
+/* '검색 결과 N개'는 스크롤 시 상단 고정, 그 아래 리스트만 스크롤 */
+.sectionLabelSticky {
+  position: sticky;
+  top: 0;
+  margin: 0 0 4px;
+  padding: 4px;
+  background: #fff;
+  z-index: 1;
+}
+
+/* 전체(ALL) 검색 시 타입별 그룹 소제목 — 퀵액션/최근검색어 라벨과 동일(볼드 X) */
+.groupLabel {
+  margin: 8px 4px 4px;
+  font-size: 12px;
+  color: #a3a1a0;
+}
+
+/* '검색 결과 N개' 바로 아래 첫 그룹 간격 (divider 아래보다 살짝 좁게) */
+.sectionLabel + .groupLabel {
+  margin-top: 12px;
+}
+
+/* 레퍼런스/완성작 결과 행 썸네일 — rowIcon 과 같은 크기 박스 */
+.thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f0eeec;
+  flex-shrink: 0;
+  font-size: 0;
 }
 
 .empty {
@@ -231,6 +264,13 @@
   display: flex;
   color: #c4c2c0;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* 행 hover 시에만 > 셰브론 노출 (참고 UI와 동일) */
+.row:hover:not(:disabled) .rowChevron {
+  opacity: 1;
 }
 
 .rowRemove {
