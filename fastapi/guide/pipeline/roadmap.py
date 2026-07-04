@@ -123,7 +123,9 @@ def _history(user_id, project_id=None):
             for sp, n in cx.execute(
                 text(
                     "SELECT sub_problem, COUNT(*) FROM practice_log "
-                    "WHERE user_id=:u" + _PROJ + " AND action='tried' GROUP BY sub_problem"
+                    "WHERE user_id=:u"
+                    + _PROJ
+                    + " AND action='tried' GROUP BY sub_problem"
                 ),
                 {"u": user_id, "p": project_id},
             ):
@@ -135,7 +137,9 @@ def _history(user_id, project_id=None):
                 for r in cx.execute(
                     text(
                         "SELECT guide_id FROM practice_log "
-                        "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IS NOT NULL "
+                        "WHERE user_id=:u"
+                        + _PROJ
+                        + " AND action='seen' AND guide_id IS NOT NULL "
                         "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"
                     ),
                     {"u": user_id, "p": project_id, "n": RECENT_N},
@@ -145,7 +149,9 @@ def _history(user_id, project_id=None):
             if recent_ids:
                 stmt = text(
                     "SELECT sub_problem, guide_id, confidence, ts FROM practice_log "
-                    "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IN :gids"
+                    "WHERE user_id=:u"
+                    + _PROJ
+                    + " AND action='seen' AND guide_id IN :gids"
                 ).bindparams(bindparam("gids", expanding=True))
                 guides_by_sp = defaultdict(set)  # 재발: sub_problem이 뜬 '업로드' 집합
                 flags_per_guide = defaultdict(
@@ -637,7 +643,9 @@ def _observed(user_id, project_id=None):
                 for r in cx.execute(
                     text(
                         "SELECT guide_id FROM practice_log "
-                        "WHERE user_id=:u" + _PROJ + " AND action='observable' AND guide_id IS NOT NULL "
+                        "WHERE user_id=:u"
+                        + _PROJ
+                        + " AND action='observable' AND guide_id IS NOT NULL "
                         "GROUP BY guide_id ORDER BY MAX(ts) DESC LIMIT :n"
                     ),
                     {"u": user_id, "p": project_id, "n": RECENT_N},
@@ -646,7 +654,9 @@ def _observed(user_id, project_id=None):
             if recent_ids:
                 obs_q = text(
                     "SELECT DISTINCT sub_problem, guide_id FROM practice_log "
-                    "WHERE user_id=:u" + _PROJ + " AND action='observable' AND guide_id IN :gids"
+                    "WHERE user_id=:u"
+                    + _PROJ
+                    + " AND action='observable' AND guide_id IN :gids"
                 ).bindparams(bindparam("gids", expanding=True))
                 for sp, _g in cx.execute(
                     obs_q, {"u": user_id, "p": project_id, "gids": recent_ids}
@@ -654,7 +664,9 @@ def _observed(user_id, project_id=None):
                     observed_count[sp] += 1
                 seen_q = text(
                     "SELECT DISTINCT sub_problem, guide_id FROM practice_log "
-                    "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IN :gids"
+                    "WHERE user_id=:u"
+                    + _PROJ
+                    + " AND action='seen' AND guide_id IN :gids"
                 ).bindparams(bindparam("gids", expanding=True))
                 for sp, _g in cx.execute(
                     seen_q, {"u": user_id, "p": project_id, "gids": recent_ids}
@@ -691,7 +703,9 @@ def _reduction(user_id, project_id=None):
             rows = cx.execute(
                 text(
                     "SELECT guide_id, COUNT(DISTINCT sub_problem) FROM practice_log "
-                    "WHERE user_id=:u" + _PROJ + " AND action='seen' AND guide_id IS NOT NULL "
+                    "WHERE user_id=:u"
+                    + _PROJ
+                    + " AND action='seen' AND guide_id IS NOT NULL "
                     "GROUP BY guide_id ORDER BY MIN(ts)"
                 ),
                 {"u": user_id, "p": project_id},
@@ -709,7 +723,12 @@ def _reduction(user_id, project_id=None):
 
 
 def growth_context(
-    user_id="anon", track=None, curriculum=None, degraded=False, llm=None, project_id=None
+    user_id="anon",
+    track=None,
+    curriculum=None,
+    degraded=False,
+    llm=None,
+    project_id=None,
 ):
     """가이드 파이프라인이 쓰는 '압축 이력'. 진단 랭킹·프롬프트·응답분기로 흘러간다. project 스코프.
 

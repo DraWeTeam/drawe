@@ -413,7 +413,9 @@ def observe_hand(image, runs=2):
     # 단축 3단: 두 run 의 기하-binary tier 보수 합의(min rank). view 일치와 *독립* — 단축은 깊이
     #   관찰이라 손등/손바닥을 알 필요 없다(view-coupling 제거). 둘 다 STRONG 이어야 STRONG.
     tiers = [_fs_tier(p) for p in parsed[:2]]
-    fs_tier = min(tiers, key=lambda t: _TIER_RANK[t]) if len(tiers) >= 2 else _fs_tier(base)
+    fs_tier = (
+        min(tiers, key=lambda t: _TIER_RANK[t]) if len(tiers) >= 2 else _fs_tier(base)
+    )
     trace(
         "hand.vlm",
         runs=len(parsed),
@@ -442,14 +444,20 @@ def observe_hand(image, runs=2):
         "reaching_at_viewer": base["reaching_at_viewer"],
         "parts_compressed": base["parts_compressed"],
         "foreshortening_tier": fs_tier,  # 단축 surface 게이트(view 독립, 안정)
-        "foreshortening": base["foreshortening"],  # 디버그/표기용 raw(게이트엔 미사용 — 측정 정의 붕괴)
-        "structure": base["structure"],  # 표기는 하되 게이트엔 안 씀(§2: structure 불안정)
+        "foreshortening": base[
+            "foreshortening"
+        ],  # 디버그/표기용 raw(게이트엔 미사용 — 측정 정의 붕괴)
+        "structure": base[
+            "structure"
+        ],  # 표기는 하되 게이트엔 안 씀(§2: structure 불안정)
         "notes": base["notes"] if consistent else "",
         "consistent": consistent,
         "confidence": confidence,
         "runs_used": len(parsed),
     }
-    vlm_set("hand", _MODEL, h, result)  # 성공 관찰만 캐시(위 'parsed 없음' transient 는 미캐시)
+    vlm_set(
+        "hand", _MODEL, h, result
+    )  # 성공 관찰만 캐시(위 'parsed 없음' transient 는 미캐시)
     trace("vlm.cache", fn="hand", hit=False, tier="miss", model=_MODEL)
     return result
 
@@ -477,7 +485,12 @@ _EYELINE = {"위", "중앙", "아래", "불확실"}
 
 
 def _face_on():
-    return os.environ.get("FACE_VLM", "0").strip().lower() not in ("", "0", "false", "no")
+    return os.environ.get("FACE_VLM", "0").strip().lower() not in (
+        "",
+        "0",
+        "false",
+        "no",
+    )
 
 
 def _parse_face(text):
@@ -537,9 +550,14 @@ def observe_face(image, runs=2):
         return None  # transient → 미캐시
     base = parsed[0]
     consistent = len(parsed) >= 2 and _face_agree(parsed[0], parsed[1])
-    trace("face.vlm", runs=len(parsed), consistent=consistent,
-          portrait=[p["is_portrait"] for p in parsed],
-          views=[p["view"] for p in parsed], eyes=[p["eye_line"] for p in parsed])
+    trace(
+        "face.vlm",
+        runs=len(parsed),
+        consistent=consistent,
+        portrait=[p["is_portrait"] for p in parsed],
+        views=[p["view"] for p in parsed],
+        eyes=[p["eye_line"] for p in parsed],
+    )
     # 가드: 초상 아님 또는 view·eye_line 둘 다 불확실 → '낮음'(관찰된 것 없음). hand 의 empty_obs 강화판.
     empty_obs = base["view"] == "불확실" and base["eye_line"] == "불확실"
     if not base["is_portrait"] or empty_obs:
@@ -589,7 +607,12 @@ _BALANCE = {"안정", "불안정", "불확실"}
 
 
 def _pose_on():
-    return os.environ.get("POSE_VLM", "0").strip().lower() not in ("", "0", "false", "no")
+    return os.environ.get("POSE_VLM", "0").strip().lower() not in (
+        "",
+        "0",
+        "false",
+        "no",
+    )
 
 
 def _parse_pose(text):
@@ -618,7 +641,10 @@ def _pose_agree(a, b):
         return False
     if not (a["is_full_body"] and b["is_full_body"]):
         return False
-    if a["dynamism"] != b["dynamism"] and "불확실" not in (a["dynamism"], b["dynamism"]):
+    if a["dynamism"] != b["dynamism"] and "불확실" not in (
+        a["dynamism"],
+        b["dynamism"],
+    ):
         return False
     if a["balance"] != b["balance"] and "불확실" not in (a["balance"], b["balance"]):
         return False
@@ -652,9 +678,14 @@ def observe_pose(image, runs=2):
         return None  # transient → 미캐시
     base = parsed[0]
     consistent = len(parsed) >= 2 and _pose_agree(parsed[0], parsed[1])
-    trace("pose.vlm", runs=len(parsed), consistent=consistent,
-          full=[p["is_full_body"] for p in parsed],
-          dyn=[p["dynamism"] for p in parsed], bal=[p["balance"] for p in parsed])
+    trace(
+        "pose.vlm",
+        runs=len(parsed),
+        consistent=consistent,
+        full=[p["is_full_body"] for p in parsed],
+        dyn=[p["dynamism"] for p in parsed],
+        bal=[p["balance"] for p in parsed],
+    )
     # 가드: 전신 인물 아님 또는 dynamism·balance 둘 다 불확실 → '낮음'(관찰된 것 없음). face 의 empty_obs 동형.
     empty_obs = base["dynamism"] == "불확실" and base["balance"] == "불확실"
     if not base["is_full_body"] or empty_obs:
@@ -699,18 +730,36 @@ def _selftest():
     # 정책표현 방어선
     assert FORBIDDEN.search("이건 실력이 부족"), "FORBIDDEN 동작 확인"
     # 포즈 관찰자: 파싱·일관성(전신+성격 일치)·비인물 가드
-    p1 = _parse_pose('{"is_full_body":true,"dynamism":"동적","balance":"불안정","notes":"걷는 포즈"}')
-    p2 = _parse_pose('```json\n{"is_full_body":true,"dynamism":"동적","balance":"불확실","notes":"걷는다"}\n```')
-    p3 = _parse_pose('{"is_full_body":false,"dynamism":"불확실","balance":"불확실","notes":"얼굴만"}')
+    p1 = _parse_pose(
+        '{"is_full_body":true,"dynamism":"동적","balance":"불안정","notes":"걷는 포즈"}'
+    )
+    p2 = _parse_pose(
+        '```json\n{"is_full_body":true,"dynamism":"동적","balance":"불확실","notes":"걷는다"}\n```'
+    )
+    p3 = _parse_pose(
+        '{"is_full_body":false,"dynamism":"불확실","balance":"불확실","notes":"얼굴만"}'
+    )
     assert p1 and p2 and p3, "pose parse 실패"
-    assert _pose_agree(p1, p2) is True, "일치해야 함(전신+동적, balance 한쪽 불확실 허용)"
+    assert _pose_agree(p1, p2) is True, (
+        "일치해야 함(전신+동적, balance 한쪽 불확실 허용)"
+    )
     assert _pose_agree(p1, p3) is False, "불일치여야 함(p3 비전신)"
     assert p1["dynamism"] == "동적" and p1["balance"] == "불안정", "pose 값 정규화 오류"
     # 단축 3단(기하 binary grounding — 자유 리스트 대신): 둘 다 예=STRONG, 하나=WEAK, 없음=NONE
-    assert _fs_tier({"reaching_at_viewer": "예", "parts_compressed": "예"}) == "STRONG", "STRONG 오류"
-    assert _fs_tier({"reaching_at_viewer": "예", "parts_compressed": "아니오"}) == "WEAK", "WEAK 오류"
-    assert _fs_tier({"reaching_at_viewer": "아니오", "parts_compressed": "아니오"}) == "NONE", "NONE 오류"
-    assert _fs_tier({"reaching_at_viewer": "불확실", "parts_compressed": "불확실"}) == "NONE", "불확실→NONE 오류"
+    assert (
+        _fs_tier({"reaching_at_viewer": "예", "parts_compressed": "예"}) == "STRONG"
+    ), "STRONG 오류"
+    assert (
+        _fs_tier({"reaching_at_viewer": "예", "parts_compressed": "아니오"}) == "WEAK"
+    ), "WEAK 오류"
+    assert (
+        _fs_tier({"reaching_at_viewer": "아니오", "parts_compressed": "아니오"})
+        == "NONE"
+    ), "NONE 오류"
+    assert (
+        _fs_tier({"reaching_at_viewer": "불확실", "parts_compressed": "불확실"})
+        == "NONE"
+    ), "불확실→NONE 오류"
     print("selftest OK — 파싱·일관성·교집합·방어선·포즈·단축3단 정상")
 
 

@@ -251,7 +251,13 @@ def _log_observable(user_id, measurable, guide_id, project_id=None):
     roadmap 이 '부재(안 그림) → steady'를 '개선(그렸는데 덜 걸림)'과 구분하게 하는 관측층 신호.
     실패해도 /guide 는 정상 응답."""
     rows = [
-        dict(u=user_id or "anon", sp=sp, g=guide_id, iv=instrument_version(), p=project_id)
+        dict(
+            u=user_id or "anon",
+            sp=sp,
+            g=guide_id,
+            iv=instrument_version(),
+            p=project_id,
+        )
         for sp in (measurable or ())
     ]
     if not rows:
@@ -294,7 +300,9 @@ def _claim_request(request_id, guide_id):
         return True, guide_id
 
 
-def _record_side_effects(resp, refs_by_sp, tax, user_id, dx, request_id, project_id=None):
+def _record_side_effects(
+    resp, refs_by_sp, tax, user_id, dx, request_id, project_id=None
+):
     """coach 부작용(노출/연습/관측 로그)을 request_id 로 at-most-once.
     재시도(같은 request_id)면 skip → practice_log/adoption_log 중복 집계 방지.
     guide_id 는 첫 처리 것으로 정렬(응답이 기록과 같은 guide_id 참조)."""
@@ -345,7 +353,9 @@ async def guide_ep(
     track: str = Form(None),
     medium: str = Form(None),
     request_id: str = Form(None),
-    project_id: str = Form(None),  # growth 를 프로젝트 단위로 스코프(없으면 user-scoped 하위호환)
+    project_id: str = Form(
+        None
+    ),  # growth 를 프로젝트 단위로 스코프(없으면 user-scoped 하위호환)
 ):
     file_bytes = await file.read()
     return await asyncio.to_thread(
@@ -415,7 +425,9 @@ def _guide_sync(
         # §4 성장 흐름 — 방금 기록한 'seen'(이번 업로드 포함)까지 반영해 집계
         _note = resp.next_steps.note if resp.next_steps else None
         growth_obj = growth_from_raw(
-            growth_view(user_id, track=track, degraded=resp.degraded, project_id=project_id),
+            growth_view(
+                user_id, track=track, degraded=resp.degraded, project_id=project_id
+            ),
             note=_note,
         )
     payload = finalize_guide_response(resp, growth_obj=growth_obj)
@@ -451,7 +463,9 @@ async def guide_stream_ep(
 def _guide_stream_sync(
     file_bytes, message, user_id, intent, track, medium, request_id, project_id=None
 ):
-    _t0 = perf_counter()  # ②v1: end-to-end 레이턴시(스트림은 run_guide 완료까지가 무거운 Grok 구간)
+    _t0 = (
+        perf_counter()
+    )  # ②v1: end-to-end 레이턴시(스트림은 run_guide 완료까지가 무거운 Grok 구간)
     ctx, early = _pipeline(
         file_bytes, message, user_id, intent, track, medium, project_id
     )
@@ -496,7 +510,9 @@ def _guide_stream_sync(
         # §4 성장 흐름 — 방금 기록한 'seen'(이번 업로드 포함)까지 반영해 집계
         _note = resp.next_steps.note if resp.next_steps else None
         growth_obj = growth_from_raw(
-            growth_view(user_id, track=track, degraded=resp.degraded, project_id=project_id),
+            growth_view(
+                user_id, track=track, degraded=resp.degraded, project_id=project_id
+            ),
             note=_note,
         )
 

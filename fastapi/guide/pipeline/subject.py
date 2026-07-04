@@ -87,7 +87,9 @@ def _detect_face(pil):
     except Exception as e:
         print(f"[subject] 얼굴 검출 실패(figure-auto 폴백): {type(e).__name__}: {e}")
         return False
-    return bool(o and o.get("is_portrait") and o.get("confidence") in ("관찰", "관찰(약)"))
+    return bool(
+        o and o.get("is_portrait") and o.get("confidence") in ("관찰", "관찰(약)")
+    )
 
 
 def resolve_subject(scene, pil, track=None):
@@ -105,11 +107,25 @@ def resolve_subject(scene, pil, track=None):
         # 인물 쪽 확신(prom 높음)이면 얼굴 초상인지 VLM 으로 검출 → face track. subject VLM 은 여기서
         #   스킵되므로(확신대역) 얼굴 경로는 observe_face 가 검출 겸 측정을 맡는다(결과 캐시 공유).
         if prom > _HIGH and _detect_face(pil):
-            trace("subject", prom=round(prom, 2), band="confident", sketch=False,
-                  vlm="face", subj="face", track="face")
+            trace(
+                "subject",
+                prom=round(prom, 2),
+                band="confident",
+                sketch=False,
+                vlm="face",
+                subj="face",
+                track="face",
+            )
             return "face", {"facial_proportion"}
-        trace("subject", prom=round(prom, 2), band="confident", sketch=False,
-              vlm="skipped", subj=None, track=None)
+        trace(
+            "subject",
+            prom=round(prom, 2),
+            band="confident",
+            sketch=False,
+            vlm="skipped",
+            subj=None,
+            track=None,
+        )
         return None, set()
     # ② 애매대역 OR 선화 → Gemini 1회(게이트 off·키 없음·실패면 None → CLIP 폴백)
     try:
@@ -120,11 +136,15 @@ def resolve_subject(scene, pil, track=None):
         subj = None
     # [경계0] 라우팅: VLM 게이트가 켜졌나(vlm) + 분류기가 뭐라 답했나(subj) + 선화라 강제됐나(sketch).
     #   이 한 줄이 'env 미반영(off)' / '실패·미매핑(on+None)' / '오분류(on+figure)' / '정상(hand)'를 가른다.
-    _vlm = "on" if os.environ.get("SUBJECT_VLM", "0").strip().lower() in (
-        "1", "true", "yes"
-    ) else "off"
+    _vlm = (
+        "on"
+        if os.environ.get("SUBJECT_VLM", "0").strip().lower() in ("1", "true", "yes")
+        else "off"
+    )
     _band = "ambiguous" if (_LOW <= prom <= _HIGH) else "confident_sketch"
-    trace("subject", prom=round(prom, 2), band=_band, sketch=sketch, vlm=_vlm, subj=subj)
+    trace(
+        "subject", prom=round(prom, 2), band=_band, sketch=sketch, vlm=_vlm, subj=subj
+    )
     if subj in ("landscape", "still_life"):
         return "landscape", set()  # 풍경/정물 → landscape track(대기원근·지평선 게이팅)
     if subj == "hand":

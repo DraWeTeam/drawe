@@ -24,7 +24,11 @@
 
 CELLS 는 이 파일의 '주문서'다 — 새 칸은 여기 프롬프트만 추가(expansion_matrix 매트릭스와 동기).
 """
-import os, sys, json, base64, argparse
+
+import os
+import json
+import base64
+import argparse
 import requests
 from google.auth import default as adc_default
 from google.auth.transport.requests import Request
@@ -34,35 +38,57 @@ LOCATION = os.environ.get("IMAGEN_LOCATION", "us-central1")  # Imagen 은 global
 MODEL = os.environ.get("IMAGEN_MODEL", "imagen-4.0-generate-001")
 
 _creds = None
+
+
 def token():
     global _creds
     if _creds is None:
-        _creds, _ = adc_default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        _creds, _ = adc_default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
     if not _creds.valid:
         _creds.refresh(Request())
     return _creds.token
 
+
 def url():
     host = LOCATION + "-aiplatform.googleapis.com"
-    return (f"https://{host}/v1/projects/{PROJECT}/locations/{LOCATION}"
-            f"/publishers/google/models/{MODEL}:predict")
+    return (
+        f"https://{host}/v1/projects/{PROJECT}/locations/{LOCATION}"
+        f"/publishers/google/models/{MODEL}:predict"
+    )
+
 
 def gen_one(prompt, tries=3):
-    body = {"instances": [{"prompt": prompt}],
-            "parameters": {"sampleCount": 1, "aspectRatio": "3:4",
-                           "personGeneration": "allow_adult"}}
+    body = {
+        "instances": [{"prompt": prompt}],
+        "parameters": {
+            "sampleCount": 1,
+            "aspectRatio": "3:4",
+            "personGeneration": "allow_adult",
+        },
+    }
     r = None
     for t in range(tries):
         try:
-            r = requests.post(url(), headers={"Content-Type": "application/json",
-                              "Authorization": "Bearer " + token()},
-                              json=body, timeout=240)
+            r = requests.post(
+                url(),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token(),
+                },
+                json=body,
+                timeout=240,
+            )
             break
         except requests.exceptions.RequestException as e:
             if t == tries - 1:
                 return None, f"request exc after {tries}: {type(e).__name__}"
     if r is None or r.status_code != 200:
-        return None, f"HTTP {getattr(r,'status_code','?')}: {getattr(r,'text','')[:300]}"
+        return (
+            None,
+            f"HTTP {getattr(r, 'status_code', '?')}: {getattr(r, 'text', '')[:300]}",
+        )
     preds = r.json().get("predictions", [])
     if not preds:
         return None, f"no predictions (filtered?): {json.dumps(r.json())[:300]}"
@@ -71,25 +97,33 @@ def gen_one(prompt, tries=3):
         return None, f"no bytes: {json.dumps(preds[0])[:200]}"
     return base64.b64decode(b64), None
 
+
 # 칸(cell) = 생성 의도. expansion_matrix.md 매트릭스와 동기화. 새 칸은 여기 추가.
 CELLS = {
-    "contrapposto": ("Full-body standing human figure in a clear contrapposto pose: weight clearly "
+    "contrapposto": (
+        "Full-body standing human figure in a clear contrapposto pose: weight clearly "
         "on one leg, the hip raised on the weight-bearing side and the shoulders tilted the opposite "
         "way, a gentle S-curve through the spine — BUT the center of gravity stays balanced over the "
         "supporting foot so the figure is stable and NOT falling. Anatomically correct proportions, "
-        "single full-body figure, plain white background, hand-drawn, no text, NOT photorealistic, NOT 3D render."),
-    "imbalance": ("Full-body standing human figure that is genuinely off-balance: the center of "
+        "single full-body figure, plain white background, hand-drawn, no text, NOT photorealistic, NOT 3D render."
+    ),
+    "imbalance": (
+        "Full-body standing human figure that is genuinely off-balance: the center of "
         "gravity has shifted well outside the base of the feet so the person looks about to tip over "
         "and fall, unstable toppling stance. Single full-body figure, plain white background, "
-        "hand-drawn, no text, NOT photorealistic, NOT 3D render."),
+        "hand-drawn, no text, NOT photorealistic, NOT 3D render."
+    ),
 }
+
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--cells", default="contrapposto,imbalance")
-    ap.add_argument("--plan", help="JSON list of {name, prompt, n?} — 외부 주문서(CELLS 대신)")
+    ap.add_argument(
+        "--plan", help="JSON list of {name, prompt, n?} — 외부 주문서(CELLS 대신)"
+    )
     ap.add_argument("--smoke", action="store_true", help="1 image only, print status")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -100,8 +134,15 @@ def main():
     META_KEYS = ("supports", "medium", "track")
     if a.plan:
         items = json.load(open(a.plan, encoding="utf-8-sig"))
-        plan = [(it["name"], it["prompt"], int(it.get("n", a.n)),
-                 {k: it[k] for k in META_KEYS if k in it}) for it in items]
+        plan = [
+            (
+                it["name"],
+                it["prompt"],
+                int(it.get("n", a.n)),
+                {k: it[k] for k in META_KEYS if k in it},
+            )
+            for it in items
+        ]
     else:
         plan = [(c, CELLS[c], a.n, {}) for c in a.cells.split(",")]
     made = 0
@@ -117,14 +158,26 @@ def main():
             fn = f"{cell}_{j:02d}.png"
             with open(os.path.join(a.out, fn), "wb") as f:
                 f.write(data)
-            man.write(json.dumps({"file": fn, "intent": cell, "model": MODEL,
-                      **meta, "prompt": prompt}, ensure_ascii=False) + "\n")
+            man.write(
+                json.dumps(
+                    {
+                        "file": fn,
+                        "intent": cell,
+                        "model": MODEL,
+                        **meta,
+                        "prompt": prompt,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
             man.flush()
             made += 1
             print(f"  OK {fn} ({len(data)} bytes)")
         if a.smoke:
             break
     print(f"made {made} -> {a.out}")
+
 
 if __name__ == "__main__":
     main()

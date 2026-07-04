@@ -62,7 +62,9 @@ def _client():
                 _redis_client = c
                 print("[cache] VLM 캐시 Redis(L2) 연결 OK")
             except Exception as e:
-                print(f"[cache] Redis 연결 실패 → L1(in-process)만 사용: {type(e).__name__}: {e}")
+                print(
+                    f"[cache] Redis 연결 실패 → L1(in-process)만 사용: {type(e).__name__}: {e}"
+                )
     return _redis_client
 
 

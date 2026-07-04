@@ -128,8 +128,12 @@ class RealLLM:
                 f"reasoning={(data.get('usage') or {}).get('completion_tokens_details', {}).get('reasoning_tokens')}"
             )
             out = _extract_json(content)
-            trace("llm.out", fallback=False, out_chars=len(out),
-                  finish=choice.get("finish_reason"))
+            trace(
+                "llm.out",
+                fallback=False,
+                out_chars=len(out),
+                finish=choice.get("finish_reason"),
+            )
             return out
         except Exception as e:
             print(f"[llm] Grok 호출 실패 → 템플릿 폴백: {type(e).__name__}: {e}")

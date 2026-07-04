@@ -73,7 +73,14 @@ def build_coach_prompt(
             for o in obs["observations"]
             if o["from_user"] and not o["signal"]
         ],
-        dropped=["scene", "spatial", "reference_query", "context_ok", "region", "measurable"],
+        dropped=[
+            "scene",
+            "spatial",
+            "reference_query",
+            "context_ok",
+            "region",
+            "measurable",
+        ],
     )
     refs = {sp: [rid for rid, _ in lst] for sp, lst in refs_by_sp.items()}
     # 그림 '단계'에 따른 자세. 완성작이면 '고칠 점'이 아니라 '앞으로 키울 것'으로 무게 이동.

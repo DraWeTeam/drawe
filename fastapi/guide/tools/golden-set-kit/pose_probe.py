@@ -8,6 +8,7 @@
 실행(컨테이너):
   docker exec -w /app -e PYTHONPATH=/app drawe-guide python guide/tools/golden-set-kit/pose_probe.py
 """
+
 import json
 import os
 from io import BytesIO
@@ -33,7 +34,9 @@ def probe(path):
     pose = extract(pil=pil, scene=scene)
     tier = pose_reliability(pose)
     kp = pose.get("keypoints") or []
-    n_vis = sum(1 for (x, y, v) in kp if v >= VIS_KP and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0)
+    n_vis = sum(
+        1 for (x, y, v) in kp if v >= VIS_KP and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0
+    )
     prom = float(scene.get("subject", {}).get("person", {}).get("prominence", 0.0))
     return {
         "status": pose.get("status"),
@@ -47,7 +50,9 @@ def probe(path):
 
 
 # figure track 만 전신 pose 가 핵심(face/hand/landscape 는 pose 비의존). 그래도 전부 찍어 person_prom 확인.
-print(f"{'file':38} {'lbl_track':10} {'exp_primary':16} {'status':14} {'tier':5} {'mvis':5} {'nvis':4} {'prom':5} {'auto_primary':16}")
+print(
+    f"{'file':38} {'lbl_track':10} {'exp_primary':16} {'status':14} {'tier':5} {'mvis':5} {'nvis':4} {'prom':5} {'auto_primary':16}"
+)
 print("-" * 140)
 fig_fail = 0
 fig_total = 0
@@ -67,11 +72,15 @@ for f in sorted(imgs):
         if p["tier"] != "ok":
             fig_fail += 1
     mark = " *" if (is_fig and p["tier"] != "ok") else "  "
-    print(f"{f:38} {track:10} {lab.get('expected_primary',''):16} "
-          f"{str(p['status'])+'/'+str(p['reason'] or ''):14} {p['tier']:5} {mvis:5} "
-          f"{p['n_vis_kp']:>4} {p['person_prom']:.2f}  {str(auto):16}{mark}")
+    print(
+        f"{f:38} {track:10} {lab.get('expected_primary', ''):16} "
+        f"{str(p['status']) + '/' + str(p['reason'] or ''):14} {p['tier']:5} {mvis:5} "
+        f"{p['n_vis_kp']:>4} {p['person_prom']:.2f}  {str(auto):16}{mark}"
+    )
 
 print("-" * 140)
 print(f"POSE_DEPENDENT 축: {sorted(POSE_DEPENDENT)}")
-print(f"figure track {fig_total}장 중 pose tier!=ok(전신축 막힘): {fig_fail}장  (* 표시)")
+print(
+    f"figure track {fig_total}장 중 pose tier!=ok(전신축 막힘): {fig_fail}장  (* 표시)"
+)
 print("done")

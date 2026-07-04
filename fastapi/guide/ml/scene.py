@@ -24,7 +24,9 @@ def _logit_scale() -> float:
 
 
 def _scores(img_vec, labels):
-    scale = _logit_scale()  # 누락 시 softmax 평탄화 버그 → 반드시 cos 에 곱한 뒤 softmax
+    scale = (
+        _logit_scale()
+    )  # 누락 시 softmax 평탄화 버그 → 반드시 cos 에 곱한 뒤 softmax
     sims = [float(np.dot(img_vec, embedder.text(lbl))) * scale for lbl in labels]
     e = np.exp(sims - np.max(sims))
     p = e / e.sum()  # softmax → confidence

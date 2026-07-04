@@ -234,7 +234,12 @@ def hand_signals(pil):
             trace("hand.detect", available=False, n_hands=0, conf=0.0)
             return {}
         conf, sig = hand_signal(_hands)
-        trace("hand.detect", available=True, n_hands=len(_hands), conf=round(float(conf), 2))
+        trace(
+            "hand.detect",
+            available=True,
+            n_hands=len(_hands),
+            conf=round(float(conf), 2),
+        )
         if conf > 0:
             return {"_hand": (round(float(conf), 2), sig)}
     except Exception as e:
@@ -252,6 +257,7 @@ def _vlm_hand_signal(pil):
     trace("hand.vlm.enter", stage="fn_start")  # [진단] 이게 안 뜨면 호출 자체가 안 됨
     try:
         from guide.ml.vision import observe_hand
+
         trace("hand.vlm.enter", stage="pre_call")  # [진단] 여기까지 오면 import 성공
         o = observe_hand(pil)
     except Exception as e:
@@ -298,7 +304,10 @@ def _vlm_face_signal(pil):
     except Exception as e:
         print(f"[diagnose] VLM 얼굴 관찰 실패(무시): {type(e).__name__}: {e}")
         return None
-    if not o or o.get("confidence") not in ("관찰", "관찰(약)"):  # 낮음만 보류; 약은 통과
+    if not o or o.get("confidence") not in (
+        "관찰",
+        "관찰(약)",
+    ):  # 낮음만 보류; 약은 통과
         return None
     strong = o.get("confidence") == "관찰"
     parts = []
@@ -307,8 +316,11 @@ def _vlm_face_signal(pil):
     el = o.get("eye_line")
     # eye_line 은 strong(관찰)일 때만 표기 — 약이면 view 만(단정 회피, hand 의 structure 게이팅과 동형).
     if strong and el and el != "불확실":
-        where = {"위": "머리 절반보다 위", "중앙": "머리 절반 부근",
-                 "아래": "머리 절반보다 아래"}.get(el, el)
+        where = {
+            "위": "머리 절반보다 위",
+            "중앙": "머리 절반 부근",
+            "아래": "머리 절반보다 아래",
+        }.get(el, el)
         parts.append(f"눈높이가 {where}에 놓인 것으로 보임")
     sig = ", ".join(parts)
     return (0.4, sig) if sig else None
@@ -327,7 +339,10 @@ def _vlm_pose_signal(pil):
     except Exception as e:
         print(f"[diagnose] VLM 포즈 관찰 실패(무시): {type(e).__name__}: {e}")
         return {}
-    if not o or o.get("confidence") not in ("관찰", "관찰(약)"):  # 낮음만 보류; 약은 통과
+    if not o or o.get("confidence") not in (
+        "관찰",
+        "관찰(약)",
+    ):  # 낮음만 보류; 약은 통과
         return {}
     out = {}
     # 동적 → action_line 주제 표면화(정적·불확실이면 침묵 = 정적-결함 스코어러 영역, over-fire 방지).
@@ -335,7 +350,10 @@ def _vlm_pose_signal(pil):
         out["action_line"] = (0.4, "동적인(움직임 있는) 포즈로 보임")
     # 불안정 → weight_balance 주제 표면화(안정·불확실이면 침묵).
     if o.get("balance") == "불안정":
-        out["weight_balance"] = (0.4, "무게가 한쪽으로 쏠린(한 발 지지·기울임) 포즈로 보임")
+        out["weight_balance"] = (
+            0.4,
+            "무게가 한쪽으로 쏠린(한 발 지지·기울임) 포즈로 보임",
+        )
     return out
 
 
@@ -634,7 +652,9 @@ def s_value_structure(s):
             wr = s.get("value_range_whole")
             t = _T("value_structure.whole_image_range")
             conf = max(conf, min(0.5, 0.3 + 0.4 * (t - wr)))
-            parts.append(f"화면 전체의 밝은 곳·어두운 곳 차이가 좁음(명도 폭 ≈ {wr:.2f})")
+            parts.append(
+                f"화면 전체의 밝은 곳·어두운 곳 차이가 좁음(명도 폭 ≈ {wr:.2f})"
+            )
         # rr·whole 다 None/미달이면 값 주장 안 함 — 전역 std 폴백 제거(배경에 속으므로 신뢰 불가)
     bg = s.get("figure_bg_contrast")
     tb = _T("value_structure.figure_bg_contrast")
@@ -713,7 +733,12 @@ def s_horizon_placement(s):
 #   light=light_ramp 가 '평면 렌더(선화)'와 '평면 조명 문제'를 못 가름(positive lfrac 0.90·0.97 이
 #   over-fire figure 0.80–0.99 에 인터리브 → both-sided 게이트 불가). value 는 보수적이라 유지.
 #   → auto 억제(user_terms=구도/빛 키워드로만 표면). 스코어러 함수는 보존.
-SUPPRESSED_AUTO = {"action_line", "joint_articulation", "composition_balance", "light_direction"}
+SUPPRESSED_AUTO = {
+    "action_line",
+    "joint_articulation",
+    "composition_balance",
+    "light_direction",
+}
 
 SCORERS = {
     "weight_balance": s_weight_balance,
@@ -759,8 +784,11 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     )  # 풍경 전용(대기원근·지평선) — figure track은 게이팅으로 제외
     sig["_norms"] = norms  # 스코어러(예: s_proportion)가 track norm을 읽게
     # [경계2a] sig: 업스트림(pose/image/region/color/light/hand/landscape)이 만든 원시 측정 총량.
-    trace("sig", n=len([k for k in sig if k != "_norms"]),
-          keys=[k for k in sig if k != "_norms"])
+    trace(
+        "sig",
+        n=len([k for k in sig if k != "_norms"]),
+        keys=[k for k in sig if k != "_norms"],
+    )
 
     hits = {}
     for sid, fn in SCORERS.items():
@@ -786,8 +814,13 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
             # [라우팅 진단] observe_hand 도달 못 하는 원인 격리: 셋 중 무엇이 막나.
             #   in_hits=True → MediaPipe _hand 로 s_hand_structure 발화(placeholder 스킵)
             #   in_terms=False → user_terms 에 없음(line 677 스킵) / 둘 다 정상이면 도달해야 함.
-            trace("hand.route", in_hits=(sid in hits), in_terms=(sid in user_terms),
-                  pose_ok=(tier == POSE_OK), in_pose_dep=(sid in POSE_DEPENDENT))
+            trace(
+                "hand.route",
+                in_hits=(sid in hits),
+                in_terms=(sid in user_terms),
+                pose_ok=(tier == POSE_OK),
+                in_pose_dep=(sid in POSE_DEPENDENT),
+            )
         if sid in hits:
             continue
         if sid in SUPPRESSED_AUTO and sid not in user_terms:
@@ -844,8 +877,12 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     ranked = sorted(hits.items(), key=lambda kv: -kv[1][0])
     # [경계2b] hits: 스코어러 통과 축 + 측정 여부 + '빈 signal'(=내용 없이 LLM에 가는 축).
     #   empty_signal 에 from_user 축이 끼면 그게 '결과가 안 나온다'의 1순위 용의자.
-    trace("hits", n=len(hits), measured=sorted(measured_ids),
-          empty_signal=[sid for sid, (c, s) in hits.items() if not s])
+    trace(
+        "hits",
+        n=len(hits),
+        measured=sorted(measured_ids),
+        empty_signal=[sid for sid, (c, s) in hits.items() if not s],
+    )
     # 이력 연속성 보정: steady는 뒤로, 재발/현재집중은 앞으로 — 정렬 키에만(표시 confidence 불변).
     recurring_set = set((growth or {}).get("recurring", []))
     if growth:
@@ -873,8 +910,12 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     # [경계3] Retention: 진짜 손실 지점. hits(최대 14축) → 상위 3축. 나머지는 LLM이 영영 모름.
     #   더 많은 관찰을 살리고 싶으면 손댈 레버는 agent가 아니라 '이 캡'(인지부하 UX 트레이드오프).
     #   prompt 단계 retention 은 build_coach_prompt 의 [경계4] trace(post-agent)가 그대로 반영.
-    trace("retain", hits=len(ranked), kept=[s for s, _ in ranked[:3]],
-          dropped=[s for s, _ in ranked[3:]])
+    trace(
+        "retain",
+        hits=len(ranked),
+        kept=[s for s, _ in ranked[:3]],
+        dropped=[s for s, _ in ranked[3:]],
+    )
     ranked = ranked[:3]
     obs = []
     for sid, (conf, sigtext) in ranked:
@@ -922,7 +963,9 @@ def diagnose(scene, pose, pil, personas, user_terms=(), growth=None, profile=Non
     _sat = sig.get("sat_mean")
     _mid = float(((_g > 0.2) & (_g < 0.8)).mean())
     inexpressible = set()
-    if _sat is None or _sat < 0.05:  # 빈 dict(완전 균일) or 거의 무채(흑백/선화) → 색 부재
+    if (
+        _sat is None or _sat < 0.05
+    ):  # 빈 dict(완전 균일) or 거의 무채(흑백/선화) → 색 부재
         inexpressible.add("color_harmony")
     if _mid < 0.15:  # 중간톤 거의 없음 → 톤/명암 부재
         inexpressible |= {"value_structure", "light_direction"}

@@ -59,7 +59,9 @@ def compute(bands, subjects, tiers):
         "cache_hit_rate": (hits / events) if events else 0.0,
         "miss_rate": (miss / events) if events else 0.0,  # ← 결정지표 1
         "band": dict(bands),
-        "ambiguous_rate": (bands.get("ambiguous", 0) / total) if total else 0.0,  # ← 결정지표 2
+        "ambiguous_rate": (bands.get("ambiguous", 0) / total)
+        if total
+        else 0.0,  # ← 결정지표 2
         "subject": dict(subjects),
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     }
@@ -104,18 +106,24 @@ def render(k, prev=None):
     A(_line("L1 Hit", k["l1"], ev))
     A(_line("L2 Hit", k["l2"], ev))
     A(_line("Miss (실제 VLM 호출)", k["miss"], ev))
-    A(f"{'Overall Cache Hit':<22}: {_pct(k['cache_hit_rate'])}"
-      + delta("cache_hit_rate", lower_better=False))
-    A(f"{'Miss Rate ★결정1':<22}: {_pct(k['miss_rate'])}"
-      + delta("miss_rate", lower_better=True))
+    A(
+        f"{'Overall Cache Hit':<22}: {_pct(k['cache_hit_rate'])}"
+        + delta("cache_hit_rate", lower_better=False)
+    )
+    A(
+        f"{'Miss Rate ★결정1':<22}: {_pct(k['miss_rate'])}"
+        + delta("miss_rate", lower_better=True)
+    )
     A("")
     A("Routing  (분모=요청)")
     A("-------------------------")
     tot = k["total_requests"] or 1
     for b in ("confident", "confident_sketch", "ambiguous"):
         A(_line(b, k["band"].get(b, 0), tot))
-    A(f"{'Ambiguous Rate ★결정2':<22}: {_pct(k['ambiguous_rate'])}"
-      + delta("ambiguous_rate", lower_better=True))
+    A(
+        f"{'Ambiguous Rate ★결정2':<22}: {_pct(k['ambiguous_rate'])}"
+        + delta("ambiguous_rate", lower_better=True)
+    )
     A("")
     A("Subject  (VLM 분류분만; confident=unknown)")
     A("-------------------------")
@@ -129,7 +137,9 @@ def render(k, prev=None):
     A("해석 가이드")
     A("-------------------------")
     A(f"  Miss Rate {_pct(k['miss_rate'])} → 조건부 VLM 최적화로 줄일 수 있는 상한")
-    A(f"  Ambiguous {_pct(k['ambiguous_rate'])} → 높으면 OpenCLIP 라벨/프롬프트 튜닝 ROI↑")
+    A(
+        f"  Ambiguous {_pct(k['ambiguous_rate'])} → 높으면 OpenCLIP 라벨/프롬프트 튜닝 ROI↑"
+    )
     return "\n".join(out)
 
 
@@ -151,16 +161,24 @@ def main():
     ap.add_argument("logfile", nargs="?", help="로그 파일(없으면 stdin)")
     ap.add_argument("--save", metavar="NAME", help="스냅샷 저장(라벨)")
     ap.add_argument("--compare", action="store_true", help="직전 스냅샷과 비교")
-    ap.add_argument("--state", default=".drawe_kpi_snapshots.json", help="스냅샷 저장 파일")
+    ap.add_argument(
+        "--state", default=".drawe_kpi_snapshots.json", help="스냅샷 저장 파일"
+    )
     args = ap.parse_args()
 
-    src = open(args.logfile, encoding="utf-8", errors="replace") if args.logfile else sys.stdin
+    src = (
+        open(args.logfile, encoding="utf-8", errors="replace")
+        if args.logfile
+        else sys.stdin
+    )
     bands, subjects, tiers = parse(src)
     k = compute(bands, subjects, tiers)
 
     if k["total_requests"] == 0 and k["cache_events"] == 0:
-        print("trace 로그를 못 찾았습니다. TRACE_CTX=1 인지, 로그 범위가 맞는지 확인하세요.",
-              file=sys.stderr)
+        print(
+            "trace 로그를 못 찾았습니다. TRACE_CTX=1 인지, 로그 범위가 맞는지 확인하세요.",
+            file=sys.stderr,
+        )
         sys.exit(2)
 
     snaps = load_state(args.state)

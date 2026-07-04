@@ -22,6 +22,7 @@ predict_axis *내부*에서는 캐시를 살려 둔다(검출용 observe_face �
     drawe-guide python guide/tools/golden-set-kit/stability_eval.py face 5
 인자: [set=face|hand|all] [N=5]
 """
+
 import collections
 import json
 import os
@@ -35,9 +36,18 @@ labels = json.load(open(os.path.join(KIT, "labels.json"), encoding="utf-8"))
 imgs = {x["file"]: x for x in labels["images"]}
 itracks = labels["intended_tracks"]
 
-FACE_FILES = ["face_001_front_normal.png", "face_002_profile_side.png", "face_003_three_quarter.png"]
-HAND_FILES = ["hand_001_v_sign_line.png", "hand_002_colored_palm.png",
-              "hand_003_long_fingers.png", "hand_004_foreshortened.png", "hand_005_message_ratio.png"]
+FACE_FILES = [
+    "face_001_front_normal.png",
+    "face_002_profile_side.png",
+    "face_003_three_quarter.png",
+]
+HAND_FILES = [
+    "hand_001_v_sign_line.png",
+    "hand_002_colored_palm.png",
+    "hand_003_long_fingers.png",
+    "hand_004_foreshortened.png",
+    "hand_005_message_ratio.png",
+]
 
 
 def flush_vlm():
@@ -62,7 +72,13 @@ _orig_parse = vision._parse
 def _wrap_parse_face(text):
     p = _orig_parse_face(text)
     if p is not None and _cur["file"]:
-        _draws[_cur["file"]].append({"is_portrait": p["is_portrait"], "view": p["view"], "eye_line": p["eye_line"]})
+        _draws[_cur["file"]].append(
+            {
+                "is_portrait": p["is_portrait"],
+                "view": p["view"],
+                "eye_line": p["eye_line"],
+            }
+        )
     return p
 
 
@@ -85,16 +101,31 @@ _orig_hand = vision.observe_hand
 def _wrap_face(image, runs=2):
     r = _orig_face(image, runs=runs)
     if _cur["file"] and r is not None:
-        _summ[_cur["file"]].append({"kind": "face", "consistent": r["consistent"], "confidence": r["confidence"],
-                                    "is_portrait": r["is_portrait"], "view": r["view"], "eye_line": r["eye_line"]})
+        _summ[_cur["file"]].append(
+            {
+                "kind": "face",
+                "consistent": r["consistent"],
+                "confidence": r["confidence"],
+                "is_portrait": r["is_portrait"],
+                "view": r["view"],
+                "eye_line": r["eye_line"],
+            }
+        )
     return r
 
 
 def _wrap_hand(image, runs=2):
     r = _orig_hand(image, runs=runs)
     if _cur["file"] and r is not None:
-        _summ[_cur["file"]].append({"kind": "hand", "consistent": r["consistent"], "confidence": r["confidence"],
-                                    "view": r["view"], "structure": r["structure"]})
+        _summ[_cur["file"]].append(
+            {
+                "kind": "hand",
+                "consistent": r["consistent"],
+                "confidence": r["confidence"],
+                "view": r["view"],
+                "structure": r["structure"],
+            }
+        )
     return r
 
 
@@ -106,7 +137,9 @@ from guide.eval.axis_eval import predict_axis  # noqa: E402
 
 
 def run_set(files, N):
-    print(f"\n{'=' * 100}\n안정성 측정: {len(files)}장 × {N}회 (호출 간 캐시 flush)\n{'=' * 100}")
+    print(
+        f"\n{'=' * 100}\n안정성 측정: {len(files)}장 × {N}회 (호출 간 캐시 flush)\n{'=' * 100}"
+    )
     for f in files:
         if f not in imgs:
             print(f"  (skip: labels 에 없음 {f})")
@@ -132,10 +165,14 @@ def run_set(files, N):
 
         fc = collections.Counter(finals)
         hits = sum(1 for p in finals if p in acc)
-        print(f"\n── {f}  [clarity={lab['clarity']} track={track} expected={lab.get('expected_primary')}]")
+        print(
+            f"\n── {f}  [clarity={lab['clarity']} track={track} expected={lab.get('expected_primary')}]"
+        )
         print(f"   acceptable={sorted(acc)}")
         print(f"   최종축 분포: {dict(fc)}   →  acceptable hit {hits}/{N}")
-        print(f"   라우팅 track 분포: {dict(collections.Counter(str(t) for t in tracks))}")
+        print(
+            f"   라우팅 track 분포: {dict(collections.Counter(str(t) for t in tracks))}"
+        )
         # observe 요약 분포 — kind 별로 분리(figure/pose 경로가 face 그림에도 observe_hand 를 부른다)
         sm_face = [s for s in _summ[f] if s["kind"] == "face"]
         sm_hand = [s for s in _summ[f] if s["kind"] == "hand"]
@@ -145,14 +182,20 @@ def run_set(files, N):
             pv = collections.Counter(s["view"] for s in sm_face)
             pe = collections.Counter(s["eye_line"] for s in sm_face)
             pp = collections.Counter(s["is_portrait"] for s in sm_face)
-            print(f"   observe[face] n={len(sm_face)} confidence={dict(conf)} consistent={dict(cons)}")
-            print(f"   observe[face] is_portrait={dict(pp)} view={dict(pv)} eye_line={dict(pe)}")
+            print(
+                f"   observe[face] n={len(sm_face)} confidence={dict(conf)} consistent={dict(cons)}"
+            )
+            print(
+                f"   observe[face] is_portrait={dict(pp)} view={dict(pv)} eye_line={dict(pe)}"
+            )
         if sm_hand:
             conf = collections.Counter(s["confidence"] for s in sm_hand)
             cons = collections.Counter(s["consistent"] for s in sm_hand)
             pv = collections.Counter(s["view"] for s in sm_hand)
             ps = collections.Counter(s["structure"] for s in sm_hand)
-            print(f"   observe[hand] n={len(sm_hand)} confidence={dict(conf)} consistent={dict(cons)} view={dict(pv)} structure={dict(ps)}")
+            print(
+                f"   observe[hand] n={len(sm_hand)} confidence={dict(conf)} consistent={dict(cons)} view={dict(pv)} structure={dict(ps)}"
+            )
         # draw 단위 raw 분포 — face draw(eye_line 있음)와 hand draw(structure 있음) 분리
         df = [d for d in _draws[f] if "eye_line" in d]
         dh = [d for d in _draws[f] if "structure" in d]
@@ -160,16 +203,26 @@ def run_set(files, N):
             dv = collections.Counter(d["view"] for d in df)
             de = collections.Counter(d["eye_line"] for d in df)
             dp = collections.Counter(d["is_portrait"] for d in df)
-            print(f"   draw raw[face](n={len(df)}): is_portrait={dict(dp)} view={dict(dv)} eye_line={dict(de)}")
+            print(
+                f"   draw raw[face](n={len(df)}): is_portrait={dict(dp)} view={dict(dv)} eye_line={dict(de)}"
+            )
         if dh:
             dv = collections.Counter(d["view"] for d in dh)
             ds = collections.Counter(d["structure"] for d in dh)
-            print(f"   draw raw[hand](n={len(dh)}): view={dict(dv)} structure={dict(ds)}")
+            print(
+                f"   draw raw[hand](n={len(dh)}): view={dict(dv)} structure={dict(ds)}"
+            )
 
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "face"
     N = int(sys.argv[2]) if len(sys.argv) > 2 else 5
-    files = FACE_FILES if which == "face" else HAND_FILES if which == "hand" else FACE_FILES + HAND_FILES
+    files = (
+        FACE_FILES
+        if which == "face"
+        else HAND_FILES
+        if which == "hand"
+        else FACE_FILES + HAND_FILES
+    )
     run_set(files, N)
     print("\ndone")

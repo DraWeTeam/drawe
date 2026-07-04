@@ -13,13 +13,19 @@
 
 레코드: 이미지·이미지ID·user_id·request_id·원본 픽셀·프롬프트 텍스트 0(분포만, 프라이버시).
 """
+
 import os
 import json
 import datetime
 
 
 def _on() -> bool:
-    return os.environ.get("SHADOW_AUDIT", "0").strip().lower() not in ("", "0", "false", "no")
+    return os.environ.get("SHADOW_AUDIT", "0").strip().lower() not in (
+        "",
+        "0",
+        "false",
+        "no",
+    )
 
 
 def emit(dx, resp, dt, track=None) -> None:
@@ -38,8 +44,8 @@ def emit(dx, resp, dt, track=None) -> None:
             "pose_tier": dx.get("pose_tier"),
             "degraded": dx.get("degraded"),
             "measurable": dx.get("measurable"),
-            "primary_focus": primary,                       # None = abstain
-            "mode": mode,                                   # coach | clarify (실현된 응답)
+            "primary_focus": primary,  # None = abstain
+            "mode": mode,  # coach | clarify (실현된 응답)
             "abstain": primary is None or mode == "clarify",
             "fired": [
                 {
@@ -51,7 +57,11 @@ def emit(dx, resp, dt, track=None) -> None:
             ],
             # 영역4 over-fire 추적(CLOSED 이관): weight_balance 발화 여부 + conf + measured.
             "weight_balance": (
-                {"fired": True, "conf": wb.get("confidence"), "measured": wb.get("measured")}
+                {
+                    "fired": True,
+                    "conf": wb.get("confidence"),
+                    "measured": wb.get("measured"),
+                }
                 if wb
                 else {"fired": False}
             ),

@@ -17,7 +17,9 @@ def _relabel_ids(text):
     #   'g'↔'을' 사이를 단어경계로 안 봐서 매칭 실패 → id 앞뒤가 ascii id 문자가 아닐 때만 치환.
     #   긴 id 우선(facial_proportion 이 proportion 으로 부분치환되지 않게).
     for aid in sorted(LABELS, key=len, reverse=True):
-        text = re.sub(rf"(?<![A-Za-z_]){re.escape(aid)}(?![A-Za-z_])", LABELS[aid], text)
+        text = re.sub(
+            rf"(?<![A-Za-z_]){re.escape(aid)}(?![A-Za-z_])", LABELS[aid], text
+        )
     return text
 
 

@@ -17,16 +17,44 @@ HumanArt 검출기 라이선스/추가 의존성 회피). 출력 COCO-17 → 33-
 
 어떤 단계든 실패하면(import·모델·추론) 예외 삼키고 skipped 폴백 → API 항상 기동(기존 정책 동일).
 """
+
 import numpy as np
 
 # COCO-17 → 33-slot BlazePose 인덱스(어댑터). diagnose/overlay 가 참조하는 13관절만 채운다.
 #   coco: 0 nose / 5,6 어깨 / 7,8 팔꿈치 / 9,10 손목 / 11,12 골반 / 13,14 무릎 / 15,16 발목
 #   blaze: nose0 / 어깨11,12 / 팔꿈치13,14 / 손목15,16 / 골반23,24 / 무릎25,26 / 발목27,28
-_COCO2BLAZE = {0: 0, 5: 11, 6: 12, 7: 13, 8: 14, 9: 15, 10: 16,
-               11: 23, 12: 24, 13: 25, 14: 26, 15: 27, 16: 28}
-_CORE = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]   # 채워지는 13관절(mean_visibility 분모)
-_STRUCT = [11, 12, 23, 24, 25, 26, 27, 28]                     # 전신 존재 판정(몸통+다리)
-_GATE = 0.65   # medStruct 게이트 — 골든 분포 갭(비인물 max 0.60 / 인물 min 0.70)에서. 데이터로 재튜닝 대상.
+_COCO2BLAZE = {
+    0: 0,
+    5: 11,
+    6: 12,
+    7: 13,
+    8: 14,
+    9: 15,
+    10: 16,
+    11: 23,
+    12: 24,
+    13: 25,
+    14: 26,
+    15: 27,
+    16: 28,
+}
+_CORE = [
+    0,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+]  # 채워지는 13관절(mean_visibility 분모)
+_STRUCT = [11, 12, 23, 24, 25, 26, 27, 28]  # 전신 존재 판정(몸통+다리)
+_GATE = 0.65  # medStruct 게이트 — 골든 분포 갭(비인물 max 0.60 / 인물 min 0.70)에서. 데이터로 재튜닝 대상.
 _MODEL = "usyd-community/vitpose-base"
 
 _proc = None
@@ -61,7 +89,9 @@ def extract(scene, pil):
 
         rgb = np.asarray(pil.convert("RGB"))
         H, W = rgb.shape[:2]
-        boxes = [[[0.0, 0.0, float(W), float(H)]]]  # full-frame(단일 인물이 프레임 지배 가정)
+        boxes = [
+            [[0.0, 0.0, float(W), float(H)]]
+        ]  # full-frame(단일 인물이 프레임 지배 가정)
         inputs = _proc(rgb, boxes=boxes, return_tensors="pt")
         with torch.no_grad():
             outputs = _model(**inputs)
@@ -73,7 +103,7 @@ def extract(scene, pil):
         return {"status": "skipped", "reason": "no_person_detected"}
     person = pp[0][0]
     kxy = np.asarray(person["keypoints"])  # (17,2) 원본 픽셀 좌표
-    kc = np.asarray(person["scores"])       # (17,)
+    kc = np.asarray(person["scores"])  # (17,)
 
     def v(i):
         return float(kc[i])
@@ -86,7 +116,13 @@ def extract(scene, pil):
     #   낮아 여기서 걸러진다 = BlazePose no_person 자기게이팅의 대체. (분포 갭 0.65)
     med_struct = float(np.median([arr[i][2] for i in _STRUCT]))
     if med_struct < _GATE:
-        return {"status": "skipped", "reason": "no_full_figure", "med_struct": med_struct}
+        return {
+            "status": "skipped",
+            "reason": "no_full_figure",
+            "med_struct": med_struct,
+        }
 
-    mean_vis = float(np.mean([arr[i][2] for i in _CORE]))  # 코어 13관절 평균(미사용 슬롯 제외)
+    mean_vis = float(
+        np.mean([arr[i][2] for i in _CORE])
+    )  # 코어 13관절 평균(미사용 슬롯 제외)
     return {"status": "ok", "mean_visibility": mean_vis, "keypoints": arr}
