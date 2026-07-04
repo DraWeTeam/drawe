@@ -56,6 +56,28 @@ const refBadges = (ref) => {
   if (third) out.push(third);
   return out.slice(0, 3);
 };
+// ③ 추천 이유: badge(출처·부위·유형)가 못 담는 '연습 축과의 연결'을 한 문장으로 조립(비-LLM).
+//   ref.axis(소속 블록 sub_problem) 중심 + 변별 persona(빛·색·분위기…) 있으면 우선 반영.
+//   축·meta 결손이면 graceful — 최종 빈 문자열이면 문장 노드 자체를 안 만든다.
+const REASON_SOURCE = {
+  self_render: "3D 참조",
+  museum: "미술 자료",
+  ai_example: "AI 생성 예시",
+};
+const refReason = (ref) => {
+  const ax = ref?.axis ? axisLabel(ref.axis) : "";
+  const src = REASON_SOURCE[ref?.sourceType] || "";
+  const disc = (ref?.personas || []).find((p) =>
+    DISCRIMINATIVE_PERSONAS.includes(p),
+  );
+  const persona = disc ? REF_BADGE_LABELS.persona[disc] : "";
+  if (ax && persona && src)
+    return `'${ax}' 연습에 맞춰 ${persona} 표현이 담긴 ${src}예요.`;
+  if (ax && src) return `'${ax}' 연습을 위해 고른 ${src}예요.`;
+  if (ax) return `'${ax}' 연습을 위해 고른 참조예요.`;
+  if (src) return `그림 연습에 참고할 ${src}예요.`;
+  return "";
+};
 
 // ★성장 서술의 단일 소스는 백엔드다(growth.delta_note/trend). 프론트가 trend 로 %를 재계산하던
 //   growthDelta/deltaMessage("처음 받았을 때보다 200%…")는 제거 — 이력<N 이면 백엔드가 trend/delta 를
@@ -96,6 +118,7 @@ const AssetSvg = ({ asset }) => {
 const RefCard = ({ reference, archived, onArchive }) => {
   const [failed, setFailed] = useState(false);
   const badges = refBadges(reference);
+  const reason = refReason(reference);
   return (
     <figure className={styles.refCard}>
       <div className={styles.refThumb}>
@@ -135,6 +158,12 @@ const RefCard = ({ reference, archived, onArchive }) => {
               </span>
             ))}
           </div>
+        )}
+        {reason && (
+          <p className={styles.refReason}>
+            <span className={styles.refReasonLabel}>추천 이유</span>
+            {reason}
+          </p>
         )}
       </div>
     </figure>
@@ -443,6 +472,16 @@ const Coach = ({
   const refMetaById = Object.fromEntries(
     (references || []).filter((r) => r?.refId).map((r) => [r.refId, r]),
   );
+  // ③ ref → 소속 블록의 축(sub_problem). references(shown_refs)는 블록 reference_ids 합집합이라 안정적.
+  const axisByRefId = (() => {
+    const m = {};
+    for (const b of blocks) {
+      for (const rid of b.reference_ids || []) {
+        if (rid && !(rid in m)) m[rid] = b.sub_problem || guide.primary_focus;
+      }
+    }
+    return m;
+  })();
   const displayedRefs =
     refPool.length === 0
       ? []
@@ -457,6 +496,7 @@ const Coach = ({
             region: m.region,
             personas: m.personas,
             category: m.category,
+            axis: axisByRefId[refId] || guide.primary_focus,
           };
         });
   const canRefresh = refPool.length > 3;

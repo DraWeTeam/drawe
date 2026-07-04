@@ -332,6 +332,18 @@
   border-radius: var(--radius-200);
   padding: var(--space-100) var(--space-300);
 }
+/* ③ 추천 이유(114:15652) — 축과의 연결 한 문장. 라벨은 주황 강조, 문장은 보조 텍스트. */
+.refReason {
+  margin: var(--space-200) 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-tertiary);
+}
+.refReasonLabel {
+  margin-right: var(--space-200);
+  font-weight: 700;
+  color: var(--text-brand, var(--text-tertiary));
+}
 .refNum {
   position: absolute;
   top: 6px;
