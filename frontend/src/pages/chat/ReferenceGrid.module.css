@@ -19,11 +19,12 @@
 }
 
 .filterTab {
-  background: #fbfcfa;
+  background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   padding: var(--space-200) var(--space-400);
   border-radius: var(--radius-999);
-  font-size: 13px;
+  font-size: 16px;
+  line-height: 22px;
   color: var(--text-quaternary);
   cursor: pointer;
   font-family: inherit;
@@ -36,9 +37,9 @@
 }
 
 .filterTabActive {
-  background: var(--bg-brand);
-  border-color: var(--border-input-focus);
-  color: #fff;
+  background: var(--bg-surface);
+  border-color: var(--border-strong-press);
+  color: var(--text-tertiary);
 }
 
 .filterTab:disabled {

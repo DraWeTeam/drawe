@@ -1,7 +1,7 @@
 /* Figma 정본 디자인 토큰 — 선언만(이 커밋은 참조 0, 치환 없음). 색·간격·radius 참조는
    후속 커밋 C, 폰트 참조는 커밋 B. 폰트 토큰은 size/weight/lineHeight 값만(family 미포함). */
 :root {
-  /* 색 (15) */
+  /* 색 (16) */
   --bg-surface: #fefeff;
   --bg-brand: #ff8534;
   --bg-brand-weak: #fffbf5;
@@ -17,6 +17,7 @@
   --border-input: #edebea;
   --border-input-focus: #ff8534;
   --border-strong: #d8d7d5;
+  --border-strong-press: #888685;
 
   /* 간격 (7) */
   --space-100: 4px;
