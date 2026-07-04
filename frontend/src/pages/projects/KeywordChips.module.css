@@ -1,0 +1,124 @@
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e0ded9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+/* ===== 칩 ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 180px;
+  padding: 8px 12px 8px 16px;
+  border: 1px solid #e0ded9;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 16px;
+  color: #4a4846;
+}
+
+.chipText {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: text;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: #888685;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.chipRemove svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.chipRemove:hover {
+  background: #f2efec;
+  color: #6f6b66;
+}
+
+/* ===== 입력 칩(편집/추가) — 내용 길이만큼만(size 속성), 원래 칩 크기감 유지 ===== */
+.chipInput {
+  box-sizing: border-box;
+  padding: 8px 12px 8px 16px;
+  border: 1px solid #ff8534;
+  border-radius: 8px;
+  background: #fffbf5;
+  font-size: 16px;
+  color: #24221f;
+  font-family: inherit;
+  outline: none;
+}
+
+/* ===== 직접 추가 ===== */
+.addChip {
+  padding: 8px 16px;
+  border: 1px solid #e0ded9;
+  border-radius: 8px;
+  background: #fff;
+  color: #8a857e;
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.addChip:hover {
+  border-color: #ffcaa1;
+  color: #ff8534;
+}
+
+/* ===== 중복 shake ===== */
+.shake {
+  animation: shake 0.4s ease;
+  border-color: #ff8534; /* 잠깐 강조 */
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}

@@ -46,22 +46,37 @@ function splitIntoColumns(items, columnCount) {
  * @param {number|string} projectId
  * @param {() => void} [onRequestGenerate] - 생성 유도 모달의 "생성하러 가기" 클릭 시 호출(우측 패널 레퍼런스 생성 모드로).
  * @param {boolean} [expanded] - 보드 전체보기 여부(컬럼 수: 전체보기 3, 분할 2).
+ * @param {string} [initialQuery] - 생성 직후 프리페치된 검색어(SCRUM-115).
+ * @param {Array|null} [initialResults] - 프리페치된 코퍼스 결과(있으면 재검색 없이 바로 표시).
  */
-const ReferenceBoard = ({ projectId, onRequestGenerate, expanded }) => {
+const ReferenceBoard = ({
+  projectId,
+  onRequestGenerate,
+  expanded,
+  initialQuery = "",
+  initialResults = null,
+}) => {
   const navigate = useNavigate();
 
-  const [query, setQuery] = useState(""); // 입력창 값
-  const [submittedQuery, setSubmittedQuery] = useState(""); // 마지막으로 실제 검색한 키워드
+  // 생성 직후 프리페치가 있으면 그 결과로 시드(초기 상태 대신 결과 표시).
+  //   단, 검색창(query)엔 키워드를 안 채운다 — 다 이어붙으면 어색하므로 비워두고 결과만.
+  //   실제 검색어(submittedQuery)는 내부적으로만 유지(칩 전환/필터/재검색용).
+  const seeded = Array.isArray(initialResults);
+  const [query, setQuery] = useState(""); // 입력창 값(시드 시에도 비움)
+  const [submittedQuery, setSubmittedQuery] = useState(
+    seeded ? initialQuery : "",
+  );
   const [source, setSource] = useState("ALL");
   // 코퍼스 검색은 AI+사진을 섞어서 반환한다(서버 소스필터 없음).
   //   칩(전체/AI/사진)은 코퍼스 결과를 클라에서 image.source 로 필터만 → 재검색 안 함(churn 제거).
   //   아카이브만 별도 데이터라 source=ARCHIVE 로 조회.
-  const [corpusItems, setCorpusItems] = useState([]); // [{ image, myReaction }]
+  const [corpusItems, setCorpusItems] = useState(seeded ? initialResults : []); // [{ image, myReaction }]
   const [archiveItems, setArchiveItems] = useState([]);
-  const corpusQueryRef = useRef(null); // corpusItems 가 대응하는 검색어
+  const corpusQueryRef = useRef(seeded ? initialQuery : null); // corpusItems 가 대응하는 검색어
   const archiveQueryRef = useRef(null); // archiveItems 가 대응하는 검색어
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const didInit = useRef(false);
 
   const [pinnedRefs, setPinnedRefs] = useState([]);
   const [archivedIds, setArchivedIds] = useState(() => new Set());
@@ -150,6 +165,16 @@ const ReferenceBoard = ({ projectId, onRequestGenerate, expanded }) => {
     },
     [projectId],
   );
+
+  // 생성 직후 진입: 프리페치 결과가 없고(검색 실패 등) 검색어만 있으면 마운트 시 자동 검색.
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    if (initialQuery && !seeded) {
+      setSubmittedQuery(initialQuery);
+      fetchSet(initialQuery, "CORPUS");
+    }
+  }, [initialQuery, seeded, fetchSet]);
 
   // 검색은 키워드 제출 때만. 현재 칩이 아카이브면 아카이브를, 아니면 코퍼스를 조회.
   const handleSubmit = (e) => {

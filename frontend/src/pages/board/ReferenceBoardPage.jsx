@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Tooltip from "../../components/Tooltip";
 import { deleteProject, getProject, updateProject } from "../projects/api";
 import ProjectFormModal from "../projects/ProjectFormModal";
@@ -22,6 +22,11 @@ import logo from "../../assets/drawe_logo.png";
 const ReferenceBoardPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // 생성 직후 진입 시 프리페치된 검색어/결과(SCRUM-115) — 보드가 바로 표시.
+  const presetQuery = location.state?.presetQuery ?? "";
+  const presetResults = location.state?.presetResults ?? null;
 
   const [project, setProject] = useState(null);
   const [promptMode, setPromptMode] = useState(null); // 첫 화면: 토글 둘 다 미선택
@@ -154,6 +159,8 @@ const ReferenceBoardPage = () => {
             projectId={projectId}
             onRequestGenerate={handleRequestGenerate}
             expanded={mode === "boardFull"}
+            initialQuery={presetQuery}
+            initialResults={presetResults}
           />
         </aside>
 

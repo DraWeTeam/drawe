@@ -271,6 +271,8 @@
   transition: transform 0.15s ease;
   padding: 16px;
   box-sizing: border-box;
+  /* 그리드 셀(1fr)이 긴 제목 때문에 늘어나지 않도록 — 제목은 … 처리 */
+  min-width: 0;
 }
 
 /* 메뉴 열린 카드만 z-index 위로 */
@@ -322,6 +324,7 @@
   height: 62px;
   gap: 4px;
   margin: 0 6px 0 16px;
+  min-width: 0;
 }
 
 .infoTop {

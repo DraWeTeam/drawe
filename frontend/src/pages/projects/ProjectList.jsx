@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  createProject,
-  deleteProject,
-  getProject,
-  getProjects,
-  updateProject,
-} from "./api";
+import { deleteProject, getProject, getProjects, updateProject } from "./api";
 import ProjectFormModal from "./ProjectFormModal";
+import ProjectCreateModal from "./ProjectCreateModal";
 import ConfirmModal from "./ConfirmModal";
 import Tooltip from "../../components/Tooltip";
 import styles from "./ProjectList.module.css";
@@ -116,22 +111,6 @@ const ProjectList = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [sortOpen]);
-
-  const handleCreate = async (payload) => {
-    const detail = await createProject(payload);
-    setCreateOpen(false);
-    if (detail?.id) {
-      // 새 프로젝트를 만들 때마다 채팅 튜토리얼 코치마크 노출 (프로젝트 id로 키잉)
-      const pid = String(detail.id);
-      localStorage.setItem("drawe_show_project_tutorial", pid);
-      localStorage.setItem("drawe_show_reaction_tutorial", pid);
-      // 채팅 제거 → 새 레퍼런스 보드 워크스페이스로 진입.
-      // navigate(`/projects/${detail.id}/chat`);
-      navigate(`/projects/${detail.id}/board`);
-    } else {
-      fetchProjects();
-    }
-  };
 
   const handleEditClick = async (projectId) => {
     setOpenMenuId(null);
@@ -343,11 +322,7 @@ const ProjectList = () => {
       )}
 
       {createOpen && (
-        <ProjectFormModal
-          mode="create"
-          onClose={() => setCreateOpen(false)}
-          onSubmit={handleCreate}
-        />
+        <ProjectCreateModal onClose={() => setCreateOpen(false)} />
       )}
 
       {editTarget && (

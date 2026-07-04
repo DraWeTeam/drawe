@@ -1,5 +1,14 @@
 import api from "../login/api";
 
+// SCRUM-115 1단계 — 주제(topic)에서 프로젝트 이름 + 키워드 자동 추출.
+// 응답: { name, keywords: string[] }  (Grok 실패 시 백엔드가 degrade)
+export const extractKeywords = async (topic) => {
+  const res = await api.post("/projects/keyword-extraction", { topic });
+  return res.data.data;
+};
+
+// SCRUM-115 2단계 — 최종 편집된 { name, keywords }로 생성.
+//   백엔드가 keywords 저장 + 백그라운드로 subject/mood/technique 분류.
 export const createProject = async (payload) => {
   const res = await api.post("/projects", payload);
   return res.data.data;
