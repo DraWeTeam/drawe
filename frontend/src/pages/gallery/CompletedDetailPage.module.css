@@ -1,0 +1,405 @@
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 24px 64px;
+  color: #2b2b2b;
+}
+.stateBox {
+  padding: 80px 16px;
+  text-align: center;
+  color: #8a8a8a;
+  line-height: 1.7;
+}
+.backLink,
+.moreLink {
+  background: none;
+  border: none;
+  color: #ff8534;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.back {
+  background: none;
+  border: none;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  color: #4b4b4b;
+  padding: 0 6px;
+}
+.pageTitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.overviewRow {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+@media (max-width: 860px) {
+  .overviewRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.overviewCard,
+.statCard,
+.section {
+  background: #fff;
+  border: 1px solid #efeae3;
+  border-radius: 14px;
+  padding: 18px;
+}
+.section {
+  margin-bottom: 20px;
+}
+
+.repImgBox {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f6f4f1;
+  margin-bottom: 14px;
+}
+.repImg {
+  display: block;
+  width: 100%;
+  max-height: 324px;
+  object-fit: cover;
+}
+.repImgEmpty {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f0ede8;
+}
+.stats {
+  display: flex;
+  gap: 8px;
+  border: 1px solid #f0ece6;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 10px;
+  text-align: left;
+}
+.stat + .stat {
+  border-left: 1px solid #f0ece6;
+}
+.statLabel {
+  font-size: 12px;
+  color: #9a9a9a;
+}
+.statValue {
+  font-size: 16px;
+  font-weight: 700;
+}
+.summaryBox {
+  margin-top: 14px;
+  background: #fff7f1;
+  border: 1px solid #ffe4d1;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.summaryLabel {
+  font-size: 12px;
+  color: #ff8534;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.summaryText {
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.axisNote {
+  font-size: 11px;
+  color: #a0a0a0;
+  margin: 0 0 10px;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.tab {
+  border: 1px solid #e6e1da;
+  background: #fff;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #6b6b6b;
+}
+.tabActive {
+  background: #2b2b2b;
+  color: #fff;
+  border-color: #2b2b2b;
+}
+.chartEmpty {
+  padding: 32px 8px;
+  text-align: center;
+  color: #a0a0a0;
+  font-size: 13px;
+}
+.chipRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+.chipCol {
+  background: #faf8f5;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.chipHead {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.rankList,
+.checkList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rankItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.rankNum {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff8534;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkItem {
+  font-size: 13px;
+  color: #4b7a4b;
+}
+.rankEmpty {
+  font-size: 12px;
+  color: #b0b0b0;
+}
+
+.timeline {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.tlNode {
+  flex: 0 0 auto;
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.tlDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffb98a;
+}
+.tlDot[data-type="complete"] {
+  background: #ff8534;
+}
+.tlDot[data-type="reference"] {
+  background: #c9c2b8;
+}
+.tlDate {
+  font-size: 11px;
+  color: #9a9a9a;
+}
+.tlLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+.tlThumb {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f0ede8;
+}
+.tlThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tlThumbEmpty {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.processGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+.processCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.processThumb {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f0ede8;
+}
+.processImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.processLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+.processDate {
+  font-size: 11px;
+  color: #9a9a9a;
+}
+
+.guidePreviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.guideRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #faf8f5;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.guideRowTitle {
+  font-size: 14px;
+  font-weight: 600;
+}
+.guideRowGroup {
+  font-size: 11px;
+  color: #ff8534;
+  background: #fff2e8;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.refList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.refItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.refRank {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff8534;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.refThumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f0ede8;
+}
+.refThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.refCount {
+  font-size: 13px;
+  color: #6b6b6b;
+}
+
+.qGrowth {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.qRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.qPhase {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 52px;
+}
+.qPhaseName {
+  font-size: 13px;
+  font-weight: 700;
+}
+.qDate {
+  font-size: 11px;
+  color: #9a9a9a;
+}
+.qBubble {
+  background: #fff2e8;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}

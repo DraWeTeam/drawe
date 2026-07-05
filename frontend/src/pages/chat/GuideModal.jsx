@@ -339,7 +339,7 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
 // ⑦ 면적 차트(성장): trend [{index, label(주 MM.DD), weekly_count}] → 주별 가이드 요청 횟수 곡선
 //   (정본 114:15736). weekly_count 우선, 없으면 difficulty_count 폴백(하위호환). trend 는 백엔드가
 //   활동 주≥임계일 때만 채워 보낸다(contract.py 게이트). 아니면 [] → 차트 자체가 안 뜸(graceful).
-const GrowthChart = ({ trend }) => {
+export const GrowthChart = ({ trend }) => {
   if (!trend || trend.length < 2) return null;
   const W = 520;
   const H = 150;
@@ -645,18 +645,29 @@ const Coach = ({
         </section>
       )}
 
-      {/* 3. 한 끗 포인트 — direction + 도식 [지금 바로 수정하기 hidden] */}
-      {primary && (primary.direction || primary.guide_asset) && (
-        <section className={styles.section}>
-          <SectionTitle accent>한 끗 포인트</SectionTitle>
-          <div className={styles.tipBox}>
-            {primary.direction && (
-              <p className={styles.tipText}>{primary.direction}</p>
-            )}
-            <AssetSvg asset={primary.guide_asset} />
-          </div>
-        </section>
-      )}
+      {/* 3. 한 끗 포인트 — direction + 조건부 렌더(114:15593):
+          (개선 요청) 업로드 이미지 위 ①② 번호 오버레이 / (이론 질문) guide_asset 전체 SVG(badge 없음). */}
+      {primary &&
+        (primary.direction || primary.guide_asset || guide.overlay) && (
+          <section className={styles.section}>
+            <SectionTitle accent>한 끗 포인트</SectionTitle>
+            <div className={styles.tipBox}>
+              {primary.direction && (
+                <p className={styles.tipText}>{primary.direction}</p>
+              )}
+              {guide.overlay && drawingPreviewUrl ? (
+                <OverlayImage
+                  className={styles.assetImg}
+                  src={drawingPreviewUrl}
+                  overlay={guide.overlay}
+                  alt="개선 포인트 오버레이"
+                />
+              ) : (
+                <AssetSvg asset={primary.guide_asset} />
+              )}
+            </div>
+          </section>
+        )}
 
       {/* 4. 추천 레퍼런스 (+ 피드백·새로고침) */}
       {displayedRefs.length > 0 && (

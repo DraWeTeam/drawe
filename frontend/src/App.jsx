@@ -13,6 +13,7 @@ import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
 import ReferenceListPage from "./pages/gallery/ReferenceListPage";
 import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
+import CompletedDetailPage from "./pages/gallery/CompletedDetailPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import PlanPage from "./pages/settings/PlanPage";
 import PolicyPage from "./pages/settings/PolicyPage";
@@ -50,6 +51,10 @@ function App() {
                 element={<ReferenceListPage />}
               />
               <Route path="/gallery" element={<CompletedGalleryPage />} />
+              <Route
+                path="/gallery/:projectId"
+                element={<CompletedDetailPage />}
+              />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/plan" element={<PlanPage />} />
               <Route path="/policy" element={<PolicyPage />} />
