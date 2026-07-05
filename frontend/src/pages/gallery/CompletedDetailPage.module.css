@@ -111,6 +111,12 @@
 .statLabel {
   font-size: 12px;
   color: #9a9a9a;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.statLabel svg {
+  flex: 0 0 auto;
 }
 .statValue {
   font-size: 16px;
@@ -348,6 +354,18 @@
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 6px;
+  position: relative;
+}
+/* 정본: 노드 도트를 잇는 수평 연결선(도트 중심 높이). */
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 48px;
+  right: 48px;
+  height: 2px;
+  background: #ffd9bf;
+  z-index: 0;
 }
 .tlNode {
   flex: 0 0 auto;
@@ -362,7 +380,9 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #ffb98a;
+  background: #ff8534;
+  position: relative;
+  z-index: 1;
 }
 .tlDot[data-type="complete"] {
   background: #ff8534;
@@ -560,18 +580,21 @@
 .qGrowth {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 .qRow {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 12px;
+  padding: 6px 0;
 }
 .qPhase {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  width: 52px;
+  width: 40px;
+  text-align: right;
+  padding-top: 8px;
 }
 .qPhaseName {
   font-size: 13px;
@@ -581,7 +604,34 @@
   font-size: 11px;
   color: #9a9a9a;
 }
+/* 정본: 초기→후기 도트를 잇는 세로 연결선 + 각 단계 도트. */
+.qDot {
+  position: relative;
+  flex: 0 0 auto;
+  width: 12px;
+}
+.qDot::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ffd9bf;
+}
+.qDot::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff8534;
+}
 .qBubble {
+  flex: 1;
+  align-self: center;
   background: #fff2e8;
   border-radius: 10px;
   padding: 10px 14px;
@@ -628,4 +678,40 @@
   font-size: 12px;
   cursor: pointer;
   padding: 6px 2px 0;
+}
+
+/* 섹션 부제(정본: 제목 아래 한 줄 설명) */
+.sectionSub {
+  font-size: 12px;
+  color: #9a9a9a;
+  margin: 2px 0 12px;
+}
+.sectionHead .sectionSub {
+  margin-bottom: 0;
+}
+/* 모아보기 2단 그리드(정본) */
+.guideGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 20px;
+}
+@media (max-width: 860px) {
+  .guideGrid {
+    grid-template-columns: 1fr;
+  }
+}
+/* TOP 레퍼런스 + 질문 성장 2단 배치(정본) */
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.twoCol .section {
+  margin-bottom: 0;
+}
+@media (max-width: 860px) {
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
 }
