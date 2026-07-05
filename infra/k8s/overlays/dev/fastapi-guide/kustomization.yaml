@@ -41,5 +41,5 @@ patches:
       - op: replace
         path: /spec/securityGroups/groupIds
         value:
-          - sg-0c844f5cdf5f0791b        # drawe-dev-pods-db
-          - sg-0359b5783a7ee85dd        # 클러스터 SG
+          - sg-0204cf50ec3a19b99        # drawe-dev-pods-db
+          - sg-0f815ecda2fb7e9fc        # 클러스터 SG
