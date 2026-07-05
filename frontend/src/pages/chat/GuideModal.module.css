@@ -890,3 +890,51 @@
   font-size: 13px;
   line-height: 20px;
 }
+
+/* 한 끗 포인트 — 번호 포인트(정본 114:15631) */
+.pointList {
+  list-style: none;
+  margin: var(--space-400) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+.pointItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-300);
+}
+.pointNum {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-brand);
+  color: var(--text-inverse);
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.pointText {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
+}
+/* 지금 바로 수정하기(정본 114:15638) */
+.fixBox {
+  margin-top: var(--space-500);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+.fixTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}

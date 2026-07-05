@@ -35,6 +35,7 @@ public class ProjectService {
   private final LlmMessageRepository llmMessageRepository;
   private final SearchLogRepository searchLogRepository;
   private final ProjectKeywordService projectKeywordService;
+  private final com.drawe.backend.domain.guide.repository.GuideRepository guideRepository;
 
   @Transactional
   public ProjectDetailResponse create(User user, CreateProjectRequest request) {
@@ -104,6 +105,18 @@ public class ProjectService {
     }
     if (request.detailAnswers() != null) {
       project.setDetailAnswers(request.detailAnswers());
+    }
+    // 프로젝트 완료 시 대표 이미지가 없으면 최근 가이드 업로드를 완성작 대표로 자동 지정한다.
+    //   정본: '프로젝트 완료'는 별도 파일 업로드 없이 status=COMPLETED 만 보내고 완성작 갤러리에 담긴다.
+    //   완성작 갤러리(findCompletedWithDrawing)는 drawingUrl 있는 것만 노출하므로 여기서 확보.
+    if (project.getStatus() == ProjectStatus.COMPLETED
+        && (project.getDrawingUrl() == null || project.getDrawingUrl().isBlank())) {
+      guideRepository
+          .findByUser_IdAndProject_IdOrderByCreatedAtDesc(user.getId(), projectId)
+          .stream()
+          .filter(g -> g.getUpload() != null)
+          .findFirst()
+          .ifPresent(g -> project.setDrawingUrl("/images/" + g.getUpload().getId()));
     }
   }
 

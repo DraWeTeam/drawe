@@ -663,9 +663,7 @@ const Coach = ({
           <section className={styles.section}>
             <SectionTitle accent>한 끗 포인트</SectionTitle>
             <div className={styles.tipBox}>
-              {primary.direction && (
-                <p className={styles.tipText}>{primary.direction}</p>
-              )}
+              {/* 이미지(오버레이 ①② 마커 or 3D·도식 asset) */}
               {guide.overlay && drawingPreviewUrl ? (
                 <OverlayImage
                   className={styles.assetImg}
@@ -676,6 +674,41 @@ const Coach = ({
               ) : (
                 <AssetSvg asset={primary.guide_asset} />
               )}
+              {/* 번호 포인트 — 블록별 핵심(정본 114:15631). 이미지의 ①② 마커와 대응. */}
+              {blocks.length > 0 && (
+                <ol className={styles.pointList}>
+                  {blocks.map((bl, i) => (
+                    <li key={i} className={styles.pointItem}>
+                      <span className={styles.pointNum}>{i + 1}</span>
+                      <span className={styles.pointText}>
+                        <b>{axisLabel(bl.sub_problem)}</b>
+                        {bl.observation ? ` — ${bl.observation}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {/* 지금 바로 수정하기 — 액션 체크리스트(정본 114:15638). direction 우선, 없으면 실천 폴백. */}
+              {(() => {
+                const fixes = blocks.map((bl) => bl.direction).filter(Boolean);
+                const list =
+                  fixes.length > 0
+                    ? fixes
+                    : [next?.focus_practice, next?.next_goal_practice].filter(
+                        Boolean,
+                      );
+                return list.length > 0 ? (
+                  <div className={styles.fixBox}>
+                    <p className={styles.fixTitle}>지금 바로 수정하기</p>
+                    {list.map((fx, i) => (
+                      <div key={i} className={styles.checkItem}>
+                        <span className={styles.checkbox} aria-hidden />
+                        <span className={styles.checkText}>{fx}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
             </div>
           </section>
         )}

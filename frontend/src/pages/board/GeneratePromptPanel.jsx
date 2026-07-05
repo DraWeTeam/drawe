@@ -1,8 +1,7 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Tooltip from "../../components/Tooltip";
 import TutorialCoachmark from "../chat/TutorialCoachmark";
 import GuideForm from "../chat/GuideForm";
-import GuideModal from "../chat/GuideModal";
 import BoardGuideChat from "./BoardGuideChat";
 import { requestGuide, uploadImage } from "../chat/api";
 import { resizeImage, validateImageFile } from "../chat/imageUtils";
@@ -55,6 +54,7 @@ const GeneratePromptPanel = ({
   onCollectionChange,
   onGuidesCount,
   onOpenGuide,
+  onGuideState,
 }) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef(null);
@@ -71,9 +71,8 @@ const GeneratePromptPanel = ({
   const [chatCount, setChatCount] = useState(0);
   const [chatReload, setChatReload] = useState(0);
 
-  // 프로젝트 완료 — 완성 그림 파일 업로드
+  // 프로젝트 완료 — 완성작 갤러리에 담기(파일 업로드 없음)
   const [completing, setCompleting] = useState(false);
-  const completeInputRef = useRef(null);
 
   // 입력창 첨부 — 기존 이미지 업로드 재사용
   const [attachment, setAttachment] = useState(null); // { url, previewUrl }
@@ -150,23 +149,35 @@ const GeneratePromptPanel = ({
     setGuideError("");
   };
 
-  // 프로젝트 완료 — 완성 그림 선택 시 업로드 → 프로젝트 COMPLETED + drawingUrl 저장.
-  const handleCompleteFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || completing) return;
-    const err = validateImageFile(file);
-    if (err) {
-      alert(err);
-      return;
-    }
+  // 정본: 가이드 생성 상세는 중앙 모달이 아니라 부모(ReferenceBoardPage) 좌측 인라인 패널에 표시한다.
+  //   생성 상태(로딩/결과/에러)를 부모로 올려보내 GuideContent 로 렌더하게 한다.
+  useEffect(() => {
+    onGuideState?.(
+      guideOpen
+        ? {
+            open: true,
+            result: guideResult,
+            loading: guideLoading,
+            error: guideError,
+            drawingPreviewUrl: guidePreview,
+            onClose: closeGuide,
+            onRetry: retryGuide,
+          }
+        : { open: false },
+    );
+    // closeGuide/retryGuide 는 매 렌더 재생성되나 여기선 최신 클로저면 충분(과호출 무해).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guideOpen, guideResult, guideLoading, guideError, guidePreview]);
+
+  // 프로젝트 완료 — 정본: 파일 업로드 없이 status=COMPLETED 만. 백엔드가 최근 가이드 업로드를
+  //   대표 이미지로 자동 지정 → 완성작 갤러리에 담긴다(뜬금없는 파일첨부창 없음).
+  const handleComplete = async () => {
+    if (completing) return;
     setCompleting(true);
     try {
-      const resized = await resizeImage(file);
-      const { url } = await uploadImage(resized);
-      await updateProject(projectId, { status: "COMPLETED", drawingUrl: url });
+      await updateProject(projectId, { status: "COMPLETED" });
       track("project_completed", { project_id: projectId });
-      alert("완성작으로 저장했어요! 완성작 갤러리에서 볼 수 있어요.");
+      alert("완성작 갤러리에 담았어요!");
     } catch (e2) {
       alert(
         e2.response?.data?.error?.message ||
@@ -344,19 +355,12 @@ const GeneratePromptPanel = ({
             </button>
           </Tooltip>
 
-          {/* 별도 액션: 프로젝트 완료 */}
-          <input
-            ref={completeInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            onChange={handleCompleteFile}
-            style={{ display: "none" }}
-          />
-          <Tooltip label="완성된 그림 업로드하기" placement="top">
+          {/* 별도 액션: 프로젝트 완료 — 완성작 갤러리에 담기(파일 업로드 없음) */}
+          <Tooltip label="완성작 갤러리에 담기" placement="top">
             <button
               type="button"
               className={styles.completeBtn}
-              onClick={() => completeInputRef.current?.click()}
+              onClick={handleComplete}
               disabled={completing}
             >
               {completing ? "완료 중…" : "프로젝트 완료"}
@@ -464,18 +468,7 @@ const GeneratePromptPanel = ({
         />
       )}
 
-      {/* 한 끗 가이드 결과 모달 */}
-      {guideOpen && (
-        <GuideModal
-          result={guideResult}
-          loading={guideLoading}
-          error={guideError}
-          drawingPreviewUrl={guidePreview}
-          onClose={closeGuide}
-          onRetry={retryGuide}
-          onRefFeedback={() => {}}
-        />
-      )}
+      {/* 한 끗 가이드 결과는 부모 좌측 인라인 패널(GuideContent)에 표시 — onGuideState 참고 */}
 
       {/* 첫 프로젝트 진입 튜토리얼 — 가이드 생성 버튼 위 */}
       {showGuideTut && (
