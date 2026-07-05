@@ -130,6 +130,31 @@ def query(vec, k, must=None, must_not=None):
     ]
 
 
+def retrieve_meta(ref_ids):
+    """ref_id 리스트 → {ref_id: meta(payload)}. 응답 표시(badge 등) 전용 — 검색·스코어링과 무관한
+    추가 조회(포인트 id 로 payload 만 회수). 실패/없음이면 빈 dict(표시는 graceful)."""
+    ids = [r for r in dict.fromkeys(ref_ids) if r]
+    if not ids:
+        return {}
+    try:
+        if _BACKEND == "pinecone":
+            res = _pc().fetch(ids=ids, namespace=_ns())
+            vecs = getattr(res, "vectors", None) or (
+                res.get("vectors") if isinstance(res, dict) else {}
+            )
+            return {k: (_g(v, "metadata") or {}) for k, v in (vecs or {}).items()}
+        recs = _qc().retrieve(
+            collection_name=settings.qdrant_collection,
+            ids=[_qid(r) for r in ids],
+            with_payload=True,
+        )
+        return {
+            (rc.payload or {}).get("ref_id", rc.id): (rc.payload or {}) for rc in recs
+        }
+    except Exception:
+        return {}
+
+
 def delete_by(must):
     """must={meta_key: value} 매칭 포인트 삭제(self_render 리셋 등)."""
     if _BACKEND == "pinecone":

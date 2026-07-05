@@ -73,7 +73,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: back-ground 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .toggleBtn:hover {
@@ -199,7 +199,7 @@
   text-align: left;
   box-sizing: border-box;
   transition:
-    back-ground 0.15s ease,
+    background 0.15s ease,
     color 0.15s ease;
   white-space: nowrap;
   overflow: hidden;
@@ -256,49 +256,92 @@
   transform: rotate(180deg);
 }
 
+/* 닫힌 채로 active일 때 셰브론도 흰색 */
+.active .chevron {
+  color: #fff;
+}
+
 .submenu {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  height: 64px;
-  padding: 0 32px;
-  gap: 4px;
+  box-sizing: border-box;
+  max-height: 0;
+  padding: 0 8px;
+  margin-top: -12px;
+  gap: 8px;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 0.22s ease,
+    padding 0.22s ease,
+    opacity 0.18s ease;
+}
+
+.submenuOpen {
+  max-height: 120px;
+  padding: 8px;
+  opacity: 1;
 }
 
 .submenuItem {
   display: flex;
   align-items: center;
-  padding: 9px 14px;
+  gap: 12px;
+  height: 46px;
+  padding: 12px 56px 12px;
+  box-sizing: border-box;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   color: #666;
   font-family: inherit;
-  border-radius: 8px;
+  text-decoration: none;
+  border-radius: 12px;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
-  margin-left: 15px;
 }
 
-.submenuItem:hover:not(:disabled) {
+/* 카운트 배지 */
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: #fff0e3;
+  color: #ff8534;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.submenuItem.active {
+  color: #fff;
+  background: #ff8534;
+}
+
+.submenuItem.active:hover {
+  background: #ff7a25;
+}
+
+/* active 상태에서는 카운트 배지도 흰색 계열로 */
+.submenuItem.active .count {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.submenuItem:hover:not(:disabled):not(.active) {
   background: #f5f5f5;
 }
 
 .submenuItem:disabled {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-.count {
-  font-size: 12px;
-  color: #ff8534;
-  background: #fff3ea;
-  padding: 1px 9px;
-  border-radius: 999px;
-  font-weight: 500;
-  margin-left: 12px;
 }
 
 /* ===== 하단: 유저 ===== */
@@ -329,7 +372,7 @@
   color: inherit;
   font-family: inherit;
   box-sizing: border-box;
-  transition: back-ground 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .userCard:hover {

@@ -1,0 +1,228 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+  animation: pop-in 0.18s ease;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #24221f;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  color: #8a857e;
+  cursor: pointer;
+  border-radius: 8px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.closeBtn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.closeBtn:hover {
+  background: #f2efec;
+  color: #4a4846;
+}
+
+.fieldLabel {
+  display: block;
+  margin: 24px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a4846;
+}
+
+.fieldLabel:first-of-type {
+  margin-top: 0;
+}
+
+/* 주제 입력 단계의 질문 라벨 */
+.topicLabel {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #4a4846;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #e0ded9;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 400;
+  font-family: inherit;
+  color: #24221f;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input:focus {
+  border-color: #ff8534;
+}
+
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid #e0ded9;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 400;
+  font-family: inherit;
+  color: #24221f;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  transition: border-color 0.15s ease;
+}
+
+.textarea:focus {
+  border-color: #ff8534;
+}
+
+.textarea::placeholder {
+  color: #b3aea8;
+}
+
+.hint {
+  margin: 32px 0 16px;
+  font-size: 14px;
+  color: #b0aba5;
+  text-align: center;
+}
+
+.error {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #d83a3a;
+}
+
+.primaryBtn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 999px;
+  background: #ff8534;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: #ff7a25;
+}
+
+.primaryBtn:disabled {
+  background: #e6e3df;
+  color: #b3aea8;
+  cursor: not-allowed;
+}
+
+/* ===== 로딩 화면(전체) ===== */
+.loadingScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #fefeff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  gap: 10px;
+}
+
+.loadingSub {
+  margin: 0;
+  font-size: 14px;
+  color: #8a857e;
+}
+
+.loadingTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #24221f;
+}
+
+.loadingBar {
+  margin-top: 28px;
+  width: 200px;
+  height: 4px;
+  border-radius: 999px;
+  background: #f0eeec;
+  overflow: hidden;
+}
+
+.loadingBar span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: #ff8534;
+  animation: loading-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes loading-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}

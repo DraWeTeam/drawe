@@ -3,15 +3,18 @@
 ai_qc / ai_ingest 는 generator-agnostic(이미지가 어디서 왔든 검사·적재만 한다)이라,
 그 앞단 — concept(영문 프롬프트) → PIL 한 장 — 만 이 모듈이 책임진다.
 
-provider(config.settings 기준):
-  - bria    : 기본. BRIA_API_KEY/BRIA_MODEL. config 가 '운영 생성기'로 가리키는 쪽.
-  - gemini  : 대체. GEMINI_API_KEY + 이미지 모델(예: gemini-2.5-flash-image). vision.py 와 같은 호출 형태.
-  - (키 없음): None 반환 → 호출자(ai_fallback)가 SVG 도식 바닥으로 폴백 → 앱은 안 깨진다.
+provider(AI_GEN_PROVIDER env 로 선택):
+  - bedrock : AWS Bedrock Stability(us-west-2, stable-image-core). 운영(prod) 생성기. 자격=IAM(IRSA/프로필), 키 미노출.
+  - gemini  : GEMINI_API_KEY + 이미지 모델(예: gemini-2.5-flash-image). dev 유지·롤백용. vision.py 와 같은 호출 형태.
+  - bria    : BRIA_API_KEY/BRIA_MODEL. 보조 폴백.
+  - (미선택/키없음): None 반환 → 호출자(ai_fallback)가 SVG 도식 바닥으로 폴백 → 앱은 안 깨진다.
+
+환경 분기(코드 아님, 배포 env 로): prod=bedrock / dev=gemini. provider 셋 다 코드에 상주(교체 아닌 추가).
 
 원칙:
   - 정책 판단(어느 축을 생성해도 되는지)은 여기 없음 — ai_fallback/ai_qc 가 소유. 여기선 순수 생성.
   - 모든 네트워크/디코드 예외를 삼켜 None 반환(생성 실패가 /guide 를 절대 막지 않음).
-  - provider 별 엔드포인트/응답 스키마는 *각 provider 문서 기준* — 바뀌면 _bria/_gemini 만 손본다.
+  - provider 별 엔드포인트/응답 스키마는 *각 provider 문서 기준* — 바뀌면 _bria/_gemini/_bedrock 만 손본다.
 """
 
 import io
@@ -124,7 +127,60 @@ def _gemini(prompt: str):
     return None
 
 
-_DISPATCH = {"bria": _bria, "gemini": _gemini}
+# ── provider: AWS Bedrock (Stability text-to-image) ────────────────────────────
+_bedrock_client = None
+
+
+def _get_bedrock_client():
+    """지연 생성 bedrock-runtime 클라이언트(1회). 자격 분리:
+    - BEDROCK_AWS_PROFILE 있으면 그 프로필 사용 → dev(개인계정)에서 prod(조직) Bedrock 호출용.
+    - 없으면 boto3 기본 자격 체인 → prod EKS 는 fastapi-guide IRSA(같은 계정) 그대로.
+    리전은 이미지 생성 모델이 있는 us-west-2 기본(서울엔 이미지 생성 모델 없음). 자격은
+    환경(프로필/IRSA)에서만 오고 코드·git 엔 키를 두지 않는다.
+    """
+    global _bedrock_client
+    if _bedrock_client is None:
+        import boto3
+        from botocore.config import Config
+
+        region = os.environ.get("BEDROCK_IMAGE_REGION", "us-west-2")
+        profile = os.environ.get("BEDROCK_AWS_PROFILE") or None
+        cfg = Config(
+            region_name=region,
+            read_timeout=int(os.environ.get("BEDROCK_TIMEOUT", "60")),
+            retries={"max_attempts": 2},
+        )
+        session = boto3.Session(profile_name=profile)
+        _bedrock_client = session.client("bedrock-runtime", config=cfg)
+    return _bedrock_client
+
+
+def _bedrock(prompt: str):
+    """AWS Bedrock Stability text-to-image. 응답 {"images":[base64], "finish_reasons":[...]} → PIL.
+    모델 기본 stability.stable-image-core-v1:1(BEDROCK_IMAGE_MODEL 로 override). finish_reasons 에
+    None 이 아닌 값(필터 등)이면 이미지가 비어 None 반환 → 호출자 SVG 폴백."""
+    import json
+
+    model = os.environ.get("BEDROCK_IMAGE_MODEL", "stability.stable-image-core-v1:1")
+    body = {"prompt": prompt, "aspect_ratio": "1:1", "output_format": "png"}
+    resp = _get_bedrock_client().invoke_model(
+        modelId=model,
+        body=json.dumps(body),
+        contentType="application/json",
+        accept="application/json",
+    )
+    payload = json.loads(resp["body"].read())
+    imgs = payload.get("images") or []
+    if not imgs:
+        log.info(
+            "[generate] bedrock 응답에 이미지 없음: finish=%s",
+            payload.get("finish_reasons"),
+        )
+        return None
+    return _to_pil(base64.b64decode(imgs[0]))
+
+
+_DISPATCH = {"bria": _bria, "gemini": _gemini, "bedrock": _bedrock}
 
 
 def generate(prompt: str):

@@ -115,7 +115,9 @@ public class ComposeExecutor implements StepExecutor {
             ctx.rawMessage(),
             ctx.uploadedImageBytes(),
             ctx.uploadedImageMimeType(),
-            GrokService.DRAW_GUIDE_SCHEMA_NAME);
+            GrokService.DRAW_GUIDE_SCHEMA_NAME,
+            // 멀티턴 캐시 라우팅: 같은 세션 요청을 같은 서버로 보내 Grok prefix 캐시 적중률을 높인다(x-grok-conv-id).
+            ctx.sessionId());
 
     LlmService llm = pickService(ctx.provider());
     LlmCallResult result = llm.generate(callContext);

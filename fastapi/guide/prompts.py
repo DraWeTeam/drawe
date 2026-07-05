@@ -2,6 +2,8 @@
 
 import json
 
+from guide._trace import trace
+
 SYSTEM = """너는 중급 취미 화가의 그림을 코칭하는 도구다. 너의 일은 '대신 그려주기'가 아니라
 '작가가 더 잘 보도록' 돕는 것이다.
 - 너는 그림을 직접 보지 못한다. 각 관찰의 signal은 그림에서 자동 측정된 '사실'이다.
@@ -60,6 +62,26 @@ def build_coach_prompt(
             for o in diagnosis.get("observations", [])
         ],
     }
+    # [경계4] prompt: LLM이 실제로 보는 관찰 수(=post-agent retention) + 빈 signal + 버려지는 필드.
+    #   from_user_empty 가 비어있지 않으면, 사용자가 물은 축이 '내용 없이' 헤드라인이 된다는 뜻.
+    trace(
+        "prompt.obs",
+        n_obs=len(obs["observations"]),
+        empty_signal=[o["sub_problem"] for o in obs["observations"] if not o["signal"]],
+        from_user_empty=[
+            o["sub_problem"]
+            for o in obs["observations"]
+            if o["from_user"] and not o["signal"]
+        ],
+        dropped=[
+            "scene",
+            "spatial",
+            "reference_query",
+            "context_ok",
+            "region",
+            "measurable",
+        ],
+    )
     refs = {sp: [rid for rid, _ in lst] for sp, lst in refs_by_sp.items()}
     # 그림 '단계'에 따른 자세. 완성작이면 '고칠 점'이 아니라 '앞으로 키울 것'으로 무게 이동.
     stance = ""
@@ -84,7 +106,11 @@ def build_coach_prompt(
             LABELS,
         )  # 지연 import: prompts 모듈 로드 결합 최소화
 
-        improved = [sp for sp in (growth.get("improved") or []) if sp in LABELS]
+        improved_raw = [sp for sp in (growth.get("improved") or []) if sp in LABELS]
+        # (a) growth 스코핑: 이번 그림에 '재료가 없는' 축(색 없는 선화의 color 등)은 인정에서 제외.
+        #   '나아졌다'는 그 축이 이 그림에 표현됐을 때만 말이 된다 → 누수('손에 색 칭찬') 차단.
+        _inexpr = set(diagnosis.get("inexpressible") or [])
+        improved = [sp for sp in improved_raw if sp not in _inexpr]
         # 핸드오프 대상: 개선 축이 있을 때, 아직 개선 안 된 '지금 집중/다음' 축으로 전진 프레이밍.
         target = next(
             (
@@ -95,6 +121,16 @@ def build_coach_prompt(
             None,
         )
         data = {}
+        # [경계: growth] synthesis 가 인정할 축. dropped = inexpressible 로 걸러낸 누수 축(검증용).
+        trace(
+            "growth",
+            improved=improved,
+            dropped=sorted(set(improved_raw) - set(improved)),
+            inexpressible=sorted(_inexpr),
+            current_focus=growth.get("current_focus"),
+            next_focus=target,
+            trend=growth.get("trend"),
+        )
         if improved:
             data["improved"] = [LABELS[sp] for sp in improved[:2]]
             if target:

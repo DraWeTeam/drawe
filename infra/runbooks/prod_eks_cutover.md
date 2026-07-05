@@ -99,15 +99,21 @@ feature → develop → main
 
 backend 변경(IRSA STS fix, spring-session-data-redis, REDIS_TLS) 이 prod 에 들어감.
 
-### 2. 이미지 빌드
+### 2. 이미지 빌드 + prod CD 승인·완주 (★newTag 게이트 — 앱 등록 전 필수 선행)
 
-- main 머지가 `backend-cd.yml` 트리거
-- prod environment 승인 후 "Docker 빌드 & ECR push" 단계가 새 latest+SHA push
-- ECS task definition 갱신·service update 단계는 `prod_enabled=false` 면 무의미하지만 무해 (취소 가능)
-- 확인:
+- main 머지는 **3개 prod CD 를 트리거**한다: `backend-cd.yml`(`backend/**`) · `fastapi-guide-cd.yml`(`fastapi/guide/**`+assets) · `fastapi-cd.yml`(embed; `fastapi/**` − guide 제외 — `fastapi/docs/**`·`scripts/**` 변경도 트리거된다).
+- 각 CD 는 **prod environment 승인** 후 ECR push + prod overlay `newTag` 를 새 main SHA 로 bump 한다(`ci(prod): bump ... [skip ci]`). **3개 모두 승인·완주**해야 한다. ECS task def 갱신 단계는 `prod_enabled=false` 면 무의미하나 무해(취소 가능).
+- ★**newTag 게이트 — 3서비스 overlay `newTag` 가 새 main 머지 해시인지 확인. `latest`·구 해시·ECR NotFound 면 해당 CD 미완주 → 7단계(앱 등록) 중단하고 CD 재실행·승인.** 릴리스 머지 직후엔 overlay 가 develop 값(backend=`6b9cc683…`, embed·guide=`latest`)으로 일시 되돌려져 있다가 CD 완주 시 새 main 해시로 재bump 된다. 이 게이트를 통과하기 전 6~7단계로 진행하면 옛/latest 이미지가 sync 된다.
   ```bash
-  aws ecr describe-images --repository-name drawe-prod-backend --region ap-northeast-2 \
-    --image-ids imageTag=latest --query 'imageDetails[0].imagePushedAt'
+  # (overlay 경로 : ECR repo) — 이름 불일치 주의
+  for pair in "backend:backend" "fastapi-embed:fastapi" "fastapi-guide:fastapi-guide"; do
+    ov=${pair%%:*}; repo=${pair##*:}
+    tag=$(grep newTag infra/k8s/overlays/prod/$ov/kustomization.yaml | awk '{print $2}')
+    echo "== $ov  newTag=$tag =="
+    aws ecr describe-images --repository-name drawe-prod-$repo --region ap-northeast-2 \
+      --image-ids imageTag="$tag" --query 'imageDetails[0].imagePushedAt' --output text 2>&1
+  done
+  # 3개 모두 새 main 해시 + ECR pushedAt 있어야 통과. latest·구 해시·NotFound 면 중단.
   ```
 
 ### 3. 공유 인프라 ON (RDS/Redis 가 꺼져 있던 경우)
@@ -382,6 +388,51 @@ kubectl rollout restart deploy/backend -n drawe-prod
 ```
 
 **향후 개선**: argocd Application 에 `syncOptions: ServerSideApply=true` 또는 configmap 에 hash suffix 켜기 (`disableNameSuffixHash: false`) — 다만 후자는 deployment 가 새 이름을 자동 참조하도록 kustomize generator 가 처리해 줘서 자동 롤링 트리거 효과도 있음. 현재는 hash 끈 채로 운영, 수동 rollout 절차 인지.
+
+### 11. terraform-prod apply 시 db_password 변수 누락 → RDS 암호 회전 (데이터 계층 파괴급)
+
+**증상**: terraform-prod `plan`/`apply` 에 `random_password.db[0] will be created` (add) + `aws_db_instance.main` 의 password 관련 change 가 뜬다.
+
+**원인**: `rds.tf` 구조 —
+- `resource "random_password" "db"` 는 `count = var.db_password == "" ? 1 : 0`
+- `local.db_password = var.db_password != "" ? var.db_password : random_password.db[0].result`
+- `aws_db_instance.main.password = local.db_password` (★password 는 `lifecycle.ignore_changes` 에 **없음**)
+
+`db_password` 변수를 넘기지 않고 plan/apply 하면 `var.db_password == ""` → count=1 → **새 랜덤 암호 생성** → `local.db_password` 변경 → **RDS 마스터 암호가 실제로 회전** + SSM `/drawe/prod/db-password` 값도 교체. 실행 중이면 backend 가 옛 암호로 붙으려다 `Access denied` → 장애. (state 에 `random_password.db` 가 없고 terraform.tfvars 에도 db_password 가 없음 = 원래 apply 는 외부 변수 주입으로 count=0 운영.)
+
+**안전 규칙 (terraform-prod apply 전 필수)**:
+1. **apply 전 반드시 `TF_VAR_db_password` 에 SSM `/drawe/prod/db-password` 실값을 주입**(또는 대칭 `-var-file`). 예:
+   ```bash
+   export TF_VAR_db_password="$(aws ssm get-parameter --name /drawe/prod/db-password \
+     --with-decryption --query Parameter.Value --output text --region ap-northeast-2)"
+   ```
+2. **plan 에 `random_password.db` 또는 `aws_db_instance.main` password change 가 보이면 = 변수 누락 신호 → 즉시 중단, apply 금지.**
+   ```bash
+   terraform plan -no-color | grep -E "random_password\.db|aws_db_instance\.main"
+   # 아무것도 안 나와야 정상. 한 줄이라도 나오면 TF_VAR_db_password 누락 → 중단.
+   ```
+3. dev 도 동일 구조(`terraform-dev`) — 같은 규칙 적용.
+
+**비고**: `valkey_auth`·`grafana_admin` 은 terraform-관리 랜덤(state 에 존재, 안정)이라 이 함정 없음. **db 만 외부 변수 주입 구조**라 취약. (개선 여지: RDS `manage_master_user_password`(Secrets Manager 관리)로 전환하면 이 클래스의 사고가 사라짐 — 별도 트랙.)
+
+### 12. DB 스키마 마이그레이션 미적용 — 신 컬럼 참조 실패 (조용한 기능 비활성)
+
+**증상**: 배포 코드는 새 컬럼/테이블을 참조하는데 DB에 없음 → 해당 기능이 **조용히 비활성**(예외 삼켜짐, readiness는 통과). 프론트가 새 필드를 렌더해도 값이 안 와서 **"구현했는데 안 보임"**으로 나타남. (2026-07 dev: `practice_log.project_id`(013) 미적용 → growth 성장 그래프 전 사용자 비활성.)
+
+**원인**: fastapi 가이드 마이그레이션은 **기동 시 자동**(`app.py` → `guide.stores.migrate.run_migrations`)이지만 **`GUIDE_AUTO_MIGRATE=1` 플래그 게이트**. EKS 배포 configmap에 이 플래그가 없으면 pending 마이그레이션이 안 돈다. 적용분은 `schema_version` 테이블(version 컬럼, 001~NNN)로 추적. 새 마이그레이션(예: 013)이 이미지에 있어도 플래그 없으면 미적용. **backend(Spring) Flyway와는 별개** — fastapi 가이드 DB(`drawe_guide`)는 이 자체 러너가 담당.
+
+**해결**:
+1. 배포 직후 스키마 대조:
+   ```bash
+   kubectl exec deploy/fastapi-guide -n <ns> -- python -c "from guide.stores.db import engine; from sqlalchemy import text
+   with engine.begin() as cx: print([r[0] for r in cx.execute(text('SELECT version FROM schema_version ORDER BY version'))])"
+   # 결과를 fastapi/guide/schema/migrations/ 파일 목록과 대조. 빠진 NNN 있으면 갭.
+   ```
+2. 갭 해소(택1):
+   - (a) 배포 configmap에 `GUIDE_AUTO_MIGRATE=1` 추가 후 재기동 → 기동 시 pending만 적용(schema_version 기준, 이미 적용분 스킵이라 안전).
+   - (b) 누락분만 수동: `python -m guide.stores.migrate` one-off, 또는 개별 DDL + `INSERT INTO schema_version(version)`. (dev 013은 이 방식으로 적용.)
+
+**교훈**: 배포 시퀀스에 **DB 스키마 마이그레이션 확인·적용** 단계를 둔다(플랫폼 설치 후 · 앱 등록 전후). 새 컬럼을 쓰는 기능(⑦ growth의 project_id 등)은 코드·프론트만 배포하고 마이그레이션을 빠뜨리면 런타임에 조용히 죽는다 — readiness만 보면 놓친다.
 
 ## 결정 기록
 

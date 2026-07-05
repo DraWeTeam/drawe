@@ -84,6 +84,12 @@ services:
       APP_OAUTH2_REDIRECT_URI: http://localhost:5173/oauth/callback
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-password}
+      # SMTP — mailService 빈이 placeholder 를 요구하므로 반드시 주입(로컬은 더미여도 부팅 OK,
+      # 실제 인증코드 메일은 안 가지만 Redis 플래그 주입으로 가입 테스트 가능).
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-dummy@example.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-dummy}
     depends_on:
       mysql:
         condition: service_healthy

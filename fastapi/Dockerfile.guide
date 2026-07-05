@@ -7,7 +7,10 @@ ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential ca-certificates \
+        libgl1 libglib2.0-0 libxcb1 libsm6 libxext6 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
+# ↑ libgl1/libxcb1 등: ViTPose 베이크 시 transformers AutoProcessor 가 cv2 계열을 import(런타임
+#   Stage2 와 동일 libs). 없으면 'libxcb.so.1: cannot open shared object file' 로 베이크 실패.
 
 # CPU torch (embed 와 동일)
 RUN pip install --user \
@@ -30,6 +33,14 @@ RUN /root/.local/bin/opentelemetry-bootstrap -a requirements > req-otel.txt && \
 ARG HF_TOKEN=""
 RUN HF_TOKEN="$HF_TOKEN" HUGGING_FACE_HUB_TOKEN="$HF_TOKEN" \
     python -c "import open_clip; open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai', force_quick_gelu=True)"
+
+# ViTPose 가중치 베이크(usyd-community/vitpose-base, COCO-17) → cold start 다운로드 제거.
+#   ml/pose.py 와 동일 로더(AutoProcessor + VitPoseForPoseEstimation). HF 캐시(~/.cache/huggingface)에
+#   내려받아 두면 런타임 최초 pose 호출이 오프라인으로 뜬다(Stage2 가 /root/.cache 를 유저 홈으로 복사).
+RUN HF_TOKEN="$HF_TOKEN" HUGGING_FACE_HUB_TOKEN="$HF_TOKEN" \
+    python -c "from transformers import AutoProcessor, VitPoseForPoseEstimation; \
+AutoProcessor.from_pretrained('usyd-community/vitpose-base'); \
+VitPoseForPoseEstimation.from_pretrained('usyd-community/vitpose-base')"
 
 # ── Stage 2: Runtime ──────────────────────────────────
 FROM python:3.11-slim

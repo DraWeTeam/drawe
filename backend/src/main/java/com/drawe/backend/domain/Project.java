@@ -54,6 +54,10 @@ public class Project {
   @Column(name = "mood", length = 30)
   private String mood;
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "keywords", columnDefinition = "JSON")
+  private List<String> keywords = new ArrayList<>();
+
   @NotNull
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false)

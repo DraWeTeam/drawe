@@ -1,0 +1,93 @@
+{
+  "_meta": "AI 생성 확장 이미지의 생성 의도/모델/스타일 — 블라인드 라벨(labels.json)과 분리 저장(의도 누출 방지). 나중에 'AI셋 정확도 vs 실사용' 도메인 갭 추적용. expansion_matrix.md 의 칸 정의 참조.",
+  "hand_006_foreshorten_palm.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened hand)", "style": "flat color",
+    "staging_src": "area5_foreshorten_gem_04.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok (mild)"
+  },
+  "hand_007_foreshorten_angled.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened hand)", "style": "pencil sketch",
+    "staging_src": "area5_foreshorten_gem_05.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok"
+  },
+  "hand_008_foreshorten_down.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened hand)", "style": "pencil sketch",
+    "staging_src": "area5_foreshorten_gem_06.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok (strongest)"
+  },
+  "hand_009_foreshorten_fist.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_foreshorten",
+    "gen_intent": "단축(foreshortened fist)", "style": "pencil sketch",
+    "staging_src": "area5_foreshorten_gem_09.png", "gate": "1겹 pass + 2겹 blind foreshorten=true, anatomy ok"
+  },
+  "hand_010_longfinger.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_longfinger",
+    "gen_intent": "긴 손가락(finger>palm)", "style": "pencil sketch",
+    "staging_src": "area5_longfinger_gem_01.png", "gate": "blind ratio=길다, not foreshortened, anatomy ok (blind-named h01)"
+  },
+  "hand_012_longfinger.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_longfinger",
+    "gen_intent": "긴 손가락", "style": "pencil sketch",
+    "staging_src": "area5_longfinger_gem_03.png", "gate": "blind ratio=길다 (h10)"
+  },
+  "hand_014_normal.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_normal",
+    "gen_intent": "정상 손(over-fire control)", "style": "pencil sketch",
+    "staging_src": "area5_normal_gem_03.png", "gate": "blind ratio=보통 (h02)"
+  },
+  "hand_015_normal.png": {
+    "source": "ai_gen", "model": "gemini-imagen-4.0", "prompt_cell": "area5_normal",
+    "gen_intent": "정상 손(over-fire control)", "style": "pencil sketch",
+    "staging_src": "area5_normal_gem_05.png", "gate": "blind ratio=보통 (h08)"
+  },
+  "hand_018_shortfinger.png": {
+    "source": "ai_gen", "model": "chatgpt-dalle", "prompt_cell": "area5_shortfinger",
+    "gen_intent": "짧은 손가락(finger<palm)", "style": "pencil sketch",
+    "staging_src": "area5_shortfinger_gpt_01.png", "gate": "blind ratio=짧다, not foreshortened (h01). 모델 다양성: ChatGPT가 short 3/4(Imagen 1/4) — 약한 flat Imagen short 대체"
+  },
+  "hand_019_shortfinger.png": {
+    "source": "ai_gen", "model": "chatgpt-dalle", "prompt_cell": "area5_shortfinger",
+    "gen_intent": "짧은 손가락", "style": "pencil sketch",
+    "staging_src": "area5_shortfinger_gpt_02.png", "gate": "blind ratio=짧다 (h13)"
+  },
+  "hand_020_longfinger.png": {
+    "source": "ai_gen", "model": "chatgpt-dalle", "prompt_cell": "area5_longfinger",
+    "gen_intent": "긴 손가락", "style": "pencil sketch",
+    "staging_src": "area5_longfinger_gpt_03.png", "gate": "blind ratio=길다, not foreshortened (h14). ChatGPT long 1/4(저수율, 대부분 정상/단축으로) — 이 1장만 채택"
+  },
+  "hand_021_normal.png": {
+    "source": "ai_gen", "model": "chatgpt-dalle", "prompt_cell": "area5_normal",
+    "gen_intent": "정상 손(over-fire control)", "style": "pencil sketch",
+    "staging_src": "area5_normal_gpt_02.png", "gate": "blind ratio=보통 (h15). ChatGPT normal 1/4(3장이 단축으로 새어남)"
+  },
+  "figure_007_realistic_anatomy.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_realistic",
+    "gen_intent": "전신·사실 해부(스타일/전신 커버리지 control)", "style": "anatomical study",
+    "staging_src": "full_realistic_00.png", "gate": "1겹 pass(해부 ok·전신·텍스트 없음·중립 스탠스). 갈래1 일반확장."
+  },
+  "figure_008_anime_male.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_anime",
+    "gen_intent": "전신·애니(스타일 커버리지)", "style": "anime cel",
+    "staging_src": "full_anime_02.png", "gate": "1겹 pass(전신·중립·텍스트 없음). 갈래1."
+  },
+  "figure_009_casual_man.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_casual",
+    "gen_intent": "전신·캐주얼 일러스트(스타일 커버리지)", "style": "casual flat",
+    "staging_src": "full_casual_00.png", "gate": "1겹 pass(전신·중립). 갈래1 신규 스타일(캐주얼)."
+  },
+  "figure_010_casual_youth.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_casual",
+    "gen_intent": "전신·캐주얼 일러스트(스타일 커버리지)", "style": "casual flat",
+    "staging_src": "full_casual_02.png", "gate": "1겹 pass(전신·중립). 갈래1."
+  },
+  "figure_011_normal_woman.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_normal",
+    "gen_intent": "전신·사실 정상비례 여성(전신 커버리지 control)", "style": "realistic illustration",
+    "staging_src": "full_normal_03.png", "gate": "1겹 pass(전신·중립·일러스트). 갈래3 normal·여성 다양성."
+  },
+  "figure_012_chibi.png": {
+    "source": "ai_gen", "model": "imagen-4.0-generate-001", "prompt_cell": "full_chibi",
+    "gen_intent": "전신·치비(스타일 커버리지)", "style": "chibi/deformed",
+    "staging_src": "full_chibi_01.png", "gate": "hold 검토 승격(중립 스탠스·텍스트 없음·해부 ok). 블라인드 라벨=ambiguous style_intentional(figure_005 치비 동류, over-fire control)."
+  }
+}

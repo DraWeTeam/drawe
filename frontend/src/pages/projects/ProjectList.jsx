@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  createProject,
-  deleteProject,
-  getProject,
-  getProjects,
-  updateProject,
-} from "./api";
+import { deleteProject, getProject, getProjects, updateProject } from "./api";
 import ProjectFormModal from "./ProjectFormModal";
+import ProjectCreateModal from "./ProjectCreateModal";
 import ConfirmModal from "./ConfirmModal";
 import Tooltip from "../../components/Tooltip";
 import styles from "./ProjectList.module.css";
@@ -46,7 +41,7 @@ const ProjectList = () => {
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const [viewMode, setViewMode] = useState("grid"); // 그리드만 동작
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const [openMenuId, setOpenMenuId] = useState(null);
   const menuRef = useRef(null);
 
@@ -117,20 +112,6 @@ const ProjectList = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [sortOpen]);
 
-  const handleCreate = async (payload) => {
-    const detail = await createProject(payload);
-    setCreateOpen(false);
-    if (detail?.id) {
-      // 새 프로젝트를 만들 때마다 채팅 튜토리얼 코치마크 노출 (프로젝트 id로 키잉)
-      const pid = String(detail.id);
-      localStorage.setItem("drawe_show_project_tutorial", pid);
-      localStorage.setItem("drawe_show_reaction_tutorial", pid);
-      navigate(`/projects/${detail.id}/chat`);
-    } else {
-      fetchProjects();
-    }
-  };
-
   const handleEditClick = async (projectId) => {
     setOpenMenuId(null);
     try {
@@ -158,7 +139,9 @@ const ProjectList = () => {
 
   const handleCardClick = (projectId) => {
     if (openMenuId) return;
-    navigate(`/projects/${projectId}/chat`);
+    // 채팅 제거 → 새 레퍼런스 보드 워크스페이스로 진입.
+    // navigate(`/projects/${projectId}/chat`);
+    navigate(`/projects/${projectId}/board`);
   };
 
   return (
@@ -185,8 +168,10 @@ const ProjectList = () => {
                 <Tooltip label="리스트 보기" className={styles.viewTip}>
                   <button
                     type="button"
-                    className={styles.viewBtn}
-                    disabled
+                    className={`${styles.viewBtn} ${
+                      viewMode === "list" ? styles.viewBtnActive : ""
+                    }`}
+                    onClick={() => setViewMode("list")}
                     aria-label="리스트 보기"
                   >
                     <ListIcon />
@@ -263,6 +248,37 @@ const ProjectList = () => {
             새 프로젝트 버튼을 클릭하여 첫 프로젝트를 만들어보세요!
           </p>
         </div>
+      ) : viewMode === "list" ? (
+        <div className={styles.list}>
+          {projects.map((p) => (
+            <div
+              key={p.id}
+              className={`${styles.row} ${
+                openMenuId === p.id ? styles.cardActive : ""
+              }`}
+              onClick={() => handleCardClick(p.id)}
+            >
+              <div className={styles.rowMain}>
+                <span className={styles.rowName}>{p.name}</span>
+                <span className={styles.rowDate}>
+                  {formatDate(p.createdAt)}
+                </span>
+              </div>
+              <ProjectMenu
+                open={openMenuId === p.id}
+                menuRef={openMenuId === p.id ? menuRef : null}
+                onToggle={() =>
+                  setOpenMenuId((id) => (id === p.id ? null : p.id))
+                }
+                onEdit={() => handleEditClick(p.id)}
+                onDelete={() => {
+                  setOpenMenuId(null);
+                  setDeleteTarget(p);
+                }}
+              />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className={styles.grid}>
           {projects.map((p) => (
@@ -285,47 +301,18 @@ const ProjectList = () => {
               <div className={styles.info}>
                 <div className={styles.infoTop}>
                   <span className={styles.cardName}>{p.name}</span>
-                  <div
-                    className={styles.menuWrap}
-                    ref={openMenuId === p.id ? menuRef : null}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Tooltip label="옵션 보기">
-                      <button
-                        type="button"
-                        className={styles.menuBtn}
-                        onClick={() =>
-                          setOpenMenuId((id) => (id === p.id ? null : p.id))
-                        }
-                        aria-label="옵션 보기"
-                      >
-                        <DotsIcon />
-                      </button>
-                    </Tooltip>
-                    {openMenuId === p.id && (
-                      <div className={styles.menuPopup}>
-                        <button
-                          type="button"
-                          className={styles.menuItem}
-                          onClick={() => handleEditClick(p.id)}
-                        >
-                          <EditIcon />
-                          <span>프로젝트 수정</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            setDeleteTarget(p);
-                          }}
-                        >
-                          <TrashIcon />
-                          <span>삭제하기</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <ProjectMenu
+                    open={openMenuId === p.id}
+                    menuRef={openMenuId === p.id ? menuRef : null}
+                    onToggle={() =>
+                      setOpenMenuId((id) => (id === p.id ? null : p.id))
+                    }
+                    onEdit={() => handleEditClick(p.id)}
+                    onDelete={() => {
+                      setOpenMenuId(null);
+                      setDeleteTarget(p);
+                    }}
+                  />
                 </div>
                 <p className={styles.cardDate}>{formatDate(p.createdAt)}</p>
               </div>
@@ -335,11 +322,7 @@ const ProjectList = () => {
       )}
 
       {createOpen && (
-        <ProjectFormModal
-          mode="create"
-          onClose={() => setCreateOpen(false)}
-          onSubmit={handleCreate}
-        />
+        <ProjectCreateModal onClose={() => setCreateOpen(false)} />
       )}
 
       {editTarget && (
@@ -364,6 +347,42 @@ const ProjectList = () => {
   );
 };
 
+/* ===== 공통: 프로젝트 옵션 메뉴 (⋮ + 수정/삭제) ===== */
+const ProjectMenu = ({ open, menuRef, onToggle, onEdit, onDelete }) => (
+  <div
+    className={styles.menuWrap}
+    ref={menuRef}
+    onClick={(e) => e.stopPropagation()}
+  >
+    <Tooltip label="옵션 보기">
+      <button
+        type="button"
+        className={styles.menuBtn}
+        onClick={onToggle}
+        aria-label="옵션 보기"
+      >
+        <DotsIcon />
+      </button>
+    </Tooltip>
+    {open && (
+      <div className={styles.menuPopup}>
+        <button type="button" className={styles.menuItem} onClick={onEdit}>
+          <EditIcon />
+          <span>프로젝트 수정</span>
+        </button>
+        <button
+          type="button"
+          className={`${styles.menuItem} ${styles.menuItemDanger}`}
+          onClick={onDelete}
+        >
+          <TrashIcon />
+          <span>삭제하기</span>
+        </button>
+      </div>
+    )}
+  </div>
+);
+
 /* ===== 아이콘 ===== */
 const PlusIcon = () => (
   <svg
@@ -387,7 +406,7 @@ const GridIcon = () => (
   >
     <path
       d="M0 8V0H8V8H0ZM0 18V10H8V18H0ZM10 8V0H18V8H10ZM10 18V10H18V18H10ZM2 6H6V2H2V6ZM12 6H16V2H12V6ZM12 16H16V12H12V16ZM2 16H6V12H2V16Z"
-      fill="#4A4846"
+      fill="currentColor"
     />
   </svg>
 );
@@ -400,7 +419,10 @@ const ListIcon = () => (
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M0 12V10H12V12H0ZM0 7V5H18V7H0ZM0 2V0H18V2H0Z" fill="#888685" />
+    <path
+      d="M0 12V10H12V12H0ZM0 7V5H18V7H0ZM0 2V0H18V2H0Z"
+      fill="currentColor"
+    />
   </svg>
 );
 

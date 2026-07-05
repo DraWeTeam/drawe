@@ -145,4 +145,73 @@ class TokenAwareHistoryTrimmerTest {
     double count = registry.get("drawe.history.trimmed").counter().count();
     assertThat(count).isPositive();
   }
+
+  @Test
+  @DisplayName("청크 trim — 연속 턴에서 유지 시작점이 청크 단위로만 바뀌고(캐시 안정), 예산을 넘지 않는다")
+  void chunkTrimKeepsPrefixStable() {
+    // 청크는 "예산이 최소 한 청크 이상을 담을 때" 효과가 난다(프로덕션 budget=4000 ≫ 6턴). 그래서 윈도우가 청크보다 충분히 크도록
+    // 예산을 턴 크기 기반으로 잡는다(토크나이저 무관하게 결정적).
+    int perTurnTokens =
+        counter.countTurn(new LlmCallContext.Turn(MessageRole.USER, turnContent(0)));
+    int holdTurns = 15; // 윈도우가 ~15턴 → 청크(6)보다 충분히 큼
+    budget.setHistoryBudget(perTurnTokens * holdTurns);
+    budget.setSystemBudget(100_000); // SYSTEM 은 영향 없게 충분히 크게
+
+    LlmCallContext.Turn system = new LlmCallContext.Turn(MessageRole.SYSTEM, "고정 페르소나 블록");
+    List<LlmCallContext.Turn> nonSystems = new ArrayList<>();
+
+    List<String> prevKept = null;
+    String prevFront = null;
+    int frontChanges = 0; // 유지 시작점(맨 앞 턴)이 바뀐 스텝 수 — 슬라이딩이면 거의 매 스텝, 청크면 드물게
+    int activeSteps = 0; // 실제로 일부가 잘린 스텝 수
+
+    // 대화를 한 턴씩 늘리며(=실사용처럼 매 턴 전체 history 를 새로 trim) 불변식을 검사.
+    for (int k = 0; k < 70; k++) {
+      MessageRole role = (k % 2 == 0) ? MessageRole.USER : MessageRole.ASSISTANT;
+      nonSystems.add(new LlmCallContext.Turn(role, turnContent(k)));
+
+      List<LlmCallContext.Turn> all = new ArrayList<>();
+      all.add(system);
+      all.addAll(nonSystems);
+
+      List<String> kept =
+          trimmer.trim(all, "현재 질문").stream()
+              .filter(t -> t.role() != MessageRole.SYSTEM)
+              .map(LlmCallContext.Turn::content)
+              .toList();
+      if (kept.isEmpty()) {
+        continue;
+      }
+
+      // ① 예산 준수 — 유지된 비-SYSTEM 토큰은 항상 historyBudget 이하(올림 컷의 하드 캡).
+      int keptTokens = kept.stream().mapToInt(counter::count).sum();
+      assertThat(keptTokens).isLessThanOrEqualTo(budget.getHistoryBudget());
+
+      if (kept.size() < nonSystems.size()) {
+        activeSteps++;
+      }
+
+      String front = kept.get(0);
+      if (prevFront != null) {
+        if (front.equals(prevFront)) {
+          // ② 시작점이 고정된 스텝 → 직전 유지 리스트는 현재의 prefix 여야 캐시 재사용이 성립(앞 고정 + 뒤에만 추가).
+          assertThat(kept.subList(0, prevKept.size())).isEqualTo(prevKept);
+        } else {
+          frontChanges++;
+        }
+      }
+      prevFront = front;
+      prevKept = kept;
+    }
+
+    // 트리밍이 충분히 일어났는데도, 시작점은 매 스텝이 아니라 청크 단위로만 점프한다
+    // (슬라이딩이면 frontChanges ≈ activeSteps, 청크면 ≈ activeSteps / 청크크기(6)).
+    assertThat(activeSteps).isGreaterThan(10);
+    assertThat(frontChanges).isLessThanOrEqualTo(activeSteps / 3);
+  }
+
+  /** 길이가 거의 일정한(인덱스 3자리 패딩) 턴 내용 — 예산 대비 윈도우 크기를 결정적으로 만든다. */
+  private static String turnContent(int i) {
+    return String.format("대화 히스토리의 한 턴입니다 번호 %03d", i);
+  }
 }

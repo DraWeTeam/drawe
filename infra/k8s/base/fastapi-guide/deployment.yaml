@@ -15,6 +15,16 @@ spec:
         app: fastapi-guide
     spec:
       serviceAccountName: fastapi-guide          # IRSA → artref S3 RW
+      # SGP(securitygrouppolicy.yaml) 워크로드는 ENI trunking 필수 → nitro(m/c/r)에만 스케줄.
+      #   버스터블(t/a)·시스템NG 배제 = pod-eni 미부착→DB 불통(함정 1) 방지. base 배치(환경 무관).
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: karpenter.k8s.aws/instance-category
+                    operator: In
+                    values: ["m", "c", "r"]
       # uvicorn graceful-shutdown 110s + 버퍼 → 130s (spot 2분 통지 시 in-flight 마무리)
       terminationGracePeriodSeconds: 130
       # 파드 레벨 보안 컨텍스트 — 이미지(USER drawe 1000:1000)와 정합.

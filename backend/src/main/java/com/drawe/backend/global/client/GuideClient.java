@@ -46,7 +46,8 @@ public class GuideClient {
       String intent,
       String track,
       String medium,
-      String requestId) {
+      String requestId,
+      String projectId) {
     try {
       MultipartBodyBuilder b = new MultipartBodyBuilder();
       b.part("file", new ByteArrayResource(imageBytes))
@@ -70,6 +71,9 @@ public class GuideClient {
       }
       if (requestId != null) {
         b.part("request_id", requestId);
+      }
+      if (projectId != null) {
+        b.part("project_id", projectId); // growth 프로젝트 스코프 키(fastapi practice_log)
       }
 
       GuideResponse resp =

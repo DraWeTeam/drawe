@@ -1,4 +1,6 @@
-/* 한 끗 가이드 입력 폼 — 와이어프레임 기준 1차. 팀 디자인 토큰에 맞춰 다듬으세요. */
+/* 한 끗 가이드 입력 폼 — 시안 SCR-GUIDE-01(노드 208:23774) 픽셀 정합.
+   값(색·radius·간격·크기)을 시안 토큰으로 교체. 폰트(Wanted Sans Variable)는 f300536에서
+   전역 로드됨 → 칩은 시안 원값(16/px16)으로 복원. 상태 라벨은 토글과 한 행(208:23767). */
 .overlay {
   position: fixed;
   inset: 0;
@@ -11,103 +13,117 @@
 }
 .panel {
   width: 100%;
-  max-width: 480px;
+  max-width: 820px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(40, 30, 20, 0.22);
+  background: var(--bg-surface);
+  border-radius: var(--radius-800);
+  box-shadow: var(--shadow-200);
   overflow: hidden;
 }
 .header {
   display: flex;
   align-items: center;
-  padding: 18px 20px 12px;
+  padding: var(--space-1000) var(--space-1000) var(--space-600);
 }
 .title {
   margin: 0;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
-  color: #2b2826;
+  line-height: 32px;
+  color: var(--text-primary);
 }
 .closeBtn {
   margin-left: auto;
-  width: 30px;
-  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
   border: none;
   background: transparent;
-  font-size: 22px;
-  line-height: 1;
-  color: #8a8480;
+  color: var(--text-tertiary);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-300);
 }
 .closeBtn:hover {
-  background: #f1ebe2;
+  background: var(--bg-subtle);
 }
 
 .body {
-  padding: 4px 20px 8px;
+  padding: var(--space-400) var(--space-1000);
   overflow-y: auto;
 }
 
 .fieldLabel {
   display: block;
-  margin: 16px 0 8px;
-  font-size: 13px;
+  margin: var(--space-600) 0 var(--space-200);
+  font-size: 14px;
   font-weight: 600;
-  color: #4a4642;
+  line-height: 20px;
+  color: var(--text-tertiary);
 }
 .info {
-  color: #b3aaa0;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  color: var(--text-quaternary);
   cursor: help;
 }
 
-/* 드롭존 */
+/* 드롭존 — Figma 208:23747: dashed 박스(text_field_s h190 = 라벨20+gap8+박스162).
+   빈 상태 박스 높이 162, flex 세로 중앙 gap16. min-height라 미리보기(최대 200)는 커진다. */
 .dropzone {
-  border: 1.5px dashed #e6b98f;
-  border-radius: 12px;
-  background: #fdf7ee;
-  padding: 22px 16px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-400);
+  min-height: 162px;
+  box-sizing: border-box;
+  border: 1px dashed var(--border-input-focus);
+  border-radius: var(--radius-300);
+  background: var(--bg-brand-weak);
+  padding: var(--space-400);
 }
 .dropzone.dragOver {
-  background: #fbeedd;
-  border-color: #ef7b3f;
+  background: #fff3e6;
+  border-color: var(--border-input-focus);
 }
 .dropHint {
-  margin: 0 0 14px;
-  font-size: 13px;
-  color: #9a8f80;
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-secondary);
+  text-align: center;
 }
 .preview {
   display: block;
   max-width: 100%;
   max-height: 200px;
-  margin: 0 auto 12px;
-  border-radius: 8px;
+  margin: 0;
+  border-radius: var(--radius-200);
 }
 .pickBtn {
   border: none;
-  background: #ef7b3f;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 18px;
-  border-radius: 8px;
+  background: var(--bg-brand);
+  color: var(--text-inverse);
+  font-size: 16px;
+  font-weight: 500;
+  padding: var(--space-300) var(--space-600) var(--space-300) var(--space-400);
+  border-radius: var(--radius-200);
   cursor: pointer;
 }
 .pickBtn:hover {
-  background: #e26a2d;
+  background: #f2761f;
 }
 .pickBtn:disabled {
   opacity: 0.6;
   cursor: default;
 }
 .err {
-  margin: 8px 0 0;
+  margin: var(--space-200) 0 0;
   font-size: 12.5px;
   color: #c0492f;
 }
@@ -116,40 +132,54 @@
 .textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e2d9cc;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13.5px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-300);
+  padding: var(--space-300) var(--space-400);
+  font-size: 14px;
+  line-height: 22px;
   font-family: inherit;
-  color: #3c3733;
+  color: var(--text-secondary);
   resize: vertical;
+}
+.textarea::placeholder {
+  color: var(--text-quaternary);
 }
 .textarea:focus {
   outline: none;
-  border-color: #ef7b3f;
+  border-color: var(--border-input-focus);
 }
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+  gap: var(--space-200);
+  margin-top: var(--space-300);
 }
 .chip {
-  border: 1px solid #e2d9cc;
-  background: #fff;
-  color: #6b6055;
-  font-size: 12.5px;
-  padding: 6px 12px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-quaternary);
+  /* 시안 칩(208:23753) = Wanted Sans 16/22·px16 py8·h44·gap8. Wanted Sans가 f300536에서
+     로드돼 시안 원값으로 복원(Wave1 폰트 미로드 임시조임 해제). */
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  font-family: inherit;
+  padding: var(--space-200) var(--space-400);
+  border-radius: var(--radius-200);
   cursor: pointer;
+  white-space: nowrap;
 }
 .chip:hover {
-  background: #f6efe5;
+  background: var(--bg-subtle);
 }
 .chip.chipActive {
-  background: #fbeedd;
-  border-color: #ef7b3f;
-  color: #b5683f;
+  background: var(--bg-brand-weak);
+  border-color: var(--border-input-focus);
+  color: var(--text-brand);
 }
 .chip:disabled {
   opacity: 0.6;
@@ -160,41 +190,60 @@
 .select {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #e2d9cc;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13.5px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-200);
+  padding: var(--space-300) 44px var(--space-300) var(--space-400);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
   font-family: inherit;
-  color: #3c3733;
-  background: #fff;
+  color: var(--text-tertiary);
+  /* down_md 아이콘(Figma 208:23766) — native 화살표 숨기고 시안 셰브론 표시 */
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a4846' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right var(--space-300) center;
   cursor: pointer;
 }
 .select:focus {
   outline: none;
-  border-color: #ef7b3f;
+  border-color: var(--border-input-focus);
+}
+
+/* 상태 행(Figma 208:23767) — 라벨과 토글이 한 행, gap 12 */
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+  margin-top: var(--space-600);
+}
+.statusLabel {
+  margin: 0;
 }
 
 /* 토글(작업중/완성작) */
 .toggle {
   display: inline-flex;
-  border: 1px solid #e2d9cc;
-  border-radius: 10px;
-  overflow: hidden;
+  gap: var(--space-100);
+  padding: var(--space-100);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-300);
 }
 .toggleBtn {
   border: none;
-  background: #fff;
-  color: #6b6055;
-  font-size: 13px;
-  padding: 9px 22px;
+  background: transparent;
+  color: var(--text-quaternary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  padding: var(--space-200) var(--space-400);
+  border-radius: var(--radius-200);
   cursor: pointer;
 }
-.toggleBtn + .toggleBtn {
-  border-left: 1px solid #e2d9cc;
-}
 .toggleBtn.toggleOn {
-  background: #ef7b3f;
-  color: #fff;
+  background: var(--bg-brand);
+  color: var(--text-inverse);
 }
 .toggleBtn:disabled {
   opacity: 0.6;
@@ -203,29 +252,30 @@
 
 /* 제출 */
 .footer {
-  padding: 14px 20px 18px;
+  padding: var(--space-800) var(--space-1000) var(--space-1000);
 }
 .submitBtn {
   width: 100%;
   border: none;
-  border-radius: 10px;
-  padding: 13px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  background: #ef7b3f;
+  border-radius: var(--radius-999);
+  padding: var(--space-300) var(--space-600);
+  min-height: 46px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-inverse);
+  background: var(--bg-brand);
   cursor: pointer;
 }
 .submitBtn:hover:not(:disabled) {
-  background: #e26a2d;
+  background: #f2761f;
 }
 .submitBtn:disabled {
-  background: #d8d2c9;
-  color: #fbf8f4;
+  background: var(--bg-disabled);
+  color: var(--text-inverse);
   cursor: default;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 860px) {
   .panel {
     max-width: 100%;
     max-height: 94vh;

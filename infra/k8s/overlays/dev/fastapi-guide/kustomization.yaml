@@ -10,7 +10,7 @@ resources:
 images:
   - name: drawe-fastapi-guide
     newName: 570515227314.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-dev-fastapi-guide
-    newTag: 1ef44f6646739a89103b47b827d99707be515172
+    newTag: 3e1a0910dfc27c7b9971cb1f4e4f523649405d5f
 
 # 환경별 env (fastapi-guide-env). 이름 고정 → Deployment envFrom 참조
 generatorOptions:
@@ -41,5 +41,5 @@ patches:
       - op: replace
         path: /spec/securityGroups/groupIds
         value:
-          - sg-0c844f5cdf5f0791b        # drawe-dev-pods-db
-          - sg-0359b5783a7ee85dd        # 클러스터 SG
+          - sg-0204cf50ec3a19b99        # drawe-dev-pods-db
+          - sg-0f815ecda2fb7e9fc        # 클러스터 SG

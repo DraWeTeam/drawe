@@ -18,3 +18,11 @@ apply_*.py
 tfplan
 crash.log
 crash.*.log
+
+# IntelliJ IDEA
+.idea/
+
+# 로컬 전용 (커밋 금지) — 에이전트 지침·설정·로컬 유틸 스크립트
+CLAUDE.md
+verify-email.sh
+.claude/

@@ -160,10 +160,16 @@ public class ClaudeService implements LlmService {
   private void logCacheUsage(Map<?, ?> response) {
     Object usage = response.get("usage");
     if (usage instanceof Map<?, ?> u) {
-      Object created = u.get("cache_creation_input_tokens");
-      Object read = u.get("cache_read_input_tokens");
-      Object input = u.get("input_tokens");
-      log.debug("Claude usage - input={}, cache_created={}, cache_read={}", input, created, read);
+      // 전후 비교용 단일 포맷(GrokService 와 동일 "TOKENCOST" 태그로 grep). Claude 의 usage 의미:
+      //  - input_tokens = 비캐시 입력(정가), cache_read_input_tokens = 캐시 적중(≈0.1×),
+      // cache_creation_input_tokens = 캐시 쓰기(1.25×)
+      //  - 전체 입력 = input + cache_read + cacheWrite. cached(적중)는 cache_read 기준.
+      log.debug(
+          "TOKENCOST provider=CLAUDE prompt={} cached={} cacheWrite={} completion={}",
+          u.get("input_tokens"),
+          u.get("cache_read_input_tokens"),
+          u.get("cache_creation_input_tokens"),
+          u.get("output_tokens"));
     }
   }
 }

@@ -20,6 +20,15 @@ configMapGenerator:
       - QDRANT_COLLECTION=reference_images_prod
       - CORS_ORIGINS=https://drawe.xyz
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,service.namespace=drawe
+      # ②v1 섀도우 계측(SHADOW_AUDIT)은 base configmap 으로 이동 — dev·prod 동형 측정.
+      #   /dev/stdout 싱크 → Alloy DaemonSet → Loki(파드 재시작·HPA 다중 파드에도 분포 보존).
+      #   read-only emit·결정 0 접촉·발화 불변. 로컬 compose 는 k8s configmap 미사용이라 여전히 off(selftest 오염 방지).
+      # 이미지 생성(ai_fallback) prod 전용 — base 의 AI_GEN_PROVIDER=gemini 를 override(envFrom 뒤가 이김).
+      #   Bedrock Stability stable-image-core(us-west-2; 서울엔 이미지 생성 모델 없음). 자격=IRSA.
+      #   dev 는 base(gemini) 상속. IRSA 의 bedrock:InvokeModel(guide-irsa.tf) 적용이 선행.
+      - AI_GEN_PROVIDER=bedrock
+      - BEDROCK_IMAGE_REGION=us-west-2
+      - BEDROCK_IMAGE_MODEL=stability.stable-image-core-v1:1
 
 patches:
   - target:
