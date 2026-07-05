@@ -29,6 +29,10 @@ data:
   AI_GEN_PROVIDER: "gemini"
   GEMINI_IMAGE_MODEL: "gemini-2.5-flash-image"
   AI_FALLBACK_INLINE: "0"
+  # ②v1 섀도우 감사 로그 — read-only JSONL(발화 0 수정·스코어보드 무영향). dev·prod 공통 측정
+  #   (stdout → 각 환경 로그 스택). 구 prod-only 였으나 dev/prod 동형 측정으로 base 이동.
+  SHADOW_AUDIT: "1"
+  SHADOW_AUDIT_LOG: "/dev/stdout"
   # ── OTEL → Alloy DaemonSet(observability ns) ──
   OTEL_SERVICE_NAME: "fastapi-guide"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://alloy.observability.svc.cluster.local:4317"
