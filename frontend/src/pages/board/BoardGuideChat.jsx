@@ -8,7 +8,6 @@ import {
 import { axisLabel } from "../chat/guideLabels";
 import { downloadGuidePdf } from "../chat/guidePdf";
 import AuthedImage from "../chat/AuthedImage";
-import GuideModal from "../chat/GuideModal";
 import GuideCollectionPanel from "../chat/GuideCollectionPanel";
 // ★ChatPage.module.css 를 read-only 로 재사용 — ChatPage 파일은 미접촉(0 diff)이고 결과카드·버블
 //   스타일 값이 /chat 과 문자 동일(Fidelity 무손실). 신규 board 클래스는 board 모듈에서 얹는다.
@@ -29,12 +28,10 @@ const BoardGuideChat = ({
   collectionOpen = false,
   onCollectionChange,
   onGuidesCount,
+  onOpenGuide, // ⑧ 상세를 부모(ReferenceBoardPage)가 좌측 오버레이로 표시
 }) => {
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [guideResult, setGuideResult] = useState(null);
-  const [guidePreview, setGuidePreview] = useState(null);
 
   // 부모(ReferenceBoardPage/GeneratePromptPanel)가 인트로 토글·헤더 모아보기 게이팅을 하도록
   //   메시지 수와 가이드 수를 올려준다. 모아보기 오버레이는 부모가 collectionOpen 으로 제어.
@@ -123,6 +120,7 @@ const BoardGuideChat = ({
               guidePreview: g.uploadUrl ?? null,
               guideFeedback: null,
               createdAt: g.createdAt ?? null,
+              requestText: g.requestText ?? null, // ① 상세 §2 사용자 버블
             };
             const text = g.requestText?.trim();
             if (!text) return [card];
@@ -157,9 +155,13 @@ const BoardGuideChat = ({
   }, [projectId, sessionId, reloadSignal]);
 
   const openGuideFromCard = (m) => {
-    setGuideResult({ guide: m.guide, references: m.references });
-    setGuidePreview(m.guidePreview || null);
-    setGuideOpen(true);
+    // ⑧ 상세는 부모(ReferenceBoardPage)가 좌측 반 오버레이로 표시(SCR-GUIDE-03-1 split).
+    onOpenGuide?.({
+      guide: m.guide,
+      references: m.references,
+      requestText: m.requestText, // ① 상세 §2 사용자 버블
+      guidePreview: m.guidePreview || null,
+    });
   };
 
   const setGuideCardFeedback = (gidVal, kind) => {
@@ -298,18 +300,6 @@ const BoardGuideChat = ({
           </div>
         );
       })}
-
-      {/* 상세 — 인라인 카드 클릭 시 팝업(좌측 그쪽 보드를 덮지 않음) */}
-      {guideOpen && (
-        <GuideModal
-          result={guideResult}
-          drawingPreviewUrl={guidePreview}
-          onClose={() => {
-            setGuideOpen(false);
-            setGuideResult(null);
-          }}
-        />
-      )}
 
       {/* 모아보기 오버레이 — getGuides 결과 재사용(새 fetch 없음). 진입은 board 헤더 아이콘. */}
       {collectionOpen && (

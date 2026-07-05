@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.util.List;
+import java.util.Map;
 
 /**
  * FastAPI guide 서비스의 /guide 응답 계약(= Frontend ↔ Spring ↔ FastAPI 공유 형태).
@@ -28,7 +29,14 @@ public record GuideResponse(
     NextSteps nextSteps,
     Growth growth,
     String reason,
-    String nextStepsNote) {
+    String nextStepsNote,
+    // ④ 추천 레퍼런스 badge용 메타(ref_id → source_type/region/personas/category). fastapi 표시 전용, 순수 통과.
+    Map<String, ReferenceMeta> referenceMeta) {
+
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record ReferenceMeta(
+      String sourceType, String region, List<String> personas, String category) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -55,7 +63,14 @@ public record GuideResponse(
       List<String> recurring,
       String why,
       String note,
-      GuideAsset focusAsset) {}
+      GuideAsset focusAsset,
+      // ⑥ 5단계 커리큘럼 트랙(그룹·정본 5단계 라벨·현재 단계). fastapi track_map.yaml 단일 소스 —
+      //   Spring 은 순수 통과(생성·라벨 정의 0), 프론트는 받은 것만 프로그레스 바로 렌더.
+      Track track) {}
+
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record Track(String group, List<String> stages, Integer currentIdx) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -68,11 +83,20 @@ public record GuideResponse(
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record RecurringStat(String subProblem, Integer window, Integer hits, Double ratio) {}
+  public record RecurringStat(
+      String subProblem,
+      Integer window,
+      Integer hits,
+      Double ratio,
+      // ⑦ 주별 요청 N→M 인사이트용 — recurring 축 초기/최근 활동주 요청 수(순수 통과, 프론트가 조립).
+      Integer firstWeekHits,
+      Integer lastWeekHits) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record TrendPoint(Integer index, String label, Integer difficultyCount) {}
+  // ⑦ weeklyCount = 그 주 가이드 요청 횟수(정본 그래프 Y). difficultyCount 는 하위호환 보존.
+  public record TrendPoint(
+      Integer index, String label, Integer difficultyCount, Integer weeklyCount) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)

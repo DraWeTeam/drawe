@@ -8,6 +8,9 @@
 - INSERT는 자유(★UTF-8 명시. Korean 리터럴은 셸 미경유 — INSERT...SELECT나 파일 경유로 cp949 오염 방지).
 - UPDATE · DELETE · id 임계 삭제: **항상 승인 필요**(drift 위험).
 
+## 화면 작업 선행 참조
+- 화면(SCR-*) 구현·수정 전, `docs/figma-spec-compendium.md`에서 해당 섹션 스펙(화면 목적·[상태]/[동작]/[연동]·정본 표/매트릭스)을 **먼저 확인**한다. Figma 정본과 코드가 어긋나면 정본 우선, 전제 불일치는 보고. (원본: Figma UX-UI-Wireframe, fileKey `vEWEwSklFvrk1wOzhtHsOX`.)
+
 ## 경계
 - 그쪽 영역(board/reference·SCRUM-113 코드, backend): 내용 변경 전 보고. 이동·import·읽기는 자유.
 - `ChatPage.jsx` / `ChatPage.module.css`: 수정 전 반드시 보고(Fidelity 밀집 파일). read-only import는 무방.

@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -312,12 +313,23 @@ public class GuideService {
         }
       }
     }
+    Map<String, GuideResponse.ReferenceMeta> metaMap =
+        resp.referenceMeta() != null ? resp.referenceMeta() : Map.of();
     int ordinal = 1;
     for (String rid : seen) {
       if (ordinal > MAX_REFERENCES) {
         break;
       }
-      out.add(new ResolvedReference(ordinal++, rid, referenceUrl(rid)));
+      GuideResponse.ReferenceMeta m = metaMap.get(rid);
+      out.add(
+          new ResolvedReference(
+              ordinal++,
+              rid,
+              referenceUrl(rid),
+              m != null ? m.sourceType() : null,
+              m != null ? m.region() : null,
+              m != null ? m.personas() : null,
+              m != null ? m.category() : null));
     }
     return out;
   }

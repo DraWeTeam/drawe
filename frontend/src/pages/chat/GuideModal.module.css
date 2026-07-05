@@ -316,6 +316,34 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* ④ 추천 레퍼런스 badge(114:15652 49×30) — 출처+부위+persona/category. 중립 pill(키워드 주황과 구분). */
+.refBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-100);
+  margin-top: var(--space-200);
+}
+.refBadge {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-quaternary);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
+/* ③ 추천 이유(114:15652) — 축과의 연결 한 문장. 라벨은 주황 강조, 문장은 보조 텍스트. */
+.refReason {
+  margin: var(--space-200) 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-tertiary);
+}
+.refReasonLabel {
+  margin-right: var(--space-200);
+  font-weight: 700;
+  color: var(--text-brand, var(--text-tertiary));
+}
 .refNum {
   position: absolute;
   top: 6px;
@@ -332,6 +360,42 @@
   color: #fff;
   background: rgba(45, 42, 38, 0.78);
   border-radius: var(--radius-999);
+}
+/* ⑤ 아카이브 담기 — 썸네일 우상단 glass 버튼(114:15652) */
+.refArchiveBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-200);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.refThumb:hover .refArchiveBtn,
+.refArchiveBtn:focus-visible {
+  opacity: 1;
+}
+.refArchiveBtn:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+.refArchiveBtn[data-archived] {
+  opacity: 1;
+  background: var(--bg-brand);
+  color: #fff;
+  cursor: default;
 }
 .refImg {
   width: 100%;
@@ -448,6 +512,14 @@
   display: block;
   width: 100%;
   height: 132px;
+}
+/* ⑦ X축 = 주(정본 114:15736: 첫 주 … 이번 주 날짜). */
+.chartXAxis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-100);
+  font-size: 12px;
+  color: var(--text-quaternary);
 }
 /* 차트 위 변화 배지(trend로 계산) */
 .deltaTag {
@@ -587,6 +659,16 @@
   border-radius: var(--radius-200);
   padding: var(--space-100) var(--space-300);
 }
+/* #4 의미·예시 키워드 — 대그룹(오렌지 keywordBadge)과 구분되는 중립 뱃지. */
+.keywordBadgeSub {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
 /* §5 감싸는 surface 카드(시안 114:15703) */
 .nextStepsBox {
   display: flex;
@@ -630,6 +712,80 @@
   background: var(--bg-brand-subtle);
   padding: var(--space-100) var(--space-300);
   border-radius: var(--radius-200);
+}
+/* ⑥ 5단계 커리큘럼 프로그레스 바(114:15701) — 바+fill+5노드+5라벨. 현재 노드/라벨 주황 강조. */
+.trackWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+.trackGroup {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.trackGroupName {
+  font-weight: 700;
+  color: var(--text-brand);
+}
+.trackTrack {
+  position: relative;
+  height: 8px;
+  margin: var(--space-200) 6px var(--space-100);
+  background: var(--bg-subtle);
+  border-radius: 999px;
+}
+.trackFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--bg-brand, var(--text-brand));
+  border-radius: 999px;
+}
+.trackNode {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 2px solid var(--border-input);
+}
+.trackNodeOn {
+  background: var(--text-brand);
+  border-color: var(--text-brand);
+}
+.trackNodeCur {
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  box-shadow: 0 0 0 3px var(--bg-brand-subtle);
+}
+.trackLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-100);
+}
+.trackLabel {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-quaternary);
+}
+.trackLabel:first-child {
+  text-align: left;
+}
+.trackLabel:last-child {
+  text-align: right;
+}
+.trackLabelCur {
+  font-weight: 700;
+  color: var(--text-brand);
 }
 /* §5 체크리스트 */
 .checklist {

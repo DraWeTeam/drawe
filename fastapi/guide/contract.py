@@ -78,51 +78,65 @@ def growth_from_raw(raw, note=None):
     """
     if not raw:
         return None
-    window = int(raw.get("window", 5) or 5)
-    timeline = raw.get("timeline", []) or []
+    weekly = raw.get("weekly") or {}
+    wpoints = (
+        weekly.get("points") or []
+    )  # ⑦ [{label:'MM.DD', requests:n}] 예전→최근(주)
+    axis_weeks = weekly.get("axis_weeks") or {}  # sub_problem -> [(week_key, count)]
     flag_count = raw.get("flag_count", {}) or {}
     current = raw.get("current_focus")
-    # ★backward-growth 게이트: 최근 창 업로드 수(=이력 표본)로 과거 대비 서술을 억제한다.
-    #   forward(current_stage chip·next-step narration)는 무관하게 항상 유지.
-    n_uploads = len(timeline)
-    show_trend = n_uploads >= _GROWTH_MIN_TREND
-    show_delta = n_uploads >= _GROWTH_MIN_DELTA
-    trace(  # 계측: 실사용 업로드 수 분포 → N 재튠 근거(shadow 계열, 동작 불변)
-        "growth.gate", n_uploads=n_uploads, show_trend=show_trend, show_delta=show_delta
+    # ★backward-growth 게이트: ⑦부터 '주'(week) 기준으로 재해석 — 표본이 충분한 '주 수'일 때만
+    #   과거 대비 서술(추세곡선·주 N→M·재발)을 낸다. graceful 불변(주<임계면 trend=[] → 차트·% 미발화).
+    #   forward(current_stage chip·next-step)는 무관하게 항상 유지.
+    n_weeks = len(wpoints)
+    show_trend = n_weeks >= _GROWTH_MIN_TREND
+    show_delta = n_weeks >= _GROWTH_MIN_DELTA
+    trace(  # 계측: 실사용 활동 주 수 분포 → N 재튠 근거(shadow 계열, 동작 불변)
+        "growth.gate", n_weeks=n_weeks, show_trend=show_trend, show_delta=show_delta
     )
     recurring = (raw.get("recurring", []) or []) if show_trend else []
     improved = (raw.get("improved", []) or []) if show_trend else []
 
+    # ⑦ 주별 가이드 요청 횟수 곡선(정본 114:15736). label=주 월요일, weekly_count=그 주 요청 수.
+    #   difficulty_count 는 하위호환으로 같은 값을 채운다(구 소비처 파괴 방지).
     tpoints = (
         [
             TrendPoint(
                 index=i + 1,
-                label=str(i + 1),
-                difficulty_count=int((p or {}).get("flagged_count", 0)),
+                label=str((p or {}).get("label", i + 1)),
+                difficulty_count=int((p or {}).get("requests", 0)),
+                weekly_count=int((p or {}).get("requests", 0)),
             )
-            for i, p in enumerate(timeline)
+            for i, p in enumerate(wpoints)
         ]
         if show_trend
         else []
     )
 
+    # ⑦ recurring 축의 '주 N→M회' — 초기 활동주 vs 최근 활동주 요청 수(axis_weeks). 프론트가 축 라벨을
+    #   붙여 "'{축}' 요청이 주 N회→M회로 줄었어요"를 조립(수치·축 선정은 백엔드 단일 소스).
     rstat = None
     if recurring:
         top = max(recurring, key=lambda sp: flag_count.get(sp, 0))
-        hits = int(flag_count.get(top, 0))
-        if hits > 0 and window > 0:
+        aw = axis_weeks.get(top) or []
+        hits = int(aw[-1][1]) if aw else int(flag_count.get(top, 0))
+        if hits > 0:
+            fw = lw = 0
+            if (
+                show_delta and len(aw) >= 2
+            ):  # '주 N→M' 은 표본 충분(주≥MIN_DELTA)일 때만
+                fw, lw = int(aw[0][1]), int(aw[-1][1])
             rstat = RecurringStat(
-                sub_problem=top, window=window, hits=hits, ratio=round(hits / window, 2)
+                sub_problem=top,
+                window=n_weeks,
+                hits=hits,
+                ratio=round(hits / max(1, n_weeks), 2),
+                first_week_hits=fw,
+                last_week_hits=lw,
             )
 
+    # ⑦ 인사이트(주 N→M)는 rstat 경로로 프론트가 조립 — 라벨 없는 delta_note 는 미사용.
     delta = None
-    if show_delta and len(timeline) >= 2:
-        first = int((timeline[0] or {}).get("flagged_count", 0))
-        last = int((timeline[-1] or {}).get("flagged_count", 0))
-        if first > last:
-            delta = f"함께 짚인 어려움의 종류는 {first}개에서 {last}개로 줄었어요."
-        elif last > first:
-            delta = f"함께 짚인 어려움의 종류는 {first}개에서 {last}개로 늘었어요."
 
     # 나열 상한(over-fire): current_focus 선두 고정 + recurring 을 flag_count 우선 상위로 채워 최대 N.
     #   improved 도 flag_count 우선 상위 M. 동점은 id 순 → 매 호출 동일 결과(비결정 금지).
@@ -137,14 +151,9 @@ def growth_from_raw(raw, note=None):
         improving_axes=_rank(list(improved))[:_MAX_IMPROVING_CHIPS],
     )
 
+    # narration = 백엔드 자유 note 그대로(있을 때). ⑦ 주 N→M 문장은 프론트 growthMessage 가 rstat
+    #   (수치)+축 라벨로 조립하므로 여기서 라벨 문장을 만들지 않는다(라벨 소스는 프론트 단일).
     narration = (note or "").strip()
-    if not narration:
-        bits = []
-        if rstat:
-            bits.append(f"최근 {window}장 중 같은 부분이 {rstat.hits}번 짚였어요.")
-        if delta:
-            bits.append(delta)
-        narration = " ".join(bits).strip()
 
     g = Growth(
         narration=narration,

@@ -2,12 +2,90 @@ import { useState } from "react";
 import { axisLabel, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
+import { addReference } from "../projects/api";
 import styles from "./GuideModal.module.css";
 
 // guide 서비스 에셋(SVG 도식) 공개 base. 미설정이면 도식 영역 자체를 숨김(빈 박스 금지).
 const GUIDE_BASE = import.meta.env.VITE_GUIDE_PUBLIC_URL || "";
 const assetUrl = (refId) =>
   GUIDE_BASE && refId ? `${GUIDE_BASE}/guide-asset/${refId}` : null;
+
+// ④ 추천 레퍼런스 badge — fastapi reference_meta 원값 → 한글 라벨(라벨 정책은 여기서만 수정).
+//   조합(최대 3): 출처(source_type, 필수) + 부위(region) + 변별 persona(있으면) / 없으면 category.
+const REF_BADGE_LABELS = {
+  source: {
+    self_render: "3D 참조",
+    museum: "미술 자료",
+    ai_example: "AI 생성",
+  },
+  region: { full: "전신", head: "얼굴", hand: "손", foot: "발" },
+  category: {
+    action: "동작",
+    locomotion: "이동",
+    expressive: "표현",
+    rest: "정지",
+    other: "기타",
+  },
+  persona: {
+    light: "빛",
+    color: "색",
+    mood: "분위기",
+    composition: "구도",
+    technique: "기법",
+  },
+};
+const DISCRIMINATIVE_PERSONAS = [
+  "light",
+  "color",
+  "mood",
+  "composition",
+  "technique",
+];
+// #4 §1 주요 키워드(114:15606) — 대그룹별 [의미, 예시] 키워드(image 250 원문에서 각 1 추출).
+//   대그룹은 오렌지 뱃지, 의미·예시는 중립. 대그룹은 track_map(축→그룹) 결과(track.group)를 재사용.
+const GROUP_KW = {
+  형태: ["비례", "실루엣"], // 의미:기본 도형·실루엣·비례 / 예시:러프 스케치, 인체 비례
+  구조: ["무게중심", "포즈"], // 의미:인체·원근·무게중심 / 예시:포즈, 골격, 투시
+  표현: ["명암", "색감"], // 의미:명암·채색·디테일 / 예시:빛·그림자, 색감, 텍스처
+  연출: ["구도", "무드"], // 의미:구도·분위기·서사 / 예시:시선 흐름, 무드
+};
+const refBadges = (ref) => {
+  const out = [];
+  const src = REF_BADGE_LABELS.source[ref?.sourceType];
+  if (src) out.push(src);
+  const reg = REF_BADGE_LABELS.region[ref?.region];
+  if (reg) out.push(reg);
+  const disc = (ref?.personas || []).find((p) =>
+    DISCRIMINATIVE_PERSONAS.includes(p),
+  );
+  const third = disc
+    ? REF_BADGE_LABELS.persona[disc]
+    : REF_BADGE_LABELS.category[ref?.category];
+  if (third) out.push(third);
+  return out.slice(0, 3);
+};
+// ③ 추천 이유: badge(출처·부위·유형)가 못 담는 '연습 축과의 연결'을 한 문장으로 조립(비-LLM).
+//   ref.axis(소속 블록 sub_problem) 중심 + 변별 persona(빛·색·분위기…) 있으면 우선 반영.
+//   축·meta 결손이면 graceful — 최종 빈 문자열이면 문장 노드 자체를 안 만든다.
+const REASON_SOURCE = {
+  self_render: "3D 참조",
+  museum: "미술 자료",
+  ai_example: "AI 생성 예시",
+};
+const refReason = (ref) => {
+  const ax = ref?.axis ? axisLabel(ref.axis) : "";
+  const src = REASON_SOURCE[ref?.sourceType] || "";
+  const disc = (ref?.personas || []).find((p) =>
+    DISCRIMINATIVE_PERSONAS.includes(p),
+  );
+  const persona = disc ? REF_BADGE_LABELS.persona[disc] : "";
+  if (ax && persona && src)
+    return `'${ax}' 연습에 맞춰 ${persona} 표현이 담긴 ${src}예요.`;
+  if (ax && src) return `'${ax}' 연습을 위해 고른 ${src}예요.`;
+  if (ax) return `'${ax}' 연습을 위해 고른 참조예요.`;
+  if (src) return `그림 연습에 참고할 ${src}예요.`;
+  return "";
+};
 
 // ★성장 서술의 단일 소스는 백엔드다(growth.delta_note/trend). 프론트가 trend 로 %를 재계산하던
 //   growthDelta/deltaMessage("처음 받았을 때보다 200%…")는 제거 — 이력<N 이면 백엔드가 trend/delta 를
@@ -42,10 +120,54 @@ const AssetSvg = ({ asset }) => {
   );
 };
 
+// ⑥ 5단계 커리큘럼 프로그레스 바(114:15701). 백엔드 track{group, stages[5], current_idx}만 소비 —
+//   라벨·단계 정의는 프론트가 만들지 않는다(단일 소스=fastapi track_map.yaml). fill 은 current_idx 비율.
+const TrackBar = ({ track }) => {
+  const stages = track.stages || [];
+  const cur = Math.max(0, Math.min(stages.length - 1, track.current_idx ?? 0));
+  const pctOf = (i) =>
+    stages.length > 1 ? (i / (stages.length - 1)) * 100 : 0;
+  return (
+    <div className={styles.trackWrap}>
+      {track.group && (
+        <p className={styles.trackGroup}>
+          <span className={styles.trackGroupName}>{track.group}</span> 그룹
+        </p>
+      )}
+      <div className={styles.trackTrack}>
+        <span
+          className={styles.trackFill}
+          style={{ width: `${pctOf(cur)}%` }}
+        />
+        {stages.map((s, i) => (
+          <span
+            key={s}
+            className={`${styles.trackNode} ${i <= cur ? styles.trackNodeOn : ""} ${i === cur ? styles.trackNodeCur : ""}`}
+            style={{ left: `${pctOf(i)}%` }}
+          />
+        ))}
+      </div>
+      <div className={styles.trackLabels}>
+        {stages.map((s, i) => (
+          <span
+            key={s}
+            className={`${styles.trackLabel} ${i === cur ? styles.trackLabelCur : ""}`}
+          >
+            {s}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // 추천 레퍼런스 카드: 이미지(좌) + 우측 제목. 시안 SCR-GUIDE-02 세로 스택.
 //   추천 이유·키워드 badge 는 데이터 결손이라 이번 범위 아님(DOM 노드 자체를 만들지 않음).
-const RefCard = ({ reference }) => {
+//   ⑤ 아카이브 담기 — 썸네일 위 glass 버튼(114:15652). projectId 있을 때만 노출, addReference 재사용.
+const RefCard = ({ reference, archived, onArchive }) => {
   const [failed, setFailed] = useState(false);
+  const badges = refBadges(reference);
+  const reason = refReason(reference);
   return (
     <figure className={styles.refCard}>
       <div className={styles.refThumb}>
@@ -61,13 +183,72 @@ const RefCard = ({ reference }) => {
             onError={() => setFailed(true)}
           />
         )}
+        {onArchive && (
+          <button
+            type="button"
+            className={styles.refArchiveBtn}
+            data-archived={archived ? "" : undefined}
+            onClick={onArchive}
+            disabled={archived}
+            aria-label={archived ? "아카이브에 담김" : "아카이브에 담기"}
+            title={archived ? "담김" : "아카이브 담기"}
+          >
+            {archived ? <RefCheckIcon /> : <RefArchiveIcon />}
+          </button>
+        )}
       </div>
       <div className={styles.refInfo}>
         <p className={styles.refTitle}>추천 레퍼런스 {reference.ordinal}</p>
+        {badges.length > 0 && (
+          <div className={styles.refBadges}>
+            {badges.map((bd) => (
+              <span key={bd} className={styles.refBadge}>
+                {bd}
+              </span>
+            ))}
+          </div>
+        )}
+        {reason && (
+          <p className={styles.refReason}>
+            <span className={styles.refReasonLabel}>추천 이유</span>
+            {reason}
+          </p>
+        )}
       </div>
     </figure>
   );
 };
+
+const RefArchiveIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" />
+    <path d="M10 12h4" />
+  </svg>
+);
+const RefCheckIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.1"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M20 6L9 17l-5-5" />
+  </svg>
+);
 
 // 레퍼런스 묶음 피드백 — 👍👎 시각 토글(주황) + 🔄 새로고침.
 //   👍/👎: 선택 시 onFeedback(kind, refIds) 로 백엔드 전송(adoption_log). 같은 버튼 재클릭=해제(전송 안 함).
@@ -155,18 +336,20 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
   );
 };
 
-// 면적 차트(성장): trend [{index, difficulty_count, label}] → 부드러운 area.
-//   trend 는 백엔드가 이력≥N 일 때만 채워 보낸다(contract.py 임계). 아니면 [] → 차트 자체가 안 뜸.
+// ⑦ 면적 차트(성장): trend [{index, label(주 MM.DD), weekly_count}] → 주별 가이드 요청 횟수 곡선
+//   (정본 114:15736). weekly_count 우선, 없으면 difficulty_count 폴백(하위호환). trend 는 백엔드가
+//   활동 주≥임계일 때만 채워 보낸다(contract.py 게이트). 아니면 [] → 차트 자체가 안 뜸(graceful).
 const GrowthChart = ({ trend }) => {
   if (!trend || trend.length < 2) return null;
   const W = 520;
   const H = 150;
   const PAD = 8;
-  const max = Math.max(1, ...trend.map((t) => t.difficulty_count || 0));
+  const val = (t) => t.weekly_count ?? t.difficulty_count ?? 0;
+  const max = Math.max(1, ...trend.map(val));
   const n = trend.length;
   const pts = trend.map((t, i) => {
     const x = PAD + (i / (n - 1)) * (W - PAD * 2);
-    const y = PAD + (1 - (t.difficulty_count || 0) / max) * (H - PAD * 2);
+    const y = PAD + (1 - val(t) / max) * (H - PAD * 2);
     return [x, y];
   });
   const line = pts
@@ -180,7 +363,7 @@ const GrowthChart = ({ trend }) => {
   const area = `${line} L ${pts[n - 1][0]} ${H - PAD} L ${pts[0][0]} ${H - PAD} Z`;
   return (
     <div className={styles.chartWrap}>
-      <p className={styles.chartTitle}>그림 한 장당 어려움을 느낀 횟수</p>
+      <p className={styles.chartTitle}>주별 가이드 요청 횟수</p>
       <div className={styles.chartArea}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -203,6 +386,14 @@ const GrowthChart = ({ trend }) => {
           />
         </svg>
       </div>
+      {/* ⑦ X축 = 주(정본: 첫 주 … 이번 주 날짜). 라벨 있을 때만(구 데이터엔 없음). */}
+      {trend.some((t) => t.label && /\d/.test(t.label)) && (
+        <div className={styles.chartXAxis}>
+          <span>{trend[0].label}</span>
+          {n > 2 && <span>{trend[Math.floor((n - 1) / 2)].label}</span>}
+          <span>{trend[n - 1].label}</span>
+        </div>
+      )}
     </div>
   );
 };
@@ -267,13 +458,35 @@ const Coach = ({
   requestText,
   onGuideFeedback,
   guideFeedback,
+  projectId,
 }) => {
   const blocks = guide.blocks || [];
   const primary = blocks[0];
   const next = guide.next_steps;
-  // §1 타이틀: 요청일자 + 주요 키워드(진단된 축 = primary + 보조 블록, dedupe 후 최대 3).
+
+  // ⑤ 아카이브 담기 — 좌측 그리드와 동일한 addReference(그쪽 공유 API) 재사용. 멱등(중복 무해).
+  const [archivedRefs, setArchivedRefs] = useState(() => new Set());
+  const handleArchive = async (refId) => {
+    if (!projectId || !refId || archivedRefs.has(refId)) return;
+    try {
+      await addReference(projectId, refId);
+    } catch {
+      /* 멱등 — 실패해도 담김 표시(중복/네트워크는 조용히) */
+    }
+    setArchivedRefs((prev) => new Set(prev).add(refId));
+  };
+  // §1 타이틀: 요청일자 + 주요 키워드(114:15606). 정본: 대그룹(오렌지)+의미+예시 각 1(image 250).
+  //   대그룹 = track.group(⑥ track_map). track 없으면(구가이드·미정의 축) 진단 축 라벨 폴백.
   const reqDate = fmtReqDate(createdAt);
   const topKeywords = (() => {
+    const grp = guide.next_steps?.track?.group;
+    if (grp && GROUP_KW[grp]) {
+      return [
+        { text: grp, big: true },
+        { text: GROUP_KW[grp][0] },
+        { text: GROUP_KW[grp][1] },
+      ];
+    }
     const out = [];
     for (const sp of [
       guide.primary_focus,
@@ -281,7 +494,7 @@ const Coach = ({
     ]) {
       if (sp && !out.includes(sp)) out.push(sp);
     }
-    return out.slice(0, 3);
+    return out.slice(0, 3).map((sp) => ({ text: axisLabel(sp) }));
   })();
   // 레퍼런스 풀(🔄 새로고침용): 표시 중인 top-3(references, URL 보유) + 페이로드 전체 블록의 나머지 ref.
   //   URL 은 references[0].url 에서 base 를 떼어 합성 → GUIDE_BASE env 불일치와 무관하게 일관.
@@ -323,18 +536,57 @@ const Coach = ({
     setPrevPoolKey(poolKey);
     setRefOffset(0); // 가이드(풀)가 바뀌면 처음으로
   }
+  // ④ badge 메타(source_type·region·personas·category)를 refId 로 병합 — references(ResolvedReference)가 원천.
+  const refMetaById = Object.fromEntries(
+    (references || []).filter((r) => r?.refId).map((r) => [r.refId, r]),
+  );
+  // ③ ref → 소속 블록의 축(sub_problem). references(shown_refs)는 블록 reference_ids 합집합이라 안정적.
+  const axisByRefId = (() => {
+    const m = {};
+    for (const b of blocks) {
+      for (const rid of b.reference_ids || []) {
+        if (rid && !(rid in m)) m[rid] = b.sub_problem || guide.primary_focus;
+      }
+    }
+    return m;
+  })();
   const displayedRefs =
     refPool.length === 0
       ? []
       : Array.from({ length: Math.min(3, refPool.length) }, (_, i) => {
           const refId = refPool[(refOffset + i) % refPool.length];
-          return { ordinal: i + 1, refId, url: urlFor(refId) };
+          const m = refMetaById[refId] || {};
+          return {
+            ordinal: i + 1,
+            refId,
+            url: urlFor(refId),
+            sourceType: m.sourceType,
+            region: m.region,
+            personas: m.personas,
+            category: m.category,
+            axis: axisByRefId[refId] || guide.primary_focus,
+          };
         });
   const canRefresh = refPool.length > 3;
   const cycleRefs = () => setRefOffset((o) => (o + 3) % refPool.length);
   const hasGoal =
     next && (next.focus || next.next_goal || next.next_goal_practice);
   const hasChecklist = next && next.focus_practice;
+  // ⑥ 5단계 커리큘럼 트랙(백엔드 track_map 조립 결과만 소비). 현재/다음 단계 badge 는 track 있으면
+  //   정본 단계 라벨, 없으면(구가이드·미정의 축) 기존 축 라벨 폴백.
+  const track =
+    next && next.track && Array.isArray(next.track.stages) ? next.track : null;
+  const hasTrack = !!(track && track.stages.length === 5);
+  const curStage = hasTrack
+    ? track.stages[track.current_idx]
+    : next && next.focus
+      ? axisLabel(next.focus)
+      : null;
+  const nextStage = hasTrack
+    ? track.stages[track.current_idx + 1] || null
+    : next && next.next_goal
+      ? axisLabel(next.next_goal)
+      : null;
 
   return (
     <>
@@ -346,8 +598,13 @@ const Coach = ({
             <div className={styles.keywordRow}>
               <span className={styles.keywordLabel}>주요 키워드 :</span>
               {topKeywords.map((k) => (
-                <span key={k} className={styles.keywordBadge}>
-                  {axisLabel(k)}
+                <span
+                  key={k.text}
+                  className={
+                    k.big ? styles.keywordBadge : styles.keywordBadgeSub
+                  }
+                >
+                  {k.text}
                 </span>
               ))}
             </div>
@@ -408,7 +665,14 @@ const Coach = ({
           <div className={styles.refBoard}>
             <div className={styles.refGrid}>
               {displayedRefs.map((r) => (
-                <RefCard key={r.refId} reference={r} />
+                <RefCard
+                  key={r.refId}
+                  reference={r}
+                  archived={archivedRefs.has(r.refId)}
+                  onArchive={
+                    projectId ? () => handleArchive(r.refId) : undefined
+                  }
+                />
               ))}
             </div>
             <RefFeedback
@@ -421,27 +685,24 @@ const Coach = ({
         </section>
       )}
 
-      {/* 5. 앞으로 해야 할 것 — [5단계 프로그레스 미생성: 필드 결손·키스톤 의존, Wave 3] + 현재/다음 단계 + 서술 + 체크리스트 */}
-      {(hasGoal || hasChecklist) && (
+      {/* 5. 앞으로 해야 할 것 — ⑥ 5단계 커리큘럼 프로그레스(track) + 현재/다음 단계 + 서술 + 체크리스트 */}
+      {(hasGoal || hasChecklist || hasTrack) && (
         <section className={styles.nextSteps}>
           <SectionTitle>앞으로 해야 할 것</SectionTitle>
           <div className={styles.nextStepsBox}>
-            {(next.focus || next.next_goal) && (
+            {hasTrack && <TrackBar track={track} />}
+            {(curStage || nextStage) && (
               <div className={styles.stageRow}>
-                {next.focus && (
+                {curStage && (
                   <span className={styles.stageItem}>
                     <span className={styles.stageLabel}>현재 단계 :</span>
-                    <span className={styles.stageBadge}>
-                      {axisLabel(next.focus)}
-                    </span>
+                    <span className={styles.stageBadge}>{curStage}</span>
                   </span>
                 )}
-                {next.next_goal && (
+                {nextStage && (
                   <span className={styles.stageItem}>
                     <span className={styles.stageLabel}>다음 단계 :</span>
-                    <span className={styles.stageBadgeNext}>
-                      {axisLabel(next.next_goal)}
-                    </span>
+                    <span className={styles.stageBadgeNext}>{nextStage}</span>
                   </span>
                 )}
               </div>
@@ -540,6 +801,7 @@ const GuideBody = ({
   requestText,
   onGuideFeedback,
   guideFeedback,
+  projectId,
 }) => (
   <div className={styles.body}>
     {loading && (
@@ -578,6 +840,7 @@ const GuideBody = ({
           requestText={requestText}
           onGuideFeedback={onGuideFeedback}
           guideFeedback={guideFeedback}
+          projectId={projectId}
         />
       ))}
   </div>
@@ -597,6 +860,7 @@ export const GuideContent = ({
   guideFeedback,
   onToggleFull,
   isFull,
+  projectId,
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
@@ -660,6 +924,7 @@ export const GuideContent = ({
         requestText={requestText}
         onGuideFeedback={onGuideFeedback}
         guideFeedback={guideFeedback}
+        projectId={projectId}
       />
     </div>
   );
@@ -673,6 +938,7 @@ const GuideModal = ({
   onClose,
   onRetry,
   onRefFeedback,
+  projectId,
 }) => {
   const guide = result?.guide;
   const references = result?.references || [];
@@ -714,6 +980,7 @@ const GuideModal = ({
           onRefFeedback={onRefFeedback}
           createdAt={createdAt}
           requestText={requestText}
+          projectId={projectId}
         />
       </div>
     </div>

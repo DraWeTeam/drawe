@@ -12,6 +12,8 @@ from guide._trace import trace
 from guide import _shadow
 from guide.stores.db import engine
 from guide.stores.s3 import presigned_url
+from guide.stores.vectors import retrieve_meta
+from guide.pipeline.track import build_track
 from guide.ml.normalize import normalize
 from guide.ml.scene import analyze
 from guide.ml.pose import extract
@@ -432,6 +434,23 @@ def _guide_sync(
         )
     payload = finalize_guide_response(resp, growth_obj=growth_obj)
     payload.update(_make_overlay(dx, growth))  # 모드 선택 → overlay_axes 만 렌더
+    # ④ 추천 레퍼런스 badge용 메타(source_type·region·personas·category) — 표시 전용, 추가만.
+    #   블록에 실제 노출된 ref 만 추가 Qdrant 조회 1회. 검색·스코어링·프롬프트 무접촉.
+    shown_refs = {rid for b in resp.blocks for rid in (b.reference_ids or [])}
+    if shown_refs:
+        _rmeta = retrieve_meta(shown_refs)
+        payload["reference_meta"] = {
+            rid: {
+                k: (_rmeta.get(rid) or {}).get(k)
+                for k in ("source_type", "region", "personas", "category")
+            }
+            for rid in shown_refs
+        }
+    # ⑥ 5단계 커리큘럼 트랙 — primary_focus(이 가이드가 다루는 축)의 그룹·단계를 track_map.yaml
+    #   단일 소스로 조립(정의 데이터, LLM·스코어링 무관). next_steps 슬롯에 표시 전용으로 추가만.
+    _track = build_track(resp.primary_focus)
+    if _track and isinstance(payload.get("next_steps"), dict):
+        payload["next_steps"]["track"] = _track
     return payload
 
 
