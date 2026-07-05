@@ -4,6 +4,7 @@ import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.User;
 import com.drawe.backend.domain.enums.ImageSource;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +15,9 @@ public interface ImageRepository extends JpaRepository<Image, Long> {
 
   // 여러 source_id 이미지를 한번에 조회
   List<Image> findBySourceIdIn(List<String> sourceIds);
+
+  /** 코퍼스 레퍼런스 인제스트 멱등 조회 — (source=GUIDE_REF, sourceId=코퍼스 refId)로 기존 Image 재사용. */
+  Optional<Image> findFirstBySourceAndSourceId(ImageSource source, String sourceId);
 
   List<Image> findByIsOnboardingTrue();
 

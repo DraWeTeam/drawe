@@ -6,7 +6,9 @@ import GuideModal from "../chat/GuideModal";
 import BoardGuideChat from "./BoardGuideChat";
 import { requestGuide, uploadImage } from "../chat/api";
 import { resizeImage, validateImageFile } from "../chat/imageUtils";
-import { updateProject } from "../projects/api";
+import { updateProject, addReference } from "../projects/api";
+import { generateReference } from "./referenceBoardApi";
+import AuthedImage from "../chat/AuthedImage";
 import { track } from "../../analytics";
 import styles from "./GeneratePromptPanel.module.css";
 import logo from "../../assets/drawe_logo.png";
@@ -211,9 +213,42 @@ const GeneratePromptPanel = ({
     });
   };
 
-  // 생성 로직(텍스트→이미지)은 팀원 담당 — 지금은 전송 동작 없음(UI만).
-  const handleSubmit = (e) => {
+  // 레퍼런스 생성(텍스트 → bedrock 이미지). 생성 결과를 패널에 미리보기 + 담기(아카이브 저장).
+  const [genLoading, setGenLoading] = useState(false);
+  const [genResult, setGenResult] = useState(null); // { imageId, url }
+  const [genError, setGenError] = useState("");
+  const [genArchived, setGenArchived] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    const prompt = input.trim();
+    if (mode !== "reference" || !prompt || genLoading) return;
+    setGenLoading(true);
+    setGenError("");
+    setGenResult(null);
+    setGenArchived(false);
+    try {
+      const res = await generateReference(projectId, prompt);
+      setGenResult(res); // { imageId, url }
+      track("reference_generated", { project_id: projectId });
+    } catch (err) {
+      setGenError(
+        err.response?.data?.error?.message ||
+          "레퍼런스 생성에 실패했어요. 잠시 후 다시 시도해주세요.",
+      );
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  const archiveGenerated = async () => {
+    if (!genResult?.imageId || genArchived) return;
+    try {
+      await addReference(projectId, genResult.imageId);
+    } catch {
+      /* 멱등 — 중복/네트워크는 조용히 */
+    }
+    setGenArchived(true);
   };
 
   return (
@@ -383,13 +418,42 @@ const GeneratePromptPanel = ({
           <button
             type="submit"
             className={styles.sendBtn}
-            disabled={!canType || !input.trim()}
+            disabled={!canType || !input.trim() || genLoading}
             aria-label="전송"
           >
             <SendIcon />
           </button>
         </div>
       </form>
+
+      {/* 레퍼런스 생성 결과 — 미리보기 + 담기(아카이브 저장) */}
+      {mode === "reference" && (genLoading || genResult || genError) && (
+        <div className={styles.genResult}>
+          {genLoading && (
+            <div className={styles.genLoading}>레퍼런스를 생성하고 있어요…</div>
+          )}
+          {genError && <div className={styles.genError}>{genError}</div>}
+          {genResult && (
+            <div className={styles.genCard}>
+              <AuthedImage
+                className={styles.genImage}
+                src={genResult.url}
+                alt="생성된 레퍼런스"
+              />
+              <div className={styles.genActions}>
+                <button
+                  type="button"
+                  className={styles.genArchiveBtn}
+                  onClick={archiveGenerated}
+                  disabled={genArchived}
+                >
+                  {genArchived ? "아카이브에 담김" : "아카이브에 담기"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 한 끗 가이드 입력 폼 */}
       {guideFormOpen && (

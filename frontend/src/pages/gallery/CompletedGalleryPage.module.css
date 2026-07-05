@@ -8,10 +8,58 @@
 
 .header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 28px;
   flex-wrap: wrap;
+}
+.headLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.headControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.viewToggle {
+  display: inline-flex;
+  border: 1px solid #e6e1da;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.viewBtn {
+  background: #fff;
+  border: none;
+  padding: 6px 12px;
+  font-size: 15px;
+  cursor: pointer;
+  color: #8a8580;
+}
+.viewBtnOn {
+  background: #2e2c2a;
+  color: #fff;
+}
+.sortBtn {
+  border: 1px solid #e6e1da;
+  background: #fff;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #4b4b4b;
+}
+.newBtn {
+  border: none;
+  background: #ff8534;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .title {
@@ -58,98 +106,108 @@
   }
 }
 
+/* 카드 = 썸네일(버튼) + 하단 메타(제목·날짜·⋮). 정본 70:28528. */
 .card {
-  position: relative;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  margin-bottom: 18px;
+}
+.cardThumbBtn {
   display: block;
   width: 100%;
   padding: 0;
   border: none;
-  text-align: left;
-  font: inherit;
   cursor: pointer;
   border-radius: 14px;
   overflow: hidden;
   background: #f0ece7;
-  margin-bottom: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   transition:
     box-shadow 0.18s ease,
     transform 0.18s ease;
-  /* column 레이아웃에서 카드가 컬럼 사이에 쪼개지지 않게 */
-  break-inside: avoid;
-  -webkit-column-break-inside: avoid;
 }
-
-.card:hover {
+.cardThumbBtn:hover {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
 }
-
 .thumb {
   width: 100%;
   height: auto;
   display: block;
 }
-
 /* AuthedImage 로딩 중 placeholder(div.thumb)에 최소 높이 — masonry 출렁임 완화 */
 div.thumb {
   min-height: 180px;
 }
-
-.caption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 18px 12px 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #fff;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+.cardMeta {
+  padding: 10px 4px 2px;
+}
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2e2c2a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.downloadBtn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 34px;
-  height: 34px;
-  border: none;
+.cardDate {
+  font-size: 12px;
+  color: #9a948d;
+}
+.kebab {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  opacity: 0;
-  transition:
-    opacity 0.15s,
-    background 0.15s;
+  color: #8a8580;
+}
+.kebab:hover {
+  background: #f2ede7;
+  color: #4b4b4b;
 }
 
-.card:hover .downloadBtn,
-.downloadBtn:focus-visible {
-  opacity: 1;
+/* 리스트 보기 — 썸네일 작게 + 가로 행 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-
-.downloadBtn:hover {
-  background: rgba(0, 0, 0, 0.75);
+.list .card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 0;
+  border: 1px solid #efeae3;
+  border-radius: 12px;
+  padding: 8px 12px;
 }
-
-.downloadBtn:disabled {
-  opacity: 0.5;
-  cursor: default;
+.list .cardThumbBtn {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  box-shadow: none;
 }
-
-/* 터치 디바이스 — 호버가 없으니 항상 노출 */
-@media (hover: none) {
-  .downloadBtn {
-    opacity: 1;
-  }
+.list .thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}
+.list div.thumb {
+  min-height: 72px;
+}
+.list .cardMeta {
+  flex: 1;
+  padding: 0;
 }
 
 .sentinel {

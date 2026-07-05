@@ -28,16 +28,34 @@ const isIOS = () => {
  *
  * @returns {Promise<boolean>} 파일 다운로드 트리거 성공 여부
  */
+// 상대 경로(/images/{id})를 새 탭으로 열면 프론트 오리진이라 공백 페이지가 된다.
+//   폴백 새 탭은 자체 인증되는 절대 URL(presigned S3 등)일 때만 연다.
+const isAbsoluteUrl = (u) => /^https?:\/\//i.test(u || "");
+
+// 다운로드 blob 조회. /{id}/download 는 생성 이미지(Image 엔티티)용 — 완성작·업로드 원본은
+//   ImageBlob 이라 404 가 난다. 그 경우 /{id}?download=true(ImageBlob + attachment)로 폴백.
+const fetchDownloadBlob = async (imageId) => {
+  try {
+    return await api.get(`/images/${imageId}/download`, {
+      responseType: "blob",
+    });
+  } catch {
+    return await api.get(`/images/${imageId}`, {
+      params: { download: true },
+      responseType: "blob",
+    });
+  }
+};
+
 export const downloadImage = async (imageId, fallbackUrl) => {
   if (!imageId) {
-    if (fallbackUrl) window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+    if (isAbsoluteUrl(fallbackUrl))
+      window.open(fallbackUrl, "_blank", "noopener,noreferrer");
     return false;
   }
 
   try {
-    const res = await api.get(`/images/${imageId}/download`, {
-      responseType: "blob",
-    });
+    const res = await fetchDownloadBlob(imageId);
 
     const filename =
       filenameFromDisposition(res.headers["content-disposition"]) ||
@@ -64,7 +82,9 @@ export const downloadImage = async (imageId, fallbackUrl) => {
     return true;
   } catch (err) {
     console.error("이미지 다운로드 실패:", err);
-    if (fallbackUrl) window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+    // 상대 경로 fallback 은 공백 새 탭이 되므로 절대 URL 일 때만 연다.
+    if (isAbsoluteUrl(fallbackUrl))
+      window.open(fallbackUrl, "_blank", "noopener,noreferrer");
     return false;
   }
 };

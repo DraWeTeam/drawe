@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getCompletedGallery } from "./api";
 import { downloadImage } from "./download";
 import AuthedImage from "../chat/AuthedImage";
 import styles from "./CompletedGalleryPage.module.css";
 
 const PAGE_SIZE = 20;
+
+const fmtDate = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}.${mm}.${dd}`;
+};
 
 const CompletedGalleryPage = () => {
   const [items, setItems] = useState([]);
@@ -16,8 +26,10 @@ const CompletedGalleryPage = () => {
   const [initialized, setInitialized] = useState(false);
   // 다운로드 중인 imageId 집합 (버튼 중복 클릭 방지)
   const [downloadingIds, setDownloadingIds] = useState(() => new Set());
-  // 확대해서 보고 있는 완성작 (라이트박스). null 이면 닫힘.
-  const [lightboxItem, setLightboxItem] = useState(null);
+  // 정본(70:28528) 헤더 컨트롤: 그리드/리스트 보기 · 정렬.
+  const [view, setView] = useState("grid"); // "grid" | "list"
+  const [sortDesc, setSortDesc] = useState(true); // 최근순(기본) ↔ 오래된순
+  const navigate = useNavigate();
 
   // 다음 페이지 로드. 중복 호출은 loading 가드로 막는다.
   const loadMore = useCallback(async () => {
@@ -56,16 +68,6 @@ const CompletedGalleryPage = () => {
     loadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // 라이트박스 열려 있을 때 ESC 로 닫기
-  useEffect(() => {
-    if (!lightboxItem) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") setLightboxItem(null);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [lightboxItem]);
 
   // 무한 스크롤 — 바닥 센티넬이 보이면 다음 페이지 로드
   const sentinelRef = useRef(null);
@@ -111,9 +113,54 @@ const CompletedGalleryPage = () => {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>완성작 갤러리</h1>
+        <div className={styles.headLeft}>
+          <h1 className={styles.title}>완성작 갤러리</h1>
+          {initialized && !errorMessage && items.length > 0 && (
+            <span className={styles.subtitle}>총 {total}개의 완성작</span>
+          )}
+        </div>
         {initialized && !errorMessage && items.length > 0 && (
-          <span className={styles.subtitle}>총 {total}개의 완성작</span>
+          <div className={styles.headControls}>
+            <div
+              className={styles.viewToggle}
+              role="group"
+              aria-label="보기 전환"
+            >
+              <button
+                type="button"
+                className={`${styles.viewBtn} ${view === "grid" ? styles.viewBtnOn : ""}`}
+                onClick={() => setView("grid")}
+                aria-label="그리드 보기"
+                aria-pressed={view === "grid"}
+              >
+                ▦
+              </button>
+              <button
+                type="button"
+                className={`${styles.viewBtn} ${view === "list" ? styles.viewBtnOn : ""}`}
+                onClick={() => setView("list")}
+                aria-label="리스트 보기"
+                aria-pressed={view === "list"}
+              >
+                ≣
+              </button>
+            </div>
+            <button
+              type="button"
+              className={styles.sortBtn}
+              onClick={() => setSortDesc((v) => !v)}
+              title="정렬 전환"
+            >
+              {sortDesc ? "최근순" : "오래된순"} ▾
+            </button>
+            <button
+              type="button"
+              className={styles.newBtn}
+              onClick={() => navigate("/")}
+            >
+              + 새 프로젝트
+            </button>
+          </div>
         )}
       </header>
 
@@ -127,43 +174,59 @@ const CompletedGalleryPage = () => {
         <div className={styles.stateBox}>{errorMessage}</div>
       ) : (
         <>
-          <div className={styles.grid}>
-            {items.map((item) => {
-              const imageId = imageIdFromUrl(item.drawingUrl);
-              return (
-                <button
-                  key={item.projectId}
-                  type="button"
-                  className={styles.card}
-                  onClick={() => setLightboxItem(item)}
-                  aria-label={`${item.projectName || "완성작"} 크게 보기`}
-                >
-                  {/* 완성 그림은 /images/{id} 로 인증 서빙된다. */}
-                  <AuthedImage
-                    src={item.drawingUrl}
-                    alt={item.projectName || "완성작"}
-                    className={styles.thumb}
-                  />
-                  <span className={styles.caption}>{item.projectName}</span>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className={styles.downloadBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(item.drawingUrl);
-                    }}
-                    aria-disabled={
-                      imageId != null && downloadingIds.has(imageId)
-                    }
-                    aria-label="이미지 다운로드"
-                    title="다운로드"
-                  >
-                    <DownloadIcon />
-                  </span>
-                </button>
-              );
-            })}
+          <div className={view === "list" ? styles.list : styles.grid}>
+            {[...items]
+              .sort((a, b) => {
+                const da = Date.parse(a.completedAt || 0) || 0;
+                const db = Date.parse(b.completedAt || 0) || 0;
+                return sortDesc ? db - da : da - db;
+              })
+              .map((item) => {
+                const imageId = imageIdFromUrl(item.drawingUrl);
+                return (
+                  <div key={item.projectId} className={styles.card}>
+                    <button
+                      type="button"
+                      className={styles.cardThumbBtn}
+                      onClick={() => navigate(`/gallery/${item.projectId}`)}
+                      aria-label={`${item.projectName || "완성작"} 상세 보기`}
+                    >
+                      {/* 완성 그림은 /images/{id} 로 인증 서빙된다. */}
+                      <AuthedImage
+                        src={item.drawingUrl}
+                        alt={item.projectName || "완성작"}
+                        className={styles.thumb}
+                      />
+                    </button>
+                    <div className={styles.cardMeta}>
+                      <div className={styles.cardTitleRow}>
+                        <span className={styles.cardTitle}>
+                          {item.projectName || "완성작"}
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          className={styles.kebab}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(item.drawingUrl);
+                          }}
+                          aria-disabled={
+                            imageId != null && downloadingIds.has(imageId)
+                          }
+                          aria-label="이미지 다운로드"
+                          title="다운로드"
+                        >
+                          <DownloadIcon />
+                        </span>
+                      </div>
+                      <span className={styles.cardDate}>
+                        {fmtDate(item.completedAt)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
           </div>
 
           {/* 추가 페이지 로딩 표시 / 무한 스크롤 센티넬 */}
@@ -175,51 +238,6 @@ const CompletedGalleryPage = () => {
             <div className={styles.loadingMore}>{errorMessage}</div>
           )}
         </>
-      )}
-
-      {/* 라이트박스 — 완성작 확대 보기 */}
-      {lightboxItem && (
-        <div
-          className={styles.lightbox}
-          onClick={() => setLightboxItem(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={lightboxItem.projectName || "완성작"}
-        >
-          <button
-            type="button"
-            className={styles.lightboxClose}
-            onClick={() => setLightboxItem(null)}
-            aria-label="닫기"
-          >
-            <CloseIcon />
-          </button>
-          <div
-            className={styles.lightboxInner}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <AuthedImage
-              src={lightboxItem.drawingUrl}
-              alt={lightboxItem.projectName || "완성작"}
-              className={styles.lightboxImage}
-            />
-            <div className={styles.lightboxBar}>
-              <span className={styles.lightboxTitle}>
-                {lightboxItem.projectName}
-              </span>
-              <button
-                type="button"
-                className={styles.lightboxDownload}
-                onClick={() => handleDownload(lightboxItem.drawingUrl)}
-                aria-label="이미지 다운로드"
-                title="다운로드"
-              >
-                <DownloadIcon />
-                <span>다운로드</span>
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

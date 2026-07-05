@@ -1,5 +1,6 @@
 package com.drawe.backend.domain.gallery.controller;
 
+import com.drawe.backend.domain.gallery.dto.GalleryDetailResponse;
 import com.drawe.backend.domain.gallery.dto.GalleryResponse;
 import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse;
 import com.drawe.backend.domain.gallery.service.GalleryService;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,5 +39,12 @@ public class GalleryController {
   public ApiResponse<ReferenceArchiveResponse> references(
       @AuthenticationPrincipal PrincipalDetails principal) {
     return ApiResponse.success(galleryService.getReferenceArchive(principal.getUser()));
+  }
+
+  /** 완성작 상세(회고) — 한 완성 프로젝트의 가이드 히스토리 집계(성장 서사·타임라인·프로세스 갤러리). */
+  @GetMapping("/completed/{projectId}")
+  public ApiResponse<GalleryDetailResponse> completedDetail(
+      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long projectId) {
+    return ApiResponse.success(galleryService.getCompletedDetail(principal.getUser(), projectId));
   }
 }
