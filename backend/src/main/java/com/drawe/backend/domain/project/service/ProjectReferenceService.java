@@ -35,6 +35,12 @@ public class ProjectReferenceService {
   private final ProjectReferenceRepository projectReferenceRepository;
   private final GuideClient guideClient;
   private final ImageStorage imageStorage;
+  private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
+
+  /** 브라우저 노출용 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(시드)·null 은 원본. */
+  private String signed(String url) {
+    return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
+  }
 
   /** 이미지를 프로젝트 레퍼런스로 저장. (project_id, image_id) unique 제약상 멱등하게 동작한다. */
   @Transactional
@@ -90,7 +96,7 @@ public class ProjectReferenceService {
           image.getId(),
           refId);
     }
-    return Map.of("imageId", image.getId(), "url", image.getUrl());
+    return Map.of("imageId", image.getId(), "url", signed(image.getUrl()));
   }
 
   /** 신규 인제스트 — bytes fetch(외부) 후에만 store/Image 를 만든다(실패 시 고아 없음). */

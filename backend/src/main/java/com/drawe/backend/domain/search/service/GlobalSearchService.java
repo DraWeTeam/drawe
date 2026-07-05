@@ -33,6 +33,12 @@ public class GlobalSearchService {
 
   private final ProjectRepository projectRepository;
   private final ProjectReferenceRepository projectReferenceRepository;
+  private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
+
+  /** 브라우저 노출용 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(시드)·null 은 원본. */
+  private String signed(String url) {
+    return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
+  }
 
   /** scope=ALL 일 때 타입별 노출 상한(모달을 간결히). */
   private static final int ALL_PER_TYPE = 5;
@@ -84,7 +90,7 @@ public class GlobalSearchService {
             pr -> {
               Image img = pr.getImage();
               Project p = pr.getProject();
-              return new ReferenceHit(img.getId(), img.getUrl(), p.getId(), p.getName());
+              return new ReferenceHit(img.getId(), signed(img.getUrl()), p.getId(), p.getName());
             })
         .toList();
   }
@@ -94,7 +100,7 @@ public class GlobalSearchService {
     return projectRepository
         .searchCompleted(user, ProjectStatus.COMPLETED, like, PageRequest.of(0, cap))
         .stream()
-        .map(p -> new CompletedHit(p.getId(), p.getName(), p.getDrawingUrl(), p.getUpdatedAt()))
+        .map(p -> new CompletedHit(p.getId(), p.getName(), signed(p.getDrawingUrl()), p.getUpdatedAt()))
         .toList();
   }
 }
