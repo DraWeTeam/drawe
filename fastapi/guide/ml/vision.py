@@ -5,8 +5,11 @@
   - 구조화 JSON 출력 → 두 번 호출의 일관성을 *기계적으로* 비교(자유 텍스트는 비교 불가).
   - 2회 중 view·structure 가 일치할 때만 confidence='관찰', 아니면 '낮음'(파이프라인이 구체관찰 surface 보류).
   - 출력 방어선: coach 가드레일과 동일한 FORBIDDEN 정책표현이 새면 그 실행 폐기.
-게이트: HAND_VLM(기본 0). 백엔드: VLM_BACKEND=aistudio(기본, GEMINI_API_KEY) | vertex(GCP 크레딧, ADC).
+게이트: HAND_VLM(기본 0). 백엔드: VLM_BACKEND=aistudio(기본, GEMINI_API_KEY) | vertex(GCP 크레딧, ADC)
+  | bedrock(AWS Bedrock Claude Vision).
   vertex: GOOGLE_CLOUD_PROJECT/LOCATION + GOOGLE_APPLICATION_CREDENTIALS(서비스계정 JSON). 모델·body·응답 동일.
+  bedrock: BEDROCK_AWS_PROFILE(또는 IRSA) 자격 · us-west-2 Claude(BEDROCK_VLM_MODEL). Gemini용 관찰 프롬프트를
+    Anthropic Messages API 로 그대로 실어 호출 — 입출력 계약(원시 JSON 텍스트 반환)은 aistudio/vertex 와 동일.
 
 자가검증:  python -m ml.vision --selftest          (키 없이 일관성 로직 테스트)
 실시간:    HAND_VLM=1 python -m ml.vision <이미지>   (Gemini 실제 호출)
@@ -29,14 +32,24 @@ from guide._trace import trace
 # 의존하므로 캐시하지 않는다 — '이미지에만 의존하는 비싼 단계'만 캐시(정확성 불변). transient 실패
 # (예외·전 샘플 실패)는 캐시하지 않는다(다음 요청에 재시도).
 
-_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.5-flash")
 _URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
 
-# 백엔드: aistudio(기본, API 키) | vertex(GCP 크레딧, ADC 인증). body·응답 형식은 동일.
+# 백엔드: aistudio(기본, API 키) | vertex(GCP 크레딧, ADC 인증) | bedrock(AWS Claude Vision).
+#   aistudio/vertex 는 body·응답 형식이 동일(Gemini). bedrock 은 전송계층만 다르고(Anthropic Messages
+#   API + boto3) 입출력 계약(원시 텍스트)은 같아 _parse* 를 그대로 재사용한다.
 _BACKEND = os.environ.get("VLM_BACKEND", "aistudio").strip().lower()
 _VX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 _VX_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 _VX_CREDS = None  # ADC 자격증명 캐시(토큰은 만료 시 자동 refresh)
+
+# 모델·캐시 네임스페이스는 백엔드별로 갈린다. bedrock 은 us-west-2 Claude(inference profile) 를 쓰고,
+#   그 모델 id 가 vlm_*(cache) 네임스페이스가 되어 aistudio/vertex(gemini) 캐시와 섞이지 않는다.
+_GEMINI_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.5-flash")
+_BEDROCK_MODEL = os.environ.get(
+    "BEDROCK_VLM_MODEL", "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+)
+_MODEL = _BEDROCK_MODEL if _BACKEND == "bedrock" else _GEMINI_MODEL
+_BEDROCK_RT = None  # 지연 생성 bedrock-runtime 클라이언트 캐시
 
 
 def _vertex_token():
@@ -100,10 +113,87 @@ def _key():
 
 
 def _creds_ok():
-    """백엔드별 자격 존재 확인. vertex 는 project 만 보고(ADC 인증은 호출 시점), aistudio 는 키."""
+    """백엔드별 자격 존재 확인. vertex 는 project 만 보고(ADC 인증은 호출 시점), aistudio 는 키,
+    bedrock 은 항상 True(자격은 호출 시점 AWS 체인 — 프로필/IRSA — 에서 해석, vertex 동형)."""
+    if _BACKEND == "bedrock":
+        return True
     if _BACKEND == "vertex":
         return bool(_VX_PROJECT)
     return bool(_key())
+
+
+def _bedrock_client():
+    """지연 생성 bedrock-runtime 클라이언트(1회). 자격 분리(generate.py Phase 1 패턴 재사용):
+    - BEDROCK_AWS_PROFILE 있으면 그 프로필 → dev(개인계정)에서 prod(조직) Bedrock 호출.
+    - 없으면 boto3 기본 체인 → prod EKS 는 fastapi-guide IRSA(같은 계정).
+    리전 기본 us-west-2(BEDROCK_VLM_REGION override). 키는 코드·git 에 두지 않는다."""
+    global _BEDROCK_RT
+    if _BEDROCK_RT is None:
+        import boto3
+        from botocore.config import Config
+
+        region = os.environ.get("BEDROCK_VLM_REGION", "us-west-2")
+        profile = os.environ.get("BEDROCK_AWS_PROFILE") or None
+        cfg = Config(
+            region_name=region,
+            read_timeout=int(os.environ.get("BEDROCK_TIMEOUT", "60")),
+            retries={"max_attempts": 2},
+        )
+        _BEDROCK_RT = boto3.Session(profile_name=profile).client(
+            "bedrock-runtime", config=cfg
+        )
+    return _BEDROCK_RT
+
+
+def _bedrock_call(b64, mime, model, retries, prompt):
+    """Bedrock Claude Vision 호출(Anthropic Messages API + base64 이미지). 반환은 _call 과 동일한
+    *원시 텍스트*(JSON 문자열; Claude 가 붙이는 ```json 펜스는 _parse* 가 흡수). 스로틀(429 계열)은
+    백오프 후 제한 재시도, 그 외 예외는 그대로 올려 호출부(_sample/observe_*)가 삼켜 None 폴백."""
+    from botocore.exceptions import ClientError
+
+    client = _bedrock_client()
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": int(os.environ.get("BEDROCK_VLM_MAX_TOKENS", "512")),
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime,
+                            "data": b64,
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+    for attempt in range(retries + 1):
+        try:
+            resp = client.invoke_model(
+                modelId=model,
+                body=json.dumps(body),
+                contentType="application/json",
+                accept="application/json",
+            )
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            throttle = code in (
+                "ThrottlingException",
+                "TooManyRequestsException",
+                "ServiceUnavailableException",
+            )
+            if throttle and attempt < retries:
+                time.sleep(2 * (2**attempt))  # 2s, 4s
+                continue
+            raise
+        payload = json.loads(resp["body"].read())
+        parts = payload.get("content") or []
+        return parts[0]["text"] if parts else ""
 
 
 def _vertex_url(model):
@@ -167,6 +257,9 @@ def _call(b64, mime, key, model=_MODEL, timeout=90, retries=2, prompt=None):
     """Gemini 호출(aistudio 키 또는 vertex ADC). 429 면 백오프 후 제한 재시도. 에러의 키는 마스킹.
     prompt 미지정이면 손 관찰 프롬프트(_PROMPT). production: 429 가 끝까지면 예외 → 호출부가 삼켜 None(폴백).
     """
+    if _BACKEND == "bedrock":
+        # 전송계층만 분기 — 프롬프트·파싱은 aistudio/vertex 와 공유(model 은 이미 _BEDROCK_MODEL).
+        return _bedrock_call(b64, mime, model, retries, prompt or _PROMPT)
     body = {
         "contents": [
             {
