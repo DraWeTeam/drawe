@@ -83,11 +83,20 @@ public record GuideResponse(
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record RecurringStat(String subProblem, Integer window, Integer hits, Double ratio) {}
+  public record RecurringStat(
+      String subProblem,
+      Integer window,
+      Integer hits,
+      Double ratio,
+      // ⑦ 주별 요청 N→M 인사이트용 — recurring 축 초기/최근 활동주 요청 수(순수 통과, 프론트가 조립).
+      Integer firstWeekHits,
+      Integer lastWeekHits) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record TrendPoint(Integer index, String label, Integer difficultyCount) {}
+  // ⑦ weeklyCount = 그 주 가이드 요청 횟수(정본 그래프 Y). difficultyCount 는 하위호환 보존.
+  public record TrendPoint(
+      Integer index, String label, Integer difficultyCount, Integer weeklyCount) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)

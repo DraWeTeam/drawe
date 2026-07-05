@@ -16,6 +16,7 @@ LLM 없이 결정적으로 동작한다. taxonomy(practice_prompt/personas) + pr
 import os
 import json
 from collections import defaultdict
+from datetime import timedelta
 from sqlalchemy import text, bindparam
 from guide.stores.db import engine
 from guide.pipeline.diagnose import taxonomy
@@ -180,6 +181,56 @@ def _history(user_id, project_id=None):
     except Exception as e:
         print(f"[roadmap] 이력 집계 실패(무시, 빈 이력): {type(e).__name__}: {e}")
     return tries, seen_recent, flag_count, trend, timeline
+
+
+# ── ⑦ 성장 그래프 = 주별 가이드 요청 횟수(정본 114:15736) ──────────────────────────────
+# ★설계 변경(정본 정합): 구 지표는 '업로드당 어려움 수'(_history.timeline)였다 — 요청 횟수는
+#   주제·난이도에 흔들려 노이즈가 크다는 우려로 약점 수를 택했었다(의도적 설계). 정본 화면은
+#   'X=주 / Y=주별 요청 횟수 / 첫 주→이번 주 변화'를 명시하므로 그래프·인사이트를 주별 요청으로
+#   정합한다. 노이즈 우려가 재확인되면 지표를 재논의(이 주석 + docs/growth-metric-design.md 참조).
+#   구 timeline(_history)은 하위호환·다른 소비처를 위해 그대로 둔다(제거 아님).
+def _weekly(user_id, project_id=None, weeks=8):
+    """최근 weeks주 주별 가이드 요청 이력. 예전→최근(활동 있는 주만).
+
+    points: [{"label": "MM.DD"(그 주 월요일), "requests": 그 주 서로 다른 guide 수}]
+    axis_weeks: sub_problem -> [(week_key, 그 주 그 축이 뜬 guide 수)] — recurring 축 '주 N→M회' 산출용.
+    """
+    points, axis_weeks = [], {}
+    try:
+        with engine.begin() as cx:
+            rows = cx.execute(
+                text(
+                    "SELECT guide_id, sub_problem, ts FROM practice_log "
+                    "WHERE user_id=:u"
+                    + _PROJ
+                    + " AND action='seen' AND guide_id IS NOT NULL "
+                    "AND ts >= (NOW() - INTERVAL :w WEEK)"
+                ),
+                {"u": user_id, "p": project_id, "w": weeks},
+            ).fetchall()
+        wk_guides = defaultdict(set)  # (iso_year, iso_week) -> set(guide_id)
+        wk_monday = {}  # week_key -> 그 주 월요일 date
+        ax_wk = defaultdict(lambda: defaultdict(set))  # sp -> week_key -> set(guide_id)
+        for gid, sp, ts in rows:
+            if ts is None:
+                continue
+            iso = ts.isocalendar()
+            key = (iso[0], iso[1])
+            wk_guides[key].add(gid)
+            wk_monday[key] = ts.date() - timedelta(days=ts.weekday())
+            ax_wk[sp][key].add(gid)
+        order = sorted(wk_guides.keys())[-weeks:]
+        points = [
+            {"label": wk_monday[k].strftime("%m.%d"), "requests": len(wk_guides[k])}
+            for k in order
+        ]
+        axis_weeks = {
+            sp: [(k, len(ax_wk[sp][k])) for k in sorted(ax_wk[sp].keys())]
+            for sp in ax_wk
+        }
+    except Exception as e:
+        print(f"[roadmap] 주간 이력 실패(무시, 빈 이력): {type(e).__name__}: {e}")
+    return {"points": points, "axis_weeks": axis_weeks}
 
 
 def _trend_from(recent_ids, flags_per_guide):
@@ -852,7 +903,8 @@ def growth_view(user_id="anon", track=None, degraded=False, project_id=None):
         improved, _obs = _improved_from(observed_count, flagged_in_obs, seen_recent)
         return {
             "window": RECENT_N,
-            "timeline": timeline,  # [{"flagged_count": n}, ...] 예전→최근
+            "timeline": timeline,  # [{"flagged_count": n}, ...] 예전→최근 (구 지표, 하위호환 보존)
+            "weekly": _weekly(user_id, project_id),  # ⑦ 주별 요청(정본 그래프·N→M 인사이트)
             "flag_count": dict(flag_count),
             "trend": trend,  # new|decreasing|increasing|steady
             "recurring": recurring,

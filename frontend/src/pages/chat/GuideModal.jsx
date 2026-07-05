@@ -328,18 +328,20 @@ const RefFeedback = ({ refIds, canRefresh, onFeedback, onRefresh }) => {
   );
 };
 
-// 면적 차트(성장): trend [{index, difficulty_count, label}] → 부드러운 area.
-//   trend 는 백엔드가 이력≥N 일 때만 채워 보낸다(contract.py 임계). 아니면 [] → 차트 자체가 안 뜸.
+// ⑦ 면적 차트(성장): trend [{index, label(주 MM.DD), weekly_count}] → 주별 가이드 요청 횟수 곡선
+//   (정본 114:15736). weekly_count 우선, 없으면 difficulty_count 폴백(하위호환). trend 는 백엔드가
+//   활동 주≥임계일 때만 채워 보낸다(contract.py 게이트). 아니면 [] → 차트 자체가 안 뜸(graceful).
 const GrowthChart = ({ trend }) => {
   if (!trend || trend.length < 2) return null;
   const W = 520;
   const H = 150;
   const PAD = 8;
-  const max = Math.max(1, ...trend.map((t) => t.difficulty_count || 0));
+  const val = (t) => t.weekly_count ?? t.difficulty_count ?? 0;
+  const max = Math.max(1, ...trend.map(val));
   const n = trend.length;
   const pts = trend.map((t, i) => {
     const x = PAD + (i / (n - 1)) * (W - PAD * 2);
-    const y = PAD + (1 - (t.difficulty_count || 0) / max) * (H - PAD * 2);
+    const y = PAD + (1 - val(t) / max) * (H - PAD * 2);
     return [x, y];
   });
   const line = pts
@@ -353,7 +355,7 @@ const GrowthChart = ({ trend }) => {
   const area = `${line} L ${pts[n - 1][0]} ${H - PAD} L ${pts[0][0]} ${H - PAD} Z`;
   return (
     <div className={styles.chartWrap}>
-      <p className={styles.chartTitle}>그림 한 장당 어려움을 느낀 횟수</p>
+      <p className={styles.chartTitle}>주별 가이드 요청 횟수</p>
       <div className={styles.chartArea}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -376,6 +378,14 @@ const GrowthChart = ({ trend }) => {
           />
         </svg>
       </div>
+      {/* ⑦ X축 = 주(정본: 첫 주 … 이번 주 날짜). 라벨 있을 때만(구 데이터엔 없음). */}
+      {trend.some((t) => t.label && /\d/.test(t.label)) && (
+        <div className={styles.chartXAxis}>
+          <span>{trend[0].label}</span>
+          {n > 2 && <span>{trend[Math.floor((n - 1) / 2)].label}</span>}
+          <span>{trend[n - 1].label}</span>
+        </div>
+      )}
     </div>
   );
 };
