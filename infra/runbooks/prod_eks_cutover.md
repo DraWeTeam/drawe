@@ -99,15 +99,21 @@ feature → develop → main
 
 backend 변경(IRSA STS fix, spring-session-data-redis, REDIS_TLS) 이 prod 에 들어감.
 
-### 2. 이미지 빌드
+### 2. 이미지 빌드 + prod CD 승인·완주 (★newTag 게이트 — 앱 등록 전 필수 선행)
 
-- main 머지가 `backend-cd.yml` 트리거
-- prod environment 승인 후 "Docker 빌드 & ECR push" 단계가 새 latest+SHA push
-- ECS task definition 갱신·service update 단계는 `prod_enabled=false` 면 무의미하지만 무해 (취소 가능)
-- 확인:
+- main 머지는 **3개 prod CD 를 트리거**한다: `backend-cd.yml`(`backend/**`) · `fastapi-guide-cd.yml`(`fastapi/guide/**`+assets) · `fastapi-cd.yml`(embed; `fastapi/**` − guide 제외 — `fastapi/docs/**`·`scripts/**` 변경도 트리거된다).
+- 각 CD 는 **prod environment 승인** 후 ECR push + prod overlay `newTag` 를 새 main SHA 로 bump 한다(`ci(prod): bump ... [skip ci]`). **3개 모두 승인·완주**해야 한다. ECS task def 갱신 단계는 `prod_enabled=false` 면 무의미하나 무해(취소 가능).
+- ★**newTag 게이트 — 3서비스 overlay `newTag` 가 새 main 머지 해시인지 확인. `latest`·구 해시·ECR NotFound 면 해당 CD 미완주 → 7단계(앱 등록) 중단하고 CD 재실행·승인.** 릴리스 머지 직후엔 overlay 가 develop 값(backend=`6b9cc683…`, embed·guide=`latest`)으로 일시 되돌려져 있다가 CD 완주 시 새 main 해시로 재bump 된다. 이 게이트를 통과하기 전 6~7단계로 진행하면 옛/latest 이미지가 sync 된다.
   ```bash
-  aws ecr describe-images --repository-name drawe-prod-backend --region ap-northeast-2 \
-    --image-ids imageTag=latest --query 'imageDetails[0].imagePushedAt'
+  # (overlay 경로 : ECR repo) — 이름 불일치 주의
+  for pair in "backend:backend" "fastapi-embed:fastapi" "fastapi-guide:fastapi-guide"; do
+    ov=${pair%%:*}; repo=${pair##*:}
+    tag=$(grep newTag infra/k8s/overlays/prod/$ov/kustomization.yaml | awk '{print $2}')
+    echo "== $ov  newTag=$tag =="
+    aws ecr describe-images --repository-name drawe-prod-$repo --region ap-northeast-2 \
+      --image-ids imageTag="$tag" --query 'imageDetails[0].imagePushedAt' --output text 2>&1
+  done
+  # 3개 모두 새 main 해시 + ECR pushedAt 있어야 통과. latest·구 해시·NotFound 면 중단.
   ```
 
 ### 3. 공유 인프라 ON (RDS/Redis 가 꺼져 있던 경우)
