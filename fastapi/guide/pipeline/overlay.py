@@ -125,6 +125,7 @@ def build_overlay(width, height, annotations, tier, accent="#E8743B"):
     anns = [a for a in annotations if a.get("measured")]
 
     body = []
+    n = 0  # 정본(114:15593) 번호(①②…) — 렌더되는 마커에 순차 부여
     if tier == "low":
         fig = [a for a in anns if a["anchor"]["kind"] in _FIGURE_KINDS]
         rest = [a for a in anns if a["anchor"]["kind"] not in _FIGURE_KINDS]
@@ -135,23 +136,20 @@ def build_overlay(width, height, annotations, tier, accent="#E8743B"):
                 _label_stack(reg, [a["label"] for a in fig], width, height, accent)
             )
         for a in rest:
-            body.append(_render(a, width, height, accent, precise=False))
+            n += 1
+            body.append(_render(a, width, height, accent, num=n))
     else:  # ok / fail
-        for i, a in enumerate(anns):
-            body.append(
-                _render(a, width, height, accent, precise=(tier == "ok"), idx=i)
-            )
+        for a in anns:
+            n += 1
+            body.append(_render(a, width, height, accent, num=n))
 
-    return _wrap(width, height, "\n".join(b for b in body if b), accent)
+    return _wrap(width, height, "\n".join(b for b in body if b))
 
 
-def _wrap(w, h, inner, accent):
+def _wrap(w, h, inner):
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
         f'width="{w}" height="{h}" font-family="-apple-system, system-ui, sans-serif">\n'
-        f'  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" '
-        f'markerHeight="7" orient="auto-start-reverse">'
-        f'<path d="M0,0 L10,5 L0,10 z" fill="{accent}"/></marker></defs>\n'
         f"{inner}\n</svg>"
     )
 
@@ -168,23 +166,22 @@ def _pill(x, y, text, accent, anchor="start"):
     )
 
 
-def _render(a, w, h, accent, precise=True, idx=0):
+def _num_badge(x, y, n, accent):
+    """정본(114:15593) 마커: 채운 주황 원 + 흰 숫자(①②…). 그림 위 개선 포인트 지시."""
+    return (
+        f'<g><circle cx="{x:.1f}" cy="{y:.1f}" r="11" fill="{accent}"/>'
+        f'<text x="{x:.1f}" y="{y + 4.5:.1f}" font-size="13" font-weight="700" '
+        f'fill="#fff" text-anchor="middle">{n}</text></g>'
+    )
+
+
+def _render(a, w, h, accent, num=1):
+    """정본: 각 개선 포인트를 번호 badge(원형) + 간단 텍스트 라벨로. (화살표 없음 — 114:15593)"""
     k = a["anchor"]["kind"]
     lbl = a["label"]
     if k == "point":
         x, y = a["anchor"]["x"] * w, a["anchor"]["y"] * h
-        dot = (
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6" fill="none" '
-            f'stroke="{accent}" stroke-width="2.5"/>'
-        )
-        if precise:  # OK: 짧은 화살표가 라벨에서 지점을 가리킴
-            lx, ly = x + 28, y - 30
-            arrow = (
-                f'<line x1="{lx:.1f}" y1="{ly:.1f}" x2="{x + 8:.1f}" y2="{y - 8:.1f}" '
-                f'stroke="{accent}" stroke-width="2" marker-end="url(#ah)"/>'
-            )
-            return dot + arrow + _pill(lx, ly, lbl, accent)
-        return dot + _pill(x + 10, y - 2, lbl, accent)  # 코스: 화살표 없음
+        return _num_badge(x, y, num, accent) + _pill(x + 16, y + 2, lbl, accent)
     if k == "region":
         x0, y0 = a["anchor"]["x0"] * w, a["anchor"]["y0"] * h
         x1, y1 = a["anchor"]["x1"] * w, a["anchor"]["y1"] * h
@@ -192,16 +189,25 @@ def _render(a, w, h, accent, precise=True, idx=0):
             f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{x1 - x0:.1f}" height="{y1 - y0:.1f}" '
             f'rx="6" fill="none" stroke="{accent}" stroke-width="2"/>'
         )
-        return rect + _pill(x0, y0, lbl, accent)
+        return (
+            rect
+            + _num_badge(x0 + 2, y0 + 2, num, accent)
+            + _pill(x0 + 18, y0 + 4, lbl, accent)
+        )
     if k == "hline":
         y = a["anchor"]["y"] * h
         line = (
             f'<line x1="0" y1="{y:.1f}" x2="{w}" y2="{y:.1f}" stroke="{accent}" '
             f'stroke-width="2" stroke-dasharray="8 6"/>'
         )
-        return line + _pill(w - 4, y - 2, lbl, accent, anchor="end")
-    # image: 전역 축 — 코너 라벨만(은은하게)
-    return _pill(12, 24 + idx * 24, lbl, accent)
+        return (
+            line
+            + _num_badge(w - 16, y, num, accent)
+            + _pill(w - 32, y + 2, lbl, accent, anchor="end")
+        )
+    # image: 전역 축 — 코너에 번호 badge + 라벨(은은하게)
+    yy = 24 + (num - 1) * 28
+    return _num_badge(20, yy, num, accent) + _pill(36, yy + 2, lbl, accent)
 
 
 def _union_region(anchors, pad=0.04):
