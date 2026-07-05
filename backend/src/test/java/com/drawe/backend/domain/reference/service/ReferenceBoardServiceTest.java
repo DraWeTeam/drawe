@@ -97,10 +97,12 @@ class ReferenceBoardServiceTest {
         .thenReturn(List.of(200L));
     ReferenceBoardSession session = ReferenceBoardSession.start(USER_ID, PROJECT_ID);
     session.markShown(List.of(500L));
+    session.setLastQuery("cat"); // 직전 검색과 동일 → 노출이력 유지(기노출 제외 검증)
     when(sessionService.get(USER_ID, PROJECT_ID)).thenReturn(session);
 
+    // 안 본 것(200·300)이 limit(2)을 채우므로 기노출(500)은 backfill 없이 제외된다
     ReferenceBoardSearchResponse res =
-        service.search(user, PROJECT_ID, "cat", ReferenceSource.ALL, 12);
+        service.search(user, PROJECT_ID, "cat", ReferenceSource.ALL, 2);
 
     // 핀(100)·싫어요(400)·기노출(500) 제외, AI(200)+사진(300) 섞여서 순서 유지
     assertThat(res.results()).extracting(c -> c.image().id()).containsExactly(200L, 300L);
@@ -228,13 +230,70 @@ class ReferenceBoardServiceTest {
         .thenReturn(List.of());
     ReferenceBoardSession session = ReferenceBoardSession.start(USER_ID, PROJECT_ID);
     session.markShown(List.of(200L, 300L)); // 이미 다 봄 → 고갈
+    session.setLastQuery("cat"); // 같은 검색어 → 리셋 아님, 고갈 backfill 경로 검증
     when(sessionService.get(USER_ID, PROJECT_ID)).thenReturn(session);
 
     ReferenceBoardSearchResponse res =
         service.search(user, PROJECT_ID, "cat", ReferenceSource.ALL, 12);
 
-    // 고갈됐지만 리셋 후 재노출 → 빈 화면이 아니라 다시 보여줌
+    // 안 본 게 없어도 본 것으로 채워 재노출 → 빈 화면이 아니라 다시 보여줌
     assertThat(res.results()).extracting(c -> c.image().id()).containsExactly(200L, 300L);
     verify(sessionService).save(session);
+  }
+
+  @Test
+  @DisplayName("검색: 검색어가 바뀌면 노출이력 리셋 — 직전 검색에서 본 이미지도 새 검색엔 다시 노출")
+  void search_queryChanged_resetsShown() {
+    when(user.getId()).thenReturn(USER_ID);
+    // 키워드는 태그 게이트 통과용으로 "cat" 고정(이미지 subject "cat")
+    when(keywordExtractor.extract("dog")).thenReturn(List.of("cat"));
+    when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
+    when(project.getUser()).thenReturn(user);
+    when(project.getPinnedImageIds()).thenReturn(List.of());
+    when(searchService.search(any()))
+        .thenReturn(new SearchResponse(List.of(img(200L, "AI"), img(300L, "AI")), 2, "cat"));
+    when(imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.DISLIKE))
+        .thenReturn(List.of());
+    when(imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.LIKE))
+        .thenReturn(List.of());
+    ReferenceBoardSession session = ReferenceBoardSession.start(USER_ID, PROJECT_ID);
+    session.markShown(List.of(200L, 300L));
+    session.setLastQuery("cat"); // 직전 검색은 "cat"
+    when(sessionService.get(USER_ID, PROJECT_ID)).thenReturn(session);
+
+    // 다른 검색어 "dog" → 리셋 → 200·300 다시 노출
+    ReferenceBoardSearchResponse res =
+        service.search(user, PROJECT_ID, "dog", ReferenceSource.ALL, 12);
+
+    assertThat(res.results()).extracting(c -> c.image().id()).containsExactly(200L, 300L);
+    assertThat(session.getLastQuery()).isEqualTo("dog");
+  }
+
+  @Test
+  @DisplayName("검색: 같은 검색어 반복 시 안 본 게 limit 미만이면 본 것으로 채워 항상 꽉 채운다")
+  void search_notEnoughUnseen_backfillsToLimit() {
+    when(user.getId()).thenReturn(USER_ID);
+    when(keywordExtractor.extract("cat")).thenReturn(List.of("cat"));
+    when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
+    when(project.getUser()).thenReturn(user);
+    when(project.getPinnedImageIds()).thenReturn(List.of());
+    when(searchService.search(any()))
+        .thenReturn(
+            new SearchResponse(
+                List.of(img(200L, "AI"), img(300L, "AI"), img(400L, "AI")), 3, "cat"));
+    when(imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.DISLIKE))
+        .thenReturn(List.of());
+    when(imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.LIKE))
+        .thenReturn(List.of());
+    ReferenceBoardSession session = ReferenceBoardSession.start(USER_ID, PROJECT_ID);
+    session.markShown(List.of(200L, 300L)); // 200·300 봄, 400 만 안 봄
+    session.setLastQuery("cat");
+    when(sessionService.get(USER_ID, PROJECT_ID)).thenReturn(session);
+
+    // limit 2, 안 본 것 1개(400) → 본 것 1개(200)로 채워 2개(안 본 것 우선)
+    ReferenceBoardSearchResponse res =
+        service.search(user, PROJECT_ID, "cat", ReferenceSource.ALL, 2);
+
+    assertThat(res.results()).extracting(c -> c.image().id()).containsExactly(400L, 200L);
   }
 }

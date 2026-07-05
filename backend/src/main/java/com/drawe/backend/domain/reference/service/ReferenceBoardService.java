@@ -22,6 +22,7 @@ import com.drawe.backend.domain.search.dto.SearchResponse;
 import com.drawe.backend.domain.search.service.SearchService;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -116,6 +117,13 @@ public class ReferenceBoardService {
     }
 
     ReferenceBoardSession session = sessionService.get(user.getId(), projectId);
+    // 검색어가 바뀌면 노출이력 리셋 — 새 검색은 상위 결과를 신선하게. 같은 검색어 반복은 dedup 유지("더보기" 효과).
+    // 원본 query 로 비교(LLM 추출 키워드는 호출마다 달라져 비교 기준으로 못 씀). 공백 정규화 + 소문자.
+    String normalizedQuery = query.strip().replaceAll("\\s+", " ").toLowerCase();
+    if (!normalizedQuery.equals(session.getLastQuery())) {
+      session.getShownImageIds().clear();
+      session.setLastQuery(normalizedQuery);
+    }
     Set<Long> disliked =
         Set.copyOf(
             imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.DISLIKE));
@@ -130,12 +138,20 @@ public class ReferenceBoardService {
             .filter(r -> !pinned.contains(r.id())) // 핀은 상단 고정 → 검색 업데이트에서 제외
             .filter(r -> !disliked.contains(r.id())) // 싫어요는 다시 안 보임
             .toList();
-    List<ImageResult> filtered =
-        available.stream().filter(r -> !shown.contains(r.id())).limit(limit).toList();
-    // 풀 고갈(같은 검색 반복으로 다 본 상태) → 노출이력 리셋하고 처음부터 재노출(빈 화면 방지)
-    if (filtered.isEmpty() && !available.isEmpty()) {
+    // 안 본 것 우선. limit 개를 못 채우면(거의 다 봄) 이미 본 것으로 뒤를 채워 항상 꽉 찬 페이지를 준다.
+    List<ImageResult> unseen = available.stream().filter(r -> !shown.contains(r.id())).toList();
+    List<ImageResult> filtered;
+    if (unseen.size() >= limit) {
+      filtered = unseen.subList(0, limit);
+    } else {
+      // 안 본 것 + 이미 본 것으로 부족분 채움(풀 자체가 limit 미만이면 그만큼만). 한 바퀴 다 노출 → 이력 리셋.
+      List<ImageResult> page = new ArrayList<>(unseen);
+      available.stream()
+          .filter(r -> shown.contains(r.id()))
+          .limit((long) limit - unseen.size())
+          .forEach(page::add);
+      filtered = page;
       shown.clear();
-      filtered = available.stream().limit(limit).toList();
     }
 
     session.markShown(filtered.stream().map(ImageResult::id).toList());
