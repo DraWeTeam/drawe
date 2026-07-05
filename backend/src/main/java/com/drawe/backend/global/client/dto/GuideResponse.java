@@ -31,7 +31,12 @@ public record GuideResponse(
     String reason,
     String nextStepsNote,
     // ④ 추천 레퍼런스 badge용 메타(ref_id → source_type/region/personas/category). fastapi 표시 전용, 순수 통과.
-    Map<String, ReferenceMeta> referenceMeta) {
+    Map<String, ReferenceMeta> referenceMeta,
+    // #8 사용자 그림 위 개선 포인트 오버레이 SVG(개선 요청 모드일 때만; 이론 질문이면 null). fastapi
+    //   _make_overlay 가 생성(좌표·번호 badge, 사용자 입력 없음). Spring 은 순수 통과 — 프론트가 OverlayImage 로 합성.
+    String overlay,
+    // #8 시각 모드 선택 결과(theory_axes=이론으로 설명할 축, overlay_axes=그림 위 표기할 축). 순수 통과.
+    VisualMode visualMode) {
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -101,4 +106,9 @@ public record GuideResponse(
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Chips(List<String> currentStageAxes, List<String> improvingAxes) {}
+
+  // #8 시각 모드 — fastapi select_visual_mode 결과. 프론트는 overlay 유무로 분기하므로 보조 정보(순수 통과).
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record VisualMode(List<String> theoryAxes, List<String> overlayAxes) {}
 }
