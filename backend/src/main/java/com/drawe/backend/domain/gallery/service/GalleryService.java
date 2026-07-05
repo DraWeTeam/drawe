@@ -298,13 +298,8 @@ public class GalleryService {
       String thumb = g.getUpload() != null ? "/images/" + g.getUpload().getId() : null;
       events.add(new TimelineEvent(dateStr(g.getCreatedAt()), label, thumb, "guide"));
     }
-    // 레퍼런스 이벤트(프로젝트별 목록 쿼리 사용).
-    for (ProjectReference ref :
-        projectReferenceRepository.findByProjectOrderByAddedAtAsc(project)) {
-      if (ref.getAddedAt() != null) {
-        events.add(new TimelineEvent(dateStr(ref.getAddedAt()), "레퍼런스 저장", null, "reference"));
-      }
-    }
+    // 정본 성장 타임라인 = 드로잉 진행 마일스톤(가이드·완료)만. 레퍼런스 저장(아카이브 액션)은 진행
+    //   단계가 아니라 타임라인에서 제외한다.
     // 완료 이벤트.
     if (project.getUpdatedAt() != null) {
       events.add(
