@@ -167,6 +167,68 @@ public class GuideClient {
         .block();
   }
 
+  // 코퍼스 레퍼런스 인제스트 fetch 상한 — WebClient 인메모리 버퍼(16MB)와 동일 정책.
+  private static final long MAX_REF_BYTES = 16L * 1024 * 1024;
+
+  /**
+   * 코퍼스 레퍼런스(§4) 원본 bytes 를 아카이브 인제스트용으로 가져온다. 안전판: (a) guide 프록시의 302 Location 이 신뢰 S3 호스트일 때만 추적,
+   * (b) content-type image/* + 크기 상한 검증, (c) 실패·타임아웃은 예외로 올려 호출자 트랜잭션이 롤백되게 한다(고아 저장 방지 — 호출자는 이
+   * fetch 성공 후에만 store/Image 를 만든다).
+   *
+   * @param refId 코퍼스 UUID (경로 주입 방지: '/'·'..' 불허)
+   */
+  public byte[] fetchReferenceBytes(String refId) {
+    if (refId == null || refId.isBlank() || refId.contains("/") || refId.contains("..")) {
+      throw new IllegalArgumentException("invalid refId");
+    }
+    // 1) guide 프록시(신뢰)에서 302 Location(presigned S3) 만 획득 — 리다이렉트 미추적.
+    URI location =
+        webClient
+            .get()
+            .uri(b -> b.path("/image/{id}").build(refId))
+            .exchangeToMono(
+                resp -> {
+                  if (resp.statusCode().is3xxRedirection()) {
+                    URI loc = resp.headers().asHttpHeaders().getLocation();
+                    return resp.releaseBody().then(Mono.justOrEmpty(loc));
+                  }
+                  // 코퍼스는 항상 presigned 리다이렉트 → 그 외 응답은 인제스트 대상 아님.
+                  return resp.releaseBody().then(Mono.empty());
+                })
+            .block(Duration.ofSeconds(10));
+    if (location == null) {
+      throw new IllegalStateException("코퍼스 레퍼런스 Location 없음: refId=" + refId);
+    }
+    // (a) 신뢰 호스트 한정 — presigned S3(*.amazonaws.com)만.
+    String host = location.getHost();
+    if (host == null || !host.toLowerCase().endsWith(".amazonaws.com")) {
+      throw new SecurityException("신뢰하지 않는 리다이렉트 호스트: " + host);
+    }
+    // 2) presigned S3 에서 bytes — content-type image/* + 크기 상한(버퍼가 초과 시 예외).
+    return webClient
+        .get()
+        .uri(location)
+        .exchangeToMono(
+            resp -> {
+              if (!resp.statusCode().is2xxSuccessful()) {
+                return resp.releaseBody()
+                    .then(Mono.error(new IllegalStateException("S3 status " + resp.statusCode())));
+              }
+              HttpHeaders h = resp.headers().asHttpHeaders();
+              MediaType ct = h.getContentType();
+              if (ct == null || !"image".equalsIgnoreCase(ct.getType())) {
+                return resp.releaseBody()
+                    .then(Mono.error(new IllegalStateException("이미지 content-type 아님: " + ct)));
+              }
+              if (h.getContentLength() > MAX_REF_BYTES) {
+                return resp.releaseBody()
+                    .then(Mono.error(new IllegalStateException("크기 초과: " + h.getContentLength())));
+              }
+              return resp.bodyToMono(byte[].class);
+            })
+        .block(Duration.ofSeconds(15));
+  }
+
   /**
    * 가이드 자산 프록시. 내부 guide 서비스의 {@code path}(예: {@code /image/<uuid>}, {@code /guide-asset/...})로 GET
    * 하여 응답을 그대로 흘려보낸다. WebClient 는 리다이렉트를 따라가지 않으므로(기본값) guide 의 302(presigned S3)를 잡아 그대로 브라우저에
