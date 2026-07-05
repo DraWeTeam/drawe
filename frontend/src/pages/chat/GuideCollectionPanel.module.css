@@ -133,3 +133,36 @@
   line-height: 22px;
   white-space: nowrap;
 }
+/* #19 대그룹 태그칩(오렌지) — 소그룹 축 태그(.tag 중립)와 구분. */
+.tagGroup {
+  background: var(--bg-brand-subtle);
+  color: var(--text-brand);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+  font-size: 14px;
+  line-height: 22px;
+  white-space: nowrap;
+}
+/* #19 대그룹 필터탭(전체/형태/구조/표현/연출). */
+.filterTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-200);
+  padding: 0 var(--space-500) var(--space-300);
+}
+.filterTab {
+  border: 1px solid var(--border-input);
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: 999px;
+  padding: var(--space-100) var(--space-400);
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+.filterTabActive {
+  border-color: var(--text-brand);
+  background: var(--bg-brand-subtle);
+  color: var(--text-brand);
+  font-weight: 600;
+}
