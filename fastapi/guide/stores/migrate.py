@@ -12,8 +12,11 @@ schema/ddl.sql(=논리 001) + schema/migrations/NNN_*.sql 을 *순서대로, 각
 
 용법:
   CLI(런북/ECS one-off/bastion):   python -m guide.stores.migrate
-  기동 자동(dev/로컬):             환경변수 GUIDE_AUTO_MIGRATE=1 → app lifespan 이 호출(락으로 안전).
-                                   prod 는 기본 비활성 → 배포 시 위 CLI 를 1회만 돌리는 통제 적용 권장.
+  기동 자동(dev·prod):             환경변수 GUIDE_AUTO_MIGRATE=1 → app lifespan 이 호출.
+    ★prod 도 활성(2026-07 결정): GET_LOCK 로 레플리카 직렬화 + schema_version 추적 + 멱등
+    errno + readiness 게이팅(파트셜 스키마 미서빙)이라 롤링 배포·동시 기동에 안전. 빠뜨린
+    마이그레이션의 조용한 기능 비활성(함정 12)을 방지. 런북의 스키마 대조는 검증/폴백으로 유지.
+    (구 정책: prod 는 CLI 1회 수동 — 그 갭이 2026-07 dev 013 미적용 사고로 이어져 자동으로 전환.)
 """
 
 import logging
