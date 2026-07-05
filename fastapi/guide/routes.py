@@ -13,6 +13,7 @@ from guide import _shadow
 from guide.stores.db import engine
 from guide.stores.s3 import presigned_url
 from guide.stores.vectors import retrieve_meta
+from guide.pipeline.track import build_track
 from guide.ml.normalize import normalize
 from guide.ml.scene import analyze
 from guide.ml.pose import extract
@@ -445,6 +446,11 @@ def _guide_sync(
             }
             for rid in shown_refs
         }
+    # ⑥ 5단계 커리큘럼 트랙 — primary_focus(이 가이드가 다루는 축)의 그룹·단계를 track_map.yaml
+    #   단일 소스로 조립(정의 데이터, LLM·스코어링 무관). next_steps 슬롯에 표시 전용으로 추가만.
+    _track = build_track(resp.primary_focus)
+    if _track and isinstance(payload.get("next_steps"), dict):
+        payload["next_steps"]["track"] = _track
     return payload
 
 

@@ -63,7 +63,14 @@ public record GuideResponse(
       List<String> recurring,
       String why,
       String note,
-      GuideAsset focusAsset) {}
+      GuideAsset focusAsset,
+      // ⑥ 5단계 커리큘럼 트랙(그룹·정본 5단계 라벨·현재 단계). fastapi track_map.yaml 단일 소스 —
+      //   Spring 은 순수 통과(생성·라벨 정의 0), 프론트는 받은 것만 프로그레스 바로 렌더.
+      Track track) {}
+
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record Track(String group, List<String> stages, Integer currentIdx) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)

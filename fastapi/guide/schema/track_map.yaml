@@ -1,0 +1,197 @@
+# track_map.yaml — 한 끗 가이드 5단계 커리큘럼 트랙 정의 (단일 소스)
+#
+# ── 성격 규정 (중요) ────────────────────────────────────────────────────────────────
+# 이 매핑은 '정답'이 아니라 이 서비스가 채택한 **교육 커리큘럼 설계**다. 두 계층으로 나뉜다:
+#   • axis→group (분류) = 준객관적·안정 계층. 축 의미(taxonomy)와 그룹 정의(Figma image 250)의
+#     대조로 정해지며 거의 바뀌지 않는다.
+#   • axis→stage (단계) = **제품 설계 결정·조정 계층**. Figma가 축별 단계를 명시하지 않아 커리큘럼
+#     의도로 배정한다. ★운영 원칙: **단계(stage) 변경은 '설계 변경'으로 관리**한다 — 코드 버그
+#     수정이 아니라 커리큘럼 결정의 변경이므로 rationale 갱신 + 이력. 그룹 변경은 분류 오류 정정에 준함.
+#
+# rationale.type = 근거의 성격(스키마로 구분):
+#   figma_screen   : Figma 화면 실측 근거(가장 강함).
+#   semantic       : 축 의미 ↔ 정본 셀 라벨 대조로 도출(셀명 직결 포함).
+#   design_decision: 확정 근거가 아닌 제품 설계 채택(가설 포함). alternatives 로 대안 보존.
+#
+# ── 구조 ────────────────────────────────────────────────────────────────────────────
+# groups[g] = { label(한글), meaning, stages[5] } — stages 는 Figma image 258 셀 원문 그대로.
+# axes[a]   = { group, stage(0~4=인지·정리·안정·섬세화·응용), rationale{type,note},
+#               alternatives?[{stage,reason}], usage? }
+# FastAPI 가 이 파일 단일 소스로 track{group, stages[5], current_idx} 를 조립(하드코딩 라벨 0).
+# Java·프론트는 응답으로 받은 track 만 렌더(정의 중복 금지).
+#
+# ── 범위 & usage ────────────────────────────────────────────────────────────────────
+# taxonomy 진단축 15 + 개념 교습 전용 2(contrapposto·body_shape) = 17 전수.
+# usage: teaching_only = 자동 진단(스코어러·persona)에 안 뜨는 축. 단 사용자가 intake 키워드
+#   (콘트라포스토/역경사/체형/실루엣)로 직접 요청하면 diagnose 가 user_terms 로 표면 + 최우선
+#   정렬 → primary_focus 가 될 수 있어 track 경로(프로그레스 바)에 등장 가능 → 여기 포함해 둔다.
+#   (런타임 분리는 불필요한 복잡도 — 단일 파일 유지, usage 필드로만 표시.)
+
+stage_headers: [인지, 정리, 안정, 섬세화, 응용]
+
+groups:
+  form:
+    label: 형태
+    meaning: 기본 도형·실루엣·비례 잡기
+    stages: [도형 인지, 단순화 정리, 비례 균형, 입체 감각, 형태 응용]
+  structure:
+    label: 구조
+    meaning: 인체·원근·무게중심
+    stages: [무게 인지, 골격 잡기, 포즈 안정, 동세 섬세화, 공간 응용]
+  expression:
+    label: 표현
+    meaning: 명암·채색·디테일
+    stages: [기초 인지, 단계 구분, 표현 안정, 대비 섬세화, 분위기 활용]
+  staging:
+    label: 연출
+    meaning: 구도·분위기·서사
+    stages: [구도 인지, 시선 흐름, 배치 안정, 무드 섬세화, 서사 응용]
+
+axes:
+  # ── 형태(form) ──
+  proportion:
+    group: form
+    stage: 2  # 비례 균형
+    rationale:
+      type: semantic
+      note: 머리 기준 몸 비율 — 정본 셀 '비례 균형' 직결.
+  facial_proportion:
+    group: form
+    stage: 2  # 비례 균형
+    rationale:
+      type: semantic
+      note: 머리 덩어리·눈선 비율 = 형태 비례.
+    alternatives:
+      - stage: 1  # 구조 그룹 관점이면 골격 잡기
+        reason: 얼굴을 두개골 구조(골격)로 보는 관점이면 구조/골격 잡기.
+  hand_structure:
+    group: form
+    stage: 3  # 입체 감각
+    rationale:
+      type: semantic
+      note: 손을 상자(손바닥)+원통(손가락) 덩어리로 = 형태의 입체 감각.
+    alternatives:
+      - stage: 0  # 도형 인지
+        reason: 손을 아직 덩어리로 '인지'하는 초입으로 보면 도형 인지.
+  body_shape:
+    group: form
+    stage: 1  # 단순화 정리
+    usage: teaching_only
+    rationale:
+      type: semantic
+      note: 실루엣 흐름(어깨·흉곽·허리·골반 폭) = 형태 단순화 정리.
+    alternatives:
+      - stage: 0  # 도형 인지
+        reason: 체형을 큰 도형으로 처음 인지하는 관점이면 도형 인지.
+
+  # ── 구조(structure) ──
+  weight_balance:
+    group: structure
+    stage: 0  # 무게 인지
+    rationale:
+      type: semantic
+      note: 지지면·무게중심 인지 — 정본 셀 '무게 인지' 직결.
+  joint_articulation:
+    group: structure
+    stage: 1  # 골격 잡기
+    rationale:
+      type: semantic
+      note: 관절=뼈 연결 → 정본 셀 '골격 잡기' 직결.
+  contrapposto:
+    group: structure
+    stage: 2  # 포즈 안정
+    usage: teaching_only
+    rationale:
+      type: semantic
+      note: image250 구조 예시에 명시; 무게 실은 안정 포즈 = 포즈 안정.
+    alternatives:
+      - stage: 3  # 동세 섬세화
+        reason: 역경사·S 흐름을 동세의 섬세화로 보면 동세 섬세화.
+  action_line:
+    group: structure
+    stage: 3  # 동세 섬세화
+    rationale:
+      type: semantic
+      note: 동작 관통 곡선 — 정본 셀 '동세' 직결.
+  foreshortening:
+    group: structure
+    stage: 4  # 공간 응용
+    rationale:
+      type: semantic
+      note: 투시로 팔다리 깊이 = 원근/공간 응용.
+    alternatives:
+      - stage: 2  # 포즈 안정
+        reason: 단축을 포즈의 한 형태로 보면 포즈 안정.
+  linear_perspective:
+    group: structure
+    stage: 4  # 공간 응용
+    rationale:
+      type: semantic
+      note: image250 구조=투시; 소실점 기반 공간 = 공간 응용.
+    alternatives:
+      - stage: 2  # 연출 배치 안정
+        reason: 원근을 화면 배치의 문제로 보면 연출/배치 안정.
+
+  # ── 표현(expression) ──
+  light_direction:
+    group: expression
+    stage: 0  # 기초 인지
+    rationale:
+      type: semantic
+      note: 광원 방향 파악 = 명암의 기초 인지.
+    alternatives:
+      - stage: 2  # 표현 안정
+        reason: 광원 일관으로 면을 안정시키는 단계면 표현 안정.
+  value_structure:
+    group: expression
+    stage: 3  # 대비 섬세화
+    rationale:
+      type: figma_screen
+      note: Figma 가이드 상세 화면 실측 — value_structure 가이드가 '대비 섬세화'로 표시됨(제품-화면 일관성 우선).
+    alternatives:
+      - stage: 1  # 단계 구분
+        reason: 의미상 밝음·중간·어둠 흑백 3단계 나누기 = 단계 구분.
+  atmospheric_perspective:
+    group: expression
+    stage: 3  # 대비 섬세화
+    rationale:
+      type: semantic
+      note: 거리별 대비·채도 약화 = 표현의 대비 섬세화.
+    alternatives:
+      - stage: 4  # 구조 공간 응용
+        reason: 원근 계열로 보면 구조/공간 응용.
+  color_harmony:
+    group: expression
+    stage: 4  # 분위기 활용
+    rationale:
+      type: design_decision
+      note: UI 일관성(§5 pills·프로그레스 바 정합)을 위한 채택. "커리큘럼 다음 축=사다리 다음 단계"는 가설.
+    alternatives:
+      - stage: 3  # 대비 섬세화
+        reason: 색채 기초 우선 교육 철학이면 색 섬세화(대비 섬세화)가 먼저.
+
+  # ── 연출(staging) ──
+  composition_balance:
+    group: staging
+    stage: 0  # 구도 인지
+    rationale:
+      type: semantic
+      note: 형태·여백 무게 균형 — 정본 셀 '구도' 직결.
+  horizon_placement:
+    group: staging
+    stage: 2  # 배치 안정
+    rationale:
+      type: semantic
+      note: 지평선을 화면 위/아래로 배치 = 배치 안정.
+    alternatives:
+      - stage: 0  # 구도 인지
+        reason: 지평선 위치를 구도의 기초 인지로 보면 구도 인지.
+  depth_layering:
+    group: staging
+    stage: 2  # 배치 안정
+    rationale:
+      type: semantic
+      note: 근·중·원경 층 배치 = 배치 안정.
+    alternatives:
+      - stage: 4  # 구조 공간 응용
+        reason: 깊이를 공간 구조로 보면 구조/공간 응용.
