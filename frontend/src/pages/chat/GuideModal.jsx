@@ -645,18 +645,29 @@ const Coach = ({
         </section>
       )}
 
-      {/* 3. 한 끗 포인트 — direction + 도식 [지금 바로 수정하기 hidden] */}
-      {primary && (primary.direction || primary.guide_asset) && (
-        <section className={styles.section}>
-          <SectionTitle accent>한 끗 포인트</SectionTitle>
-          <div className={styles.tipBox}>
-            {primary.direction && (
-              <p className={styles.tipText}>{primary.direction}</p>
-            )}
-            <AssetSvg asset={primary.guide_asset} />
-          </div>
-        </section>
-      )}
+      {/* 3. 한 끗 포인트 — direction + 조건부 렌더(114:15593):
+          (개선 요청) 업로드 이미지 위 ①② 번호 오버레이 / (이론 질문) guide_asset 전체 SVG(badge 없음). */}
+      {primary &&
+        (primary.direction || primary.guide_asset || guide.overlay) && (
+          <section className={styles.section}>
+            <SectionTitle accent>한 끗 포인트</SectionTitle>
+            <div className={styles.tipBox}>
+              {primary.direction && (
+                <p className={styles.tipText}>{primary.direction}</p>
+              )}
+              {guide.overlay && drawingPreviewUrl ? (
+                <OverlayImage
+                  className={styles.assetImg}
+                  src={drawingPreviewUrl}
+                  overlay={guide.overlay}
+                  alt="개선 포인트 오버레이"
+                />
+              ) : (
+                <AssetSvg asset={primary.guide_asset} />
+              )}
+            </div>
+          </section>
+        )}
 
       {/* 4. 추천 레퍼런스 (+ 피드백·새로고침) */}
       {displayedRefs.length > 0 && (
