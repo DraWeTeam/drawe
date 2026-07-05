@@ -15,6 +15,17 @@ spec:
         app: backend
     spec:
       serviceAccountName: backend   # IRSA → bria-ai S3 (/images 서빙·업로드)
+      # SGP(securitygrouppolicy.yaml) 워크로드는 ENI trunking(branch ENI) 필수 → nitro(m/c/r)에만
+      #   스케줄. 버스터블(t/a)·시스템NG(라벨 없음)는 배제 = pod-eni 미부착→RDS 불통(함정 1) 방지.
+      #   환경 무관 진실이라 base 배치. prod 는 Karpenter 가 이미 m/c/r 만이라 무해.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: karpenter.k8s.aws/instance-category
+                    operator: In
+                    values: ["m", "c", "r"]
       # 그레이스풀 종료: Spring 이 in-flight 요청 마무리할 시간
       terminationGracePeriodSeconds: 60
       # 파드 레벨 보안 컨텍스트 — 이미지(USER drawe 1000:1000)와 정합.
