@@ -695,6 +695,80 @@
   padding: var(--space-100) var(--space-300);
   border-radius: var(--radius-200);
 }
+/* ⑥ 5단계 커리큘럼 프로그레스 바(114:15701) — 바+fill+5노드+5라벨. 현재 노드/라벨 주황 강조. */
+.trackWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+.trackGroup {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.trackGroupName {
+  font-weight: 700;
+  color: var(--text-brand);
+}
+.trackTrack {
+  position: relative;
+  height: 8px;
+  margin: var(--space-200) 6px var(--space-100);
+  background: var(--bg-subtle);
+  border-radius: 999px;
+}
+.trackFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--bg-brand, var(--text-brand));
+  border-radius: 999px;
+}
+.trackNode {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 2px solid var(--border-input);
+}
+.trackNodeOn {
+  background: var(--text-brand);
+  border-color: var(--text-brand);
+}
+.trackNodeCur {
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  box-shadow: 0 0 0 3px var(--bg-brand-subtle);
+}
+.trackLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-100);
+}
+.trackLabel {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-quaternary);
+}
+.trackLabel:first-child {
+  text-align: left;
+}
+.trackLabel:last-child {
+  text-align: right;
+}
+.trackLabelCur {
+  font-weight: 700;
+  color: var(--text-brand);
+}
 /* §5 체크리스트 */
 .checklist {
   display: flex;

@@ -112,6 +112,47 @@ const AssetSvg = ({ asset }) => {
   );
 };
 
+// ⑥ 5단계 커리큘럼 프로그레스 바(114:15701). 백엔드 track{group, stages[5], current_idx}만 소비 —
+//   라벨·단계 정의는 프론트가 만들지 않는다(단일 소스=fastapi track_map.yaml). fill 은 current_idx 비율.
+const TrackBar = ({ track }) => {
+  const stages = track.stages || [];
+  const cur = Math.max(0, Math.min(stages.length - 1, track.current_idx ?? 0));
+  const pctOf = (i) =>
+    stages.length > 1 ? (i / (stages.length - 1)) * 100 : 0;
+  return (
+    <div className={styles.trackWrap}>
+      {track.group && (
+        <p className={styles.trackGroup}>
+          <span className={styles.trackGroupName}>{track.group}</span> 그룹
+        </p>
+      )}
+      <div className={styles.trackTrack}>
+        <span
+          className={styles.trackFill}
+          style={{ width: `${pctOf(cur)}%` }}
+        />
+        {stages.map((s, i) => (
+          <span
+            key={s}
+            className={`${styles.trackNode} ${i <= cur ? styles.trackNodeOn : ""} ${i === cur ? styles.trackNodeCur : ""}`}
+            style={{ left: `${pctOf(i)}%` }}
+          />
+        ))}
+      </div>
+      <div className={styles.trackLabels}>
+        {stages.map((s, i) => (
+          <span
+            key={s}
+            className={`${styles.trackLabel} ${i === cur ? styles.trackLabelCur : ""}`}
+          >
+            {s}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // 추천 레퍼런스 카드: 이미지(좌) + 우측 제목. 시안 SCR-GUIDE-02 세로 스택.
 //   추천 이유·키워드 badge 는 데이터 결손이라 이번 범위 아님(DOM 노드 자체를 만들지 않음).
 //   ⑤ 아카이브 담기 — 썸네일 위 glass 버튼(114:15652). projectId 있을 때만 노출, addReference 재사용.
@@ -504,6 +545,21 @@ const Coach = ({
   const hasGoal =
     next && (next.focus || next.next_goal || next.next_goal_practice);
   const hasChecklist = next && next.focus_practice;
+  // ⑥ 5단계 커리큘럼 트랙(백엔드 track_map 조립 결과만 소비). 현재/다음 단계 badge 는 track 있으면
+  //   정본 단계 라벨, 없으면(구가이드·미정의 축) 기존 축 라벨 폴백.
+  const track =
+    next && next.track && Array.isArray(next.track.stages) ? next.track : null;
+  const hasTrack = !!(track && track.stages.length === 5);
+  const curStage = hasTrack
+    ? track.stages[track.current_idx]
+    : next && next.focus
+      ? axisLabel(next.focus)
+      : null;
+  const nextStage = hasTrack
+    ? track.stages[track.current_idx + 1] || null
+    : next && next.next_goal
+      ? axisLabel(next.next_goal)
+      : null;
 
   return (
     <>
@@ -597,27 +653,24 @@ const Coach = ({
         </section>
       )}
 
-      {/* 5. 앞으로 해야 할 것 — [5단계 프로그레스 미생성: 필드 결손·키스톤 의존, Wave 3] + 현재/다음 단계 + 서술 + 체크리스트 */}
-      {(hasGoal || hasChecklist) && (
+      {/* 5. 앞으로 해야 할 것 — ⑥ 5단계 커리큘럼 프로그레스(track) + 현재/다음 단계 + 서술 + 체크리스트 */}
+      {(hasGoal || hasChecklist || hasTrack) && (
         <section className={styles.nextSteps}>
           <SectionTitle>앞으로 해야 할 것</SectionTitle>
           <div className={styles.nextStepsBox}>
-            {(next.focus || next.next_goal) && (
+            {hasTrack && <TrackBar track={track} />}
+            {(curStage || nextStage) && (
               <div className={styles.stageRow}>
-                {next.focus && (
+                {curStage && (
                   <span className={styles.stageItem}>
                     <span className={styles.stageLabel}>현재 단계 :</span>
-                    <span className={styles.stageBadge}>
-                      {axisLabel(next.focus)}
-                    </span>
+                    <span className={styles.stageBadge}>{curStage}</span>
                   </span>
                 )}
-                {next.next_goal && (
+                {nextStage && (
                   <span className={styles.stageItem}>
                     <span className={styles.stageLabel}>다음 단계 :</span>
-                    <span className={styles.stageBadgeNext}>
-                      {axisLabel(next.next_goal)}
-                    </span>
+                    <span className={styles.stageBadgeNext}>{nextStage}</span>
                   </span>
                 )}
               </div>
