@@ -84,6 +84,16 @@ const CompletedDetailPage = () => {
     return m;
   }, [detail]);
 
+  // 버그3: TOP 레퍼런스 썸네일을 /image/{refId}(302→서명 S3)로 XHR 인증하면 실패한다.
+  //   가이드의 resolved references 에 담긴 url(자체 인증되는 절대 경로)을 refId 로 매핑해 직접 로드.
+  const refUrlById = useMemo(() => {
+    const m = {};
+    for (const g of guides)
+      for (const r of g.references || [])
+        if (r.refId && r.url && !(r.refId in m)) m[r.refId] = r.url;
+    return m;
+  }, [guides]);
+
   const summaryMsg = useMemo(() => {
     const s = detail?.summary;
     if (!s) return "";
@@ -348,7 +358,7 @@ const CompletedDetailPage = () => {
                 <span className={styles.refThumb}>
                   <AuthedImage
                     className={styles.refThumbImg}
-                    src={r.url}
+                    src={refUrlById[r.refId] || r.url}
                     alt=""
                   />
                 </span>
