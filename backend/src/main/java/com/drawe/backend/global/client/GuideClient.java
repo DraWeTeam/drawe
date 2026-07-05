@@ -34,7 +34,13 @@ public class GuideClient {
   private final WebClient webClient;
 
   public GuideClient(@Value("${fastapi.guide.url}") String guideUrl) {
-    this.webClient = WebClient.builder().baseUrl(guideUrl).build();
+    // 생성 이미지(/generate-image PNG)는 수 MB라 WebClient 기본 인메모리 버퍼(256KB)를 초과한다.
+    //   16MB 로 올려 byte[] 바디를 받는다(가이드 JSON 응답에는 영향 없음).
+    this.webClient =
+        WebClient.builder()
+            .baseUrl(guideUrl)
+            .codecs(c -> c.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+            .build();
   }
 
   public GuideResponse guideImage(
@@ -143,6 +149,22 @@ public class GuideClient {
       log.warn(
           "guide /adopt 실패(무시): ref={}, event={}, error={}", referenceId, event, e.getMessage());
     }
+  }
+
+  /**
+   * 레퍼런스 생성 — concept 프롬프트를 guide 서비스 {@code POST /generate-image}(활성 provider=bedrock)로 보내 PNG
+   * 바이트를 받는다. Bria 대체(2026-07 bedrock 전환). 생성 실패(502)·타임아웃은 예외로 올려 호출자가 매핑한다.
+   */
+  public byte[] generateImage(String prompt) {
+    return webClient
+        .post()
+        .uri("/generate-image")
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(Map.of("prompt", prompt))
+        .retrieve()
+        .bodyToMono(byte[].class)
+        .timeout(Duration.ofSeconds(120))
+        .block();
   }
 
   /**

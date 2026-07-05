@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, Form, Request, HTTPException
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, RedirectResponse, Response
 from pydantic import BaseModel
 from io import BytesIO
 import json
@@ -559,6 +559,28 @@ def ref_job(job_id: str):
     if st["status"] == "ready" and st.get("ref_id"):
         out["image_path"] = f"/guide/image/{st['ref_id']}"
     return out
+
+
+@router.post("/generate-image")
+def generate_image(payload: dict):
+    """레퍼런스 생성 — concept 프롬프트 → PNG 바이트(활성 provider, 배포 bedrock).
+
+    guide 의 ai_fallback 과 동일한 generate.py generate()(provider=AI_GEN_PROVIDER) 재사용.
+    Spring(ImageGenerationService)이 이 바이트를 S3 적재·인덱싱한다. 생성 실패면 502 → 호출자 폴백.
+    """
+    from io import BytesIO
+
+    from guide.ml.generate import generate as gen_image
+
+    prompt = (payload or {}).get("prompt", "").strip()
+    if not prompt:
+        raise HTTPException(status_code=422, detail="prompt required")
+    pil = gen_image(prompt)
+    if pil is None:
+        raise HTTPException(status_code=502, detail="image generation failed")
+    buf = BytesIO()
+    pil.convert("RGB").save(buf, format="PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 @router.get("/image/{ref_id}")
