@@ -4,6 +4,13 @@
   padding: 20px 24px 64px;
   color: #2b2b2b;
 }
+/* 모아보기 오버레이 호스트 — GuideCollectionPanel(.overlay=position:absolute)이 뷰포트 전체를
+   덮도록 fixed 기준 컨테이너 제공. 없으면 absolute 가 엉뚱한 조상 기준으로 짤려 보인다(버그2). */
+.panelHost {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
 .stateBox {
   padding: 80px 16px;
   text-align: center;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AuthedImage from "../chat/AuthedImage";
 import { axisLabel, growthMessage } from "../chat/guideLabels";
-import { GrowthChart } from "../chat/GuideModal";
+import GuideModal, { GrowthChart } from "../chat/GuideModal";
 import GuideCollectionPanel from "../chat/GuideCollectionPanel";
 import { getCompletedDetail } from "./api";
 import { getGuides } from "../chat/api";
@@ -38,6 +38,8 @@ const CompletedDetailPage = () => {
   const [tab, setTab] = useState("전체");
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  // 모아보기 항목 클릭 → 해당 가이드 상세 GuideModal 팝업(리셋·네비게이션 없음).
+  const [activeGuide, setActiveGuide] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -51,7 +53,20 @@ const CompletedDetailPage = () => {
         ]);
         if (!alive) return;
         setDetail(d);
-        setGuides(Array.isArray(g) ? g : []);
+        // getGuides(GuideResult[]) → 모아보기 카드 + GuideModal 소비 형태(BoardGuideChat 패턴).
+        const list = Array.isArray(g) ? g : [];
+        setGuides(
+          list.map((gg, i) => ({
+            _gid: `g-${i}`,
+            guide: gg.guide,
+            references: gg.references || [],
+            guideTitle: axisLabel(gg.guide?.primary_focus) || "한 끗",
+            guidePreview: gg.uploadUrl ?? null,
+            uploadUrl: gg.uploadUrl ?? null,
+            createdAt: gg.createdAt ?? null,
+            requestText: gg.requestText ?? null, // ① 상세 §2 사용자 버블
+          })),
+        );
       } catch {
         if (alive) setError(true);
       } finally {
@@ -362,11 +377,29 @@ const CompletedDetailPage = () => {
         </section>
       )}
 
+      {/* 모아보기 오버레이 — absolute 패널이 온전한 크기로 뜨도록 fixed 호스트 제공(버그2 포지셔닝). */}
       {collectionOpen && (
-        <GuideCollectionPanel
-          guides={guides}
-          onClose={() => setCollectionOpen(false)}
-          onCardClick={() => setCollectionOpen(false)}
+        <div className={styles.panelHost}>
+          <GuideCollectionPanel
+            guides={guides}
+            onClose={() => setCollectionOpen(false)}
+            onCardClick={(g) => {
+              // 정본: 항목 클릭 → 해당 가이드 상세 팝업(GuideModal). 화면 리셋·네비게이션 없음.
+              setCollectionOpen(false);
+              setActiveGuide(g);
+            }}
+          />
+        </div>
+      )}
+
+      {/* 가이드 상세 팝업(GuideModal 재사용) — 닫으면 완성작 상세 그대로 유지. */}
+      {activeGuide && (
+        <GuideModal
+          result={activeGuide}
+          drawingPreviewUrl={activeGuide.uploadUrl}
+          onClose={() => setActiveGuide(null)}
+          onRefFeedback={() => {}}
+          projectId={projectId}
         />
       )}
     </div>
