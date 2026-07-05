@@ -478,6 +478,10 @@ const Coach = ({
   // §1 타이틀: 요청일자 + 주요 키워드(114:15606). 정본: 대그룹(오렌지)+의미+예시 각 1(image 250).
   //   대그룹 = track.group(⑥ track_map). track 없으면(구가이드·미정의 축) 진단 축 라벨 폴백.
   const reqDate = fmtReqDate(createdAt);
+  // 정본 목업: 본문 상단 큰 가이드 제목(축 라벨). 헤더는 "한 끗 가이드" 브레드크럼만.
+  const axisTitle = guide.primary_focus
+    ? axisLabel(guide.primary_focus)
+    : "한 끗 가이드";
   const topKeywords = (() => {
     const grp = guide.next_steps?.track?.group;
     if (grp && GROUP_KW[grp]) {
@@ -590,27 +594,24 @@ const Coach = ({
 
   return (
     <>
-      {/* 1. 타이틀 — 요청일자 + 주요 키워드(제목은 헤더 타이틀에 있음) */}
-      {(reqDate || topKeywords.length > 0) && (
-        <section className={styles.titleMeta}>
-          {reqDate && <p className={styles.reqDate}>요청일자 : {reqDate}</p>}
-          {topKeywords.length > 0 && (
-            <div className={styles.keywordRow}>
-              <span className={styles.keywordLabel}>주요 키워드 :</span>
-              {topKeywords.map((k) => (
-                <span
-                  key={k.text}
-                  className={
-                    k.big ? styles.keywordBadge : styles.keywordBadgeSub
-                  }
-                >
-                  {k.text}
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      {/* 1. 타이틀 — 정본 목업: 큰 가이드 제목 + 요청일자 + 주요 키워드 */}
+      <section className={styles.titleMeta}>
+        <h2 className={styles.guideTitle}>{axisTitle}</h2>
+        {reqDate && <p className={styles.reqDate}>요청일자 : {reqDate}</p>}
+        {topKeywords.length > 0 && (
+          <div className={styles.keywordRow}>
+            <span className={styles.keywordLabel}>주요 키워드 :</span>
+            {topKeywords.map((k) => (
+              <span
+                key={k.text}
+                className={k.big ? styles.keywordBadge : styles.keywordBadgeSub}
+              >
+                {k.text}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* 2. 현재 그림 분석 — 사용자 질문 bubble(request_text 있을 때) + 업로드 이미지 + 관찰/효과 */}
       {(requestText ||
@@ -620,15 +621,22 @@ const Coach = ({
         <section className={styles.section}>
           <SectionTitle>현재 그림 분석</SectionTitle>
           <div className={styles.analysisBox}>
-            {requestText && (
-              <p className={styles.userQuestion}>{requestText}</p>
-            )}
-            {drawingPreviewUrl && (
-              <AuthedImage
-                className={styles.analysisImg}
-                src={drawingPreviewUrl}
-                alt="첨부한 그림"
-              />
+            {/* 정본 목업: 사용자 말풍선을 업로드 이미지 우상단에 오버레이(이미지 없으면 일반 블록). */}
+            {drawingPreviewUrl ? (
+              <div className={styles.analysisImgWrap}>
+                {requestText && (
+                  <p className={styles.userQuestion}>{requestText}</p>
+                )}
+                <AuthedImage
+                  className={styles.analysisImg}
+                  src={drawingPreviewUrl}
+                  alt="첨부한 그림"
+                />
+              </div>
+            ) : (
+              requestText && (
+                <p className={styles.userQuestion}>{requestText}</p>
+              )
             )}
             {(primary?.observation || primary?.effect) && (
               <div className={styles.analysisFindings}>
@@ -877,13 +885,10 @@ export const GuideContent = ({
   const references = result?.references || [];
   const createdAt = result?.createdAt || null;
   const requestText = result?.requestText || null;
-  const title = guide?.primary_focus
-    ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
-    : "한 끗 가이드";
   return (
     <div className={styles.inlinePanel}>
       <header className={styles.header}>
-        <h2 className={styles.title}>{loading ? "한 끗 가이드" : title}</h2>
+        <h2 className={styles.title}>한 끗 가이드</h2>
         <div className={styles.headerRight}>
           {onToggleFull && (
             <button
@@ -955,9 +960,6 @@ const GuideModal = ({
   const references = result?.references || [];
   const createdAt = result?.createdAt || null;
   const requestText = result?.requestText || null;
-  const title = guide?.primary_focus
-    ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
-    : "한 끗 가이드";
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -969,7 +971,7 @@ const GuideModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className={styles.header}>
-          <h2 className={styles.title}>{loading ? "한 끗 가이드" : title}</h2>
+          <h2 className={styles.title}>한 끗 가이드</h2>
           <div className={styles.headerRight}>
             <button
               type="button"

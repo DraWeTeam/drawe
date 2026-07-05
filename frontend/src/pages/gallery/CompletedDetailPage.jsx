@@ -383,12 +383,6 @@ const CompletedDetailPage = () => {
               <div className={styles.repImgEmpty} aria-hidden />
             )}
           </div>
-          {(ov.createdAt || ov.completedAt) && (
-            <p className={styles.period}>
-              작업 기간 : {fmtDate(ov.createdAt)}
-              {ov.completedAt ? ` ~ ${fmtDate(ov.completedAt)}` : ""}
-            </p>
-          )}
           <div className={styles.stats}>
             <div className={styles.stat}>
               <span className={styles.statLabel}>
