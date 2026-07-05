@@ -27,6 +27,17 @@ export const searchReferenceBoard = async (
   return res.data.data;
 };
 
+// 레퍼런스 생성 — 프롬프트 → bedrock 이미지 생성(source=AI Image 저장·인덱싱). 반환 { imageId, url }.
+export const generateReference = async (projectId, prompt) => {
+  const res = await api.post(
+    `/projects/${projectId}/reference-board/generate`,
+    {
+      prompt,
+    },
+  );
+  return res.data.data;
+};
+
 /**
  * 좋아요/싫어요/취소 공통 응답(ReactionResponse):
  *   { imageId, reaction: "LIKE"|"DISLIKE"|null, dislikeCount, suggestGeneration }
