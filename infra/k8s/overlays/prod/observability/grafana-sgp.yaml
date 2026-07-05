@@ -15,6 +15,6 @@ spec:
   securityGroups:
     groupIds:
       # [0] pods-db SG → RDS 3306 (3-platform output: pods_db_security_group_id)
-      - sg-03266d4b8793d8258
+      - sg-0ce73e01249357fe2
       # [1] 클러스터 SG → DNS/파드간/ALB 헬스체크 (2-cluster output, AWS 권장)
       - sg-01cd9b17e6765c840

@@ -46,7 +46,7 @@ patches:
       - op: replace
         path: /spec/securityGroups/groupIds
         value:
-          - sg-03266d4b8793d8258        # drawe-prod-pods-db
+          - sg-0ce73e01249357fe2        # drawe-prod-pods-db
           - sg-01cd9b17e6765c840        # 클러스터 SG
   - target:
       kind: ExternalSecret
