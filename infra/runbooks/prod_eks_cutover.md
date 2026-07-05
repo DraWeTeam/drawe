@@ -383,6 +383,32 @@ kubectl rollout restart deploy/backend -n drawe-prod
 
 **향후 개선**: argocd Application 에 `syncOptions: ServerSideApply=true` 또는 configmap 에 hash suffix 켜기 (`disableNameSuffixHash: false`) — 다만 후자는 deployment 가 새 이름을 자동 참조하도록 kustomize generator 가 처리해 줘서 자동 롤링 트리거 효과도 있음. 현재는 hash 끈 채로 운영, 수동 rollout 절차 인지.
 
+### 11. terraform-prod apply 시 db_password 변수 누락 → RDS 암호 회전 (데이터 계층 파괴급)
+
+**증상**: terraform-prod `plan`/`apply` 에 `random_password.db[0] will be created` (add) + `aws_db_instance.main` 의 password 관련 change 가 뜬다.
+
+**원인**: `rds.tf` 구조 —
+- `resource "random_password" "db"` 는 `count = var.db_password == "" ? 1 : 0`
+- `local.db_password = var.db_password != "" ? var.db_password : random_password.db[0].result`
+- `aws_db_instance.main.password = local.db_password` (★password 는 `lifecycle.ignore_changes` 에 **없음**)
+
+`db_password` 변수를 넘기지 않고 plan/apply 하면 `var.db_password == ""` → count=1 → **새 랜덤 암호 생성** → `local.db_password` 변경 → **RDS 마스터 암호가 실제로 회전** + SSM `/drawe/prod/db-password` 값도 교체. 실행 중이면 backend 가 옛 암호로 붙으려다 `Access denied` → 장애. (state 에 `random_password.db` 가 없고 terraform.tfvars 에도 db_password 가 없음 = 원래 apply 는 외부 변수 주입으로 count=0 운영.)
+
+**안전 규칙 (terraform-prod apply 전 필수)**:
+1. **apply 전 반드시 `TF_VAR_db_password` 에 SSM `/drawe/prod/db-password` 실값을 주입**(또는 대칭 `-var-file`). 예:
+   ```bash
+   export TF_VAR_db_password="$(aws ssm get-parameter --name /drawe/prod/db-password \
+     --with-decryption --query Parameter.Value --output text --region ap-northeast-2)"
+   ```
+2. **plan 에 `random_password.db` 또는 `aws_db_instance.main` password change 가 보이면 = 변수 누락 신호 → 즉시 중단, apply 금지.**
+   ```bash
+   terraform plan -no-color | grep -E "random_password\.db|aws_db_instance\.main"
+   # 아무것도 안 나와야 정상. 한 줄이라도 나오면 TF_VAR_db_password 누락 → 중단.
+   ```
+3. dev 도 동일 구조(`terraform-dev`) — 같은 규칙 적용.
+
+**비고**: `valkey_auth`·`grafana_admin` 은 terraform-관리 랜덤(state 에 존재, 안정)이라 이 함정 없음. **db 만 외부 변수 주입 구조**라 취약. (개선 여지: RDS `manage_master_user_password`(Secrets Manager 관리)로 전환하면 이 클래스의 사고가 사라짐 — 별도 트랙.)
+
 ## 결정 기록
 
 | 날짜 | 결정 | 이유 |
