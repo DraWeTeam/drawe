@@ -14,6 +14,9 @@ public interface ProjectReferenceRepository extends JpaRepository<ProjectReferen
 
   long countByProject(Project project);
 
+  /** 완성작 상세 타임라인 — 한 프로젝트의 레퍼런스를 추가순(addedAt ASC)으로. */
+  List<ProjectReference> findByProjectOrderByAddedAtAsc(Project project);
+
   boolean existsByProjectAndImage(Project project, Image image);
 
   void deleteByProject(Project project);
