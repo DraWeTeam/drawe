@@ -41,6 +41,14 @@ const DISCRIMINATIVE_PERSONAS = [
   "composition",
   "technique",
 ];
+// #4 §1 주요 키워드(114:15606) — 대그룹별 [의미, 예시] 키워드(image 250 원문에서 각 1 추출).
+//   대그룹은 오렌지 뱃지, 의미·예시는 중립. 대그룹은 track_map(축→그룹) 결과(track.group)를 재사용.
+const GROUP_KW = {
+  형태: ["비례", "실루엣"], // 의미:기본 도형·실루엣·비례 / 예시:러프 스케치, 인체 비례
+  구조: ["무게중심", "포즈"], // 의미:인체·원근·무게중심 / 예시:포즈, 골격, 투시
+  표현: ["명암", "색감"], // 의미:명암·채색·디테일 / 예시:빛·그림자, 색감, 텍스처
+  연출: ["구도", "무드"], // 의미:구도·분위기·서사 / 예시:시선 흐름, 무드
+};
 const refBadges = (ref) => {
   const out = [];
   const src = REF_BADGE_LABELS.source[ref?.sourceType];
@@ -467,9 +475,18 @@ const Coach = ({
     }
     setArchivedRefs((prev) => new Set(prev).add(refId));
   };
-  // §1 타이틀: 요청일자 + 주요 키워드(진단된 축 = primary + 보조 블록, dedupe 후 최대 3).
+  // §1 타이틀: 요청일자 + 주요 키워드(114:15606). 정본: 대그룹(오렌지)+의미+예시 각 1(image 250).
+  //   대그룹 = track.group(⑥ track_map). track 없으면(구가이드·미정의 축) 진단 축 라벨 폴백.
   const reqDate = fmtReqDate(createdAt);
   const topKeywords = (() => {
+    const grp = guide.next_steps?.track?.group;
+    if (grp && GROUP_KW[grp]) {
+      return [
+        { text: grp, big: true },
+        { text: GROUP_KW[grp][0] },
+        { text: GROUP_KW[grp][1] },
+      ];
+    }
     const out = [];
     for (const sp of [
       guide.primary_focus,
@@ -477,7 +494,7 @@ const Coach = ({
     ]) {
       if (sp && !out.includes(sp)) out.push(sp);
     }
-    return out.slice(0, 3);
+    return out.slice(0, 3).map((sp) => ({ text: axisLabel(sp) }));
   })();
   // 레퍼런스 풀(🔄 새로고침용): 표시 중인 top-3(references, URL 보유) + 페이로드 전체 블록의 나머지 ref.
   //   URL 은 references[0].url 에서 base 를 떼어 합성 → GUIDE_BASE env 불일치와 무관하게 일관.
@@ -581,8 +598,13 @@ const Coach = ({
             <div className={styles.keywordRow}>
               <span className={styles.keywordLabel}>주요 키워드 :</span>
               {topKeywords.map((k) => (
-                <span key={k} className={styles.keywordBadge}>
-                  {axisLabel(k)}
+                <span
+                  key={k.text}
+                  className={
+                    k.big ? styles.keywordBadge : styles.keywordBadgeSub
+                  }
+                >
+                  {k.text}
                 </span>
               ))}
             </div>
