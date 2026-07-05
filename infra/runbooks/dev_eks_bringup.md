@@ -99,6 +99,17 @@ readiness 200 · OAuth 실로그인 · AuthedImage 이미지 로드 · track/gro
 
 `prod_eks_cutover.md` 함정 11 과 동일 — terraform-dev 도 `random_password.db` 구조 동일. apply 전 `TF_VAR_db_password`(SSM `/drawe/dev/db-password` 실값) 주입, plan 에 `random_password.db`·`aws_db_instance.main` password change 보이면 중단.
 
+### D3. DB 스키마 마이그레이션 미적용 (fastapi 가이드 DB)
+
+`prod_eks_cutover.md` 함정 12 참조. dev fastapi-guide 배포에 `GUIDE_AUTO_MIGRATE=1` 이 **없어서** 기동 시 pending 마이그레이션이 안 돈다. 2026-07 bring-up 에서 `practice_log.project_id`(013) 미적용 → ⑦ growth 성장 그래프가 dev 전 사용자 비활성이었음. **bring-up 4단계(앱 등록) 직후 반드시 스키마 대조**:
+
+```bash
+kubectl exec deploy/fastapi-guide -n drawe-dev -- python -c "from guide.stores.db import engine; from sqlalchemy import text
+with engine.begin() as cx: print([r[0] for r in cx.execute(text('SELECT version FROM schema_version ORDER BY version'))])"
+# → fastapi/guide/schema/migrations/ 와 대조. 빠진 NNN 있으면 수동 적용(개별 DDL + INSERT INTO schema_version).
+```
+근본 개선: dev/prod fastapi-guide overlay 에 `GUIDE_AUTO_MIGRATE=1` 를 넣어 기동 자동적용(schema_version 있어 안전) — 별도 트랙.
+
 ## Teardown 순서 (역방향)
 
 ★**끄기 전 확인: 진행 중인 검증·데모가 없는지.** (성장 그래프 데모용 project 32 등 — `docs/cleanup-manifest.md` 참조.)

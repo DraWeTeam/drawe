@@ -409,6 +409,25 @@ kubectl rollout restart deploy/backend -n drawe-prod
 
 **비고**: `valkey_auth`·`grafana_admin` 은 terraform-관리 랜덤(state 에 존재, 안정)이라 이 함정 없음. **db 만 외부 변수 주입 구조**라 취약. (개선 여지: RDS `manage_master_user_password`(Secrets Manager 관리)로 전환하면 이 클래스의 사고가 사라짐 — 별도 트랙.)
 
+### 12. DB 스키마 마이그레이션 미적용 — 신 컬럼 참조 실패 (조용한 기능 비활성)
+
+**증상**: 배포 코드는 새 컬럼/테이블을 참조하는데 DB에 없음 → 해당 기능이 **조용히 비활성**(예외 삼켜짐, readiness는 통과). 프론트가 새 필드를 렌더해도 값이 안 와서 **"구현했는데 안 보임"**으로 나타남. (2026-07 dev: `practice_log.project_id`(013) 미적용 → growth 성장 그래프 전 사용자 비활성.)
+
+**원인**: fastapi 가이드 마이그레이션은 **기동 시 자동**(`app.py` → `guide.stores.migrate.run_migrations`)이지만 **`GUIDE_AUTO_MIGRATE=1` 플래그 게이트**. EKS 배포 configmap에 이 플래그가 없으면 pending 마이그레이션이 안 돈다. 적용분은 `schema_version` 테이블(version 컬럼, 001~NNN)로 추적. 새 마이그레이션(예: 013)이 이미지에 있어도 플래그 없으면 미적용. **backend(Spring) Flyway와는 별개** — fastapi 가이드 DB(`drawe_guide`)는 이 자체 러너가 담당.
+
+**해결**:
+1. 배포 직후 스키마 대조:
+   ```bash
+   kubectl exec deploy/fastapi-guide -n <ns> -- python -c "from guide.stores.db import engine; from sqlalchemy import text
+   with engine.begin() as cx: print([r[0] for r in cx.execute(text('SELECT version FROM schema_version ORDER BY version'))])"
+   # 결과를 fastapi/guide/schema/migrations/ 파일 목록과 대조. 빠진 NNN 있으면 갭.
+   ```
+2. 갭 해소(택1):
+   - (a) 배포 configmap에 `GUIDE_AUTO_MIGRATE=1` 추가 후 재기동 → 기동 시 pending만 적용(schema_version 기준, 이미 적용분 스킵이라 안전).
+   - (b) 누락분만 수동: `python -m guide.stores.migrate` one-off, 또는 개별 DDL + `INSERT INTO schema_version(version)`. (dev 013은 이 방식으로 적용.)
+
+**교훈**: 배포 시퀀스에 **DB 스키마 마이그레이션 확인·적용** 단계를 둔다(플랫폼 설치 후 · 앱 등록 전후). 새 컬럼을 쓰는 기능(⑦ growth의 project_id 등)은 코드·프론트만 배포하고 마이그레이션을 빠뜨리면 런타임에 조용히 죽는다 — readiness만 보면 놓친다.
+
 ## 결정 기록
 
 | 날짜 | 결정 | 이유 |
