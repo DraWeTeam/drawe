@@ -38,6 +38,8 @@ const ReferenceBoardPage = () => {
   const [guidesCount, setGuidesCount] = useState(0);
   // ⑧ 가이드 상세 — 좌측 반 오버레이(SCR-GUIDE-03-1 split). 카드 클릭 → 좌측 보드 위를 덮고, 닫기 → 보드 복귀.
   const [guideDetail, setGuideDetail] = useState(null);
+  // 정본: 가이드 생성 결과도 중앙 모달이 아니라 좌측 인라인 패널에 표시(로딩/에러 포함). GeneratePromptPanel 이 보고.
+  const [genGuide, setGenGuide] = useState(null);
 
   // 헤더 ⋮ 메뉴(프로젝트 수정/삭제)
   const [menuOpen, setMenuOpen] = useState(false);
@@ -183,14 +185,23 @@ const ReferenceBoardPage = () => {
             initialQuery={presetQuery}
             initialResults={presetResults}
           />
-          {/* ⑧ 가이드 상세 — 좌측 반 오버레이(그쪽 ReferenceBoard 무변, z-index 표시 레이어만) */}
-          {guideDetail && (
+          {/* ⑧ 가이드 상세/생성 — 좌측 반 인라인 패널(중앙 모달 대신). 생성(genGuide) 우선, 없으면 카드 상세(guideDetail). */}
+          {(genGuide?.open || guideDetail) && (
             <div className={styles.guideOverlay}>
               <GuideContent
-                result={guideDetail}
+                result={genGuide?.open ? genGuide.result : guideDetail}
+                loading={genGuide?.open ? genGuide.loading : false}
+                error={genGuide?.open ? genGuide.error : false}
                 projectId={projectId}
-                drawingPreviewUrl={guideDetail.guidePreview}
-                onClose={() => setGuideDetail(null)}
+                drawingPreviewUrl={
+                  genGuide?.open
+                    ? genGuide.drawingPreviewUrl
+                    : guideDetail?.guidePreview
+                }
+                onClose={
+                  genGuide?.open ? genGuide.onClose : () => setGuideDetail(null)
+                }
+                onRetry={genGuide?.open ? genGuide.onRetry : undefined}
               />
             </div>
           )}
@@ -213,6 +224,7 @@ const ReferenceBoardPage = () => {
             onCollectionChange={setCollectionOpen}
             onGuidesCount={setGuidesCount}
             onOpenGuide={setGuideDetail}
+            onGuideState={setGenGuide}
           />
         </section>
       </div>

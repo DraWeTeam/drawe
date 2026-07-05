@@ -23,9 +23,7 @@ import {
   sendMessage,
   sendGuideFeedback,
   sendReferenceFeedback,
-  uploadImage,
 } from "./api";
-import { resizeImage, validateImageFile } from "./imageUtils";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
 import GuideForm from "./GuideForm";
@@ -253,7 +251,6 @@ const ChatPage = () => {
   const textareaRef = useRef(null);
   const lastResponseTime = useRef(null);
   const attachAnchorRef = useRef(null); // 튜토리얼 코치마크 앵커 (첨부 버튼)
-  const completeInputRef = useRef(null); // 완성하기 — 완성 그림 파일 input
   const firstRefMenuRef = useRef(null); // 레퍼런스 반응 튜토리얼 앵커 (첫 카드 ... 메뉴)
 
   const pinnedIds = useMemo(
@@ -692,32 +689,16 @@ const ChatPage = () => {
     }
   };
 
-  // 완성하기 — 완성 그림 파일 선택 시: 업로드 → 프로젝트 COMPLETED + drawingUrl 저장.
-  const handleCompleteFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // 같은 파일 다시 선택 가능하도록 초기화
-    if (!file || completing) return;
-
-    const err = validateImageFile(file);
-    if (err) {
-      alert(err);
-      return;
-    }
-
+  // 완성하기 — 정본: 파일 업로드 없이 status=COMPLETED 만. 백엔드가 최근 가이드 업로드를 대표 이미지로
+  //   자동 지정 → 완성작 갤러리에 담긴다(뜬금없는 파일첨부창 없음).
+  const handleComplete = async () => {
+    if (completing) return;
     setCompleting(true);
     try {
-      const resized = await resizeImage(file);
-      const { url } = await uploadImage(resized);
-      // PATCH 는 {success:true} 만 반환하므로 로컬 state 를 직접 갱신한다.
-      await updateProject(projectId, {
-        status: "COMPLETED",
-        drawingUrl: url,
-      });
-      setProject((prev) =>
-        prev ? { ...prev, status: "completed", drawingUrl: url } : prev,
-      );
+      await updateProject(projectId, { status: "COMPLETED" });
+      setProject((prev) => (prev ? { ...prev, status: "completed" } : prev));
       track("project_completed", { project_id: projectId });
-      alert("완성작으로 저장했어요! 완성작 갤러리에서 볼 수 있어요.");
+      alert("완성작 갤러리에 담았어요!");
     } catch (e2) {
       const message =
         e2.response?.data?.error?.message ||
@@ -1343,21 +1324,14 @@ const ChatPage = () => {
             {errorMessage && <p className={styles.error}>{errorMessage}</p>}
 
             <form className={styles.inputBar} onSubmit={handleSend}>
-              {/* 액션 칩 줄 — 그림 완성하기 */}
+              {/* 액션 칩 줄 — 프로젝트 완료(완성작 갤러리에 담기, 파일 업로드 없음) */}
               <div className={styles.actionChips}>
-                <input
-                  ref={completeInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={handleCompleteFile}
-                  style={{ display: "none" }}
-                />
                 <button
                   type="button"
                   className={styles.completeChip}
-                  onClick={() => completeInputRef.current?.click()}
+                  onClick={handleComplete}
                   disabled={completing}
-                  title="완성한 그림을 올려 프로젝트를 완료해요"
+                  title="완성작 갤러리에 담아요"
                 >
                   <CompleteIcon />
                   <span>

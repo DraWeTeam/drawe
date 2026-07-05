@@ -21,6 +21,7 @@ import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse;
 import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse.ProjectSection;
 import com.drawe.backend.domain.gallery.dto.ReferenceArchiveResponse.ReferenceImageItem;
 import com.drawe.backend.domain.guide.repository.GuideRepository;
+import com.drawe.backend.domain.image.service.ImageUrlSigner;
 import com.drawe.backend.domain.project.repository.ProjectReferenceRepository;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.client.dto.GuideResponse;
@@ -57,6 +58,9 @@ public class GalleryService {
   private final ProjectRepository projectRepository;
   private final ProjectReferenceRepository projectReferenceRepository;
   private final GuideRepository guideRepository;
+  // prod(s3 프로파일)에서 image.url = "s3:{key}" 이므로 브라우저 노출 전 presigned 로 서명해야 한다.
+  //   서명 안 하면 프론트가 "s3:..." 를 상대경로로 로드 시도 → 실패(아카이브 썸네일 공백). null 이면(비-s3 프로파일) 원본 통과.
+  private final ImageUrlSigner imageUrlSigner;
 
   /**
    * 완성작 상세(회고) 이전에 만들어진 2-인자 생성자 호환 — 기존 단위 테스트(getReferenceArchive 검증)가 이 시그니처를 직접 호출한다.
@@ -64,17 +68,24 @@ public class GalleryService {
    */
   public GalleryService(
       ProjectRepository projectRepository, ProjectReferenceRepository projectReferenceRepository) {
-    this(projectRepository, projectReferenceRepository, null);
+    this(projectRepository, projectReferenceRepository, null, null);
   }
 
   @Autowired
   public GalleryService(
       ProjectRepository projectRepository,
       ProjectReferenceRepository projectReferenceRepository,
-      GuideRepository guideRepository) {
+      GuideRepository guideRepository,
+      ImageUrlSigner imageUrlSigner) {
     this.projectRepository = projectRepository;
     this.projectReferenceRepository = projectReferenceRepository;
     this.guideRepository = guideRepository;
+    this.imageUrlSigner = imageUrlSigner;
+  }
+
+  /** 브라우저 노출용 이미지 URL 서명 — s3:{key}→presigned, /images/{id}→HMAC. signer 없으면(테스트·비-s3) 원본. */
+  private String signed(String url) {
+    return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
   }
 
   @Transactional(readOnly = true)
@@ -101,7 +112,7 @@ public class GalleryService {
           sections.computeIfAbsent(
               project.getId(), id -> new ProjectSection(id, project.getName(), new ArrayList<>()));
       Image image = ref.getImage();
-      section.references().add(new ReferenceImageItem(image.getId(), image.getUrl()));
+      section.references().add(new ReferenceImageItem(image.getId(), signed(image.getUrl())));
     }
     return new ReferenceArchiveResponse(new ArrayList<>(sections.values()));
   }
@@ -168,7 +179,7 @@ public class GalleryService {
     }
     return new Overview(
         project.getName(),
-        project.getDrawingUrl(),
+        signed(project.getDrawingUrl()),
         createdAt,
         completedAt,
         workDays,
@@ -308,7 +319,7 @@ public class GalleryService {
     if (project.getUpdatedAt() != null) {
       events.add(
           new TimelineEvent(
-              dateStr(project.getUpdatedAt()), "완료", project.getDrawingUrl(), "complete"));
+              dateStr(project.getUpdatedAt()), "완료", signed(project.getDrawingUrl()), "complete"));
     }
     events.sort(Comparator.comparing(TimelineEvent::date));
     return events;
