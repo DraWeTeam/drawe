@@ -67,6 +67,19 @@ public class ReferenceBoardService {
   private final ReferenceBoardSessionService sessionService;
   private final com.drawe.backend.domain.image.service.ImageGenerationService
       imageGenerationService;
+  private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
+
+  /**
+   * 브라우저 노출용 이미지 URL 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(Unsplash 시드)·null 은 원본.
+   * prod(s3 프로파일)에서 Image.url 은 "s3:{key}" 라 서명 없이는 &lt;img&gt;/AuthedImage 가 로드하지 못한다.
+   */
+  private String signed(String url) {
+    return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
+  }
+
+  private ImageResult signImg(ImageResult r) {
+    return r == null ? null : r.withUrl(signed(r.url()));
+  }
 
   /** 키워드 검색. ARCHIVE 는 저장 레퍼런스 텍스트 검색, 그 외는 CLIP 의미검색 + 소스 필터 + (싫어요·기노출) 제외. */
   public ReferenceBoardSearchResponse search(
@@ -162,7 +175,7 @@ public class ReferenceBoardService {
 
     List<ReferenceCard> cards =
         filtered.stream()
-            .map(r -> new ReferenceCard(r, liked.contains(r.id()) ? "LIKE" : null))
+            .map(r -> new ReferenceCard(signImg(r), liked.contains(r.id()) ? "LIKE" : null))
             .toList();
 
     log.info(
@@ -179,7 +192,9 @@ public class ReferenceBoardService {
     List<ProjectReference> refs =
         projectReferenceRepository.searchByKeyword(user, kw, PageRequest.of(0, limit));
     List<ReferenceCard> cards =
-        refs.stream().map(pr -> new ReferenceCard(toImageResult(pr.getImage()), null)).toList();
+        refs.stream()
+            .map(pr -> new ReferenceCard(signImg(toImageResult(pr.getImage())), null))
+            .toList();
     return new ReferenceBoardSearchResponse(
         cards, cards.size(), query, ReferenceSource.ARCHIVE.name(), false);
   }
@@ -274,7 +289,8 @@ public class ReferenceBoardService {
       throw new CustomException(ErrorCode.FORBIDDEN);
     }
     Image image = imageGenerationService.generate(user, prompt, project);
-    return java.util.Map.of("imageId", image.getId(), "url", image.getUrl());
+    // 생성 직후 프론트가 AuthedImage 로 바로 프리뷰 → prod s3:{key} 는 서명해야 로드된다.
+    return java.util.Map.of("imageId", image.getId(), "url", signed(image.getUrl()));
   }
 
   /** 프로젝트 소유 검증 + 핀된 이미지 id 집합. 핀은 상단 고정이라 검색 결과(업데이트분)에서 제외한다. */

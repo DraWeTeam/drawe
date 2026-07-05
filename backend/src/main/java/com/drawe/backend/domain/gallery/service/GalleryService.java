@@ -94,7 +94,14 @@ public class GalleryService {
         projectRepository.findCompletedWithDrawing(
             user, ProjectStatus.COMPLETED, PageRequest.of(page, size));
 
-    var items = result.getContent().stream().map(GalleryItem::of).toList();
+    // 목록 썸네일도 브라우저 <img> 로 로드되므로 drawingUrl 을 서명해야 한다(상세 Overview 와 동일).
+    var items =
+        result.getContent().stream()
+            .map(
+                p ->
+                    new GalleryItem(
+                        p.getId(), p.getName(), signed(p.getDrawingUrl()), p.getUpdatedAt()))
+            .toList();
     boolean hasMore = result.hasNext();
     return new GalleryResponse(items, result.getTotalElements(), hasMore);
   }
@@ -310,7 +317,7 @@ public class GalleryService {
         continue;
       }
       String label = g.getPrimaryFocus() != null ? g.getPrimaryFocus() : "가이드";
-      String thumb = g.getUpload() != null ? "/images/" + g.getUpload().getId() : null;
+      String thumb = g.getUpload() != null ? signed("/images/" + g.getUpload().getId()) : null;
       events.add(new TimelineEvent(dateStr(g.getCreatedAt()), label, thumb, "guide"));
     }
     // 정본 성장 타임라인 = 드로잉 진행 마일스톤(가이드·완료)만. 레퍼런스 저장(아카이브 액션)은 진행
@@ -334,7 +341,8 @@ public class GalleryService {
       }
       n++;
       shots.add(
-          new ProcessShot(dateStr(g.getCreatedAt()), "/images/" + g.getUpload().getId(), n + "차"));
+          new ProcessShot(
+              dateStr(g.getCreatedAt()), signed("/images/" + g.getUpload().getId()), n + "차"));
     }
     return shots;
   }
