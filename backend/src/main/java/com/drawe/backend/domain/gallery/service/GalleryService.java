@@ -252,12 +252,12 @@ public class GalleryService {
     }
     return freq.entrySet().stream()
         .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-        .limit(3)
+        .limit(6) // 상위 6 반환 → 프론트는 3 표시 + '더 많은 항목 보기'로 펼침
         .map(Map.Entry::getKey)
         .toList();
   }
 
-  /** 오름차순 guide 를 전/후반으로 나눠, 전반 primaryFocus 중 후반에 없어진 것 = 개선됨. 최대 3. */
+  /** 오름차순 guide 를 전/후반으로 나눠, 전반 primaryFocus 중 후반에 없어진 것 = 개선됨. 최대 6(프론트 3+더보기). */
   private List<String> buildImprovedItems(List<Guide> guides) {
     if (guides.size() < 2) {
       return List.of();
@@ -280,7 +280,7 @@ public class GalleryService {
     for (String axis : firstHalf) {
       if (!secondHalf.contains(axis)) {
         improved.add(axis);
-        if (improved.size() == 3) {
+        if (improved.size() == 6) {
           break;
         }
       }
@@ -290,6 +290,10 @@ public class GalleryService {
 
   private List<TimelineEvent> buildTimeline(Project project, List<Guide> guides) {
     List<TimelineEvent> events = new ArrayList<>();
+    // 정본: 첫 노드 = 스케치 시작(프로젝트 시작 시점).
+    if (project.getCreatedAt() != null) {
+      events.add(new TimelineEvent(dateStr(project.getCreatedAt()), "스케치 시작", null, "sketch"));
+    }
     for (Guide g : guides) {
       if (g.getCreatedAt() == null) {
         continue;
@@ -326,9 +330,16 @@ public class GalleryService {
 
   private List<TopReference> buildTopReferences(List<Guide> guides) {
     Map<String, Integer> freq = new LinkedHashMap<>();
+    Map<String, GuideResponse.ReferenceMeta> metaById = new java.util.HashMap<>();
     for (Guide g : guides) {
       GuideResponse p = g.getPayload();
-      if (p == null || p.blocks() == null) {
+      if (p == null) {
+        continue;
+      }
+      if (p.referenceMeta() != null) {
+        p.referenceMeta().forEach(metaById::putIfAbsent);
+      }
+      if (p.blocks() == null) {
         continue;
       }
       for (GuideResponse.GuideBlock block : p.blocks()) {
@@ -345,8 +356,44 @@ public class GalleryService {
     return freq.entrySet().stream()
         .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
         .limit(3)
-        .map(e -> new TopReference(e.getKey(), "/image/" + e.getKey(), e.getValue()))
+        .map(
+            e -> {
+              GuideResponse.ReferenceMeta m = metaById.get(e.getKey());
+              return new TopReference(
+                  e.getKey(), "/image/" + e.getKey(), e.getValue(), refName(m), refTags(m));
+            })
         .toList();
+  }
+
+  /** referenceMeta → 정본 태그 칩(카테고리 + 페르소나, 최대 3). 메타 없으면 빈 리스트. */
+  private static List<String> refTags(GuideResponse.ReferenceMeta m) {
+    if (m == null) {
+      return List.of();
+    }
+    List<String> tags = new ArrayList<>();
+    if (m.category() != null && !m.category().isBlank()) {
+      tags.add(m.category());
+    }
+    if (m.personas() != null) {
+      m.personas().stream().filter(s -> s != null && !s.isBlank()).forEach(tags::add);
+    }
+    return tags.stream().distinct().limit(3).toList();
+  }
+
+  /** referenceMeta → 레퍼런스명(페르소나 + 카테고리). 메타 없으면 "참고 레퍼런스". */
+  private static String refName(GuideResponse.ReferenceMeta m) {
+    if (m == null) {
+      return "참고 레퍼런스";
+    }
+    StringBuilder sb = new StringBuilder();
+    if (m.personas() != null && !m.personas().isEmpty() && m.personas().get(0) != null) {
+      sb.append(m.personas().get(0)).append(' ');
+    }
+    if (m.category() != null && !m.category().isBlank()) {
+      sb.append(m.category()).append(' ');
+    }
+    String n = sb.toString().trim();
+    return n.isEmpty() ? "참고 레퍼런스" : n + " 레퍼런스";
   }
 
   /** requestText!=null 인 guide 오름차순 리스트를 위치로 3등분 — 각 구간 첫 항목만 대표로. 최대 3. */

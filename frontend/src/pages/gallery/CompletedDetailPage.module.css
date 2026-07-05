@@ -588,3 +588,44 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* 타임라인 생략(…) — 8초과 시 6번째 이후 생략, 마지막만 */
+.tlEllipsis {
+  align-self: center;
+  color: #b0a99f;
+  font-size: 20px;
+  padding: 0 4px;
+  flex: 0 0 auto;
+}
+/* TOP 레퍼런스 태그 칩 */
+.refTags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.refTag {
+  font-size: 11px;
+  color: #6b6b6b;
+  background: #efeae3;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+/* 모아보기 인라인 행 요약 */
+.guideRowSummary {
+  font-size: 12px;
+  color: #8a8580;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+/* chip 리스트 더보기 */
+.chipMore {
+  background: none;
+  border: none;
+  color: #ff8534;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 2px 0;
+}

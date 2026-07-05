@@ -50,6 +50,8 @@ const CompletedDetailPage = () => {
   // TOP 레퍼런스 항목 클릭 → 원본 크게 보기(라이트박스). SCR-ARCH-05 는 reference 객체를
   //   nav state 로 받는 구조라 refId URL 만으론 못 열어(→chat 리다이렉트) 라이트박스로 상세 확인.
   const [lightboxRef, setLightboxRef] = useState(null);
+  // 정본: 반복/개선 항목 3개 표시 + '더 많은 항목 보기 >'로 펼침(백엔드는 최대 6 반환).
+  const [chipOpen, setChipOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -186,10 +188,43 @@ const CompletedDetailPage = () => {
 
   const ov = detail.overview || {};
   const timeline = detail.timeline || [];
-  const shownTimeline = timelineOpen
-    ? timeline
-    : timeline.slice(0, TIMELINE_HEAD);
+  // 정본: 8개 초과 시 6번째 이후 생략, 마지막 단계만 표시(가운데 …). '전체 보기'로 전 단계 펼침.
+  const timelineCollapsed = !timelineOpen && timeline.length > TIMELINE_HEAD;
+  const headNodes = timelineCollapsed ? timeline.slice(0, 6) : timeline;
+  const tailNode = timelineCollapsed ? timeline[timeline.length - 1] : null;
   const trend = toTrend(trendByGroup[tab]);
+
+  // 타임라인 노드 렌더러(head·tail 공용). guide 이벤트 중 카드 매칭 시 클릭 → 가이드 상세.
+  const renderTlNode = (ev, key) => {
+    const g = ev.type === "guide" ? guideByThumb[ev.thumbUrl] : null;
+    const Node = g ? "button" : "div";
+    return (
+      <Node
+        key={key}
+        type={g ? "button" : undefined}
+        className={`${styles.tlNode} ${g ? styles.tlNodeClickable : ""}`}
+        onClick={g ? () => setActiveGuide(g) : undefined}
+        title={g ? "이 시점 가이드 상세 보기" : undefined}
+      >
+        <span className={styles.tlDot} data-type={ev.type} />
+        <span className={styles.tlDate}>{fmtMonthDay(ev.date)}</span>
+        <span className={styles.tlLabel}>
+          {ev.type === "guide" ? axisLabel(ev.label) : ev.label}
+        </span>
+        <span className={styles.tlThumb}>
+          {ev.thumbUrl ? (
+            <AuthedImage
+              className={styles.tlThumbImg}
+              src={ev.thumbUrl}
+              alt=""
+            />
+          ) : (
+            <span className={styles.tlThumbEmpty} aria-hidden />
+          )}
+        </span>
+      </Node>
+    );
+  };
 
   return (
     <div className={styles.page}>
@@ -351,17 +386,19 @@ const CompletedDetailPage = () => {
             <div className={styles.chipCol}>
               <p className={styles.chipHead}>반복되는 문제 TOP 3</p>
               <ol className={styles.rankList}>
-                {(detail.recurringTop || []).map((ax, i) => (
-                  <li key={ax + i} className={styles.rankItem}>
-                    <span className={styles.rankNum}>{i + 1}</span>
-                    <span className={styles.rankLabel}>{axisLabel(ax)}</span>
-                    {recurringCount[ax] > 0 && (
-                      <span className={styles.rankCount}>
-                        {recurringCount[ax]}회
-                      </span>
-                    )}
-                  </li>
-                ))}
+                {(detail.recurringTop || [])
+                  .slice(0, chipOpen ? undefined : 3)
+                  .map((ax, i) => (
+                    <li key={ax + i} className={styles.rankItem}>
+                      <span className={styles.rankNum}>{i + 1}</span>
+                      <span className={styles.rankLabel}>{axisLabel(ax)}</span>
+                      {recurringCount[ax] > 0 && (
+                        <span className={styles.rankCount}>
+                          {recurringCount[ax]}회
+                        </span>
+                      )}
+                    </li>
+                  ))}
                 {(detail.recurringTop || []).length === 0 && (
                   <li className={styles.rankEmpty}>아직 없어요</li>
                 )}
@@ -370,17 +407,30 @@ const CompletedDetailPage = () => {
             <div className={styles.chipCol}>
               <p className={styles.chipHead}>개선된 항목</p>
               <ul className={styles.checkList}>
-                {(detail.improvedItems || []).map((ax, i) => (
-                  <li key={ax + i} className={styles.checkItem}>
-                    ✓ {axisLabel(ax)}
-                  </li>
-                ))}
+                {(detail.improvedItems || [])
+                  .slice(0, chipOpen ? undefined : 3)
+                  .map((ax, i) => (
+                    <li key={ax + i} className={styles.checkItem}>
+                      ✓ {axisLabel(ax)}
+                    </li>
+                  ))}
                 {(detail.improvedItems || []).length === 0 && (
                   <li className={styles.rankEmpty}>아직 없어요</li>
                 )}
               </ul>
             </div>
           </div>
+          {/* 정본: '더 많은 항목 보기 >' — 반복·개선 중 하나라도 3개 초과 시 노출. */}
+          {((detail.recurringTop || []).length > 3 ||
+            (detail.improvedItems || []).length > 3) && (
+            <button
+              type="button"
+              className={styles.chipMore}
+              onClick={() => setChipOpen((v) => !v)}
+            >
+              {chipOpen ? "접기" : "더 많은 항목 보기 ›"}
+            </button>
+          )}
         </section>
       </div>
 
@@ -400,37 +450,13 @@ const CompletedDetailPage = () => {
             )}
           </div>
           <div className={styles.timeline}>
-            {shownTimeline.map((ev, i) => {
-              // 정본: 마일스톤 클릭 → 해당 시점 가이드 상세. guide 이벤트 중 카드 매칭되는 것만 클릭 가능.
-              const g = ev.type === "guide" ? guideByThumb[ev.thumbUrl] : null;
-              const Node = g ? "button" : "div";
-              return (
-                <Node
-                  key={i}
-                  type={g ? "button" : undefined}
-                  className={`${styles.tlNode} ${g ? styles.tlNodeClickable : ""}`}
-                  onClick={g ? () => setActiveGuide(g) : undefined}
-                  title={g ? "이 시점 가이드 상세 보기" : undefined}
-                >
-                  <span className={styles.tlDot} data-type={ev.type} />
-                  <span className={styles.tlDate}>{fmtMonthDay(ev.date)}</span>
-                  <span className={styles.tlLabel}>
-                    {ev.type === "guide" ? axisLabel(ev.label) : ev.label}
-                  </span>
-                  <span className={styles.tlThumb}>
-                    {ev.thumbUrl ? (
-                      <AuthedImage
-                        className={styles.tlThumbImg}
-                        src={ev.thumbUrl}
-                        alt=""
-                      />
-                    ) : (
-                      <span className={styles.tlThumbEmpty} aria-hidden />
-                    )}
-                  </span>
-                </Node>
-              );
-            })}
+            {headNodes.map((ev, i) => renderTlNode(ev, i))}
+            {timelineCollapsed && (
+              <span className={styles.tlEllipsis} aria-hidden>
+                ⋯
+              </span>
+            )}
+            {tailNode && renderTlNode(tailNode, "tail")}
           </div>
         </section>
       )}
@@ -490,6 +516,11 @@ const CompletedDetailPage = () => {
                         axisLabel(g.guide?.primary_focus) ||
                         "한 끗"}
                     </span>
+                    {g.guide?.one_thing && (
+                      <span className={styles.guideRowSummary}>
+                        {g.guide.one_thing}
+                      </span>
+                    )}
                     <span className={styles.guideRowTags}>
                       {grp && (
                         <span className={styles.guideRowGroup}>{grp}</span>
@@ -549,8 +580,19 @@ const CompletedDetailPage = () => {
                   />
                 </span>
                 <span className={styles.refMeta}>
-                  <span className={styles.refName}>참고 레퍼런스</span>
+                  <span className={styles.refName}>
+                    {r.name || "참고 레퍼런스"}
+                  </span>
                   <span className={styles.refCount}>참고 {r.count}회</span>
+                  {(r.tags || []).length > 0 && (
+                    <span className={styles.refTags}>
+                      {r.tags.map((t, j) => (
+                        <span key={j} className={styles.refTag}>
+                          {t}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </span>
                 <span className={styles.refChevron} aria-hidden>
                   ›
