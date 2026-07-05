@@ -42,4 +42,8 @@ def build_track(axis):
     if len(stages) != 5:
         return None
     idx = max(0, min(4, int(entry.get("stage", 0))))
-    return {"group": g.get("label") or entry.get("group"), "stages": stages, "current_idx": idx}
+    return {
+        "group": g.get("label") or entry.get("group"),
+        "stages": stages,
+        "current_idx": idx,
+    }

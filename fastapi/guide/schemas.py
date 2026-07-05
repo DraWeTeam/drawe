@@ -63,8 +63,12 @@ class RecurringStat(BaseModel):
 class TrendPoint(BaseModel):
     index: int
     label: str  # ⑦ 주 라벨(그 주 월요일 MM.DD). (구: 업로드 순번)
-    difficulty_count: int  # 하위호환 유지(구 지표=업로드당 어려움 수). ⑦부터 weekly_count 사용.
-    weekly_count: int = 0  # ⑦ 그 주 가이드 요청 횟수(정본 114:15736 Y축). 추가 필드(파괴 없음).
+    difficulty_count: (
+        int  # 하위호환 유지(구 지표=업로드당 어려움 수). ⑦부터 weekly_count 사용.
+    )
+    weekly_count: int = (
+        0  # ⑦ 그 주 가이드 요청 횟수(정본 114:15736 Y축). 추가 필드(파괴 없음).
+    )
 
 
 class GrowthChips(BaseModel):

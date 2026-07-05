@@ -79,7 +79,9 @@ def growth_from_raw(raw, note=None):
     if not raw:
         return None
     weekly = raw.get("weekly") or {}
-    wpoints = weekly.get("points") or []  # ⑦ [{label:'MM.DD', requests:n}] 예전→최근(주)
+    wpoints = (
+        weekly.get("points") or []
+    )  # ⑦ [{label:'MM.DD', requests:n}] 예전→최근(주)
     axis_weeks = weekly.get("axis_weeks") or {}  # sub_problem -> [(week_key, count)]
     flag_count = raw.get("flag_count", {}) or {}
     current = raw.get("current_focus")
@@ -120,7 +122,9 @@ def growth_from_raw(raw, note=None):
         hits = int(aw[-1][1]) if aw else int(flag_count.get(top, 0))
         if hits > 0:
             fw = lw = 0
-            if show_delta and len(aw) >= 2:  # '주 N→M' 은 표본 충분(주≥MIN_DELTA)일 때만
+            if (
+                show_delta and len(aw) >= 2
+            ):  # '주 N→M' 은 표본 충분(주≥MIN_DELTA)일 때만
                 fw, lw = int(aw[0][1]), int(aw[-1][1])
             rstat = RecurringStat(
                 sub_problem=top,

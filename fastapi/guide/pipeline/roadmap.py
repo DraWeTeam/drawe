@@ -904,7 +904,9 @@ def growth_view(user_id="anon", track=None, degraded=False, project_id=None):
         return {
             "window": RECENT_N,
             "timeline": timeline,  # [{"flagged_count": n}, ...] 예전→최근 (구 지표, 하위호환 보존)
-            "weekly": _weekly(user_id, project_id),  # ⑦ 주별 요청(정본 그래프·N→M 인사이트)
+            "weekly": _weekly(
+                user_id, project_id
+            ),  # ⑦ 주별 요청(정본 그래프·N→M 인사이트)
             "flag_count": dict(flag_count),
             "trend": trend,  # new|decreasing|increasing|steady
             "recurring": recurring,
