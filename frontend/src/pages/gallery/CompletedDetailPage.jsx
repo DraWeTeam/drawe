@@ -6,6 +6,8 @@ import GuideModal, { GrowthChart } from "../chat/GuideModal";
 import GuideCollectionPanel from "../chat/GuideCollectionPanel";
 import { getCompletedDetail } from "./api";
 import { getGuides } from "../chat/api";
+import { updateProject } from "../projects/api";
+import { downloadImage } from "./download";
 import styles from "./CompletedDetailPage.module.css";
 
 const GROUP_TABS = ["전체", "형태", "구조", "표현", "연출"];
@@ -40,6 +42,14 @@ const CompletedDetailPage = () => {
   const [collectionOpen, setCollectionOpen] = useState(false);
   // 모아보기 항목 클릭 → 해당 가이드 상세 GuideModal 팝업(리셋·네비게이션 없음).
   const [activeGuide, setActiveGuide] = useState(null);
+  // 더보기(⋯) 메뉴 + 제목 인라인 수정(정본 [동작] 더보기·작품 정보 수정).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [name, setName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  // TOP 레퍼런스 항목 클릭 → 원본 크게 보기(라이트박스). SCR-ARCH-05 는 reference 객체를
+  //   nav state 로 받는 구조라 refId URL 만으론 못 열어(→chat 리다이렉트) 라이트박스로 상세 확인.
+  const [lightboxRef, setLightboxRef] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -53,6 +63,7 @@ const CompletedDetailPage = () => {
         ]);
         if (!alive) return;
         setDetail(d);
+        setName(d?.overview?.projectName || "");
         // getGuides(GuideResult[]) → 모아보기 카드 + GuideModal 소비 형태(BoardGuideChat 패턴).
         const list = Array.isArray(g) ? g : [];
         setGuides(
@@ -93,6 +104,45 @@ const CompletedDetailPage = () => {
         if (r.refId && r.url && !(r.refId in m)) m[r.refId] = r.url;
     return m;
   }, [guides]);
+
+  // 타임라인 마일스톤 클릭 → 해당 가이드 상세. guide 이벤트는 thumbUrl(=업로드 이미지)로 카드 매칭.
+  const guideByThumb = useMemo(() => {
+    const m = {};
+    for (const g of guides) if (g.uploadUrl) m[g.uploadUrl] = g;
+    return m;
+  }, [guides]);
+
+  // 반복 문제 TOP 순위별 횟수(정본: 순위 + 횟수) — 가이드 primaryFocus 빈도로 집계.
+  const recurringCount = useMemo(() => {
+    const m = {};
+    for (const g of guides) {
+      const pf = g.guide?.primary_focus;
+      if (pf) m[pf] = (m[pf] || 0) + 1;
+    }
+    return m;
+  }, [guides]);
+
+  const saveName = async () => {
+    const next = name.trim();
+    setEditingTitle(false);
+    if (!next || next === detail?.overview?.projectName) return;
+    setSavingName(true);
+    try {
+      await updateProject(projectId, { name: next });
+    } catch {
+      setName(detail?.overview?.projectName || ""); // 실패 시 원복
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  // 정본 [동작] 내보내기 — 대표 이미지 다운로드(인증 fetch→blob→저장, 새 창·라우팅 없음).
+  const handleExport = () => {
+    setMenuOpen(false);
+    const url = detail?.overview?.representativeImageUrl;
+    const id = /\/images\/(\d+)/.exec(url || "")?.[1];
+    downloadImage(id ? Number(id) : null, url);
+  };
 
   const summaryMsg = useMemo(() => {
     const s = detail?.summary;
@@ -152,7 +202,79 @@ const CompletedDetailPage = () => {
         >
           ‹
         </button>
-        <h1 className={styles.pageTitle}>{ov.projectName || "완성작"}</h1>
+        {editingTitle ? (
+          <input
+            className={styles.titleInput}
+            value={name}
+            autoFocus
+            disabled={savingName}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveName();
+              if (e.key === "Escape") {
+                setName(ov.projectName || "");
+                setEditingTitle(false);
+              }
+            }}
+            aria-label="작품 제목 수정"
+          />
+        ) : (
+          <>
+            <h1 className={styles.pageTitle}>{name || "완성작"}</h1>
+            <button
+              type="button"
+              className={styles.editTitle}
+              onClick={() => setEditingTitle(true)}
+              aria-label="제목 수정"
+              title="제목 수정"
+            >
+              ✎
+            </button>
+          </>
+        )}
+        <div className={styles.menuWrap}>
+          <button
+            type="button"
+            className={styles.menuBtn}
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="더보기"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <>
+              <div
+                className={styles.menuBackdrop}
+                onClick={() => setMenuOpen(false)}
+                aria-hidden
+              />
+              <div className={styles.menu} role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setEditingTitle(true);
+                  }}
+                >
+                  작품 정보 수정
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  onClick={handleExport}
+                >
+                  내보내기
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </header>
 
       {/* 작품 개요 + 최근 30일 통계 */}
@@ -169,6 +291,12 @@ const CompletedDetailPage = () => {
               <div className={styles.repImgEmpty} aria-hidden />
             )}
           </div>
+          {(ov.createdAt || ov.completedAt) && (
+            <p className={styles.period}>
+              작업 기간 : {fmtDate(ov.createdAt)}
+              {ov.completedAt ? ` ~ ${fmtDate(ov.completedAt)}` : ""}
+            </p>
+          )}
           <div className={styles.stats}>
             <div className={styles.stat}>
               <span className={styles.statLabel}>총 작업일</span>
@@ -226,7 +354,12 @@ const CompletedDetailPage = () => {
                 {(detail.recurringTop || []).map((ax, i) => (
                   <li key={ax + i} className={styles.rankItem}>
                     <span className={styles.rankNum}>{i + 1}</span>
-                    {axisLabel(ax)}
+                    <span className={styles.rankLabel}>{axisLabel(ax)}</span>
+                    {recurringCount[ax] > 0 && (
+                      <span className={styles.rankCount}>
+                        {recurringCount[ax]}회
+                      </span>
+                    )}
                   </li>
                 ))}
                 {(detail.recurringTop || []).length === 0 && (
@@ -267,26 +400,37 @@ const CompletedDetailPage = () => {
             )}
           </div>
           <div className={styles.timeline}>
-            {shownTimeline.map((ev, i) => (
-              <div key={i} className={styles.tlNode}>
-                <span className={styles.tlDot} data-type={ev.type} />
-                <span className={styles.tlDate}>{fmtMonthDay(ev.date)}</span>
-                <span className={styles.tlLabel}>
-                  {ev.type === "guide" ? axisLabel(ev.label) : ev.label}
-                </span>
-                <span className={styles.tlThumb}>
-                  {ev.thumbUrl ? (
-                    <AuthedImage
-                      className={styles.tlThumbImg}
-                      src={ev.thumbUrl}
-                      alt=""
-                    />
-                  ) : (
-                    <span className={styles.tlThumbEmpty} aria-hidden />
-                  )}
-                </span>
-              </div>
-            ))}
+            {shownTimeline.map((ev, i) => {
+              // 정본: 마일스톤 클릭 → 해당 시점 가이드 상세. guide 이벤트 중 카드 매칭되는 것만 클릭 가능.
+              const g = ev.type === "guide" ? guideByThumb[ev.thumbUrl] : null;
+              const Node = g ? "button" : "div";
+              return (
+                <Node
+                  key={i}
+                  type={g ? "button" : undefined}
+                  className={`${styles.tlNode} ${g ? styles.tlNodeClickable : ""}`}
+                  onClick={g ? () => setActiveGuide(g) : undefined}
+                  title={g ? "이 시점 가이드 상세 보기" : undefined}
+                >
+                  <span className={styles.tlDot} data-type={ev.type} />
+                  <span className={styles.tlDate}>{fmtMonthDay(ev.date)}</span>
+                  <span className={styles.tlLabel}>
+                    {ev.type === "guide" ? axisLabel(ev.label) : ev.label}
+                  </span>
+                  <span className={styles.tlThumb}>
+                    {ev.thumbUrl ? (
+                      <AuthedImage
+                        className={styles.tlThumbImg}
+                        src={ev.thumbUrl}
+                        alt=""
+                      />
+                    ) : (
+                      <span className={styles.tlThumbEmpty} aria-hidden />
+                    )}
+                  </span>
+                </Node>
+              );
+            })}
           </div>
         </section>
       )}
@@ -329,17 +473,40 @@ const CompletedDetailPage = () => {
           <div className={styles.guidePreviewList}>
             {guides.slice(0, 4).map((g, i) => {
               const grp = g.guide?.next_steps?.track?.group;
+              const axes = (g.guide?.blocks || [])
+                .map((b) => b.sub_problem)
+                .filter(Boolean)
+                .slice(0, 2);
               return (
                 <button
                   key={g._gid ?? i}
                   type="button"
                   className={styles.guideRow}
-                  onClick={() => setCollectionOpen(true)}
+                  onClick={() => setActiveGuide(g)} // 정본: 항목 클릭 → 가이드 상세
                 >
-                  <span className={styles.guideRowTitle}>
-                    {axisLabel(g.guide?.primary_focus) || "한 끗"}
+                  <span className={styles.guideRowMain}>
+                    <span className={styles.guideRowTitle}>
+                      {g.guideTitle ||
+                        axisLabel(g.guide?.primary_focus) ||
+                        "한 끗"}
+                    </span>
+                    <span className={styles.guideRowTags}>
+                      {grp && (
+                        <span className={styles.guideRowGroup}>{grp}</span>
+                      )}
+                      {axes.map((ax, j) => (
+                        <span key={j} className={styles.guideRowTag}>
+                          {axisLabel(ax)}
+                        </span>
+                      ))}
+                    </span>
                   </span>
-                  {grp && <span className={styles.guideRowGroup}>{grp}</span>}
+                  <span className={styles.guideRowDate}>
+                    {fmtMonthDay(g.createdAt)}
+                  </span>
+                  <span className={styles.guideRowChevron} aria-hidden>
+                    ›
+                  </span>
                 </button>
               );
             })}
@@ -347,13 +514,32 @@ const CompletedDetailPage = () => {
         </section>
       )}
 
-      {/* 가장 많이 참고한 레퍼런스 */}
+      {/* 가장 많이 참고한 레퍼런스 — 항목 클릭 → 레퍼런스 상세(SCR-ARCH-05), 모든 레퍼런스 보기 */}
       {(detail.topReferences || []).length > 0 && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>가장 많이 참고한 레퍼런스</h2>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>가장 많이 참고한 레퍼런스</h2>
+            <button
+              type="button"
+              className={styles.moreLink}
+              onClick={() => navigate("/archive/references")}
+            >
+              모든 레퍼런스 보기
+            </button>
+          </div>
           <div className={styles.refList}>
             {detail.topReferences.map((r, i) => (
-              <div key={r.refId ?? i} className={styles.refItem}>
+              <button
+                key={r.refId ?? i}
+                type="button"
+                className={styles.refItem}
+                onClick={() =>
+                  setLightboxRef({
+                    url: refUrlById[r.refId] || r.url,
+                    count: r.count,
+                  })
+                }
+              >
                 <span className={styles.refRank}>{i + 1}</span>
                 <span className={styles.refThumb}>
                   <AuthedImage
@@ -362,17 +548,32 @@ const CompletedDetailPage = () => {
                     alt=""
                   />
                 </span>
-                <span className={styles.refCount}>참고 {r.count}회</span>
-              </div>
+                <span className={styles.refMeta}>
+                  <span className={styles.refName}>참고 레퍼런스</span>
+                  <span className={styles.refCount}>참고 {r.count}회</span>
+                </span>
+                <span className={styles.refChevron} aria-hidden>
+                  ›
+                </span>
+              </button>
             ))}
           </div>
         </section>
       )}
 
-      {/* 질문 성장 과정 */}
+      {/* 질문 성장 과정 — 전체 대화 보기 → 채팅 이동 */}
       {(detail.questionGrowth || []).length > 0 && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>질문 성장 과정</h2>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>질문 성장 과정</h2>
+            <button
+              type="button"
+              className={styles.moreLink}
+              onClick={() => navigate(`/projects/${projectId}/chat`)}
+            >
+              전체 대화 보기
+            </button>
+          </div>
           <div className={styles.qGrowth}>
             {detail.questionGrowth.map((q, i) => (
               <div key={i} className={styles.qRow}>
@@ -411,6 +612,36 @@ const CompletedDetailPage = () => {
           onRefFeedback={() => {}}
           projectId={projectId}
         />
+      )}
+
+      {/* TOP 레퍼런스 원본 크게 보기(라이트박스). */}
+      {lightboxRef && (
+        <div
+          className={styles.lightbox}
+          role="dialog"
+          aria-label="레퍼런스 원본"
+          onClick={() => setLightboxRef(null)}
+        >
+          <button
+            type="button"
+            className={styles.lightboxClose}
+            onClick={() => setLightboxRef(null)}
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+          <div
+            className={styles.lightboxInner}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <AuthedImage
+              className={styles.lightboxImg}
+              src={lightboxRef.url}
+              alt="레퍼런스"
+            />
+            <p className={styles.lightboxCaption}>참고 {lightboxRef.count}회</p>
+          </div>
+        </div>
       )}
     </div>
   );
