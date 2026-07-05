@@ -65,3 +65,16 @@ export const addReference = async (projectId, imageId) => {
   const res = await api.post(`/projects/${projectId}/references`, { imageId });
   return res.data.data;
 };
+
+// 가이드 §4 코퍼스 레퍼런스(UUID) 인제스트 저장 — refId + meta 를 보내면 backend 가 원본을
+// 아카이브로 인제스트(멱등). ResolvedReference 를 그대로 넘긴다.
+export const ingestReference = async (projectId, reference) => {
+  const res = await api.post(`/projects/${projectId}/references/ingest`, {
+    refId: reference.refId,
+    sourceType: reference.sourceType ?? null,
+    region: reference.region ?? null,
+    personas: reference.personas ?? null,
+    category: reference.category ?? null,
+  });
+  return res.data.data;
+};

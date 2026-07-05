@@ -72,9 +72,20 @@ const ArchivePage = () => {
   };
 
   // 레퍼런스 요약 row — 프로젝트별 섹션을 평탄화해 최신 프리뷰 한 줄.
-  const refPreview = sections
-    .flatMap((s) => s.references ?? [])
-    .slice(0, PREVIEW_COUNT);
+  //   같은 이미지가 여러 프로젝트에 담길 수 있어(코퍼스 ref 인제스트 등) imageId 로 dedup — 프리뷰 중복·key 충돌 방지.
+  const refPreview = [];
+  {
+    const seen = new Set();
+    for (const s of sections) {
+      for (const ref of s.references ?? []) {
+        if (ref.imageId != null && seen.has(ref.imageId)) continue;
+        if (ref.imageId != null) seen.add(ref.imageId);
+        refPreview.push(ref);
+        if (refPreview.length >= PREVIEW_COUNT) break;
+      }
+      if (refPreview.length >= PREVIEW_COUNT) break;
+    }
+  }
 
   return (
     <div className={styles.page}>

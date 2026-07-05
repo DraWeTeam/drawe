@@ -879,17 +879,14 @@
   line-height: 1.3;
   color: #232323;
 }
-/* 정본 목업: 사용자 말풍선을 업로드 이미지 우상단에 오버레이 */
-.analysisImgWrap {
-  position: relative;
-  align-self: flex-start;
-  max-width: 100%;
-}
-.analysisImgWrap .userQuestion {
-  position: absolute;
-  top: var(--space-400);
-  right: var(--space-400);
-  max-width: 72%;
-  z-index: 2;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+/* 코퍼스 레퍼런스 담기 실패 토스트(정직한 실패 알림) */
+.archiveError {
+  margin: var(--space-300) 0 0;
+  padding: var(--space-300) var(--space-400);
+  background: #fdecec;
+  border: 1px solid #f5c2c2;
+  border-radius: var(--radius-300);
+  color: #c0392b;
+  font-size: 13px;
+  line-height: 20px;
 }
