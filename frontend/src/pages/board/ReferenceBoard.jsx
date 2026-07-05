@@ -31,6 +31,10 @@ const CHIPS = [
 const REACTION_TUT_FLAG = "drawe_show_reaction_tutorial";
 const PROJECT_TUT_FLAG = "drawe_show_project_tutorial";
 
+// 보드 검색 상태를 프로젝트별로 캐시(모듈 레벨) — 레퍼런스 상세 갔다 돌아왔을 때
+//   검색 결과·검색어·반응·필터를 복원해 자연스럽게 이어보게 한다(SPA 세션 한정).
+const boardCache = new Map();
+
 // 아이템을 N개 컬럼에 라운드로빈 분배(마소너리). 원본 ReferenceGrid 방식과 동일.
 function splitIntoColumns(items, columnCount) {
   const columns = Array.from({ length: columnCount }, () => []);
@@ -58,22 +62,51 @@ const ReferenceBoard = ({
 }) => {
   const navigate = useNavigate();
 
-  // 생성 직후 프리페치가 있으면 그 결과로 시드(초기 상태 대신 결과 표시).
-  //   단, 검색창(query)엔 키워드를 안 채운다 — 다 이어붙으면 어색하므로 비워두고 결과만.
-  //   실제 검색어(submittedQuery)는 내부적으로만 유지(칩 전환/필터/재검색용).
+  // 초기 상태 우선순위: 캐시(상세 갔다 온 재진입) > 시드(생성 직후 프리페치) > 빈 상태.
+  //   검색창(query)엔 키워드를 안 채운다 — 다 이어붙으면 어색하므로 비워두고 결과만.
+  const cacheKey = String(projectId);
+  const cached = boardCache.get(cacheKey);
   const seeded = Array.isArray(initialResults);
-  const [query, setQuery] = useState(""); // 입력창 값(시드 시에도 비움)
-  const [submittedQuery, setSubmittedQuery] = useState(
-    seeded ? initialQuery : "",
-  );
-  const [source, setSource] = useState("ALL");
+  const init =
+    cached ||
+    (seeded
+      ? {
+          query: "",
+          submittedQuery: initialQuery,
+          source: "ALL",
+          corpusItems: initialResults,
+          archiveItems: [],
+          corpusKey: initialQuery,
+          archiveKey: null,
+        }
+      : {
+          query: "",
+          submittedQuery: "",
+          source: "ALL",
+          corpusItems: [],
+          archiveItems: [],
+          corpusKey: null,
+          archiveKey: null,
+        });
+
+  // 입력창은 케이스별로 다르게: 상세→뒤로(fromDetail)면 복원, 재진입/최초면 비움.
+  const [query, setQuery] = useState(() => {
+    const c = boardCache.get(cacheKey);
+    if (c && c.fromDetail) {
+      c.fromDetail = false; // 소비
+      return c.query || "";
+    }
+    return "";
+  });
+  const [submittedQuery, setSubmittedQuery] = useState(init.submittedQuery);
+  const [source, setSource] = useState(init.source);
   // 코퍼스 검색은 AI+사진을 섞어서 반환한다(서버 소스필터 없음).
   //   칩(전체/AI/사진)은 코퍼스 결과를 클라에서 image.source 로 필터만 → 재검색 안 함(churn 제거).
   //   아카이브만 별도 데이터라 source=ARCHIVE 로 조회.
-  const [corpusItems, setCorpusItems] = useState(seeded ? initialResults : []); // [{ image, myReaction }]
-  const [archiveItems, setArchiveItems] = useState([]);
-  const corpusQueryRef = useRef(seeded ? initialQuery : null); // corpusItems 가 대응하는 검색어
-  const archiveQueryRef = useRef(null); // archiveItems 가 대응하는 검색어
+  const [corpusItems, setCorpusItems] = useState(init.corpusItems); // [{ image, myReaction }]
+  const [archiveItems, setArchiveItems] = useState(init.archiveItems);
+  const corpusQueryRef = useRef(init.corpusKey); // corpusItems 가 대응하는 검색어
+  const archiveQueryRef = useRef(init.archiveKey); // archiveItems 가 대응하는 검색어
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const didInit = useRef(false);
@@ -166,15 +199,28 @@ const ReferenceBoard = ({
     [projectId],
   );
 
-  // 생성 직후 진입: 프리페치 결과가 없고(검색 실패 등) 검색어만 있으면 마운트 시 자동 검색.
+  // 생성 직후 진입: 캐시도 시드도 없고 검색어만 있으면(프리페치 실패) 마운트 시 자동 검색.
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
-    if (initialQuery && !seeded) {
+    if (initialQuery && !seeded && !cached) {
       setSubmittedQuery(initialQuery);
       fetchSet(initialQuery, "CORPUS");
     }
-  }, [initialQuery, seeded, fetchSet]);
+  }, [initialQuery, seeded, cached, fetchSet]);
+
+  // 검색 상태를 프로젝트별 캐시에 저장 — 상세 갔다 돌아오면 복원.
+  useEffect(() => {
+    boardCache.set(cacheKey, {
+      query,
+      submittedQuery,
+      source,
+      corpusItems,
+      archiveItems,
+      corpusKey: corpusQueryRef.current,
+      archiveKey: archiveQueryRef.current,
+    });
+  }, [cacheKey, query, submittedQuery, source, corpusItems, archiveItems]);
 
   // 검색은 키워드 제출 때만. 현재 칩이 아카이브면 아카이브를, 아니면 코퍼스를 조회.
   const handleSubmit = (e) => {
@@ -206,16 +252,8 @@ const ReferenceBoard = ({
     }
   };
 
-  // 검색 결과 없음 화면의 X → 처음 상태로(검색어·결과 비우고 핀만 보이게).
-  const resetSearch = () => {
-    setQuery("");
-    setSubmittedQuery("");
-    setSource("ALL");
-    setCorpusItems([]);
-    setArchiveItems([]);
-    corpusQueryRef.current = null;
-    archiveQueryRef.current = null;
-  };
+  // 입력창 X → 입력창만 비우고 결과는 그대로 유지.
+  const clearInput = () => setQuery("");
 
   // 결과가 처음 뜨면 반응 튜토리얼 노출(새 프로젝트 + 가이드 튜토리얼 닫힌 뒤).
   useEffect(() => {
@@ -345,6 +383,9 @@ const ReferenceBoard = ({
       project_id: projectId,
       reference_id: image.id,
     });
+    // 상세 갔다 뒤로가기 땐 입력창까지 복원하도록 플래그 표시.
+    const c = boardCache.get(cacheKey);
+    if (c) c.fromDetail = true;
     // 레퍼런스 클릭 → 상세(아카이브 상세 화면 재활용).
     navigate(`/projects/${projectId}/reference/${image.id}`, {
       state: { reference: image },
@@ -481,7 +522,7 @@ const ReferenceBoard = ({
             <button
               type="button"
               className={styles.clearBtn}
-              onClick={resetSearch}
+              onClick={clearInput}
               aria-label="검색어 지우기"
             >
               <CloseIcon />
