@@ -124,6 +124,10 @@ def build_overlay(width, height, annotations, tier, accent="#E8743B"):
     # (인물 없는 풍경화 등에서 특히 유용). FAIL 은 정밀 화살표만 끈다(precise=False).
     anns = [a for a in annotations if a.get("measured")]
 
+    # 마커·라벨은 이미지 좌표계(viewBox=원본 WxH)에 그려지므로, 절대 크기(예 r=11)는 큰 원본이
+    #   축소 표시될 때 사실상 안 보인다. 원본 크기에 비례한 스케일로 그려 표시 크기를 일정하게 유지
+    #   (460px 기준 s=1 — 기존 크기, 그 이상은 확대). 정본(114:15593)의 또렷한 badge 재현.
+    s = max(1.0, min(width, height) / 460.0)
     body = []
     n = 0  # 정본(114:15593) 번호(①②…) — 렌더되는 마커에 순차 부여
     if tier == "low":
@@ -131,17 +135,17 @@ def build_overlay(width, height, annotations, tier, accent="#E8743B"):
         rest = [a for a in anns if a["anchor"]["kind"] not in _FIGURE_KINDS]
         if fig:
             reg = _union_region([a["anchor"] for a in fig])
-            body.append(_coarse_region(reg, width, height, accent))
+            body.append(_coarse_region(reg, width, height, accent, s))
             body.append(
-                _label_stack(reg, [a["label"] for a in fig], width, height, accent)
+                _label_stack(reg, [a["label"] for a in fig], width, height, accent, s)
             )
         for a in rest:
             n += 1
-            body.append(_render(a, width, height, accent, num=n))
+            body.append(_render(a, width, height, accent, num=n, s=s))
     else:  # ok / fail
         for a in anns:
             n += 1
-            body.append(_render(a, width, height, accent, num=n))
+            body.append(_render(a, width, height, accent, num=n, s=s))
 
     return _wrap(width, height, "\n".join(b for b in body if b))
 
@@ -154,60 +158,68 @@ def _wrap(w, h, inner):
     )
 
 
-def _pill(x, y, text, accent, anchor="start"):
+def _pill(x, y, text, accent, anchor="start", s=1.0):
     t = escape(str(text))
-    pad, fs = 7, 13
-    wpx = pad * 2 + len(t) * 7.4  # 대략 폭(한글 폭 보정)
+    pad, fs = 7 * s, 13 * s
+    wpx = pad * 2 + len(t) * 7.4 * s  # 대략 폭(한글 폭 보정)
     bx = x if anchor == "start" else x - wpx
     return (
-        f'<g><rect x="{bx:.1f}" y="{y - 18:.1f}" rx="9" ry="9" width="{wpx:.1f}" height="20" '
-        f'fill="{accent}"/>'
-        f'<text x="{bx + pad:.1f}" y="{y - 4:.1f}" font-size="{fs}" fill="#fff">{t}</text></g>'
+        f'<g><rect x="{bx:.1f}" y="{y - 18 * s:.1f}" rx="{9 * s:.1f}" ry="{9 * s:.1f}" '
+        f'width="{wpx:.1f}" height="{20 * s:.1f}" fill="{accent}"/>'
+        f'<text x="{bx + pad:.1f}" y="{y - 4 * s:.1f}" font-size="{fs:.1f}" '
+        f'fill="#fff">{t}</text></g>'
     )
 
 
-def _num_badge(x, y, n, accent):
-    """정본(114:15593) 마커: 채운 주황 원 + 흰 숫자(①②…). 그림 위 개선 포인트 지시."""
+def _num_badge(x, y, n, accent, s=1.0):
+    """정본(114:15593) 마커: 채운 주황 원 + 흰 숫자(①②…). 그림 위 개선 포인트 지시.
+    크기는 이미지 비례(s) — 큰 원본이 축소돼도 표시 크기 일정."""
+    r, fs = 11 * s, 13 * s
     return (
-        f'<g><circle cx="{x:.1f}" cy="{y:.1f}" r="11" fill="{accent}"/>'
-        f'<text x="{x:.1f}" y="{y + 4.5:.1f}" font-size="13" font-weight="700" '
+        f'<g><circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill="{accent}"/>'
+        f'<text x="{x:.1f}" y="{y + 4.5 * s:.1f}" font-size="{fs:.1f}" font-weight="700" '
         f'fill="#fff" text-anchor="middle">{n}</text></g>'
     )
 
 
-def _render(a, w, h, accent, num=1):
-    """정본: 각 개선 포인트를 번호 badge(원형) + 간단 텍스트 라벨로. (화살표 없음 — 114:15593)"""
+def _render(a, w, h, accent, num=1, s=1.0):
+    """정본: 각 개선 포인트를 번호 badge(원형) + 간단 텍스트 라벨로. (화살표 없음 — 114:15593)
+    s = 이미지 비례 스케일(build_overlay 계산)."""
     k = a["anchor"]["kind"]
     lbl = a["label"]
     if k == "point":
         x, y = a["anchor"]["x"] * w, a["anchor"]["y"] * h
-        return _num_badge(x, y, num, accent) + _pill(x + 16, y + 2, lbl, accent)
+        return _num_badge(x, y, num, accent, s) + _pill(
+            x + 16 * s, y + 2 * s, lbl, accent, s=s
+        )
     if k == "region":
         x0, y0 = a["anchor"]["x0"] * w, a["anchor"]["y0"] * h
         x1, y1 = a["anchor"]["x1"] * w, a["anchor"]["y1"] * h
         rect = (
             f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{x1 - x0:.1f}" height="{y1 - y0:.1f}" '
-            f'rx="6" fill="none" stroke="{accent}" stroke-width="2"/>'
+            f'rx="{6 * s:.1f}" fill="none" stroke="{accent}" stroke-width="{2 * s:.1f}"/>'
         )
         return (
             rect
-            + _num_badge(x0 + 2, y0 + 2, num, accent)
-            + _pill(x0 + 18, y0 + 4, lbl, accent)
+            + _num_badge(x0 + 2 * s, y0 + 2 * s, num, accent, s)
+            + _pill(x0 + 18 * s, y0 + 4 * s, lbl, accent, s=s)
         )
     if k == "hline":
         y = a["anchor"]["y"] * h
         line = (
             f'<line x1="0" y1="{y:.1f}" x2="{w}" y2="{y:.1f}" stroke="{accent}" '
-            f'stroke-width="2" stroke-dasharray="8 6"/>'
+            f'stroke-width="{2 * s:.1f}" stroke-dasharray="8 6"/>'
         )
         return (
             line
-            + _num_badge(w - 16, y, num, accent)
-            + _pill(w - 32, y + 2, lbl, accent, anchor="end")
+            + _num_badge(w - 16 * s, y, num, accent, s)
+            + _pill(w - 32 * s, y + 2 * s, lbl, accent, anchor="end", s=s)
         )
     # image: 전역 축 — 코너에 번호 badge + 라벨(은은하게)
-    yy = 24 + (num - 1) * 28
-    return _num_badge(20, yy, num, accent) + _pill(36, yy + 2, lbl, accent)
+    yy = (24 + (num - 1) * 28) * s
+    return _num_badge(20 * s, yy, num, accent, s) + _pill(
+        36 * s, yy + 2 * s, lbl, accent, s=s
+    )
 
 
 def _union_region(anchors, pad=0.04):
@@ -230,20 +242,20 @@ def _union_region(anchors, pad=0.04):
     return (x0, y0, x1, y1)
 
 
-def _coarse_region(reg, w, h, accent):
+def _coarse_region(reg, w, h, accent, s=1.0):
     x0, y0, x1, y1 = reg[0] * w, reg[1] * h, reg[2] * w, reg[3] * h
     return (
         f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{x1 - x0:.1f}" height="{y1 - y0:.1f}" '
-        f'rx="14" fill="{accent}" fill-opacity="0.12" stroke="{accent}" '
-        f'stroke-width="2" stroke-dasharray="3 5"/>'
+        f'rx="{14 * s:.1f}" fill="{accent}" fill-opacity="0.12" stroke="{accent}" '
+        f'stroke-width="{2 * s:.1f}" stroke-dasharray="3 5"/>'
     )
 
 
-def _label_stack(reg, labels, w, h, accent):
+def _label_stack(reg, labels, w, h, accent, s=1.0):
     x0, y0 = reg[0] * w, reg[1] * h
-    parts = [_pill(x0, y0, "대략 이 부근", accent)]
+    parts = [_pill(x0, y0, "대략 이 부근", accent, s=s)]
     for i, lbl in enumerate(labels):
-        parts.append(_pill(x0, y0 + 24 + i * 24, lbl, accent))
+        parts.append(_pill(x0, y0 + (24 + i * 24) * s, lbl, accent, s=s))
     return "".join(parts)
 
 
