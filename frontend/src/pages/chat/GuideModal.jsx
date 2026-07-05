@@ -2,7 +2,8 @@ import { useState } from "react";
 import { axisLabel, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
-import { addReference } from "../projects/api";
+import { ingestReference } from "../projects/api";
+import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import styles from "./GuideModal.module.css";
 
 // guide 서비스 에셋(SVG 도식) 공개 base. 미설정이면 도식 영역 자체를 숨김(빈 박스 금지).
@@ -464,20 +465,32 @@ const Coach = ({
   const primary = blocks[0];
   const next = guide.next_steps;
 
-  // ⑤ 아카이브 담기 — 좌측 그리드와 동일한 addReference(그쪽 공유 API) 재사용. 멱등(중복 무해).
+  // ⑤ 아카이브 담기 — 코퍼스 레퍼런스(UUID)를 backend 가 인제스트(원본 fetch→Image→ProjectReference, 멱등).
+  //   정직 처리: 성공 응답 뒤에만 '담김' 표시, 실패는 조용히 넘기지 않고 토스트로 알린다.
   const [archivedRefs, setArchivedRefs] = useState(() => new Set());
-  const handleArchive = async (refId) => {
+  const [archiveError, setArchiveError] = useState("");
+  const handleArchive = async (reference) => {
+    const refId = reference?.refId;
     if (!projectId || !refId || archivedRefs.has(refId)) return;
     try {
-      await addReference(projectId, refId);
-    } catch {
-      /* 멱등 — 실패해도 담김 표시(중복/네트워크는 조용히) */
+      await ingestReference(projectId, reference);
+      setArchivedRefs((prev) => new Set(prev).add(refId));
+      setArchiveError("");
+      notifyArchiveChanged(); // /archive 라이브 갱신
+    } catch (err) {
+      setArchiveError(
+        err.response?.data?.error?.message ||
+          "레퍼런스를 담지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
     }
-    setArchivedRefs((prev) => new Set(prev).add(refId));
   };
   // §1 타이틀: 요청일자 + 주요 키워드(114:15606). 정본: 대그룹(오렌지)+의미+예시 각 1(image 250).
   //   대그룹 = track.group(⑥ track_map). track 없으면(구가이드·미정의 축) 진단 축 라벨 폴백.
   const reqDate = fmtReqDate(createdAt);
+  // 정본 목업: 본문 상단 큰 가이드 제목(축 라벨). 헤더는 "한 끗 가이드" 브레드크럼만.
+  const axisTitle = guide.primary_focus
+    ? axisLabel(guide.primary_focus)
+    : "한 끗 가이드";
   const topKeywords = (() => {
     const grp = guide.next_steps?.track?.group;
     if (grp && GROUP_KW[grp]) {
@@ -590,27 +603,24 @@ const Coach = ({
 
   return (
     <>
-      {/* 1. 타이틀 — 요청일자 + 주요 키워드(제목은 헤더 타이틀에 있음) */}
-      {(reqDate || topKeywords.length > 0) && (
-        <section className={styles.titleMeta}>
-          {reqDate && <p className={styles.reqDate}>요청일자 : {reqDate}</p>}
-          {topKeywords.length > 0 && (
-            <div className={styles.keywordRow}>
-              <span className={styles.keywordLabel}>주요 키워드 :</span>
-              {topKeywords.map((k) => (
-                <span
-                  key={k.text}
-                  className={
-                    k.big ? styles.keywordBadge : styles.keywordBadgeSub
-                  }
-                >
-                  {k.text}
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      {/* 1. 타이틀 — 정본 목업: 큰 가이드 제목 + 요청일자 + 주요 키워드 */}
+      <section className={styles.titleMeta}>
+        <h2 className={styles.guideTitle}>{axisTitle}</h2>
+        {reqDate && <p className={styles.reqDate}>요청일자 : {reqDate}</p>}
+        {topKeywords.length > 0 && (
+          <div className={styles.keywordRow}>
+            <span className={styles.keywordLabel}>주요 키워드 :</span>
+            {topKeywords.map((k) => (
+              <span
+                key={k.text}
+                className={k.big ? styles.keywordBadge : styles.keywordBadgeSub}
+              >
+                {k.text}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* 2. 현재 그림 분석 — 사용자 질문 bubble(request_text 있을 때) + 업로드 이미지 + 관찰/효과 */}
       {(requestText ||
@@ -620,6 +630,7 @@ const Coach = ({
         <section className={styles.section}>
           <SectionTitle>현재 그림 분석</SectionTitle>
           <div className={styles.analysisBox}>
+            {/* 사용자 질문 말풍선 — 업로드 이미지 위, 우측 정렬(채팅 사용자 버블). 그림을 가리지 않게 오버레이 안 함. */}
             {requestText && (
               <p className={styles.userQuestion}>{requestText}</p>
             )}
@@ -680,9 +691,7 @@ const Coach = ({
                   key={r.refId}
                   reference={r}
                   archived={archivedRefs.has(r.refId)}
-                  onArchive={
-                    projectId ? () => handleArchive(r.refId) : undefined
-                  }
+                  onArchive={projectId ? () => handleArchive(r) : undefined}
                 />
               ))}
             </div>
@@ -692,6 +701,11 @@ const Coach = ({
               onFeedback={onRefFeedback}
               onRefresh={cycleRefs}
             />
+            {archiveError && (
+              <p className={styles.archiveError} role="alert">
+                {archiveError}
+              </p>
+            )}
           </div>
         </section>
       )}
@@ -877,13 +891,10 @@ export const GuideContent = ({
   const references = result?.references || [];
   const createdAt = result?.createdAt || null;
   const requestText = result?.requestText || null;
-  const title = guide?.primary_focus
-    ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
-    : "한 끗 가이드";
   return (
     <div className={styles.inlinePanel}>
       <header className={styles.header}>
-        <h2 className={styles.title}>{loading ? "한 끗 가이드" : title}</h2>
+        <h2 className={styles.title}>한 끗 가이드</h2>
         <div className={styles.headerRight}>
           {onToggleFull && (
             <button
@@ -955,9 +966,6 @@ const GuideModal = ({
   const references = result?.references || [];
   const createdAt = result?.createdAt || null;
   const requestText = result?.requestText || null;
-  const title = guide?.primary_focus
-    ? `${axisLabel(guide.primary_focus)} 한 끗 가이드`
-    : "한 끗 가이드";
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -969,7 +977,7 @@ const GuideModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className={styles.header}>
-          <h2 className={styles.title}>{loading ? "한 끗 가이드" : title}</h2>
+          <h2 className={styles.title}>한 끗 가이드</h2>
           <div className={styles.headerRight}>
             <button
               type="button"

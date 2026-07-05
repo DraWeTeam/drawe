@@ -44,7 +44,9 @@ public record GalleryDetailResponse(
   // date "yyyy-MM-dd"
   public record ProcessShot(String date, String thumbUrl, String label) {}
 
-  public record TopReference(String refId, String url, int count) {}
+  // name·tags = referenceMeta(category/personas) 조합. tags = 정본 태그 칩(예 명암·인물·측광).
+  public record TopReference(
+      String refId, String url, int count, String name, java.util.List<String> tags) {}
 
   // phase "초기"|"중기"|"후기"
   public record QuestionPhase(String phase, String date, String text) {}

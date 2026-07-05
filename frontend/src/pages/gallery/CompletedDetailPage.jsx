@@ -30,6 +30,54 @@ const fmtMonthDay = (iso) => {
 const toTrend = (points) =>
   (points || []).map((p) => ({ label: p.label, weekly_count: p.count }));
 
+// 요약 지표 아이콘(정본: 주황 라인 아이콘) — 폴더/문서/아카이브
+const IconFolder = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#ff8534"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 5h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+  </svg>
+);
+const IconDoc = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#ff8534"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 3h8l4 4v14a0 0 0 0 1 0 0H6a0 0 0 0 1 0 0V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M8 12h8M8 16h6" />
+  </svg>
+);
+const IconArchive = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#ff8534"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+    <path d="M10 12h4" />
+  </svg>
+);
+
 const CompletedDetailPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -50,6 +98,10 @@ const CompletedDetailPage = () => {
   // TOP 레퍼런스 항목 클릭 → 원본 크게 보기(라이트박스). SCR-ARCH-05 는 reference 객체를
   //   nav state 로 받는 구조라 refId URL 만으론 못 열어(→chat 리다이렉트) 라이트박스로 상세 확인.
   const [lightboxRef, setLightboxRef] = useState(null);
+  // 정본: 반복/개선 항목 3개 표시 + '더 많은 항목 보기 >'로 펼침(백엔드는 최대 6 반환).
+  const [chipOpen, setChipOpen] = useState(false);
+  // 모아보기 필터 탭(정본: 전체/형태/구조/표현/연출) — 가이드 track group 으로 필터.
+  const [guideTab, setGuideTab] = useState("전체");
 
   useEffect(() => {
     let alive = true;
@@ -186,10 +238,50 @@ const CompletedDetailPage = () => {
 
   const ov = detail.overview || {};
   const timeline = detail.timeline || [];
-  const shownTimeline = timelineOpen
-    ? timeline
-    : timeline.slice(0, TIMELINE_HEAD);
+  // 정본: 8개 초과 시 6번째 이후 생략, 마지막 단계만 표시(가운데 …). '전체 보기'로 전 단계 펼침.
+  const timelineCollapsed = !timelineOpen && timeline.length > TIMELINE_HEAD;
+  const headNodes = timelineCollapsed ? timeline.slice(0, 6) : timeline;
+  const tailNode = timelineCollapsed ? timeline[timeline.length - 1] : null;
   const trend = toTrend(trendByGroup[tab]);
+  // 모아보기 필터(정본 탭: 전체/형태/구조/표현/연출) — 가이드 track group 으로 필터, 최대 6 카드.
+  const filteredGuides = guides
+    .filter(
+      (g) =>
+        guideTab === "전체" || g.guide?.next_steps?.track?.group === guideTab,
+    )
+    .slice(0, 6);
+
+  // 타임라인 노드 렌더러(head·tail 공용). guide 이벤트 중 카드 매칭 시 클릭 → 가이드 상세.
+  const renderTlNode = (ev, key) => {
+    const g = ev.type === "guide" ? guideByThumb[ev.thumbUrl] : null;
+    const Node = g ? "button" : "div";
+    return (
+      <Node
+        key={key}
+        type={g ? "button" : undefined}
+        className={`${styles.tlNode} ${g ? styles.tlNodeClickable : ""}`}
+        onClick={g ? () => setActiveGuide(g) : undefined}
+        title={g ? "이 시점 가이드 상세 보기" : undefined}
+      >
+        <span className={styles.tlDot} data-type={ev.type} />
+        <span className={styles.tlDate}>{fmtMonthDay(ev.date)}</span>
+        <span className={styles.tlLabel}>
+          {ev.type === "guide" ? axisLabel(ev.label) : ev.label}
+        </span>
+        <span className={styles.tlThumb}>
+          {ev.thumbUrl ? (
+            <AuthedImage
+              className={styles.tlThumbImg}
+              src={ev.thumbUrl}
+              alt=""
+            />
+          ) : (
+            <span className={styles.tlThumbEmpty} aria-hidden />
+          )}
+        </span>
+      </Node>
+    );
+  };
 
   return (
     <div className={styles.page}>
@@ -291,23 +383,25 @@ const CompletedDetailPage = () => {
               <div className={styles.repImgEmpty} aria-hidden />
             )}
           </div>
-          {(ov.createdAt || ov.completedAt) && (
-            <p className={styles.period}>
-              작업 기간 : {fmtDate(ov.createdAt)}
-              {ov.completedAt ? ` ~ ${fmtDate(ov.completedAt)}` : ""}
-            </p>
-          )}
           <div className={styles.stats}>
             <div className={styles.stat}>
-              <span className={styles.statLabel}>총 작업일</span>
+              <span className={styles.statLabel}>
+                <IconFolder />총 작업일
+              </span>
               <span className={styles.statValue}>{ov.workDays ?? 0}일</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statLabel}>가이드 요청</span>
+              <span className={styles.statLabel}>
+                <IconDoc />
+                가이드 요청
+              </span>
               <span className={styles.statValue}>{ov.guideCount ?? 0}회</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statLabel}>저장 레퍼런스</span>
+              <span className={styles.statLabel}>
+                <IconArchive />
+                저장한 레퍼런스
+              </span>
               <span className={styles.statValue}>
                 {ov.referenceCount ?? 0}개
               </span>
@@ -351,17 +445,19 @@ const CompletedDetailPage = () => {
             <div className={styles.chipCol}>
               <p className={styles.chipHead}>반복되는 문제 TOP 3</p>
               <ol className={styles.rankList}>
-                {(detail.recurringTop || []).map((ax, i) => (
-                  <li key={ax + i} className={styles.rankItem}>
-                    <span className={styles.rankNum}>{i + 1}</span>
-                    <span className={styles.rankLabel}>{axisLabel(ax)}</span>
-                    {recurringCount[ax] > 0 && (
-                      <span className={styles.rankCount}>
-                        {recurringCount[ax]}회
-                      </span>
-                    )}
-                  </li>
-                ))}
+                {(detail.recurringTop || [])
+                  .slice(0, chipOpen ? undefined : 3)
+                  .map((ax, i) => (
+                    <li key={ax + i} className={styles.rankItem}>
+                      <span className={styles.rankNum}>{i + 1}</span>
+                      <span className={styles.rankLabel}>{axisLabel(ax)}</span>
+                      {recurringCount[ax] > 0 && (
+                        <span className={styles.rankCount}>
+                          {recurringCount[ax]}회
+                        </span>
+                      )}
+                    </li>
+                  ))}
                 {(detail.recurringTop || []).length === 0 && (
                   <li className={styles.rankEmpty}>아직 없어요</li>
                 )}
@@ -370,17 +466,30 @@ const CompletedDetailPage = () => {
             <div className={styles.chipCol}>
               <p className={styles.chipHead}>개선된 항목</p>
               <ul className={styles.checkList}>
-                {(detail.improvedItems || []).map((ax, i) => (
-                  <li key={ax + i} className={styles.checkItem}>
-                    ✓ {axisLabel(ax)}
-                  </li>
-                ))}
+                {(detail.improvedItems || [])
+                  .slice(0, chipOpen ? undefined : 3)
+                  .map((ax, i) => (
+                    <li key={ax + i} className={styles.checkItem}>
+                      ✓ {axisLabel(ax)}
+                    </li>
+                  ))}
                 {(detail.improvedItems || []).length === 0 && (
                   <li className={styles.rankEmpty}>아직 없어요</li>
                 )}
               </ul>
             </div>
           </div>
+          {/* 정본: '더 많은 항목 보기 >' — 반복·개선 중 하나라도 3개 초과 시 노출. */}
+          {((detail.recurringTop || []).length > 3 ||
+            (detail.improvedItems || []).length > 3) && (
+            <button
+              type="button"
+              className={styles.chipMore}
+              onClick={() => setChipOpen((v) => !v)}
+            >
+              {chipOpen ? "접기" : "더 많은 항목 보기 ›"}
+            </button>
+          )}
         </section>
       </div>
 
@@ -388,7 +497,13 @@ const CompletedDetailPage = () => {
       {timeline.length > 0 && (
         <section className={styles.section}>
           <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>성장 타임라인</h2>
+            <div>
+              <h2 className={styles.sectionTitle}>성장 타임라인</h2>
+              <p className={styles.sectionSub}>
+                처음 가이드를 요청한 시점부터 얼마나 성장했는지 한눈에 확인할 수
+                있어요.
+              </p>
+            </div>
             {timeline.length > TIMELINE_HEAD && (
               <button
                 type="button"
@@ -400,37 +515,13 @@ const CompletedDetailPage = () => {
             )}
           </div>
           <div className={styles.timeline}>
-            {shownTimeline.map((ev, i) => {
-              // 정본: 마일스톤 클릭 → 해당 시점 가이드 상세. guide 이벤트 중 카드 매칭되는 것만 클릭 가능.
-              const g = ev.type === "guide" ? guideByThumb[ev.thumbUrl] : null;
-              const Node = g ? "button" : "div";
-              return (
-                <Node
-                  key={i}
-                  type={g ? "button" : undefined}
-                  className={`${styles.tlNode} ${g ? styles.tlNodeClickable : ""}`}
-                  onClick={g ? () => setActiveGuide(g) : undefined}
-                  title={g ? "이 시점 가이드 상세 보기" : undefined}
-                >
-                  <span className={styles.tlDot} data-type={ev.type} />
-                  <span className={styles.tlDate}>{fmtMonthDay(ev.date)}</span>
-                  <span className={styles.tlLabel}>
-                    {ev.type === "guide" ? axisLabel(ev.label) : ev.label}
-                  </span>
-                  <span className={styles.tlThumb}>
-                    {ev.thumbUrl ? (
-                      <AuthedImage
-                        className={styles.tlThumbImg}
-                        src={ev.thumbUrl}
-                        alt=""
-                      />
-                    ) : (
-                      <span className={styles.tlThumbEmpty} aria-hidden />
-                    )}
-                  </span>
-                </Node>
-              );
-            })}
+            {headNodes.map((ev, i) => renderTlNode(ev, i))}
+            {timelineCollapsed && (
+              <span className={styles.tlEllipsis} aria-hidden>
+                ⋯
+              </span>
+            )}
+            {tailNode && renderTlNode(tailNode, "tail")}
           </div>
         </section>
       )}
@@ -439,6 +530,9 @@ const CompletedDetailPage = () => {
       {(detail.processGallery || []).length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>드로잉 과정 갤러리</h2>
+          <p className={styles.sectionSub}>
+            그림 완성 과정을 모아볼 수 있어요.
+          </p>
           <div className={styles.processGrid}>
             {detail.processGallery.map((p, i) => (
               <div key={i} className={styles.processCard}>
@@ -467,11 +561,28 @@ const CompletedDetailPage = () => {
               className={styles.moreLink}
               onClick={() => setCollectionOpen(true)}
             >
-              전체 보기
+              전체보기 ›
             </button>
           </div>
-          <div className={styles.guidePreviewList}>
-            {guides.slice(0, 4).map((g, i) => {
+          <div className={styles.tabs} role="tablist">
+            {GROUP_TABS.map((g) => (
+              <button
+                key={g}
+                type="button"
+                role="tab"
+                aria-selected={guideTab === g}
+                className={`${styles.tab} ${guideTab === g ? styles.tabActive : ""}`}
+                onClick={() => setGuideTab(g)}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+          <div className={styles.guideGrid}>
+            {filteredGuides.length === 0 && (
+              <p className={styles.rankEmpty}>이 항목의 가이드가 없어요.</p>
+            )}
+            {filteredGuides.map((g, i) => {
               const grp = g.guide?.next_steps?.track?.group;
               const axes = (g.guide?.blocks || [])
                 .map((b) => b.sub_problem)
@@ -490,6 +601,11 @@ const CompletedDetailPage = () => {
                         axisLabel(g.guide?.primary_focus) ||
                         "한 끗"}
                     </span>
+                    {g.guide?.one_thing && (
+                      <span className={styles.guideRowSummary}>
+                        {g.guide.one_thing}
+                      </span>
+                    )}
                     <span className={styles.guideRowTags}>
                       {grp && (
                         <span className={styles.guideRowGroup}>{grp}</span>
@@ -514,79 +630,105 @@ const CompletedDetailPage = () => {
         </section>
       )}
 
-      {/* 가장 많이 참고한 레퍼런스 — 항목 클릭 → 레퍼런스 상세(SCR-ARCH-05), 모든 레퍼런스 보기 */}
-      {(detail.topReferences || []).length > 0 && (
-        <section className={styles.section}>
-          <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>가장 많이 참고한 레퍼런스</h2>
-            <button
-              type="button"
-              className={styles.moreLink}
-              onClick={() => navigate("/archive/references")}
-            >
-              모든 레퍼런스 보기
-            </button>
-          </div>
-          <div className={styles.refList}>
-            {detail.topReferences.map((r, i) => (
-              <button
-                key={r.refId ?? i}
-                type="button"
-                className={styles.refItem}
-                onClick={() =>
-                  setLightboxRef({
-                    url: refUrlById[r.refId] || r.url,
-                    count: r.count,
-                  })
-                }
-              >
-                <span className={styles.refRank}>{i + 1}</span>
-                <span className={styles.refThumb}>
-                  <AuthedImage
-                    className={styles.refThumbImg}
-                    src={refUrlById[r.refId] || r.url}
-                    alt=""
-                  />
-                </span>
-                <span className={styles.refMeta}>
-                  <span className={styles.refName}>참고 레퍼런스</span>
-                  <span className={styles.refCount}>참고 {r.count}회</span>
-                </span>
-                <span className={styles.refChevron} aria-hidden>
-                  ›
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 질문 성장 과정 — 전체 대화 보기 → 채팅 이동 */}
-      {(detail.questionGrowth || []).length > 0 && (
-        <section className={styles.section}>
-          <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>질문 성장 과정</h2>
-            <button
-              type="button"
-              className={styles.moreLink}
-              onClick={() => navigate(`/projects/${projectId}/chat`)}
-            >
-              전체 대화 보기
-            </button>
-          </div>
-          <div className={styles.qGrowth}>
-            {detail.questionGrowth.map((q, i) => (
-              <div key={i} className={styles.qRow}>
-                <span className={styles.qPhase}>
-                  <span className={styles.qPhaseName}>{q.phase}</span>
-                  <span className={styles.qDate}>{fmtMonthDay(q.date)}</span>
-                </span>
-                <span className={styles.qBubble}>{q.text}</span>
+      {/* 가장 많이 참고한 레퍼런스 + 질문 성장 과정 (정본: 2단 배치) */}
+      <div className={styles.twoCol}>
+        {(detail.topReferences || []).length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <div>
+                <h2 className={styles.sectionTitle}>
+                  가장 많이 참고한 레퍼런스
+                </h2>
+                <p className={styles.sectionSub}>
+                  다음의 레퍼런스를 가장 많이 참고했어요.
+                </p>
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+              <button
+                type="button"
+                className={styles.moreLink}
+                onClick={() => navigate("/archive/references")}
+              >
+                모든 레퍼런스 보기 ›
+              </button>
+            </div>
+            <div className={styles.refList}>
+              {detail.topReferences.map((r, i) => (
+                <button
+                  key={r.refId ?? i}
+                  type="button"
+                  className={styles.refItem}
+                  onClick={() =>
+                    setLightboxRef({
+                      url: refUrlById[r.refId] || r.url,
+                      count: r.count,
+                    })
+                  }
+                >
+                  <span className={styles.refRank}>{i + 1}</span>
+                  <span className={styles.refThumb}>
+                    <AuthedImage
+                      className={styles.refThumbImg}
+                      src={refUrlById[r.refId] || r.url}
+                      alt=""
+                    />
+                  </span>
+                  <span className={styles.refMeta}>
+                    <span className={styles.refName}>
+                      {r.name || "참고 레퍼런스"}
+                    </span>
+                    <span className={styles.refCount}>참고 {r.count}회</span>
+                    {(r.tags || []).length > 0 && (
+                      <span className={styles.refTags}>
+                        {r.tags.map((t, j) => (
+                          <span key={j} className={styles.refTag}>
+                            {t}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <span className={styles.refChevron} aria-hidden>
+                    ›
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 질문 성장 과정 — 전체 대화 보기 → 채팅 이동 */}
+        {(detail.questionGrowth || []).length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <div>
+                <h2 className={styles.sectionTitle}>질문 성장 과정</h2>
+                <p className={styles.sectionSub}>
+                  질문이 깊어질수록 더 멀리 성장할 수 있어요.
+                </p>
+              </div>
+              <button
+                type="button"
+                className={styles.moreLink}
+                onClick={() => navigate(`/projects/${projectId}/chat`)}
+              >
+                전체 대화 보기 ›
+              </button>
+            </div>
+            <div className={styles.qGrowth}>
+              {detail.questionGrowth.map((q, i) => (
+                <div key={i} className={styles.qRow}>
+                  <span className={styles.qPhase}>
+                    <span className={styles.qDate}>{fmtMonthDay(q.date)}</span>
+                    <span className={styles.qPhaseName}>{q.phase}</span>
+                  </span>
+                  <span className={styles.qDot} aria-hidden />
+                  <span className={styles.qBubble}>{q.text}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
 
       {/* 모아보기 오버레이 — absolute 패널이 온전한 크기로 뜨도록 fixed 호스트 제공(버그2 포지셔닝). */}
       {collectionOpen && (
