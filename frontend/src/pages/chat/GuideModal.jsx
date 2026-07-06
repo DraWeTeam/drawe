@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { axisLabel, growthMessage } from "./guideLabels";
+import { axisLabel, growthCaption, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
 import { ingestReference } from "../projects/api";
@@ -426,6 +426,8 @@ const Growth = ({ growth }) => {
   // 성장 메시지: 화면·PDF 공용 growthMessage(guideLabels)로 조립 — rstat(recurring_stat)과
   //   delta(delta_note)를 한 문형으로 잇고, delta 없으면 narration 폴백(note 경로 보존).
   const message = growthMessage(growth, hasChart);
+  // delta 문장일 때만 정본 해설 캡션(114:15761) 동반. 아니면 "" → 미표시.
+  const caption = growthCaption(growth);
   return (
     <section className={styles.growth}>
       <SectionTitle accent>성장 흐름</SectionTitle>
@@ -436,6 +438,7 @@ const Growth = ({ growth }) => {
             {message}
           </p>
         )}
+        {caption && <p className={styles.growthCaption}>{caption}</p>}
       </div>
       <ChipRow label="현재 그림 단계" axes={current} />
       <ChipRow label="최근에 덜 보이는 어려움" axes={improving} />

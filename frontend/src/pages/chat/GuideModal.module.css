@@ -565,6 +565,14 @@
   line-height: 22px;
   color: var(--text-tertiary);
 }
+/* 성장 흐름 delta 문장 아래 정본 해설 캡션(114:15761) — body2 Regular 14/22 tertiary, gap 4px. */
+.growthCaption {
+  margin: var(--space-100) 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
 
 /* ── 칩 ── */
 .chipRow {

@@ -36,3 +36,14 @@ export const growthMessage = (growth, hasChart) => {
     ? ""
     : "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.";
 };
+
+// delta 문장('주 N→M회로 줄었어요') 노출 시 함께 뜨는 정본 해설 캡션(114:15761 카피 그대로).
+//   delta(감소) 조건이 아닐 때(narration/첫 사용 안내)는 빈 문자열 → 미표시.
+export const growthCaption = (growth) => {
+  if (!growth) return "";
+  const rs = growth.recurring_stat;
+  if (rs && rs.first_week_hits > rs.last_week_hits) {
+    return "같은 걸 점점 덜 물어보게 되었다는 신호예요.";
+  }
+  return "";
+};
