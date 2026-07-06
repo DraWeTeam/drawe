@@ -54,6 +54,7 @@ const InfoIcon = () => (
 
 const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const { projectId } = useParams();
+
   const inputRef = useRef(null);
   const previewRef = useRef(null);
   const [file, setFile] = useState(null);
@@ -68,6 +69,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
   const imageUploadedAt = useRef(null);
   const chipSelectedAt = useRef({}); // { [chipContent]: timestamp }
+  const statusSelectedOnce = useRef(false); 
 
   useEffect(
     () => () => {
@@ -90,6 +92,15 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     previewRef.current = url;
     setFile(resized);
     setPreview(url);
+
+    imageUploadedAt.current = Date.now();
+    analyticsTrack("prompt_image_uploaded", {
+      project_id: projectId,
+      image_format: resized.type.split("/")[1] || "unknown",
+      image_size_kb: Math.round(resized.size / 1024),
+    });
+  };
+
 
     imageUploadedAt.current = Date.now();
     analyticsTrack("prompt_image_uploaded", {
@@ -133,6 +144,10 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
   // eslint-disable-next-line no-unused-vars -- GA4 핸들러: UI 연결 예정(develop)
   const handleIntentSelect = (newIntent) => {
+    if (submitting) return;
+    // 같은 값 다시 클릭이면 무시
+    if (intent === newIntent && statusSelectedOnce.current) return;
+
     setIntent(newIntent);
     const imageStatus = newIntent === "practice" ? "in_progress" : "completed";
 
