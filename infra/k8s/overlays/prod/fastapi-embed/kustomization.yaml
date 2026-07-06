@@ -9,7 +9,7 @@ resources:
 images:
   - name: drawe-fastapi
     newName: 933832340498.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-prod-fastapi
-    newTag: latest
+    newTag: 417a5eeb11bc358823ff3b4763b7bd033e9488ee
 
 generatorOptions:
   disableNameSuffixHash: true
