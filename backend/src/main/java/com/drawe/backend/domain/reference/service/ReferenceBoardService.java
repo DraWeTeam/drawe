@@ -22,7 +22,6 @@ import com.drawe.backend.domain.search.dto.SearchResponse;
 import com.drawe.backend.domain.search.service.SearchService;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -70,8 +69,8 @@ public class ReferenceBoardService {
   private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
 
   /**
-   * 브라우저 노출용 이미지 URL 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(Unsplash 시드)·null 은 원본.
-   * prod(s3 프로파일)에서 Image.url 은 "s3:{key}" 라 서명 없이는 &lt;img&gt;/AuthedImage 가 로드하지 못한다.
+   * 브라우저 노출용 이미지 URL 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(Unsplash 시드)·null 은 원본. prod(s3
+   * 프로파일)에서 Image.url 은 "s3:{key}" 라 서명 없이는 &lt;img&gt;/AuthedImage 가 로드하지 못한다.
    */
   private String signed(String url) {
     return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
@@ -132,49 +131,19 @@ public class ReferenceBoardService {
       return new ReferenceBoardSearchResponse(List.of(), 0, query, src.name(), true);
     }
 
-    ReferenceBoardSession session = sessionService.get(user.getId(), projectId);
-    // 검색어가 바뀌면 노출이력 리셋 — 새 검색은 상위 결과를 신선하게. 같은 검색어 반복은 dedup 유지("더보기" 효과).
-    // 원본 query 로 비교(LLM 추출 키워드는 호출마다 달라져 비교 기준으로 못 씀). 공백 정규화 + 소문자.
-    String normalizedQuery = query.strip().replaceAll("\\s+", " ").toLowerCase();
-    if (!normalizedQuery.equals(session.getLastQuery())) {
-      session.getShownImageIds().clear();
-      session.setLastQuery(normalizedQuery);
-    }
     Set<Long> disliked =
         Set.copyOf(
             imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.DISLIKE));
     Set<Long> liked =
         Set.copyOf(imageFeedbackRepository.findImageIdsByUserAndFeedback(user, FeedbackType.LIKE));
-    Set<Long> shown = session.getShownImageIds();
 
-    // 소스(AI/사진)는 서버에서 안 거른다 — 칩 필터는 클라이언트가 결과셋의 source 로 처리(칩 클릭 시 재검색 X).
-    // 핀·싫어요는 항상 제외, 기노출(shown)은 "새로 노출"용으로 제외한다.
-    List<ImageResult> available =
-        raw.results().stream()
-            .filter(r -> !pinned.contains(r.id())) // 핀은 상단 고정 → 검색 업데이트에서 제외
-            .filter(r -> !disliked.contains(r.id())) // 싫어요는 다시 안 보임
-            .toList();
-    // 안 본 것 우선. limit 개를 못 채우면(거의 다 봄) 이미 본 것으로 뒤를 채워 항상 꽉 찬 페이지를 준다.
-    List<ImageResult> unseen = available.stream().filter(r -> !shown.contains(r.id())).toList();
-    List<ImageResult> filtered;
-    if (unseen.size() >= limit) {
-      filtered = unseen.subList(0, limit);
-    } else {
-      // 안 본 것 + 이미 본 것으로 부족분 채움(풀 자체가 limit 미만이면 그만큼만). 한 바퀴 다 노출 → 이력 리셋.
-      List<ImageResult> page = new ArrayList<>(unseen);
-      available.stream()
-          .filter(r -> shown.contains(r.id()))
-          .limit((long) limit - unseen.size())
-          .forEach(page::add);
-      filtered = page;
-      shown.clear();
-    }
-
-    session.markShown(filtered.stream().map(ImageResult::id).toList());
-    sessionService.save(session);
-
+    // 소스(AI/사진)·아카이브 필터는 클라이언트 담당. 서버는 랭킹순 상위 limit 개만 반환(핀·싫어요 제외).
+    // 페이징은 프론트 클라 페이징("더보기")이 처리 → shown 세션 dedup 불필요(검색=항상 상위, deterministic).
     List<ReferenceCard> cards =
-        filtered.stream()
+        raw.results().stream()
+            .filter(r -> !pinned.contains(r.id())) // 핀은 상단 고정 → 검색 결과에서 제외
+            .filter(r -> !disliked.contains(r.id())) // 싫어요는 다시 안 보임
+            .limit(limit)
             .map(r -> new ReferenceCard(signImg(r), liked.contains(r.id()) ? "LIKE" : null))
             .toList();
 

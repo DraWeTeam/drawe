@@ -5,11 +5,13 @@ import GuideForm from "../chat/GuideForm";
 import BoardGuideChat from "./BoardGuideChat";
 import { requestGuide, uploadImage } from "../chat/api";
 import { resizeImage, validateImageFile } from "../chat/imageUtils";
-import { updateProject, addReference } from "../projects/api";
+import { updateProject } from "../projects/api";
 import { generateReference } from "./referenceBoardApi";
 import AuthedImage from "../chat/AuthedImage";
 import { track } from "../../analytics";
 import styles from "./GeneratePromptPanel.module.css";
+// ★ChatPage.module.css 를 read-only 로 재사용 — 채팅 버블 스타일이 /chat 과 문자 동일(BoardGuideChat 과 동일 방식, ChatPage 미접촉).
+import chatStyles from "../chat/ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 
 const MAX_INPUT_HEIGHT = 160;
@@ -55,6 +57,7 @@ const GeneratePromptPanel = ({
   onGuidesCount,
   onOpenGuide,
   onGuideState,
+  onGenerated,
 }) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef(null);
@@ -224,42 +227,46 @@ const GeneratePromptPanel = ({
     });
   };
 
-  // 레퍼런스 생성(텍스트 → bedrock 이미지). 생성 결과를 패널에 미리보기 + 담기(아카이브 저장).
+  // 레퍼런스 생성(텍스트 → bedrock 이미지) — SCRUM-118: 채팅식 스트림(사용자 버블 → drawe 답변).
+  //   결과는 부모(onGenerated)로 올려 좌측 보드 "내 생성물" 레인에도 동일 카드로 노출한다.
   const [genLoading, setGenLoading] = useState(false);
-  const [genResult, setGenResult] = useState(null); // { imageId, url }
-  const [genError, setGenError] = useState("");
-  const [genArchived, setGenArchived] = useState(false);
+  const [genMessages, setGenMessages] = useState([]); // { id, role, content?, loading?, image?, error? }
+  const genMsgId = useRef(0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const prompt = input.trim();
     if (mode !== "reference" || !prompt || genLoading) return;
+    setInput("");
+    const n = ++genMsgId.current;
+    const answerId = `a-${n}`;
+    setGenMessages((prev) => [
+      ...prev,
+      { id: `u-${n}`, role: "user", content: prompt },
+      { id: answerId, role: "assistant", loading: true },
+    ]);
     setGenLoading(true);
-    setGenError("");
-    setGenResult(null);
-    setGenArchived(false);
     try {
-      const res = await generateReference(projectId, prompt);
-      setGenResult(res); // { imageId, url }
+      const res = await generateReference(projectId, prompt); // { imageId, url }
+      setGenMessages((prev) =>
+        prev.map((m) =>
+          m.id === answerId ? { ...m, loading: false, image: res } : m,
+        ),
+      );
+      onGenerated?.({ id: res.imageId, url: res.url, source: "AI" });
       track("reference_generated", { project_id: projectId });
     } catch (err) {
-      setGenError(
+      const msg =
         err.response?.data?.error?.message ||
-          "레퍼런스 생성에 실패했어요. 잠시 후 다시 시도해주세요.",
+        "레퍼런스 생성에 실패했어요. 잠시 후 다시 시도해주세요.";
+      setGenMessages((prev) =>
+        prev.map((m) =>
+          m.id === answerId ? { ...m, loading: false, error: msg } : m,
+        ),
       );
     } finally {
       setGenLoading(false);
     }
-  };
-
-  const archiveGenerated = async () => {
-    if (!genResult?.imageId || genArchived) return;
-    try {
-      await addReference(projectId, genResult.imageId);
-    } catch {
-      /* 멱등 — 중복/네트워크는 조용히 */
-    }
-    setGenArchived(true);
   };
 
   return (
@@ -309,7 +316,7 @@ const GeneratePromptPanel = ({
       {/* 메시지 영역 — 복원된 인라인 가이드 챗(BoardGuideChat, BOARD-01 66:26420 정본).
           가이드가 없으면 인트로, 있으면 버블+인라인 결과카드 스트림. ChatPage 미접촉 조립. */}
       <div className={styles.messages}>
-        {chatCount === 0 && (
+        {chatCount === 0 && genMessages.length === 0 && (
           <div className={styles.intro}>
             <img className={styles.introLogo} src={logo} alt="" />
             <h2 className={styles.introTitle}>어떤 도움이 필요하신가요?</h2>
@@ -324,6 +331,57 @@ const GeneratePromptPanel = ({
           onGuidesCount={onGuidesCount}
           onOpenGuide={onOpenGuide}
         />
+
+        {/* SCRUM-118 — 레퍼런스 생성 채팅 스트림(사용자 프롬프트 → drawe 답변 + 생성 이미지). */}
+        {genMessages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className={chatStyles.userMessage}>
+              <div className={chatStyles.userBubble}>
+                <div>{m.content}</div>
+              </div>
+            </div>
+          ) : (
+            <div key={m.id} className={chatStyles.assistantMessage}>
+              {m.loading && (
+                <div className={chatStyles.assistantBubble}>
+                  <img className={chatStyles.assistantLogo} src={logo} alt="" />
+                  <span>레퍼런스를 생성하고 있어요…</span>
+                </div>
+              )}
+              {m.error && (
+                <div className={chatStyles.assistantBubble}>
+                  <img className={chatStyles.assistantLogo} src={logo} alt="" />
+                  <span>{m.error}</span>
+                </div>
+              )}
+              {m.image && (
+                <>
+                  <div className={chatStyles.assistantBubble}>
+                    <img
+                      className={chatStyles.assistantLogo}
+                      src={logo}
+                      alt=""
+                    />
+                    <span>
+                      레퍼런스를 생성했어요. 왼쪽 보드에서도 볼 수 있어요.
+                    </span>
+                  </div>
+                  <div className={chatStyles.messageImages}>
+                    <div
+                      className={`${chatStyles.imageWrap} ${chatStyles.imageWrapAi}`}
+                    >
+                      <AuthedImage
+                        src={m.image.url}
+                        alt="생성된 레퍼런스"
+                        className={chatStyles.aiImage}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ),
+        )}
       </div>
 
       {/* 프롬프트 바 */}
@@ -429,35 +487,6 @@ const GeneratePromptPanel = ({
           </button>
         </div>
       </form>
-
-      {/* 레퍼런스 생성 결과 — 미리보기 + 담기(아카이브 저장) */}
-      {mode === "reference" && (genLoading || genResult || genError) && (
-        <div className={styles.genResult}>
-          {genLoading && (
-            <div className={styles.genLoading}>레퍼런스를 생성하고 있어요…</div>
-          )}
-          {genError && <div className={styles.genError}>{genError}</div>}
-          {genResult && (
-            <div className={styles.genCard}>
-              <AuthedImage
-                className={styles.genImage}
-                src={genResult.url}
-                alt="생성된 레퍼런스"
-              />
-              <div className={styles.genActions}>
-                <button
-                  type="button"
-                  className={styles.genArchiveBtn}
-                  onClick={archiveGenerated}
-                  disabled={genArchived}
-                >
-                  {genArchived ? "아카이브에 담김" : "아카이브에 담기"}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* 한 끗 가이드 입력 폼 */}
       {guideFormOpen && (
