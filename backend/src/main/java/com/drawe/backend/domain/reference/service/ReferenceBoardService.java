@@ -10,10 +10,13 @@ import com.drawe.backend.domain.feedback.service.ImageFeedbackService;
 import com.drawe.backend.domain.llm.search.KomoranKeywordExtractor;
 import com.drawe.backend.domain.project.repository.ProjectReferenceRepository;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
+import com.drawe.backend.domain.reference.ReferenceGeneration;
+import com.drawe.backend.domain.reference.dto.GenerationHistoryItem;
 import com.drawe.backend.domain.reference.dto.ReactionResponse;
 import com.drawe.backend.domain.reference.dto.ReferenceBoardSearchResponse;
 import com.drawe.backend.domain.reference.dto.ReferenceCard;
 import com.drawe.backend.domain.reference.enums.ReferenceSource;
+import com.drawe.backend.domain.reference.repository.ReferenceGenerationRepository;
 import com.drawe.backend.domain.reference.session.ReferenceBoardSession;
 import com.drawe.backend.domain.reference.session.ReferenceBoardSessionService;
 import com.drawe.backend.domain.search.dto.ImageResult;
@@ -64,6 +67,7 @@ public class ReferenceBoardService {
   private final ProjectReferenceRepository projectReferenceRepository;
   private final ProjectRepository projectRepository;
   private final ReferenceBoardSessionService sessionService;
+  private final ReferenceGenerationRepository referenceGenerationRepository;
   private final com.drawe.backend.domain.image.service.ImageGenerationService
       imageGenerationService;
   private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
@@ -271,8 +275,32 @@ public class ReferenceBoardService {
       throw new CustomException(ErrorCode.FORBIDDEN);
     }
     Image image = imageGenerationService.generate(user, prompt, project);
+
+    // SCRUM-118: 생성 대화 저장 — [프롬프트 원문 + 생성 이미지]를 이력으로 남겨 진입 시 채팅 복원(가이드 채팅처럼).
+    ReferenceGeneration gen = new ReferenceGeneration();
+    gen.setProjectId(projectId);
+    gen.setUserId(user.getId());
+    gen.setPrompt(prompt.length() > 500 ? prompt.substring(0, 500) : prompt);
+    gen.setImageId(image.getId());
+    gen.setUrl(image.getUrl()); // 원본(미서명) — 조회 시 signed()
+    gen.setCreatedAt(java.time.Instant.now());
+    referenceGenerationRepository.save(gen);
+
     // 생성 직후 프론트가 AuthedImage 로 바로 프리뷰 → prod s3:{key} 는 서명해야 로드된다.
     return java.util.Map.of("imageId", image.getId(), "url", signed(image.getUrl()));
+  }
+
+  /** SCRUM-118: 생성 대화 이력(프롬프트 → 이미지) — 보드 진입 시 생성 채팅 복원(시간순, url 은 서명해 신선하게). */
+  public List<GenerationHistoryItem> generationHistory(User user, Long projectId) {
+    pinnedImageIds(user, projectId); // 소유 검증 재활용(미소유면 throw)
+    return referenceGenerationRepository
+        .findByProjectIdAndUserIdOrderByCreatedAtAsc(projectId, user.getId())
+        .stream()
+        .map(
+            g ->
+                new GenerationHistoryItem(
+                    g.getPrompt(), g.getImageId(), signed(g.getUrl()), g.getCreatedAt()))
+        .toList();
   }
 
   /** 프로젝트 소유 검증 + 핀된 이미지 id 집합. 핀은 상단 고정이라 검색 결과(업데이트분)에서 제외한다. */
