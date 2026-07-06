@@ -242,7 +242,12 @@ const GeneratePromptPanel = ({
     const answerId = `a-${n}`;
     setGenMessages((prev) => [
       ...prev,
-      { id: `u-${n}`, role: "user", content: prompt },
+      // 채팅 버블은 요청 문장으로 표시(생성 API 엔 원문 prompt 그대로 전달).
+      {
+        id: `u-${n}`,
+        role: "user",
+        content: `${prompt} 레퍼런스를 생성해주세요`,
+      },
       { id: answerId, role: "assistant", loading: true },
     ]);
     setGenLoading(true);
