@@ -303,9 +303,14 @@
   background: var(--bg-subtle);
   border: 1px solid var(--border-input);
 }
+/* §4 카드 콘텐츠 — Figma 114:15660: flex-col gap-300(12px), py-300, 세로 가운데. */
 .refInfo {
   flex: 1 1 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-300);
   padding: var(--space-300) 0;
 }
 .refTitle {
@@ -326,26 +331,28 @@
   gap: var(--space-100);
   margin-top: var(--space-200);
 }
+/* §4 레퍼런스 badge — Figma 114:15666: Regular 14/22, subtle·tertiary, px12/py4·r8. */
 .refBadge {
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 20px;
-  color: var(--text-quaternary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--text-tertiary);
   background: var(--bg-subtle);
   border-radius: var(--radius-200);
   padding: var(--space-100) var(--space-300);
 }
 /* ③ 추천 이유(114:15652) — 축과의 연결 한 문장. 라벨은 주황 강조, 문장은 보조 텍스트. */
+/* §4 추천 이유 — Figma 114:15662: 라벨(SemiBold 14, 별도 줄) + 이유(Regular 14/22), 모두 tertiary. */
 .refReason {
-  margin: var(--space-200) 0 0;
-  font-size: 13px;
-  line-height: 20px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
   color: var(--text-tertiary);
 }
 .refReasonLabel {
-  margin-right: var(--space-200);
-  font-weight: 700;
-  color: var(--text-brand, var(--text-tertiary));
+  display: block;
+  font-weight: 600;
+  color: var(--text-tertiary);
 }
 .refNum {
   position: absolute;
@@ -365,34 +372,31 @@
   border-radius: var(--radius-999);
 }
 /* ⑤ 아카이브 담기 — 썸네일 우상단 glass 버튼(114:15652) */
+/* §4 아카이브 glass 버튼 — Figma 114:15658 glass_button: 48px, bg rgba(254,254,255,0.2),
+   border weak, blur 2px, r8, 상시 노출(정본). */
 .refArchiveBtn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: var(--space-200);
+  right: var(--space-200);
   z-index: 2;
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-200);
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(6px);
+  background: rgba(254, 254, 255, 0.2);
+  backdrop-filter: blur(2px);
   color: var(--text-tertiary);
   cursor: pointer;
-  opacity: 0;
+  opacity: 1;
   transition:
-    opacity 0.15s ease,
     background 0.15s ease,
     color 0.15s ease;
 }
-.refThumb:hover .refArchiveBtn,
-.refArchiveBtn:focus-visible {
-  opacity: 1;
-}
 .refArchiveBtn:hover {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(254, 254, 255, 0.4);
 }
 .refArchiveBtn[data-archived] {
   opacity: 1;
