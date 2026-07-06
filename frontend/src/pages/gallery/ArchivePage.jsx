@@ -102,7 +102,7 @@ const ArchivePage = () => {
             className={styles.moreLink}
             onClick={() => navigate("/archive/references")}
           >
-            더보기
+            전체보기
           </button>
         </div>
         {refLoading ? (
@@ -151,7 +151,7 @@ const ArchivePage = () => {
             className={styles.moreLink}
             onClick={() => navigate("/gallery")}
           >
-            더보기
+            전체보기
           </button>
         </div>
         {completedLoading ? (

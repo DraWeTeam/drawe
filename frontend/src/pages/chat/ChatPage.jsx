@@ -769,7 +769,20 @@ const ChatPage = () => {
       await updateProject(projectId, { status: "COMPLETED" });
       setProject((prev) => (prev ? { ...prev, status: "completed" } : prev));
       track("project_completed", { project_id: projectId });
-      alert("완성작 갤러리에 담았어요!");
+      // 완성작 갤러리는 완성 그림(drawingUrl)이 있어야 노출된다. 백엔드가 최근 가이드
+      //   업로드에서 대표 이미지를 자동 지정하므로, 재조회해 실제 담겼는지로 안내를 분기.
+      let added = true;
+      try {
+        const detail = await getProject(projectId);
+        added = Boolean(detail?.drawingUrl);
+      } catch {
+        added = true; // 조회 실패 시 낙관 메시지로 폴백
+      }
+      alert(
+        added
+          ? "완성작 갤러리에 담았어요!"
+          : "완료했어요. 다만 이 프로젝트엔 완성 그림이 없어 갤러리에는 담기지 않았어요.\n그림을 업로드해 가이드를 만든 뒤 완료하면 갤러리에 담겨요.",
+      );
     } catch (e2) {
       const message =
         e2.response?.data?.error?.message ||

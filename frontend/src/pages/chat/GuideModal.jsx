@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { axisLabel, growthMessage } from "./guideLabels";
+import { axisLabel, growthCaption, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
 import { ingestReference } from "../projects/api";
@@ -364,7 +364,13 @@ export const GrowthChart = ({ trend }) => {
   const area = `${line} L ${pts[n - 1][0]} ${H - PAD} L ${pts[0][0]} ${H - PAD} Z`;
   return (
     <div className={styles.chartWrap}>
-      <p className={styles.chartTitle}>주별 가이드 요청 횟수</p>
+      {/* §6 박스 안 헤더(114:15740 subtitle2 18) + 축설명(114:15741 caption2 12). */}
+      <div className={styles.growthHead}>
+        <p className={styles.growthHeadTitle}>성장 흐름</p>
+        <p className={styles.growthAxis}>
+          X: 최근 8주 &nbsp;Y: 주별 가이드 요청 횟수
+        </p>
+      </div>
       <div className={styles.chartArea}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -422,6 +428,8 @@ const Growth = ({ growth }) => {
   // 성장 메시지: 화면·PDF 공용 growthMessage(guideLabels)로 조립 — rstat(recurring_stat)과
   //   delta(delta_note)를 한 문형으로 잇고, delta 없으면 narration 폴백(note 경로 보존).
   const message = growthMessage(growth, hasChart);
+  // delta 문장일 때만 정본 해설 캡션(114:15761) 동반. 아니면 "" → 미표시.
+  const caption = growthCaption(growth);
   return (
     <section className={styles.growth}>
       <SectionTitle accent>성장 흐름</SectionTitle>
@@ -432,6 +440,7 @@ const Growth = ({ growth }) => {
             {message}
           </p>
         )}
+        {caption && <p className={styles.growthCaption}>{caption}</p>}
       </div>
       <ChipRow label="현재 그림 단계" axes={current} />
       <ChipRow label="최근에 덜 보이는 어려움" axes={improving} />
