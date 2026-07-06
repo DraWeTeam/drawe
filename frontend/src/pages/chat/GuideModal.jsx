@@ -656,62 +656,62 @@ const Coach = ({
         </section>
       )}
 
-      {/* 3. 한 끗 포인트 — direction + 조건부 렌더(114:15593):
-          (개선 요청) 업로드 이미지 위 ①② 번호 오버레이 / (이론 질문) guide_asset 전체 SVG(badge 없음). */}
-      {primary &&
-        (primary.direction || primary.guide_asset || guide.overlay) && (
-          <section className={styles.section}>
-            <SectionTitle accent>한 끗 포인트</SectionTitle>
-            <div className={styles.tipBox}>
-              {/* 이미지(오버레이 ①② 마커 or 3D·도식 asset) */}
-              {guide.overlay && drawingPreviewUrl ? (
-                <OverlayImage
-                  className={styles.assetImg}
-                  src={drawingPreviewUrl}
-                  overlay={guide.overlay}
-                  alt="개선 포인트 오버레이"
-                />
-              ) : (
-                <AssetSvg asset={primary.guide_asset} />
-              )}
-              {/* 번호 포인트 — 블록별 핵심(정본 114:15631). 이미지의 ①② 마커와 대응. */}
-              {blocks.length > 0 && (
-                <ol className={styles.pointList}>
-                  {blocks.map((bl, i) => (
-                    <li key={i} className={styles.pointItem}>
-                      <span className={styles.pointNum}>{i + 1}</span>
-                      <span className={styles.pointText}>
-                        <b>{axisLabel(bl.sub_problem)}</b>
-                        {bl.observation ? ` — ${bl.observation}` : ""}
-                      </span>
-                    </li>
+      {/* 3. 한 끗 포인트 — 정본 114:15593. block 이 있으면 항상 렌더:
+          이미지(overlay ①② 마커 / guide_asset 3D·도식)는 있으면 표시(없으면 생략), 번호 포인트(blocks)와
+          '지금 바로 수정하기'(direction, 없으면 next_steps 실천 폴백)는 설명이므로 asset·direction 유무와 무관하게 노출. */}
+      {primary && (
+        <section className={styles.section}>
+          <SectionTitle accent>한 끗 포인트</SectionTitle>
+          <div className={styles.tipBox}>
+            {/* 이미지(오버레이 ①② 마커 or 3D·도식 asset) */}
+            {guide.overlay && drawingPreviewUrl ? (
+              <OverlayImage
+                className={styles.assetImg}
+                src={drawingPreviewUrl}
+                overlay={guide.overlay}
+                alt="개선 포인트 오버레이"
+              />
+            ) : (
+              <AssetSvg asset={primary.guide_asset} />
+            )}
+            {/* 번호 포인트 — 블록별 핵심(정본 114:15631). 이미지의 ①② 마커와 대응. */}
+            {blocks.length > 0 && (
+              <ol className={styles.pointList}>
+                {blocks.map((bl, i) => (
+                  <li key={i} className={styles.pointItem}>
+                    <span className={styles.pointNum}>{i + 1}</span>
+                    <span className={styles.pointText}>
+                      <b>{axisLabel(bl.sub_problem)}</b>
+                      {bl.observation ? ` — ${bl.observation}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {/* 지금 바로 수정하기 — 액션 체크리스트(정본 114:15638). direction 우선, 없으면 실천 폴백. */}
+            {(() => {
+              const fixes = blocks.map((bl) => bl.direction).filter(Boolean);
+              const list =
+                fixes.length > 0
+                  ? fixes
+                  : [next?.focus_practice, next?.next_goal_practice].filter(
+                      Boolean,
+                    );
+              return list.length > 0 ? (
+                <div className={styles.fixBox}>
+                  <p className={styles.fixTitle}>지금 바로 수정하기</p>
+                  {list.map((fx, i) => (
+                    <div key={i} className={styles.checkItem}>
+                      <span className={styles.checkbox} aria-hidden />
+                      <span className={styles.checkText}>{fx}</span>
+                    </div>
                   ))}
-                </ol>
-              )}
-              {/* 지금 바로 수정하기 — 액션 체크리스트(정본 114:15638). direction 우선, 없으면 실천 폴백. */}
-              {(() => {
-                const fixes = blocks.map((bl) => bl.direction).filter(Boolean);
-                const list =
-                  fixes.length > 0
-                    ? fixes
-                    : [next?.focus_practice, next?.next_goal_practice].filter(
-                        Boolean,
-                      );
-                return list.length > 0 ? (
-                  <div className={styles.fixBox}>
-                    <p className={styles.fixTitle}>지금 바로 수정하기</p>
-                    {list.map((fx, i) => (
-                      <div key={i} className={styles.checkItem}>
-                        <span className={styles.checkbox} aria-hidden />
-                        <span className={styles.checkText}>{fx}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : null;
-              })()}
-            </div>
-          </section>
-        )}
+                </div>
+              ) : null;
+            })()}
+          </div>
+        </section>
+      )}
 
       {/* 4. 추천 레퍼런스 (+ 피드백·새로고침) */}
       {displayedRefs.length > 0 && (
