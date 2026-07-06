@@ -5,11 +5,19 @@ import GuideForm from "../chat/GuideForm";
 import BoardGuideChat from "./BoardGuideChat";
 import { requestGuide, uploadImage } from "../chat/api";
 import { resizeImage, validateImageFile } from "../chat/imageUtils";
-import { updateProject, addReference } from "../projects/api";
-import { generateReference } from "./referenceBoardApi";
+import { updateProject } from "../projects/api";
+import {
+  clearReaction,
+  dislikeImage,
+  generateReference,
+  likeImage,
+} from "./referenceBoardApi";
 import AuthedImage from "../chat/AuthedImage";
+import api from "../login/api";
 import { track } from "../../analytics";
 import styles from "./GeneratePromptPanel.module.css";
+// ★ChatPage.module.css 를 read-only 로 재사용 — 채팅 버블 스타일이 /chat 과 문자 동일(BoardGuideChat 과 동일 방식, ChatPage 미접촉).
+import chatStyles from "../chat/ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 
 const MAX_INPUT_HEIGHT = 160;
@@ -55,6 +63,7 @@ const GeneratePromptPanel = ({
   onGuidesCount,
   onOpenGuide,
   onGuideState,
+  onGenerated,
 }) => {
   const [input, setInput] = useState("");
   const textareaRef = useRef(null);
@@ -224,42 +233,87 @@ const GeneratePromptPanel = ({
     });
   };
 
-  // 레퍼런스 생성(텍스트 → bedrock 이미지). 생성 결과를 패널에 미리보기 + 담기(아카이브 저장).
+  // 레퍼런스 생성(텍스트 → bedrock 이미지) — SCRUM-118: 채팅식 스트림(사용자 버블 → drawe 답변).
+  //   결과는 부모(onGenerated)로 올려 좌측 보드 "내 생성물" 레인에도 동일 카드로 노출한다.
   const [genLoading, setGenLoading] = useState(false);
-  const [genResult, setGenResult] = useState(null); // { imageId, url }
-  const [genError, setGenError] = useState("");
-  const [genArchived, setGenArchived] = useState(false);
+  const [genMessages, setGenMessages] = useState([]); // { id, role, content?, loading?, image?, error? }
+  const genMsgId = useRef(0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const prompt = input.trim();
     if (mode !== "reference" || !prompt || genLoading) return;
+    setInput("");
+    const n = ++genMsgId.current;
+    const answerId = `a-${n}`;
+    setGenMessages((prev) => [
+      ...prev,
+      // 채팅 버블은 요청 문장으로 표시(생성 API 엔 원문 prompt 그대로 전달).
+      {
+        id: `u-${n}`,
+        role: "user",
+        content: `${prompt} 레퍼런스를 생성해주세요`,
+      },
+      { id: answerId, role: "assistant", loading: true },
+    ]);
     setGenLoading(true);
-    setGenError("");
-    setGenResult(null);
-    setGenArchived(false);
     try {
-      const res = await generateReference(projectId, prompt);
-      setGenResult(res); // { imageId, url }
+      const res = await generateReference(projectId, prompt); // { imageId, url }
+      setGenMessages((prev) =>
+        prev.map((m) =>
+          m.id === answerId ? { ...m, loading: false, image: res } : m,
+        ),
+      );
+      onGenerated?.({ id: res.imageId, url: res.url, source: "AI" });
       track("reference_generated", { project_id: projectId });
     } catch (err) {
-      setGenError(
+      const msg =
         err.response?.data?.error?.message ||
-          "레퍼런스 생성에 실패했어요. 잠시 후 다시 시도해주세요.",
+        "레퍼런스 생성에 실패했어요. 잠시 후 다시 시도해주세요.";
+      setGenMessages((prev) =>
+        prev.map((m) =>
+          m.id === answerId ? { ...m, loading: false, error: msg } : m,
+        ),
       );
     } finally {
       setGenLoading(false);
     }
   };
 
-  const archiveGenerated = async () => {
-    if (!genResult?.imageId || genArchived) return;
+  // 생성 이미지 다운로드 — 서명 url(절대)은 직접 fetch, 상대(/images)는 api(JWT). 실패 시 새 탭 폴백.
+  const downloadImage = async (url) => {
     try {
-      await addReference(projectId, genResult.imageId);
+      const blob = /^(blob:|data:|https?:)/.test(url)
+        ? await (await fetch(url)).blob()
+        : (await api.get(url, { responseType: "blob" })).data;
+      const obj = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = obj;
+      a.download = "reference.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(obj);
     } catch {
-      /* 멱등 — 중복/네트워크는 조용히 */
+      window.open(url, "_blank");
     }
-    setGenArchived(true);
+  };
+
+  // 생성 이미지 반응(좋아요/싫어요) — 왼쪽 보드와 같은 백엔드에 저장(best-effort), 로컬 토글로 표시.
+  const reactGen = (m, kind) => {
+    const next = m.reaction === kind ? null : kind;
+    setGenMessages((prev) =>
+      prev.map((x) => (x.id === m.id ? { ...x, reaction: next } : x)),
+    );
+    const imageId = m.image?.imageId;
+    if (!imageId) return;
+    const req =
+      next === null
+        ? clearReaction(projectId, imageId)
+        : next === "like"
+          ? likeImage(projectId, imageId)
+          : dislikeImage(projectId, imageId);
+    req.catch(() => {});
   };
 
   return (
@@ -309,7 +363,7 @@ const GeneratePromptPanel = ({
       {/* 메시지 영역 — 복원된 인라인 가이드 챗(BoardGuideChat, BOARD-01 66:26420 정본).
           가이드가 없으면 인트로, 있으면 버블+인라인 결과카드 스트림. ChatPage 미접촉 조립. */}
       <div className={styles.messages}>
-        {chatCount === 0 && (
+        {chatCount === 0 && genMessages.length === 0 && (
           <div className={styles.intro}>
             <img className={styles.introLogo} src={logo} alt="" />
             <h2 className={styles.introTitle}>어떤 도움이 필요하신가요?</h2>
@@ -324,6 +378,76 @@ const GeneratePromptPanel = ({
           onGuidesCount={onGuidesCount}
           onOpenGuide={onOpenGuide}
         />
+
+        {/* SCRUM-118 — 레퍼런스 생성 채팅 스트림(사용자 프롬프트 → drawe 답변 + 생성 이미지). */}
+        {genMessages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className={chatStyles.userMessage}>
+              <div className={chatStyles.userBubble}>
+                <div>{m.content}</div>
+              </div>
+            </div>
+          ) : (
+            <div key={m.id} className={chatStyles.assistantMessage}>
+              {m.loading && (
+                <div className={chatStyles.assistantBubble}>
+                  <img className={chatStyles.assistantLogo} src={logo} alt="" />
+                  <span>레퍼런스를 생성하고 있어요…</span>
+                </div>
+              )}
+              {m.error && (
+                <div className={chatStyles.assistantBubble}>
+                  <img className={chatStyles.assistantLogo} src={logo} alt="" />
+                  <span>{m.error}</span>
+                </div>
+              )}
+              {m.image && (
+                <>
+                  <div className={chatStyles.messageImages}>
+                    <div
+                      className={`${chatStyles.imageWrap} ${chatStyles.imageWrapAi}`}
+                    >
+                      <AuthedImage
+                        src={m.image.url}
+                        alt="생성된 레퍼런스"
+                        className={chatStyles.aiImage}
+                      />
+                    </div>
+                  </div>
+                  {/* 가이드 카드와 동일한 액션 — 다운로드/좋아요/싫어요 */}
+                  <div className={chatStyles.guideActions}>
+                    <button
+                      type="button"
+                      className={chatStyles.guideActBtn}
+                      aria-label="다운로드"
+                      onClick={() => downloadImage(m.image.url)}
+                    >
+                      <DownloadIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className={chatStyles.guideActBtn}
+                      data-active={m.reaction === "like"}
+                      aria-label="좋아요"
+                      onClick={() => reactGen(m, "like")}
+                    >
+                      <ThumbUpIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className={chatStyles.guideActBtn}
+                      data-active={m.reaction === "dislike"}
+                      aria-label="싫어요"
+                      onClick={() => reactGen(m, "dislike")}
+                    >
+                      <ThumbDownIcon />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ),
+        )}
       </div>
 
       {/* 프롬프트 바 */}
@@ -429,35 +553,6 @@ const GeneratePromptPanel = ({
           </button>
         </div>
       </form>
-
-      {/* 레퍼런스 생성 결과 — 미리보기 + 담기(아카이브 저장) */}
-      {mode === "reference" && (genLoading || genResult || genError) && (
-        <div className={styles.genResult}>
-          {genLoading && (
-            <div className={styles.genLoading}>레퍼런스를 생성하고 있어요…</div>
-          )}
-          {genError && <div className={styles.genError}>{genError}</div>}
-          {genResult && (
-            <div className={styles.genCard}>
-              <AuthedImage
-                className={styles.genImage}
-                src={genResult.url}
-                alt="생성된 레퍼런스"
-              />
-              <div className={styles.genActions}>
-                <button
-                  type="button"
-                  className={styles.genArchiveBtn}
-                  onClick={archiveGenerated}
-                  disabled={genArchived}
-                >
-                  {genArchived ? "아카이브에 담김" : "아카이브에 담기"}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* 한 끗 가이드 입력 폼 */}
       {guideFormOpen && (
@@ -577,6 +672,54 @@ const SendIcon = () => (
       d="M7 16V3.825L1.4 9.425L0 8L8 0L16 8L14.6 9.425L9 3.825V16H7Z"
       fill="#FCFBFA"
     />
+  </svg>
+);
+
+/* 생성 이미지 액션 아이콘 — BoardGuideChat 가이드 카드와 동일 */
+const DownloadIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M12 15V3" />
+  </svg>
+);
+const ThumbUpIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M7 10v11" />
+    <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
+  </svg>
+);
+const ThumbDownIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M17 14V3" />
+    <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
   </svg>
 );
 
