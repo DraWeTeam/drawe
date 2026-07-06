@@ -871,13 +871,14 @@
   border-color: var(--border-input-focus);
 }
 
-/* 정본 목업: 본문 상단 큰 가이드 제목 */
+/* §1 타이틀 — Figma heading2(114:15601·90:16602, 전체화면·split 두 정본 실측 동일): 36/700/52, text/primary.
+   컨테이너 gap-300(12px)이 타이틀→요청일자 간격(margin-bottom 으로 반영). */
 .guideTitle {
-  margin: 0 0 2px;
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.3;
-  color: #232323;
+  margin: 0 0 var(--space-300);
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 52px;
+  color: var(--text-primary);
 }
 /* 코퍼스 레퍼런스 담기 실패 토스트(정직한 실패 알림) */
 .archiveError {
