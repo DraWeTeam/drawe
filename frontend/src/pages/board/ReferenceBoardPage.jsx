@@ -184,7 +184,7 @@ const ReferenceBoardPage = () => {
             projectId={projectId}
             onRequestGenerate={handleRequestGenerate}
             expanded={mode === "boardFull"}
-            initialQuery={presetQuery}
+            initialQuery={presetQuery || project?.lastReferenceQuery || ""}
             initialResults={presetResults}
             generatedImage={generatedImage}
           />
