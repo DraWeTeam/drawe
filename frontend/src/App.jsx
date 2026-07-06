@@ -12,6 +12,7 @@ import ChatPage from "./pages/chat/ChatPage";
 import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
 import ReferenceListPage from "./pages/gallery/ReferenceListPage";
+import CollectionDetailPage from "./pages/gallery/CollectionDetailPage";
 import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
 import CompletedDetailPage from "./pages/gallery/CompletedDetailPage";
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -49,6 +50,10 @@ function App() {
               <Route
                 path="/archive/references"
                 element={<ReferenceListPage />}
+              />
+              <Route
+                path="/archive/collections/:collectionId"
+                element={<CollectionDetailPage />}
               />
               <Route path="/gallery" element={<CompletedGalleryPage />} />
               <Route

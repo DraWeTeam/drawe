@@ -7,6 +7,37 @@ export const getReferenceArchive = async () => {
   return res.data.data;
 };
 
+// 레퍼런스 컬렉션 목록(SCR-ARCH-02) — 명명된 컬렉션 카드.
+// 응답: { collections: [{ id, name, axis, tags:[], isSystem, count, thumbnails:[url] }] }
+export const getCollections = async () => {
+  const res = await api.get("/collections");
+  return res.data.data;
+};
+
+// 컬렉션 상세(SCR-ARCH-04) — 헤더 + 레퍼런스 그리드.
+// 응답: { id, name, description, axis, tags:[], isSystem,
+//         references: [{ imageId, url, source, pinned }] }
+export const getCollection = async (collectionId) => {
+  const res = await api.get(`/collections/${collectionId}`);
+  return res.data.data;
+};
+
+// 컬렉션 수정(SCR-ARCH-06) — 이름/설명/태그. tags 생략 시 미변경.
+export const updateCollection = async (collectionId, { name, description, tags }) => {
+  const res = await api.patch(`/collections/${collectionId}`, {
+    name,
+    description,
+    tags,
+  });
+  return res.data.data;
+};
+
+// 컬렉션 삭제(SCR-ARCH-06) — 담긴 레퍼런스도 함께 삭제.
+export const deleteCollection = async (collectionId) => {
+  const res = await api.delete(`/collections/${collectionId}`);
+  return res.data.data;
+};
+
 // 완성작 갤러리 — AI 생성 이미지 최신순 페이징.
 // 응답: { items: [...], totalElements, hasMore }
 export const getCompletedGallery = async ({ page = 0, size = 20 } = {}) => {

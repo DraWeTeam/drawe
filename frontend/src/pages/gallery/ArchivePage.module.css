@@ -210,3 +210,111 @@
   font-size: 13px;
   color: #a8a39e;
 }
+
+/* ── 컬렉션 카드 (SCR-ARCH-02) — 4분할 썸네일 + 이름 + 태그칩 ── */
+.collectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.collectionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quadThumb {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #efeae4;
+  border: 1px solid #efeae4;
+}
+
+.quadCell {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 빈 셀(레퍼런스 4개 미만) 플레이스홀더 */
+.quadEmpty {
+  width: 100%;
+  height: 100%;
+  background: #f6f2ee;
+}
+
+/* 레퍼런스 0개 컬렉션 — 4분할 대신 빈 카드 안내 */
+.quadPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  background: #f6f2ee;
+  border: 1px solid #efeae4;
+  color: #c3bcb4;
+}
+
+.collectionName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2e2c2a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  font-size: 12px;
+  color: #7a746e;
+  background: #f0ece7;
+  border-radius: 8px;
+  padding: 2px 8px;
+}
+
+/* ── 빈 상태 (SCR-ARCH-01) — 일러스트 + 안내 ── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 72px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  color: #f5945b;
+  margin-bottom: 6px;
+}
+
+.emptyTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+}
+
+.emptyDesc {
+  font-size: 14px;
+  color: #8a8580;
+  margin: 0;
+}

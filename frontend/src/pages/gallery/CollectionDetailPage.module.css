@@ -1,0 +1,376 @@
+.page {
+  padding: 24px 40px 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: #4a4846;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.backBtn:hover {
+  background: #f0ece7;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+}
+
+.stateBox {
+  text-align: center;
+  color: #8a8580;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 72px 20px;
+}
+
+/* 필터 탭 (전체/AI/사진/일러스트) */
+.filterRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filterChip {
+  border: 1px solid #e6e0d9;
+  background: #fff;
+  color: #7a746e;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.filterChip:hover {
+  border-color: #d8d0c7;
+}
+
+.filterActive {
+  background: #2e2c2a;
+  border-color: #2e2c2a;
+  color: #fff;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  background: #f0ece7;
+}
+
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pinBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(245, 148, 91, 0.95);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.downloadBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+}
+
+.card:hover .downloadBtn,
+.downloadBtn:focus-visible {
+  opacity: 1;
+}
+
+.downloadBtn:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.downloadBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (hover: none) {
+  .downloadBtn {
+    opacity: 1;
+  }
+}
+
+/* ── 헤더 ⋮ 메뉴 (컬렉션 수정/삭제) ── */
+.headerMenu {
+  position: relative;
+  margin-left: auto;
+}
+
+.menuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: #4a4846;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.menuBtn:hover {
+  background: #f0ece7;
+}
+
+.menuDropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  min-width: 150px;
+  background: #fff;
+  border: 1px solid #efeae4;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 9px 10px;
+  border-radius: 7px;
+  font-size: 14px;
+  color: #2e2c2a;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: #f6f2ee;
+}
+
+.menuDanger {
+  color: #d9463e;
+}
+
+.menuDanger:hover {
+  background: #fdeceb;
+}
+
+/* ── 모달 (수정/삭제) ── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 340px;
+  max-width: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modalWide {
+  width: 440px;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0 0 16px;
+}
+
+.modalText {
+  font-size: 14px;
+  color: #7a746e;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modalCancel,
+.modalConfirm,
+.modalSave {
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modalCancel {
+  background: #f0ece7;
+  color: #4a4846;
+}
+
+.modalConfirm {
+  background: #d9463e;
+  color: #fff;
+}
+
+.modalSave {
+  background: #f5945b;
+  color: #fff;
+}
+
+.modalCancel:disabled,
+.modalConfirm:disabled,
+.modalSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── 수정 폼 필드 ── */
+.fieldLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4846;
+  margin: 14px 0 6px;
+}
+
+.fieldLabel:first-of-type {
+  margin-top: 0;
+}
+
+.textInput,
+.textArea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e6e0d9;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #2e2c2a;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.textInput:focus,
+.textArea:focus {
+  outline: none;
+  border-color: #f5945b;
+}
+
+/* ── 태그 편집기 ── */
+.tagEditor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: 1px solid #e6e0d9;
+  border-radius: 9px;
+  padding: 8px;
+  min-height: 20px;
+}
+
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0ece7;
+  color: #4a4846;
+  border-radius: 8px;
+  padding: 3px 6px 3px 10px;
+  font-size: 13px;
+}
+
+.tagRemove {
+  border: none;
+  background: none;
+  color: #a8a39e;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.tagRemove:hover {
+  color: #4a4846;
+}
+
+.tagInput {
+  flex: 1;
+  min-width: 100px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  padding: 3px;
+  font-family: inherit;
+}
