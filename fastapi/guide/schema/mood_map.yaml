@@ -1,0 +1,40 @@
+# schema/mood_map.yaml — 온보딩 무드 태그 → 코퍼스 feel-persona 공간 대응표(정의 데이터 단일 소스).
+#
+# 배경: user_pref_tags(AXIS_MOOD).value 는 온보딩 이미지 태그(image_drawe_tags.mood)를 그대로 복사한
+#   *자유어 LLM 산출*(dreamy/cozy/dark-moody...) — 닫힌 enum 아님. 추천 검색이 부스트로 쓰는 공간은
+#   reference_images.personas 의 feel 계열 {mood, light, color, composition, technique, style, perspective}.
+#   두 어휘 공간이 다르므로 여기서 exact 대응만 정의(근거 note). LLM·스코어링과 무관한 순수 조회.
+#
+# 규칙(비파괴): 표에 있는 태그만 persona 로 매핑. 없는 태그(focused/neutral/zen 등 비시각·약신호)는 무시
+#   → 전부 무시되면 mood_profile=None → mood_boost 0 → 랭킹 현행과 완전 동일(콜드스타트/미매핑 안전).
+# 매핑은 coarse v1(온보딩 취향의 방향성만 soft 반영). 근거는 각 note. 조정=제품 결정(단계 변경=설계 변경).
+
+map:
+  # 몽환·분위기 주도 → mood(분위기 persona). 온보딩 최다값.
+  dreamy:      { personas: [mood],          note: "몽환/분위기 주도 → 분위기 축" }
+  ethereal:    { personas: [mood],          note: "비현실·공기감 → 분위기" }
+  # 가라앉은 저명도 정서 → 명암(light) + 분위기(mood).
+  melancholic: { personas: [light, mood],   note: "저명도·가라앉음 → 명암+분위기" }
+  moody:       { personas: [light, mood],   note: "무거운 톤 → 명암+분위기" }
+  dark-moody:  { personas: [light, mood],   note: "어두운 톤 → 명암+분위기" }
+  cold-moody:  { personas: [light, mood],   note: "차갑고 무거운 톤 → 명암+분위기" }
+  mysterious:  { personas: [light, mood],   note: "음영 대비의 신비 → 명암+분위기" }
+  dramatic:    { personas: [light, mood],   note: "극적 명암(museum mood_term 정합) → 명암+분위기" }
+  # 따뜻함·생기 → 색감(color) + 분위기.
+  cozy:        { personas: [color, mood],   note: "따뜻함 → 색감+분위기" }
+  cheerful:    { personas: [color, mood],   note: "밝고 생기 → 색감+분위기" }
+  romantic:    { personas: [mood, color],   note: "정서·따뜻함(museum mood_term 정합) → 분위기+색감" }
+  # 운동감·서사 → 구도(composition).
+  dynamic:     { personas: [composition],   note: "운동감 → 구도" }
+  adventurous: { personas: [composition],   note: "탐험·서사적 장면 → 구도" }
+  # 정적·평온 → 분위기.
+  serene:      { personas: [mood],          note: "평온(museum mood_term 정합) → 분위기" }
+  calm:        { personas: [mood],          note: "차분 → 분위기" }
+  calming:     { personas: [mood],          note: "차분 → 분위기" }
+  peaceful:    { personas: [mood],          note: "평화 → 분위기" }
+  tranquil:    { personas: [mood],          note: "고요 → 분위기" }
+  cold:        { personas: [light],         note: "차가운 빛/톤 → 명암" }
+
+# 명시적 무시(매핑 안 함 — 비시각 feel 또는 신호 약함): focused, neutral, zen, watchful, urban,
+#   stoic, regal, industrial, curious, inquisitive, innocent, gentle, epic, eerie, bleak, anxious,
+#   playful, lively, refreshing, chill, mystical  → mood None(현행 동일).

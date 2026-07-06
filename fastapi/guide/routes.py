@@ -35,6 +35,7 @@ from guide.pipeline.subject import resolve_subject
 from guide.pipeline import agent
 from guide.pipeline.asset_index import build_asset_index
 from guide.pipeline.search import search_text, is_miss
+from guide.pipeline.mood_profile import build_mood_profile
 from guide.pipeline.overlay import (
     select_visual_mode,
     resolve_anchors,
@@ -69,6 +70,7 @@ def _pipeline(
     track=None,
     medium=None,
     project_id=None,
+    mood=None,
 ):
     try:
         pil = normalize(
@@ -131,6 +133,10 @@ def _pipeline(
     measured = [o["sub_problem"] for o in dx["observations"] if o.get("measured")]
     growth = apply_cold_start(growth, measured, profile["curriculum"], why_fn=_why)
     tax = taxonomy()
+    # 온보딩 무드 취향(선택) → persona_lean 프로파일. 미매핑/없음이면 None → 검색 랭킹 현행과 동일(비파괴).
+    mood_profile = build_mood_profile(mood)
+    if mood_profile:
+        trace("mood.profile", user=user_id, lean=mood_profile.get("persona_lean"))
     refs_by_sp, retrieved, pending_by_sp = {}, set(), {}
     for o in dx["observations"]:
         sp = o["sub_problem"]
@@ -149,6 +155,7 @@ def _pipeline(
             sub_problem=sp,
             track=track,
             medium=medium,
+            mood_profile=mood_profile,
         )
         if not hits and f:
             hits = search_text(
@@ -157,6 +164,7 @@ def _pipeline(
                 sub_problem=sp,
                 track=track,
                 medium=medium,
+                mood_profile=mood_profile,
             )
         # miss(빈 결과/낮은 점수) → 라이브러리 보강 큐로. 측정된 관찰일수록 가치 큰 miss.
         if is_miss(hits):
@@ -358,6 +366,9 @@ async def guide_ep(
     project_id: str = Form(
         None
     ),  # growth 를 프로젝트 단위로 스코프(없으면 user-scoped 하위호환)
+    mood: str = Form(
+        None
+    ),  # 온보딩 무드 취향(선택, backend user_pref_tags AXIS_MOOD) — soft 부스트만
 ):
     file_bytes = await file.read()
     return await asyncio.to_thread(
@@ -370,15 +381,24 @@ async def guide_ep(
         medium,
         request_id,
         project_id,
+        mood,
     )
 
 
 def _guide_sync(
-    file_bytes, message, user_id, intent, track, medium, request_id, project_id=None
+    file_bytes,
+    message,
+    user_id,
+    intent,
+    track,
+    medium,
+    request_id,
+    project_id=None,
+    mood=None,
 ):
     _t0 = perf_counter()  # ②v1: end-to-end(순차 Grok 다회 포함) 레이턴시 측정용
     ctx, early = _pipeline(
-        file_bytes, message, user_id, intent, track, medium, project_id
+        file_bytes, message, user_id, intent, track, medium, project_id, mood
     )
     if early:
         return early
@@ -464,6 +484,7 @@ async def guide_stream_ep(
     medium: str = Form(None),
     request_id: str = Form(None),
     project_id: str = Form(None),
+    mood: str = Form(None),  # 온보딩 무드 취향(선택) — soft 부스트만
 ):
     file_bytes = await file.read()
     return await asyncio.to_thread(
@@ -476,17 +497,26 @@ async def guide_stream_ep(
         medium,
         request_id,
         project_id,
+        mood,
     )
 
 
 def _guide_stream_sync(
-    file_bytes, message, user_id, intent, track, medium, request_id, project_id=None
+    file_bytes,
+    message,
+    user_id,
+    intent,
+    track,
+    medium,
+    request_id,
+    project_id=None,
+    mood=None,
 ):
     _t0 = (
         perf_counter()
     )  # ②v1: end-to-end 레이턴시(스트림은 run_guide 완료까지가 무거운 Grok 구간)
     ctx, early = _pipeline(
-        file_bytes, message, user_id, intent, track, medium, project_id
+        file_bytes, message, user_id, intent, track, medium, project_id, mood
     )
     if early:
         body = [
