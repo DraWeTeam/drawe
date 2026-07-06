@@ -508,10 +508,26 @@
 .chartWrap {
   margin: 0;
 }
-.chartTitle {
-  margin: 0 0 8px;
-  font-size: 12.5px;
-  color: #9a8a72;
+/* §6 박스 안 헤더 — Figma 114:15740 subtitle2(18/700/24/tertiary) + 114:15741 축설명 caption2(12/500/20/quaternary), gap-100. */
+.growthHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  margin: 0 0 var(--space-300);
+}
+.growthHeadTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}
+.growthAxis {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-quaternary);
 }
 .chartArea {
   position: relative;

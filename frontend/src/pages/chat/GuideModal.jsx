@@ -364,7 +364,11 @@ export const GrowthChart = ({ trend }) => {
   const area = `${line} L ${pts[n - 1][0]} ${H - PAD} L ${pts[0][0]} ${H - PAD} Z`;
   return (
     <div className={styles.chartWrap}>
-      <p className={styles.chartTitle}>주별 가이드 요청 횟수</p>
+      {/* §6 박스 안 헤더(114:15740 subtitle2 18) + 축설명(114:15741 caption2 12). */}
+      <div className={styles.growthHead}>
+        <p className={styles.growthHeadTitle}>성장 흐름</p>
+        <p className={styles.growthAxis}>X: 최근 8주 &nbsp;Y: 주별 가이드 요청 횟수</p>
+      </div>
       <div className={styles.chartArea}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
