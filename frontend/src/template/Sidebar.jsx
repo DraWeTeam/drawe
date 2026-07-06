@@ -5,6 +5,7 @@ import { getReferenceArchive, getCompletedGallery } from "../pages/gallery/api";
 import { ARCHIVE_CHANGED_EVENT } from "../pages/gallery/archiveEvents";
 import Tooltip from "../components/Tooltip";
 import SearchModal from "./SearchModal";
+import PlanPage from "../pages/settings/PlanPage";
 import styles from "./Sidebar.module.css";
 import logo from "../assets/drawe_logo.png";
 
@@ -27,6 +28,7 @@ const Sidebar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [referenceCount, setReferenceCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
+  const [planOpen, setPlanOpen] = useState(false); // 요금제 보기 모달(Figma 201:15482)
   const userMenuRef = useRef(null);
 
   const hidden = HIDDEN_PATHS.includes(location.pathname);
@@ -319,7 +321,7 @@ const Sidebar = () => {
                 className={styles.userMenuItem}
                 onClick={() => {
                   setUserMenuOpen(false);
-                  navigate("/plan");
+                  setPlanOpen(true);
                 }}
               >
                 <BillingIcon />
@@ -384,6 +386,7 @@ const Sidebar = () => {
         </div>
       </aside>
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+      {planOpen && <PlanPage onClose={() => setPlanOpen(false)} />}
     </>
   );
 };
