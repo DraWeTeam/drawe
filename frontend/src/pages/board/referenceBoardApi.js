@@ -38,6 +38,15 @@ export const generateReference = async (projectId, prompt) => {
   return res.data.data;
 };
 
+// SCRUM-118 — 생성 대화 이력(프롬프트→이미지). 보드 진입 시 생성 채팅 복원용(시간순).
+// 반환: [{ prompt, imageId, url, createdAt }]
+export const getGenerations = async (projectId) => {
+  const res = await api.get(
+    `/projects/${projectId}/reference-board/generations`,
+  );
+  return res.data.data;
+};
+
 /**
  * 좋아요/싫어요/취소 공통 응답(ReactionResponse):
  *   { imageId, reaction: "LIKE"|"DISLIKE"|null, dislikeCount, suggestGeneration }

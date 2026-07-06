@@ -7,6 +7,7 @@ from guide.pipeline._searchlogic import (
     build_filters,
     boost,
 )  # SOURCE_PREF 재노출(호환)
+from guide.pipeline.mood_profile import mood_boost
 
 BROAD_K = 50
 COLD_IMPR, EXPLORE_BONUS = 3, 0.07  # 노출<COLD_IMPR인 새 ref를 가끔 끌어올림(수렴 방지)
@@ -21,17 +22,24 @@ def search_text(
     explore=0.15,
     medium=None,
     track=None,
+    mood_profile=None,
 ):
     """진단 관찰의 reference_query로 검색. commercial_ok + 선택 filters 는 hard,
     형태 persona(pose/anatomy/hand)면 ai_example 제외도 hard. source/persona/medium/track 은 soft boost.
     medium/track = 사용자 맥락(선택) — 같은 매체/스타일을 우선하되 없으면 폴백.
+    mood_profile = 온보딩 무드 취향의 persona_lean(선택) — soft 가산만(hard 아님). None 이면 랭킹 불변.
     sub_problem 주면 (sub_problem, ref)별 채택/CTR 리랭크 + 콜드스타트 탐색 적용."""
     qvec = text_vec(query)
     must, must_not = build_filters(persona, filters)
     hits = vstore.query(qvec.tolist(), BROAD_K, must=must, must_not=must_not)
     scored = []
     for h in hits:
-        s = h.score + boost(h.meta, persona, medium, track)
+        # 무드는 축 정합(boost) 위 soft 가산 — mood_profile None(미매핑/콜드스타트)이면 mood_boost=0 → 불변.
+        s = (
+            h.score
+            + boost(h.meta, persona, medium, track)
+            + mood_boost(h.meta, mood_profile)
+        )
         # (sub_problem, ref)별 채택/CTR 리랭크 (잘 채택 ↑, 자주 떴는데 안 눌림 ↓)
         s += adoption_bonus(sub_problem, h.id)
         # 콜드스타트·탐색: 노출 적은 새 ref에 가끔 작은 보너스 → 소수 ref 수렴 방지

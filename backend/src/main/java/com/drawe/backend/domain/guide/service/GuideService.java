@@ -5,6 +5,8 @@ import com.drawe.backend.domain.GuideFeedback;
 import com.drawe.backend.domain.ImageBlob;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.UserPrefTag;
+import com.drawe.backend.domain.enums.Axis;
 import com.drawe.backend.domain.enums.FeedbackType;
 import com.drawe.backend.domain.guide.dto.GuideResult;
 import com.drawe.backend.domain.guide.dto.ResolvedReference;
@@ -13,6 +15,7 @@ import com.drawe.backend.domain.guide.repository.GuideRepository;
 import com.drawe.backend.domain.image.repository.ImageBlobRepository;
 import com.drawe.backend.domain.image.service.DbImageStorage;
 import com.drawe.backend.domain.image.service.ImageStorage;
+import com.drawe.backend.domain.onboarding.UserPrefTagRepository;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.client.GuideClient;
 import com.drawe.backend.global.client.dto.GuideResponse;
@@ -21,6 +24,7 @@ import com.drawe.backend.global.error.ErrorCode;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +54,8 @@ public class GuideService {
   // s3 프로파일에선 ImageStorage 의 @Primary 가 S3ImageStorage(id=null)라, 구체 타입으로 DB 구현을 주입.
   private final DbImageStorage imageStorage;
   private final ImageBlobRepository imageBlobRepository;
+  // 온보딩 무드 취향 → 가이드 추천 soft boost(fastapi mood_map). 읽기 전용.
+  private final UserPrefTagRepository userPrefTagRepository;
 
   /** 레퍼런스 이미지의 '브라우저 도달용' base(/image/{ref_id}). prod 도달성은 P5 인프라에서 확정. */
   @Value("${fastapi.guide.public-url}")
@@ -95,6 +101,9 @@ public class GuideService {
       throw new CustomException(ErrorCode.INVALID_INPUT);
     }
 
+    // 온보딩 무드 취향(선택) — 있으면 추천 soft boost 로만 흐른다. 없으면 null → fastapi 랭킹 현행 동일.
+    String moodPref = resolveMoodPref(user);
+
     // 느린 외부 호출(LLM 코칭) — 트랜잭션 밖에서 수행(DB 커넥션 장시간 점유 방지).
     GuideResponse resp;
     try {
@@ -109,7 +118,8 @@ public class GuideService {
               track,
               medium,
               reqId,
-              String.valueOf(projectId)); // growth 프로젝트 스코프 키
+              String.valueOf(projectId), // growth 프로젝트 스코프 키
+              moodPref);
     } catch (RuntimeException e) {
       log.error("guide 호출 실패: project={}, error={}", projectId, e.getMessage());
       throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
@@ -351,5 +361,29 @@ public class GuideService {
       throw new CustomException(ErrorCode.FORBIDDEN);
     }
     return project;
+  }
+
+  /**
+   * 온보딩 무드 취향(user_pref_tags AXIS_MOOD) → weight 내림차순 상위 3개 값을 콤마로 이어 반환.
+   *
+   * <p>없으면 {@code null} → guideImage 가 mood 파트를 안 실어 fastapi 랭킹이 현행과 완전 동일(비파괴). fastapi 가
+   * schema/mood_map.yaml 로 persona 공간에 매핑해 soft boost 로만 쓴다. 읽기 전용.
+   */
+  private String resolveMoodPref(User user) {
+    List<UserPrefTag> tags = userPrefTagRepository.findByUserAndAxis(user, Axis.AXIS_MOOD);
+    if (tags == null || tags.isEmpty()) {
+      return null;
+    }
+    List<String> values = new ArrayList<>();
+    tags.stream()
+        .sorted(Comparator.comparingInt(UserPrefTag::getWeight).reversed())
+        .limit(3)
+        .forEach(
+            t -> {
+              if (t.getValue() != null && !t.getValue().isBlank()) {
+                values.add(t.getValue());
+              }
+            });
+    return values.isEmpty() ? null : String.join(",", values);
   }
 }

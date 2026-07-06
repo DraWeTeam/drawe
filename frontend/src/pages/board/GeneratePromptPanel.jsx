@@ -10,6 +10,7 @@ import {
   clearReaction,
   dislikeImage,
   generateReference,
+  getGenerations,
   likeImage,
 } from "./referenceBoardApi";
 import AuthedImage from "../chat/AuthedImage";
@@ -251,6 +252,37 @@ const GeneratePromptPanel = ({
   const [genMessages, setGenMessages] = useState([]); // { id, role, content?, loading?, image?, error? }
   const genMsgId = useRef(0);
 
+  // SCRUM-118: 보드 진입 시 생성 대화 복원 — 백엔드 이력(프롬프트→이미지)을 genMessages 로 시드(가이드 채팅처럼).
+  useEffect(() => {
+    if (!projectId) return;
+    let alive = true;
+    (async () => {
+      try {
+        const history = await getGenerations(projectId);
+        if (!alive || !Array.isArray(history) || history.length === 0) return;
+        setGenMessages(
+          history.flatMap((h, i) => [
+            {
+              id: `hist-u-${h.imageId}-${i}`,
+              role: "user",
+              content: `${h.prompt} 레퍼런스를 생성해주세요`,
+            },
+            {
+              id: `hist-a-${h.imageId}-${i}`,
+              role: "assistant",
+              image: { imageId: h.imageId, url: h.url },
+            },
+          ]),
+        );
+      } catch {
+        /* 복원 실패는 부가기능 — 무시 */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [projectId]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const prompt = input.trim();
@@ -394,13 +426,19 @@ const GeneratePromptPanel = ({
         {/* SCRUM-118 — 레퍼런스 생성 채팅 스트림(사용자 프롬프트 → drawe 답변 + 생성 이미지). */}
         {genMessages.map((m) =>
           m.role === "user" ? (
-            <div key={m.id} className={chatStyles.userMessage}>
+            <div
+              key={m.id}
+              className={`${chatStyles.userMessage} ${styles.genMsg}`}
+            >
               <div className={chatStyles.userBubble}>
                 <div>{m.content}</div>
               </div>
             </div>
           ) : (
-            <div key={m.id} className={chatStyles.assistantMessage}>
+            <div
+              key={m.id}
+              className={`${chatStyles.assistantMessage} ${styles.genMsg}`}
+            >
               {m.loading && (
                 <div className={chatStyles.assistantBubble}>
                   <img className={chatStyles.assistantLogo} src={logo} alt="" />
@@ -415,6 +453,12 @@ const GeneratePromptPanel = ({
               )}
               {m.image && (
                 <>
+                  {/* drawe 답변 표시 — 로고 아바타 */}
+                  <img
+                    className={chatStyles.assistantLogo}
+                    src={logo}
+                    alt="drawe"
+                  />
                   <div className={chatStyles.messageImages}>
                     <div
                       className={`${chatStyles.imageWrap} ${chatStyles.imageWrapAi}`}
