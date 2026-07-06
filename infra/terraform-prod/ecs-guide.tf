@@ -157,8 +157,12 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         { name = "REFERENCE_DIR", value = "/app/assets/reference" },
 
         # ── 모델 게이트 ──
-        { name = "VLM_BACKEND", value = "aistudio" },            # Gemini(aistudio)
-        { name = "HAND_VLM", value = var.guide_hand_vlm },       # 해제(ON): Gemini 손 관찰자
+        #   ★k8s prod overlay(overlays/prod/fastapi-guide) 와 패리티(EKS 롤백 보험). VLM 관찰=Bedrock
+        #   Claude Haiku 4.5(us. 추론 프로파일, us-west-2). 자격=ecs_task 롤(iam-bedrock.tf VlmClaudeHaiku45).
+        #   GEMINI_API_KEY(secrets)·GEMINI_IMAGE_MODEL 은 aistudio 롤백용으로 남김.
+        { name = "VLM_BACKEND", value = "bedrock" },
+        { name = "BEDROCK_VLM_MODEL", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
+        { name = "HAND_VLM", value = var.guide_hand_vlm },       # 해제(ON): 손 관찰자(백엔드=bedrock)
         { name = "SUBJECT_VLM", value = var.guide_subject_vlm }, # 애매대역만 Gemini 주제 분류(축 오라우팅 교정)
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
