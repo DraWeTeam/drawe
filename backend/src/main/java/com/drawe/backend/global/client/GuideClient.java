@@ -53,7 +53,8 @@ public class GuideClient {
       String track,
       String medium,
       String requestId,
-      String projectId) {
+      String projectId,
+      String mood) {
     try {
       MultipartBodyBuilder b = new MultipartBodyBuilder();
       b.part("file", new ByteArrayResource(imageBytes))
@@ -80,6 +81,11 @@ public class GuideClient {
       }
       if (projectId != null) {
         b.part("project_id", projectId); // growth 프로젝트 스코프 키(fastapi practice_log)
+      }
+      if (mood != null && !mood.isBlank()) {
+        // 온보딩 무드 취향(user_pref_tags AXIS_MOOD, weight 내림차순) — fastapi 가 mood_map.yaml 로
+        // persona 공간에 매핑해 추천에 soft boost 만. 없으면 미전송 → fastapi 랭킹 현행 동일.
+        b.part("mood", mood);
       }
 
       GuideResponse resp =
