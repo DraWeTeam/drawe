@@ -138,7 +138,11 @@ const CompletedGalleryPage = () => {
       {/* Figma 70:28532 툴바 행 — 좌: 보기전환 토글 / 우: 정렬 + 새 프로젝트 (타이틀 아래 별도 행) */}
       {initialized && !errorMessage && items.length > 0 && (
         <div className={styles.toolbar}>
-          <div className={styles.viewToggle} role="group" aria-label="보기 전환">
+          <div
+            className={styles.viewToggle}
+            role="group"
+            aria-label="보기 전환"
+          >
             <button
               type="button"
               className={`${styles.viewBtn} ${view === "grid" ? styles.viewBtnOn : ""}`}
