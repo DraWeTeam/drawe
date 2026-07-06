@@ -26,7 +26,7 @@ import {
 } from "./api";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
-import GuideForm from "./GuideForm";
+import GuideForm, { CONCERNS } from "./GuideForm";
 import GuideCollectionPanel from "./GuideCollectionPanel";
 import { GuideContent } from "./GuideModal";
 import { axisLabel } from "./guideLabels";
@@ -121,13 +121,7 @@ const ChatPage = () => {
 
   // 한 끗 가이드: 폼 제출 → (1) 첨부 이미지·로딩을 채팅에 반영 → requestGuide
   //  → (2) 결과를 '가이드 카드' 메시지로 채팅에 삽입. 모달은 카드 클릭 시 열림(와이어프레임 의도).
-  const handleGuideSubmit = async ({
-    file,
-    previewUrl,
-    message,
-    intent,
-    track: styleTrack,
-  }) => {
+  const handleGuideSubmit = async ({ file, previewUrl, message, intent }) => {
     lastGuideArgs.current = { file, previewUrl, message, intent, track };
     setGuideFormOpen(false);
     const gid = `g_${Date.now()}`;
@@ -172,42 +166,46 @@ const ChatPage = () => {
         ),
       );
       if (result?.guide) {
-    const g = result.guide;
-    const inputMode = (() => {
-      if (file && (message || CONCERNS.includes(message))) return "text_image";
-      if (file) return "image_only";
-      if (message) return CONCERNS.includes(message) ? "chip_selected" : "text_only";
-      return "text_only";
-    })();
+        const g = result.guide;
+        const inputMode = (() => {
+          if (file && (message || CONCERNS.includes(message)))
+            return "text_image";
+          if (file) return "image_only";
+          if (message)
+            return CONCERNS.includes(message) ? "chip_selected" : "text_only";
+          return "text_only";
+        })();
 
-    track("guide_generated", {
-      project_id: projectId,
-      guide_id: g.guide_id || g.id || "",
-      guide_category: g.category || g.primary_focus || "",
-      guide_sub_category: g.sub_category || "",
-      guide_title: g.title || axisLabel(g.primary_focus) || "",
-      guide_keywords: Array.isArray(g.keywords) 
-        ? g.keywords.join(",") 
-        : (g.keywords || ""),
-      input_mode: inputMode,
-      has_image_uploaded: !!file,
-      has_svg: !!(g.svg_id || g.svg_url),
-      svg_id: g.svg_id || "",
-      task_count: Array.isArray(g.tasks) ? g.tasks.length : 0,
-      reference_count: result.references?.length || 0,
-      generation_time_sec: Math.round((Date.now() - guideStartTime) / 1000),
-      llm_model_used: g.llm_model_used || g.model || "",
-    });
+        track("guide_generated", {
+          project_id: projectId,
+          guide_id: g.guide_id || g.id || "",
+          guide_category: g.category || g.primary_focus || "",
+          guide_sub_category: g.sub_category || "",
+          guide_title: g.title || axisLabel(g.primary_focus) || "",
+          guide_keywords: Array.isArray(g.keywords)
+            ? g.keywords.join(",")
+            : g.keywords || "",
+          input_mode: inputMode,
+          has_image_uploaded: !!file,
+          has_svg: !!(g.svg_id || g.svg_url),
+          svg_id: g.svg_id || "",
+          task_count: Array.isArray(g.tasks) ? g.tasks.length : 0,
+          reference_count: result.references?.length || 0,
+          generation_time_sec: Math.round((Date.now() - guideStartTime) / 1000),
+          llm_model_used: g.llm_model_used || g.model || "",
+        });
 
-    // ↓ 추가 — guide_stage_context (같이 발화)
-    track("guide_stage_context", {
-      project_id: projectId,
-      guide_id: g.guide_id || g.id || "",
-      detected_stage: result.detectedStage || lastDetectedStage.current || "",
-      user_declared_status: intent === "practice" ? "in_progress" : "completed",
-      guide_category: g.category || g.primary_focus || "",
-    });
-  }
+        // ↓ 추가 — guide_stage_context (같이 발화)
+        track("guide_stage_context", {
+          project_id: projectId,
+          guide_id: g.guide_id || g.id || "",
+          detected_stage:
+            result.detectedStage || lastDetectedStage.current || "",
+          user_declared_status:
+            intent === "practice" ? "in_progress" : "completed",
+          guide_category: g.category || g.primary_focus || "",
+        });
+      }
     } catch (err) {
       const msg =
         err.response?.data?.error?.message ||
@@ -222,7 +220,6 @@ const ChatPage = () => {
     } finally {
       setGuideLoading(false);
     }
-
   };
 
   const retryGuide = () => {
@@ -309,7 +306,7 @@ const ChatPage = () => {
 
   const buttonViewedFired = useRef(false);
 
-  const lastDetectedStage = useRef(null);
+  // eslint-disable-next-line no-unused-vars -- GA4: 프롬프트 길이 추적용(UI 연결 예정)
   const lastPromptLength = useRef(0);
 
   // 현재 프로젝트의 아카이브 저장 목록 로드 (카드 메뉴 "아카이브됨" 표시용)
@@ -623,7 +620,7 @@ const ChatPage = () => {
         sessionId,
         imageUrl: sentAttachment?.url,
       });
-      console.log("=== sendMessage 응답 ===", res); 
+      console.log("=== sendMessage 응답 ===", res);
 
       if (res?.sessionId && res.sessionId !== sessionId) {
         setSessionId(res.sessionId);
@@ -631,34 +628,34 @@ const ChatPage = () => {
       }
 
       if (res?.detectedStage) {
-      track("prompt_stage_detected", {
-        project_id: projectId,
-        detected_stage: res.detectedStage,
-        previous_stage: lastDetectedStage.current,
-        stage_changed: lastDetectedStage.current !== res.detectedStage,
-        confidence_score: res.confidenceScore ?? null,
-        input_mode: inputMode,
-        prompt_length: text.length,
-      });
-    }
+        track("prompt_stage_detected", {
+          project_id: projectId,
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore ?? null,
+          input_mode: inputMode,
+          prompt_length: text.length,
+        });
+      }
 
-    // 이미지 업로드 + 감지 단계가 있을 때 발화
-    if (sentAttachment && res?.detectedStage) {
-      track("drawing_progress_detected", {
-        project_id: projectId,
-        detected_stage: res.detectedStage,
-        previous_stage: lastDetectedStage.current,
-        stage_changed: lastDetectedStage.current !== res.detectedStage,
-        confidence_score: res.confidenceScore ?? null,
-        image_id: sentAttachment.id || sentAttachment.url || "",
-        guide_id: res.guide?.guide_id || res.guide?.id || "",
-      });
-    }
+      // 이미지 업로드 + 감지 단계가 있을 때 발화
+      if (sentAttachment && res?.detectedStage) {
+        track("drawing_progress_detected", {
+          project_id: projectId,
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore ?? null,
+          image_id: sentAttachment.id || sentAttachment.url || "",
+          guide_id: res.guide?.guide_id || res.guide?.id || "",
+        });
+      }
 
-    // stage 업데이트 (다음 이벤트의 previous_stage 계산용)
-    if (res?.detectedStage) {
-      lastDetectedStage.current = res.detectedStage;
-    }
+      // stage 업데이트 (다음 이벤트의 previous_stage 계산용)
+      if (res?.detectedStage) {
+        lastDetectedStage.current = res.detectedStage;
+      }
       const action = res.referencesAction;
       const newRefs = res.references || [];
       const generated = res.generatedImage;

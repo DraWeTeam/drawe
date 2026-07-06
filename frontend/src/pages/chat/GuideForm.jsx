@@ -5,7 +5,8 @@ import { track as analyticsTrack } from "../../analytics";
 import { useParams } from "react-router-dom";
 
 // "어떤 점이 마음에 걸리나요?" 빠른 선택 칩 — 클릭 시 message 에 채움(편집 가능).
-const CONCERNS = [
+// eslint-disable-next-line react-refresh/only-export-components -- 칩 상수 공유(ChatPage inputMode 판정용)
+export const CONCERNS = [
   "손이 어색해요",
   "얼굴이 어색해요",
   "입체감이 없어요",
@@ -69,7 +70,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
   const imageUploadedAt = useRef(null);
   const chipSelectedAt = useRef({}); // { [chipContent]: timestamp }
-  const statusSelectedOnce = useRef(false); 
+  const statusSelectedOnce = useRef(false);
 
   useEffect(
     () => () => {
@@ -92,15 +93,6 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
     previewRef.current = url;
     setFile(resized);
     setPreview(url);
-
-    imageUploadedAt.current = Date.now();
-    analyticsTrack("prompt_image_uploaded", {
-      project_id: projectId,
-      image_format: resized.type.split("/")[1] || "unknown",
-      image_size_kb: Math.round(resized.size / 1024),
-    });
-  };
-
 
     imageUploadedAt.current = Date.now();
     analyticsTrack("prompt_image_uploaded", {
@@ -373,5 +365,6 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
       </div>
     </div>
   );
+};
 
 export default GuideForm;
