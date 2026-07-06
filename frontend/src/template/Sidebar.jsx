@@ -68,7 +68,8 @@ const Sidebar = () => {
         0,
       );
       setReferenceCount(refCount);
-      setGalleryCount(galData?.totalElements ?? 0);
+      // /gallery/completed 응답 필드는 total(=totalElements 아님) — 완성작 카운트 뱃지 미표시 버그 수정.
+      setGalleryCount(galData?.total ?? 0);
     } catch {
       // 카운트는 부가 정보 — 실패해도 무시
     }
