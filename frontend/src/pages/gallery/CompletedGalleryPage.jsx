@@ -133,32 +133,32 @@ const CompletedGalleryPage = () => {
             <span className={styles.subtitle}>총 {total}개의 완성작</span>
           )}
         </div>
-        {initialized && !errorMessage && items.length > 0 && (
-          <div className={styles.headControls}>
-            <div
-              className={styles.viewToggle}
-              role="group"
-              aria-label="보기 전환"
+      </header>
+
+      {/* Figma 70:28532 툴바 행 — 좌: 보기전환 토글 / 우: 정렬 + 새 프로젝트 (타이틀 아래 별도 행) */}
+      {initialized && !errorMessage && items.length > 0 && (
+        <div className={styles.toolbar}>
+          <div className={styles.viewToggle} role="group" aria-label="보기 전환">
+            <button
+              type="button"
+              className={`${styles.viewBtn} ${view === "grid" ? styles.viewBtnOn : ""}`}
+              onClick={() => setView("grid")}
+              aria-label="그리드 보기"
+              aria-pressed={view === "grid"}
             >
-              <button
-                type="button"
-                className={`${styles.viewBtn} ${view === "grid" ? styles.viewBtnOn : ""}`}
-                onClick={() => setView("grid")}
-                aria-label="그리드 보기"
-                aria-pressed={view === "grid"}
-              >
-                ▦
-              </button>
-              <button
-                type="button"
-                className={`${styles.viewBtn} ${view === "list" ? styles.viewBtnOn : ""}`}
-                onClick={() => setView("list")}
-                aria-label="리스트 보기"
-                aria-pressed={view === "list"}
-              >
-                ≣
-              </button>
-            </div>
+              <GridIcon />
+            </button>
+            <button
+              type="button"
+              className={`${styles.viewBtn} ${view === "list" ? styles.viewBtnOn : ""}`}
+              onClick={() => setView("list")}
+              aria-label="리스트 보기"
+              aria-pressed={view === "list"}
+            >
+              <ListIcon />
+            </button>
+          </div>
+          <div className={styles.toolbarRight}>
             <button
               type="button"
               className={styles.sortBtn}
@@ -175,8 +175,8 @@ const CompletedGalleryPage = () => {
               + 새 프로젝트
             </button>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {isEmpty ? (
         <div className={styles.stateBox}>
@@ -292,6 +292,44 @@ const CloseIcon = () => (
   >
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+// 보기전환 토글 아이콘 — Figma 70:29422 grid_md / list_md (24px).
+const GridIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
+const ListIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="8" y1="6" x2="20" y2="6" />
+    <line x1="8" y1="12" x2="20" y2="12" />
+    <line x1="8" y1="18" x2="20" y2="18" />
+    <circle cx="4" cy="6" r="0.6" />
+    <circle cx="4" cy="12" r="0.6" />
+    <circle cx="4" cy="18" r="0.6" />
   </svg>
 );
 

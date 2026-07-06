@@ -11,7 +11,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 .headLeft {
@@ -19,46 +19,61 @@
   align-items: baseline;
   gap: 12px;
 }
-.headControls {
+/* Figma 70:28532 툴바 행 — 타이틀(header) 아래 별도 행. 좌: 보기전환 토글 / 우: 정렬 + 새 프로젝트. */
+.toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
 }
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Figma 70:29422 보기전환 토글 — 연한 배경(#f6f6f6) rounded-12, p-4, 활성 세그먼트=흰(#fefeff) rounded-8. */
 .viewToggle {
   display: inline-flex;
-  border: 1px solid #e6e1da;
-  border-radius: 10px;
-  overflow: hidden;
+  align-items: center;
+  gap: 4px;
+  background: #f6f6f6;
+  border-radius: 12px;
+  padding: 4px;
 }
 .viewBtn {
-  background: #fff;
+  background: transparent;
   border: none;
-  padding: 6px 12px;
-  font-size: 15px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: #8a8580;
 }
 .viewBtnOn {
-  background: #2e2c2a;
-  color: #fff;
+  background: #fefeff;
+  color: #2e2c2a;
 }
 .sortBtn {
-  border: 1px solid #e6e1da;
-  background: #fff;
-  border-radius: 10px;
-  padding: 7px 14px;
-  font-size: 13px;
+  border: 1px solid #edebea;
+  background: #fefeff;
+  border-radius: 8px;
+  padding: 11px 12px 11px 16px;
+  font-size: 16px;
   cursor: pointer;
-  color: #4b4b4b;
+  color: #4a4846;
 }
 .newBtn {
   border: none;
   background: #ff8534;
-  color: #fff;
-  border-radius: 10px;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
+  color: #fefeff;
+  border-radius: 8px;
+  padding: 11px 24px 11px 16px;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
 }
 
