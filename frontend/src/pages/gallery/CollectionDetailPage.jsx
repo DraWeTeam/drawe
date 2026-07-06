@@ -22,6 +22,14 @@ const FILTERS = [
   { key: "GUIDE_REF", label: "일러스트" },
 ];
 
+// Image.source → 카드 밑 배지 라벨(필터 어휘와 동일).
+const SOURCE_LABEL = {
+  AI: "AI",
+  UNSPLASH: "사진",
+  GUIDE_REF: "일러스트",
+};
+const sourceLabel = (source) => SOURCE_LABEL[source] ?? "기타";
+
 const CollectionDetailPage = () => {
   const { collectionId } = useParams();
   const navigate = useNavigate();
@@ -255,63 +263,70 @@ const CollectionDetailPage = () => {
             <div className={styles.grid}>
               {filtered.map((ref) => (
                 <div key={ref.imageId} className={styles.card}>
-                  <AuthedImage
-                    src={ref.url}
-                    alt="레퍼런스"
-                    className={styles.thumb}
-                  />
-                  {ref.pinned && (
-                    <span className={styles.pinBadge} title="고정됨">
-                      <PinIcon />
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.downloadBtn}
-                    onClick={() => handleDownload(ref.imageId, ref.url)}
-                    disabled={downloadingIds.has(ref.imageId)}
-                    aria-label="이미지 다운로드"
-                    title="다운로드"
-                  >
-                    <DownloadIcon />
-                  </button>
-                  <div
-                    className={styles.cardMenuWrap}
-                    ref={cardMenu === ref.imageId ? cardMenuRef : null}
-                  >
+                  <div className={styles.cardThumb}>
+                    <AuthedImage
+                      src={ref.url}
+                      alt="레퍼런스"
+                      className={styles.thumb}
+                    />
+                    {ref.pinned && (
+                      <span className={styles.pinBadge} title="고정됨">
+                        <PinIcon />
+                      </span>
+                    )}
                     <button
                       type="button"
-                      className={styles.cardMenuBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCardMenu((cur) =>
-                          cur === ref.imageId ? null : ref.imageId,
-                        );
-                      }}
-                      aria-label="레퍼런스 옵션"
-                      aria-haspopup="true"
-                      aria-expanded={cardMenu === ref.imageId}
+                      className={styles.downloadBtn}
+                      onClick={() => handleDownload(ref.imageId, ref.url)}
+                      disabled={downloadingIds.has(ref.imageId)}
+                      aria-label="이미지 다운로드"
+                      title="다운로드"
                     >
-                      <MoreIcon />
+                      <DownloadIcon />
                     </button>
-                    {cardMenu === ref.imageId && (
-                      <div className={styles.cardMenuDropdown}>
-                        <button
-                          type="button"
-                          className={styles.menuItem}
-                          onClick={() => handleTogglePin(ref.imageId)}
-                        >
-                          {ref.pinned ? "고정 해제" : "고정하기"}
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.menuItem} ${styles.menuDanger}`}
-                          onClick={() => handleRemove(ref.imageId)}
-                        >
-                          아카이브 취소
-                        </button>
-                      </div>
-                    )}
+                    <div
+                      className={styles.cardMenuWrap}
+                      ref={cardMenu === ref.imageId ? cardMenuRef : null}
+                    >
+                      <button
+                        type="button"
+                        className={styles.cardMenuBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCardMenu((cur) =>
+                            cur === ref.imageId ? null : ref.imageId,
+                          );
+                        }}
+                        aria-label="레퍼런스 옵션"
+                        aria-haspopup="true"
+                        aria-expanded={cardMenu === ref.imageId}
+                      >
+                        <MoreIcon />
+                      </button>
+                      {cardMenu === ref.imageId && (
+                        <div className={styles.cardMenuDropdown}>
+                          <button
+                            type="button"
+                            className={styles.menuItem}
+                            onClick={() => handleTogglePin(ref.imageId)}
+                          >
+                            {ref.pinned ? "고정 해제" : "고정하기"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.menuItem} ${styles.menuDanger}`}
+                            onClick={() => handleRemove(ref.imageId)}
+                          >
+                            아카이브 취소
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.cardMeta}>
+                    <span className={styles.sourceBadge}>
+                      {sourceLabel(ref.source)}
+                    </span>
                   </div>
                 </div>
               ))}

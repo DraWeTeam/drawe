@@ -84,6 +84,13 @@
 }
 
 .card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 이미지 타일 — 오버레이(고정/다운로드/⋮) 절대배치 기준 */
+.cardThumb {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
@@ -96,6 +103,22 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* 카드 밑 메타 — source 배지(AI/사진/일러스트) */
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.sourceBadge {
+  font-size: 12px;
+  color: #7a746e;
+  background: #f0ece7;
+  border-radius: 8px;
+  padding: 2px 8px;
 }
 
 .pinBadge {
@@ -133,7 +156,7 @@
     background 0.15s;
 }
 
-.card:hover .downloadBtn,
+.cardThumb:hover .downloadBtn,
 .downloadBtn:focus-visible {
   opacity: 1;
 }
@@ -176,7 +199,7 @@
   transition: opacity 0.15s;
 }
 
-.card:hover .cardMenuBtn,
+.cardThumb:hover .cardMenuBtn,
 .cardMenuBtn:focus-visible {
   opacity: 1;
 }
