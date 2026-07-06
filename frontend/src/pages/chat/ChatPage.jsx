@@ -138,6 +138,7 @@ const ChatPage = () => {
         intent,
         track,
       });
+      console.log("=== requestGuide 응답 ===", result);
       setMessages((prev) =>
         prev.map((m) =>
           m._gid === gid
@@ -506,6 +507,8 @@ const ChatPage = () => {
         sessionId,
         imageUrl: sentAttachment?.url,
       });
+      console.log("=== sendMessage 응답 ===", res); 
+
       if (res?.sessionId && res.sessionId !== sessionId) {
         setSessionId(res.sessionId);
         localStorage.setItem(sessionKey(projectId), res.sessionId);
