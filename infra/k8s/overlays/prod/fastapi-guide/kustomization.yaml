@@ -60,3 +60,4 @@ patches:
           - { secretKey: QDRANT_API_KEY, remoteRef: { key: /drawe/prod/qdrant-api-key } }
           - { secretKey: XAI_API_KEY,    remoteRef: { key: /drawe/prod/grok-api-key } }
           - { secretKey: GEMINI_API_KEY, remoteRef: { key: /drawe/prod/gemini-api-key } }
+          - { secretKey: BRIA_API_KEY,   remoteRef: { key: /drawe/prod/bria-api-key } }
