@@ -6,8 +6,14 @@ import BoardGuideChat from "./BoardGuideChat";
 import { requestGuide, uploadImage } from "../chat/api";
 import { resizeImage, validateImageFile } from "../chat/imageUtils";
 import { updateProject } from "../projects/api";
-import { generateReference } from "./referenceBoardApi";
+import {
+  clearReaction,
+  dislikeImage,
+  generateReference,
+  likeImage,
+} from "./referenceBoardApi";
 import AuthedImage from "../chat/AuthedImage";
+import api from "../login/api";
 import { track } from "../../analytics";
 import styles from "./GeneratePromptPanel.module.css";
 // ★ChatPage.module.css 를 read-only 로 재사용 — 채팅 버블 스타일이 /chat 과 문자 동일(BoardGuideChat 과 동일 방식, ChatPage 미접촉).
@@ -274,6 +280,42 @@ const GeneratePromptPanel = ({
     }
   };
 
+  // 생성 이미지 다운로드 — 서명 url(절대)은 직접 fetch, 상대(/images)는 api(JWT). 실패 시 새 탭 폴백.
+  const downloadImage = async (url) => {
+    try {
+      const blob = /^(blob:|data:|https?:)/.test(url)
+        ? await (await fetch(url)).blob()
+        : (await api.get(url, { responseType: "blob" })).data;
+      const obj = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = obj;
+      a.download = "reference.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(obj);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+
+  // 생성 이미지 반응(좋아요/싫어요) — 왼쪽 보드와 같은 백엔드에 저장(best-effort), 로컬 토글로 표시.
+  const reactGen = (m, kind) => {
+    const next = m.reaction === kind ? null : kind;
+    setGenMessages((prev) =>
+      prev.map((x) => (x.id === m.id ? { ...x, reaction: next } : x)),
+    );
+    const imageId = m.image?.imageId;
+    if (!imageId) return;
+    const req =
+      next === null
+        ? clearReaction(projectId, imageId)
+        : next === "like"
+          ? likeImage(projectId, imageId)
+          : dislikeImage(projectId, imageId);
+    req.catch(() => {});
+  };
+
   return (
     <div className={styles.panel}>
       {/* 상단 컨트롤 (⛶ / ≫) — 전체보기 상태에선 분할 복귀 버튼만 */}
@@ -361,16 +403,6 @@ const GeneratePromptPanel = ({
               )}
               {m.image && (
                 <>
-                  <div className={chatStyles.assistantBubble}>
-                    <img
-                      className={chatStyles.assistantLogo}
-                      src={logo}
-                      alt=""
-                    />
-                    <span>
-                      레퍼런스를 생성했어요. 왼쪽 보드에서도 볼 수 있어요.
-                    </span>
-                  </div>
                   <div className={chatStyles.messageImages}>
                     <div
                       className={`${chatStyles.imageWrap} ${chatStyles.imageWrapAi}`}
@@ -381,6 +413,35 @@ const GeneratePromptPanel = ({
                         className={chatStyles.aiImage}
                       />
                     </div>
+                  </div>
+                  {/* 가이드 카드와 동일한 액션 — 다운로드/좋아요/싫어요 */}
+                  <div className={chatStyles.guideActions}>
+                    <button
+                      type="button"
+                      className={chatStyles.guideActBtn}
+                      aria-label="다운로드"
+                      onClick={() => downloadImage(m.image.url)}
+                    >
+                      <DownloadIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className={chatStyles.guideActBtn}
+                      data-active={m.reaction === "like"}
+                      aria-label="좋아요"
+                      onClick={() => reactGen(m, "like")}
+                    >
+                      <ThumbUpIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className={chatStyles.guideActBtn}
+                      data-active={m.reaction === "dislike"}
+                      aria-label="싫어요"
+                      onClick={() => reactGen(m, "dislike")}
+                    >
+                      <ThumbDownIcon />
+                    </button>
                   </div>
                 </>
               )}
@@ -611,6 +672,54 @@ const SendIcon = () => (
       d="M7 16V3.825L1.4 9.425L0 8L8 0L16 8L14.6 9.425L9 3.825V16H7Z"
       fill="#FCFBFA"
     />
+  </svg>
+);
+
+/* 생성 이미지 액션 아이콘 — BoardGuideChat 가이드 카드와 동일 */
+const DownloadIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M12 15V3" />
+  </svg>
+);
+const ThumbUpIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M7 10v11" />
+    <path d="M14 9V5a2 2 0 0 0-2-2l-3 7v11h9a2 2 0 0 0 2-1.7l1-6A2 2 0 0 0 20 10z" />
+  </svg>
+);
+const ThumbDownIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="17"
+    height="17"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M17 14V3" />
+    <path d="M10 15v4a2 2 0 0 0 2 2l3-7V3H6a2 2 0 0 0-2 1.7l-1 6A2 2 0 0 0 5 14z" />
   </svg>
 );
 
