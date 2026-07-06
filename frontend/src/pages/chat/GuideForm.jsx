@@ -373,6 +373,5 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
       </div>
     </div>
   );
-};
 
 export default GuideForm;
