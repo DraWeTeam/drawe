@@ -40,45 +40,8 @@ const PROJECT_TUT_FLAG = "drawe_show_project_tutorial";
 //   검색 결과·검색어·반응·필터를 복원해 자연스럽게 이어보게 한다(SPA 세션 한정).
 const boardCache = new Map();
 
-// 무드보드 복원 — 리로드/로그아웃으로 메모리 캐시가 날아가도 직전 검색 결과를 이어보게 localStorage 로 승격.
-//   검색어(창)는 복원하지 않고 "결과만" 복원한다. 서명 url 만료·stale 방지로 TTL 을 둔다.
-const BOARD_TTL_MS = 30 * 60 * 1000;
-const persistKey = (projectId) => `drawe_board_${projectId}`;
-
-function loadPersistedBoard(projectId) {
-  try {
-    const saved = JSON.parse(
-      localStorage.getItem(persistKey(projectId)) || "null",
-    );
-    if (!saved?.ts || Date.now() - saved.ts > BOARD_TTL_MS) return null;
-    return {
-      query: "", // 검색창은 비우고 결과만 복원
-      submittedQuery: saved.submittedQuery || "",
-      source: saved.source || "ALL",
-      corpusItems: saved.corpusItems || [],
-      generatedItems: saved.generatedItems || [],
-      corpusKey: saved.corpusKey ?? null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function savePersistedBoard(projectId, state) {
-  try {
-    // 결과가 있을 때만 저장(빈 보드는 복원할 게 없음).
-    if (!state.corpusItems?.length && !state.generatedItems?.length) {
-      localStorage.removeItem(persistKey(projectId));
-      return;
-    }
-    localStorage.setItem(
-      persistKey(projectId),
-      JSON.stringify({ ts: Date.now(), ...state }),
-    );
-  } catch {
-    /* localStorage 가득/비활성 — 복원은 부가기능이라 무시 */
-  }
-}
+// 레퍼런스 보드 복원은 서버(project.lastReferenceQuery)로 처리 — 진입 시 그 검색어로 자동 재조회한다.
+//   (예전 localStorage 복원은 로그아웃/디바이스에 약해서 걷어냄. boardCache 는 SPA 상세→뒤로용으로 유지.)
 
 // 높이 인지 마소너리 — 각 카드를 "현재 가장 짧은 열"에 순서대로 넣어 좌우 높이를 맞춘다.
 //   index 홀짝 분배와 달리 이미지 원본 비율을 유지하면서 쏠림을 없앤다(핀터레스트식).
@@ -183,12 +146,9 @@ const ReferenceBoard = ({
   //   검색창(query)엔 키워드를 안 채운다 — 다 이어붙으면 어색하므로 비워두고 결과만.
   const cacheKey = String(projectId);
   const cached = boardCache.get(cacheKey);
-  // 메모리 캐시(SPA) 없으면 localStorage 복원(리로드/재진입, TTL 내) 시도.
-  const persisted = cached ? null : loadPersistedBoard(cacheKey);
   const seeded = Array.isArray(initialResults);
   const init =
     cached ||
-    persisted ||
     (seeded
       ? {
           query: "",
@@ -227,10 +187,12 @@ const ReferenceBoard = ({
   );
   const corpusQueryRef = useRef(init.corpusKey); // corpusItems 가 대응하는 검색어
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false); // 진입 자동복원(지난 검색) 로딩 문구 구분용
   // 더보기 = 클라이언트 페이징. 검색 시 풀(40)을 한 번에 받아 20개부터 10개씩 더 노출(shown 미사용).
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [error, setError] = useState("");
   const didInit = useRef(false);
+  const userSearchedRef = useRef(false); // 사용자가 직접 검색했으면 자동복원이 덮지 않게
 
   const [pinnedRefs, setPinnedRefs] = useState([]);
   const [archivedIds, setArchivedIds] = useState(() => new Set());
@@ -284,7 +246,8 @@ const ReferenceBoard = ({
   // 실제 검색 호출 — 항상 corpus(source=ALL) 를 불러온다. 카테고리(전체/AI/사진/아카이브)는
   //   이 결과에 대한 클라이언트 필터일 뿐 재검색하지 않는다(PD 정본). 무드보드용으로 20개 요청.
   const fetchSet = useCallback(
-    async (keyword) => {
+    async (keyword, { restore = false } = {}) => {
+      setRestoring(restore);
       setLoading(true);
       setError("");
       try {
@@ -315,30 +278,24 @@ const ReferenceBoard = ({
     [projectId],
   );
 
-  // 생성 직후 진입: 캐시도 시드도 없고 검색어만 있으면(프리페치 실패) 마운트 시 자동 검색.
+  // 진입 시 서버 마지막 검색어(project.lastReferenceQuery) 또는 프리페치로 1회 자동검색(검색창은 비움, 결과만).
+  //   initialQuery 는 프로젝트 로드가 async 라 처음엔 비어있을 수 있어, 값이 도착한 렌더에서만 didInit 를 세운다.
+  //   사용자가 이미 직접 검색했으면(userSearchedRef) 덮어쓰지 않는다. 캐시(상세→뒤로)/시드가 있으면 그걸 씀.
   useEffect(() => {
-    if (didInit.current) return;
+    if (didInit.current || userSearchedRef.current) return;
+    // cached 가 "실제 결과"를 담을 때만 복원으로 간주 — 마운트 직후 저장되는 빈 상태는 무시(안 그러면 자동검색이 스킵됨).
+    const restoredFromCache =
+      !!cached && (cached.corpusItems?.length > 0 || !!cached.submittedQuery);
+    if (!initialQuery || seeded || restoredFromCache) return; // 아직 안 옴/실결과 복원 → 대기
     didInit.current = true;
-    // 복원(캐시/localStorage)이 있으면 그걸 쓰고 자동검색 안 함. persisted 는 첫 렌더값(마운트 1회) 기준.
-    if (initialQuery && !seeded && !cached && !persisted) {
-      setSubmittedQuery(initialQuery);
-      fetchSet(initialQuery);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSubmittedQuery(initialQuery);
+    fetchSet(initialQuery, { restore: true }); // 진입 자동복원 → "지난 검색 불러오는 중" 문구
   }, [initialQuery, seeded, cached, fetchSet]);
 
-  // 검색 상태를 프로젝트별 캐시에 저장 — 상세 갔다 돌아오면 복원.
+  // 검색 상태를 프로젝트별 메모리 캐시에 저장 — SPA 상세 갔다 돌아오면 복원(리로드/로그아웃은 서버 복원 담당).
   useEffect(() => {
     boardCache.set(cacheKey, {
       query,
-      submittedQuery,
-      source,
-      corpusItems,
-      generatedItems,
-      corpusKey: corpusQueryRef.current,
-    });
-    // 무드보드 복원용 — 결과(검색·생성물)를 localStorage 에도 저장(검색창은 제외).
-    savePersistedBoard(cacheKey, {
       submittedQuery,
       source,
       corpusItems,
@@ -360,6 +317,7 @@ const ReferenceBoard = ({
   // 검색은 키워드 제출 때만. 항상 corpus 를 불러오고 카테고리는 클라 필터.
   const handleSubmit = (e) => {
     e?.preventDefault?.();
+    userSearchedRef.current = true; // 이후 자동복원이 사용자 검색을 덮지 않게
     const keyword = query.trim();
     setSubmittedQuery(keyword);
     if (!keyword) {
@@ -719,7 +677,11 @@ const ReferenceBoard = ({
       <div className={styles.content}>
         {loading ? (
           <div className={styles.stateBox}>
-            <p className={styles.stateHint}>레퍼런스를 찾고 있어요…</p>
+            <p className={styles.stateHint}>
+              {restoring
+                ? "지난 검색 결과를 불러오고 있어요…"
+                : "레퍼런스를 찾고 있어요…"}
+            </p>
           </div>
         ) : hasCards ? (
           // 핀 + 검색결과 + 내 생성물 그리드 (생성물이 있으면 검색 0이어도 여기로)
