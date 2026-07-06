@@ -4,6 +4,8 @@ import {
   getCollection,
   updateCollection,
   deleteCollection,
+  togglePin,
+  removeReferenceFromCollection,
 } from "./api";
 import { downloadImage } from "./download";
 import AuthedImage from "../chat/AuthedImage";
@@ -34,7 +36,10 @@ const CollectionDetailPage = () => {
   const [modal, setModal] = useState(null);
   // 수정/삭제 진행 중(버튼 중복 방지).
   const [busy, setBusy] = useState(false);
+  // 카드 ⋮ 메뉴 열린 imageId (하나만).
+  const [cardMenu, setCardMenu] = useState(null);
   const menuRef = useRef(null);
+  const cardMenuRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -60,7 +65,7 @@ const CollectionDetailPage = () => {
     };
   }, [collectionId]);
 
-  // 바깥 클릭 시 ⋮ 메뉴 닫기.
+  // 바깥 클릭 시 헤더 ⋮ 메뉴 닫기.
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e) => {
@@ -71,6 +76,18 @@ const CollectionDetailPage = () => {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [menuOpen]);
+
+  // 바깥 클릭 시 카드 ⋮ 메뉴 닫기.
+  useEffect(() => {
+    if (cardMenu == null) return;
+    const onDown = (e) => {
+      if (cardMenuRef.current && !cardMenuRef.current.contains(e.target)) {
+        setCardMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [cardMenu]);
 
   const handleSaveEdit = async ({ name, description, tags }) => {
     setBusy(true);
@@ -97,6 +114,42 @@ const CollectionDetailPage = () => {
         err.response?.data?.error?.message || "컬렉션을 삭제하지 못했어요.",
       );
       setBusy(false);
+    }
+  };
+
+  // 고정하기 토글 — 로컬 state 반영 후 재정렬(고정 우선).
+  const handleTogglePin = async (imageId) => {
+    setCardMenu(null);
+    try {
+      await togglePin(collectionId, imageId);
+      setCollection((prev) => {
+        const references = prev.references.map((r) =>
+          r.imageId === imageId ? { ...r, pinned: !r.pinned } : r,
+        );
+        // 고정 우선 정렬 유지(안정 정렬).
+        references.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+        return { ...prev, references };
+      });
+    } catch (err) {
+      setErrorMessage(
+        err.response?.data?.error?.message || "고정 상태를 바꾸지 못했어요.",
+      );
+    }
+  };
+
+  // 아카이브 취소 — 컬렉션에서 레퍼런스 제거.
+  const handleRemove = async (imageId) => {
+    setCardMenu(null);
+    try {
+      await removeReferenceFromCollection(collectionId, imageId);
+      setCollection((prev) => ({
+        ...prev,
+        references: prev.references.filter((r) => r.imageId !== imageId),
+      }));
+    } catch (err) {
+      setErrorMessage(
+        err.response?.data?.error?.message || "아카이브를 취소하지 못했어요.",
+      );
     }
   };
 
@@ -222,6 +275,44 @@ const CollectionDetailPage = () => {
                   >
                     <DownloadIcon />
                   </button>
+                  <div
+                    className={styles.cardMenuWrap}
+                    ref={cardMenu === ref.imageId ? cardMenuRef : null}
+                  >
+                    <button
+                      type="button"
+                      className={styles.cardMenuBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCardMenu((cur) =>
+                          cur === ref.imageId ? null : ref.imageId,
+                        );
+                      }}
+                      aria-label="레퍼런스 옵션"
+                      aria-haspopup="true"
+                      aria-expanded={cardMenu === ref.imageId}
+                    >
+                      <MoreIcon />
+                    </button>
+                    {cardMenu === ref.imageId && (
+                      <div className={styles.cardMenuDropdown}>
+                        <button
+                          type="button"
+                          className={styles.menuItem}
+                          onClick={() => handleTogglePin(ref.imageId)}
+                        >
+                          {ref.pinned ? "고정 해제" : "고정하기"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.menuItem} ${styles.menuDanger}`}
+                          onClick={() => handleRemove(ref.imageId)}
+                        >
+                          아카이브 취소
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

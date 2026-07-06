@@ -5,6 +5,7 @@ import com.drawe.backend.domain.CollectionReference;
 import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.User;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +14,8 @@ public interface CollectionReferenceRepository
     extends JpaRepository<CollectionReference, Long> {
 
   boolean existsByCollectionAndImage(Collection collection, Image image);
+
+  Optional<CollectionReference> findByCollectionAndImage(Collection collection, Image image);
 
   long countByCollection(Collection collection);
 

@@ -153,6 +153,56 @@
   }
 }
 
+/* ── 카드 ⋮ 메뉴 (고정/아카이브 취소) — 카드 우하단 ── */
+.cardMenuWrap {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+}
+
+.cardMenuBtn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #4a4846;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.card:hover .cardMenuBtn,
+.cardMenuBtn:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .cardMenuBtn {
+    opacity: 1;
+  }
+}
+
+/* 우하단 버튼이라 메뉴는 위로 연다(카드 밖으로 안 잘리게) */
+.cardMenuDropdown {
+  position: absolute;
+  bottom: 34px;
+  right: 0;
+  min-width: 130px;
+  background: #fff;
+  border: 1px solid #efeae4;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── 헤더 ⋮ 메뉴 (컬렉션 수정/삭제) ── */
 .headerMenu {
   position: relative;
@@ -373,4 +423,70 @@
   font-size: 14px;
   padding: 3px;
   font-family: inherit;
+}
+
+/* ── 직접 추가하기 업로드 그리드 ── */
+.uploadGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.uploadThumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #f0ece7;
+}
+
+.uploadThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.uploadRemove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uploadAdd {
+  aspect-ratio: 1 / 1;
+  border: 1.5px dashed #d8d0c7;
+  border-radius: 9px;
+  background: #faf7f3;
+  color: #b0a89f;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.uploadAdd:hover {
+  border-color: #f5945b;
+  color: #f5945b;
+}
+
+.uploadAdd:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.modalError {
+  color: #d9463e;
+  font-size: 13px;
+  margin: 12px 0 0;
 }

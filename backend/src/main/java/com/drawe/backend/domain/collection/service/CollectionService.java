@@ -2,7 +2,9 @@ package com.drawe.backend.domain.collection.service;
 
 import com.drawe.backend.domain.Collection;
 import com.drawe.backend.domain.CollectionReference;
+import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.collection.dto.CollectionCreateRequest;
 import com.drawe.backend.domain.collection.dto.CollectionDetailResponse;
 import com.drawe.backend.domain.collection.dto.CollectionDetailResponse.ReferenceItem;
 import com.drawe.backend.domain.collection.dto.CollectionSummaryResponse;
@@ -10,6 +12,7 @@ import com.drawe.backend.domain.collection.dto.CollectionSummaryResponse.Collect
 import com.drawe.backend.domain.collection.dto.CollectionUpdateRequest;
 import com.drawe.backend.domain.collection.repository.CollectionReferenceRepository;
 import com.drawe.backend.domain.collection.repository.CollectionRepository;
+import com.drawe.backend.domain.image.repository.ImageRepository;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
 import java.util.ArrayList;
@@ -17,10 +20,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 아카이브 레퍼런스 컬렉션 조회 — 유저의 컬렉션 목록과 각 컬렉션 카드(4분할 썸네일)를 만든다(SCR-ARCH-01/02). */
+/** 아카이브 레퍼런스 컬렉션 — 조회(목록/상세) + CRUD + 레퍼런스 저장/제거/고정(SCR-ARCH-01~06). */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CollectionService {
@@ -30,6 +35,7 @@ public class CollectionService {
 
   private final CollectionRepository collectionRepository;
   private final CollectionReferenceRepository collectionReferenceRepository;
+  private final ImageRepository imageRepository;
 
   /**
    * 아카이브 목록(SCR-ARCH-02) — 유저의 모든 컬렉션을 카드로. 컬렉션 자체는 최신순, 각 카드의 썸네일은 컬렉션 내 (고정 우선, 최신순) 앞 4개.
@@ -109,6 +115,82 @@ public class CollectionService {
   public void deleteCollection(User user, Long collectionId) {
     Collection collection = loadAuthorized(user, collectionId);
     collectionRepository.delete(collection);
+  }
+
+  /**
+   * 새 컬렉션 생성 — SCR-ARCH-05 '아카이브 추가(+)' 또는 SCR-ARCH-02 '직접 추가하기'. imageIds 가 있으면 함께 담는다(멱등). axis=null,
+   * is_system=false 인 사용자 컬렉션. 생성된 컬렉션 id 반환.
+   */
+  @Transactional
+  public Long createCollection(User user, CollectionCreateRequest req) {
+    Collection collection = new Collection();
+    collection.setUser(user);
+    collection.setName(req.name());
+    collection.setIsSystem(false);
+    collection = collectionRepository.save(collection);
+
+    if (req.imageIds() != null) {
+      for (Long imageId : req.imageIds()) {
+        attachImage(collection, imageId);
+      }
+    }
+    log.info("컬렉션 생성: userId={}, collectionId={}", user.getId(), collection.getId());
+    return collection.getId();
+  }
+
+  /** 레퍼런스를 컬렉션에 저장(SCR-ARCH-05 아카이브). (collection,image) 유니크로 멱등. */
+  @Transactional
+  public void addReference(User user, Long collectionId, Long imageId) {
+    Collection collection = loadAuthorized(user, collectionId);
+    attachImage(collection, imageId);
+    log.info(
+        "레퍼런스 컬렉션 저장: userId={}, collectionId={}, imageId={}",
+        user.getId(),
+        collectionId,
+        imageId);
+  }
+
+  /** 아카이브 취소(SCR-ARCH-05 카드 ⋮) — 컬렉션에서 레퍼런스 제거. 없으면 조용히 무시. */
+  @Transactional
+  public void removeReference(User user, Long collectionId, Long imageId) {
+    Collection collection = loadAuthorized(user, collectionId);
+    Image image =
+        imageRepository
+            .findById(imageId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    collectionReferenceRepository
+        .findByCollectionAndImage(collection, image)
+        .ifPresent(collectionReferenceRepository::delete);
+  }
+
+  /** 고정하기 토글(SCR-ARCH-05 카드 ⋮). pinned 반전. */
+  @Transactional
+  public void togglePin(User user, Long collectionId, Long imageId) {
+    Collection collection = loadAuthorized(user, collectionId);
+    Image image =
+        imageRepository
+            .findById(imageId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    CollectionReference ref =
+        collectionReferenceRepository
+            .findByCollectionAndImage(collection, image)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    ref.setPinned(!Boolean.TRUE.equals(ref.getPinned()));
+  }
+
+  /** 이미지 하나를 컬렉션에 담기(멱등). 이미지 없으면 404, 이미 있으면 무시. */
+  private void attachImage(Collection collection, Long imageId) {
+    Image image =
+        imageRepository
+            .findById(imageId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    if (collectionReferenceRepository.existsByCollectionAndImage(collection, image)) {
+      return;
+    }
+    CollectionReference ref = new CollectionReference();
+    ref.setCollection(collection);
+    ref.setImage(image);
+    collectionReferenceRepository.save(ref);
   }
 
   /** 컬렉션 로드 + 소유자 검증. 없으면 404, 남의 것이면 403. */

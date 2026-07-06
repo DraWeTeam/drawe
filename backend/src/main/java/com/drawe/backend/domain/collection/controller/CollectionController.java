@@ -1,6 +1,8 @@
 package com.drawe.backend.domain.collection.controller;
 
+import com.drawe.backend.domain.collection.dto.CollectionCreateRequest;
 import com.drawe.backend.domain.collection.dto.CollectionDetailResponse;
+import com.drawe.backend.domain.collection.dto.CollectionReferenceAddRequest;
 import com.drawe.backend.domain.collection.dto.CollectionSummaryResponse;
 import com.drawe.backend.domain.collection.dto.CollectionUpdateRequest;
 import com.drawe.backend.domain.collection.service.CollectionService;
@@ -11,13 +13,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -64,6 +69,51 @@ public class CollectionController {
       @AuthenticationPrincipal PrincipalDetails principal,
       @PathVariable Long collectionId) {
     collectionService.deleteCollection(principal.getUser(), collectionId);
+    return ApiResponse.success(Map.of("success", true));
+  }
+
+  /** 새 컬렉션 생성 — '아카이브 추가(+)' 또는 '직접 추가하기'. imageIds 로 담아 생성 가능. */
+  @PostMapping
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "컬렉션 생성", description = "새 컬렉션을 만듭니다. imageIds 를 주면 함께 담습니다.")
+  public ApiResponse<Map<String, Long>> create(
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @Valid @RequestBody CollectionCreateRequest request) {
+    Long id = collectionService.createCollection(principal.getUser(), request);
+    return ApiResponse.success(Map.of("collectionId", id));
+  }
+
+  /** 레퍼런스 저장(SCR-ARCH-05 아카이브) — 이미지를 컬렉션에 담습니다(멱등). */
+  @PostMapping("/{collectionId}/references")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "레퍼런스 컬렉션 저장", description = "이미지를 컬렉션에 담습니다. 중복은 멱등 처리됩니다.")
+  public ApiResponse<Map<String, Boolean>> addReference(
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @PathVariable Long collectionId,
+      @Valid @RequestBody CollectionReferenceAddRequest request) {
+    collectionService.addReference(principal.getUser(), collectionId, request.imageId());
+    return ApiResponse.success(Map.of("success", true));
+  }
+
+  /** 아카이브 취소(SCR-ARCH-05 카드 ⋮) — 컬렉션에서 레퍼런스 제거. */
+  @DeleteMapping("/{collectionId}/references/{imageId}")
+  @Operation(summary = "레퍼런스 아카이브 취소", description = "컬렉션에서 레퍼런스를 제거합니다.")
+  public ApiResponse<Map<String, Boolean>> removeReference(
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @PathVariable Long collectionId,
+      @PathVariable Long imageId) {
+    collectionService.removeReference(principal.getUser(), collectionId, imageId);
+    return ApiResponse.success(Map.of("success", true));
+  }
+
+  /** 고정하기 토글(SCR-ARCH-05 카드 ⋮). */
+  @PostMapping("/{collectionId}/references/{imageId}/pin")
+  @Operation(summary = "레퍼런스 고정 토글", description = "컬렉션 내 레퍼런스의 고정 여부를 토글합니다.")
+  public ApiResponse<Map<String, Boolean>> togglePin(
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @PathVariable Long collectionId,
+      @PathVariable Long imageId) {
+    collectionService.togglePin(principal.getUser(), collectionId, imageId);
     return ApiResponse.success(Map.of("success", true));
   }
 }

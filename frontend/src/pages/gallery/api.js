@@ -38,6 +38,37 @@ export const deleteCollection = async (collectionId) => {
   return res.data.data;
 };
 
+// 새 컬렉션 생성 — '아카이브 추가(+)' / '직접 추가하기'. imageIds 로 담아 생성.
+// 응답: { collectionId }
+export const createCollection = async ({ name, imageIds }) => {
+  const res = await api.post("/collections", { name, imageIds });
+  return res.data.data;
+};
+
+// 레퍼런스 저장(SCR-ARCH-05 아카이브) — 이미지를 컬렉션에 담기(멱등).
+export const addReferenceToCollection = async (collectionId, imageId) => {
+  const res = await api.post(`/collections/${collectionId}/references`, {
+    imageId,
+  });
+  return res.data.data;
+};
+
+// 아카이브 취소(카드 ⋮) — 컬렉션에서 레퍼런스 제거.
+export const removeReferenceFromCollection = async (collectionId, imageId) => {
+  const res = await api.delete(
+    `/collections/${collectionId}/references/${imageId}`,
+  );
+  return res.data.data;
+};
+
+// 고정하기 토글(카드 ⋮).
+export const togglePin = async (collectionId, imageId) => {
+  const res = await api.post(
+    `/collections/${collectionId}/references/${imageId}/pin`,
+  );
+  return res.data.data;
+};
+
 // 완성작 갤러리 — AI 생성 이미지 최신순 페이징.
 // 응답: { items: [...], totalElements, hasMore }
 export const getCompletedGallery = async ({ page = 0, size = 20 } = {}) => {
