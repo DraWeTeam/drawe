@@ -149,17 +149,21 @@
 .section {
   margin: 0 0 20px;
 }
+/* §섹션 라벨 — Figma subtitle1(114:15610 등 §2~§7 Label 공통): Bold 20/lineHeight 28/text-secondary.
+   컨테이너 gap-300(12px)이 라벨→콘텐츠 간격. */
 .sectionTitle {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin: 0 0 9px;
-  font-size: 14.5px;
+  margin: 0 0 var(--space-300);
+  font-size: 20px;
   font-weight: 700;
-  color: #2d2a26;
+  line-height: 28px;
+  color: var(--text-secondary);
 }
+/* §3·§6 라벨은 Figma 실측상 text/brand(#ff8534) — 114:15623·114:15737. 하드코딩 #ee6f2d 교정. */
 .sectionTitle.accent {
-  color: #ee6f2d;
+  color: var(--text-brand);
 }
 .sectionNum {
   font-weight: 700;
@@ -183,7 +187,7 @@
 .analysisBox {
   display: flex;
   flex-direction: column;
-  gap: var(--space-400);
+  gap: var(--space-800); /* Figma 114:15611 gap-800(32px) */
   background: var(--bg-surface);
   border: 1px solid var(--border-input);
   border-radius: var(--radius-300);
@@ -300,9 +304,14 @@
   background: var(--bg-subtle);
   border: 1px solid var(--border-input);
 }
+/* §4 카드 콘텐츠 — Figma 114:15660: flex-col gap-300(12px), py-300, 세로 가운데. */
 .refInfo {
   flex: 1 1 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-300);
   padding: var(--space-300) 0;
 }
 .refTitle {
@@ -323,26 +332,28 @@
   gap: var(--space-100);
   margin-top: var(--space-200);
 }
+/* §4 레퍼런스 badge — Figma 114:15666: Regular 14/22, subtle·tertiary, px12/py4·r8. */
 .refBadge {
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 20px;
-  color: var(--text-quaternary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--text-tertiary);
   background: var(--bg-subtle);
   border-radius: var(--radius-200);
   padding: var(--space-100) var(--space-300);
 }
 /* ③ 추천 이유(114:15652) — 축과의 연결 한 문장. 라벨은 주황 강조, 문장은 보조 텍스트. */
+/* §4 추천 이유 — Figma 114:15662: 라벨(SemiBold 14, 별도 줄) + 이유(Regular 14/22), 모두 tertiary. */
 .refReason {
-  margin: var(--space-200) 0 0;
-  font-size: 13px;
-  line-height: 20px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
   color: var(--text-tertiary);
 }
 .refReasonLabel {
-  margin-right: var(--space-200);
-  font-weight: 700;
-  color: var(--text-brand, var(--text-tertiary));
+  display: block;
+  font-weight: 600;
+  color: var(--text-tertiary);
 }
 .refNum {
   position: absolute;
@@ -362,34 +373,31 @@
   border-radius: var(--radius-999);
 }
 /* ⑤ 아카이브 담기 — 썸네일 우상단 glass 버튼(114:15652) */
+/* §4 아카이브 glass 버튼 — Figma 114:15658 glass_button: 48px, bg rgba(254,254,255,0.2),
+   border weak, blur 2px, r8, 상시 노출(정본). */
 .refArchiveBtn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: var(--space-200);
+  right: var(--space-200);
   z-index: 2;
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-200);
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(6px);
+  background: rgba(254, 254, 255, 0.2);
+  backdrop-filter: blur(2px);
   color: var(--text-tertiary);
   cursor: pointer;
-  opacity: 0;
+  opacity: 1;
   transition:
-    opacity 0.15s ease,
     background 0.15s ease,
     color 0.15s ease;
 }
-.refThumb:hover .refArchiveBtn,
-.refArchiveBtn:focus-visible {
-  opacity: 1;
-}
 .refArchiveBtn:hover {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(254, 254, 255, 0.4);
 }
 .refArchiveBtn[data-archived] {
   opacity: 1;
@@ -500,10 +508,26 @@
 .chartWrap {
   margin: 0;
 }
-.chartTitle {
-  margin: 0 0 8px;
-  font-size: 12.5px;
-  color: #9a8a72;
+/* §6 박스 안 헤더 — Figma 114:15740 subtitle2(18/700/24/tertiary) + 114:15741 축설명 caption2(12/500/20/quaternary), gap-100. */
+.growthHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  margin: 0 0 var(--space-300);
+}
+.growthHeadTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}
+.growthAxis {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-quaternary);
 }
 .chartArea {
   position: relative;
@@ -539,6 +563,14 @@
   margin: var(--space-400) 0 0;
   font-size: 14px;
   line-height: 22px;
+  color: var(--text-tertiary);
+}
+/* 성장 흐름 delta 문장 아래 정본 해설 캡션(114:15761) — body2 Regular 14/22 tertiary, gap 4px. */
+.growthCaption {
+  margin: var(--space-100) 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
   color: var(--text-tertiary);
 }
 
@@ -871,13 +903,14 @@
   border-color: var(--border-input-focus);
 }
 
-/* 정본 목업: 본문 상단 큰 가이드 제목 */
+/* §1 타이틀 — Figma heading2(114:15601·90:16602, 전체화면·split 두 정본 실측 동일): 36/700/52, text/primary.
+   컨테이너 gap-300(12px)이 타이틀→요청일자 간격(margin-bottom 으로 반영). */
 .guideTitle {
-  margin: 0 0 2px;
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.3;
-  color: #232323;
+  margin: 0 0 var(--space-300);
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 52px;
+  color: var(--text-primary);
 }
 /* 코퍼스 레퍼런스 담기 실패 토스트(정직한 실패 알림) */
 .archiveError {
@@ -892,35 +925,39 @@
 }
 
 /* 한 끗 포인트 — 번호 포인트(정본 114:15631) */
+/* §3 번호 포인트 — Figma 114:15631: 컨테이너/행 gap-200(8px) items-center. */
 .pointList {
   list-style: none;
   margin: var(--space-400) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-300);
+  gap: var(--space-200);
 }
 .pointItem {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-300);
+  align-items: center;
+  gap: var(--space-200);
 }
+/* 번호 badge — Figma 114:15633: 둥근사각 pill(h20·px8·rounded8), Medium 12/20, brand·inverse. */
 .pointNum {
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  height: 20px;
+  padding: 0 var(--space-200);
+  border-radius: var(--radius-200);
   background: var(--bg-brand);
   color: var(--text-inverse);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
+  line-height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
 }
+/* 포인트 텍스트 — Figma 114:15634 caption1: SemiBold 14/22/tertiary. */
 .pointText {
   font-size: 14px;
+  font-weight: 600;
   line-height: 22px;
   color: var(--text-tertiary);
 }
@@ -931,9 +968,10 @@
   flex-direction: column;
   gap: var(--space-300);
 }
+/* §3 '지금 바로 수정하기' — Figma 114:15640 subtitle2: Bold 18/24/tertiary. */
 .fixTitle {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 24px;
   color: var(--text-tertiary);

@@ -1,5 +1,6 @@
 package com.drawe.backend.domain.reference.controller;
 
+import com.drawe.backend.domain.reference.dto.GenerationHistoryItem;
 import com.drawe.backend.domain.reference.dto.ReactionResponse;
 import com.drawe.backend.domain.reference.dto.ReferenceBoardSearchResponse;
 import com.drawe.backend.domain.reference.enums.ReferenceSource;
@@ -8,6 +9,7 @@ import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +64,16 @@ public class ReferenceBoardController {
     return ApiResponse.success(
         referenceBoardService.generateReference(
             principal.getUser(), projectId, body.getOrDefault("prompt", "")));
+  }
+
+  @GetMapping("/generations")
+  @Operation(
+      summary = "생성 대화 이력",
+      description = "프로젝트의 레퍼런스 생성 대화(프롬프트→이미지)를 시간순으로 반환. 보드 진입 시 생성 채팅 복원용.")
+  public ApiResponse<List<GenerationHistoryItem>> generations(
+      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long projectId) {
+    return ApiResponse.success(
+        referenceBoardService.generationHistory(principal.getUser(), projectId));
   }
 
   @PostMapping("/images/{imageId}/like")

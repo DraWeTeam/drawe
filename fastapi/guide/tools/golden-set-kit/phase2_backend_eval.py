@@ -32,7 +32,6 @@
 import collections
 import json
 import os
-import sys
 import time
 
 import guide.cache as cache
@@ -51,7 +50,14 @@ _only = tuple(p for p in os.environ.get("ONLY", "").split(",") if p)
 if _only:
     SUBSET = [f for f in SUBSET if f.startswith(_only)]
 
-ABSTAIN = {"abstain", "clarify", "refuse", "no_subject", "routing_conflict", "routing_mismatch"}
+ABSTAIN = {
+    "abstain",
+    "clarify",
+    "refuse",
+    "no_subject",
+    "routing_conflict",
+    "routing_mismatch",
+}
 
 
 def score(pred, lab):
@@ -81,7 +87,15 @@ def _wrap_call(b64, mime, key, model=None, timeout=90, retries=2, prompt=None):
     _metrics["calls"] += 1
     t = time.time()
     try:
-        r = _orig_call(b64, mime, key, model=model or vision._MODEL, timeout=timeout, retries=retries, prompt=prompt)
+        r = _orig_call(
+            b64,
+            mime,
+            key,
+            model=model or vision._MODEL,
+            timeout=timeout,
+            retries=retries,
+            prompt=prompt,
+        )
         _metrics["lat"].append(time.time() - t)
         return r
     except Exception as e:
@@ -105,6 +119,7 @@ def _mk_parse_wrap(fn):
         p = fn(text)
         _parse_stat["none" if p is None else "ok"] += 1
         return p
+
     return w
 
 
@@ -123,21 +138,47 @@ _orig_pose = vision.observe_pose
 def _wrap_hand(image, runs=2):
     r = _orig_hand(image, runs=runs)
     if _cur["file"] and r is not None:
-        _summ[_cur["file"]].append({"kind": "hand", "confidence": r["confidence"], "consistent": r["consistent"], "view": r["view"], "fs_tier": r["foreshortening_tier"]})
+        _summ[_cur["file"]].append(
+            {
+                "kind": "hand",
+                "confidence": r["confidence"],
+                "consistent": r["consistent"],
+                "view": r["view"],
+                "fs_tier": r["foreshortening_tier"],
+            }
+        )
     return r
 
 
 def _wrap_face(image, runs=2):
     r = _orig_face(image, runs=runs)
     if _cur["file"] and r is not None:
-        _summ[_cur["file"]].append({"kind": "face", "confidence": r["confidence"], "consistent": r["consistent"], "is_portrait": r["is_portrait"], "view": r["view"], "eye_line": r["eye_line"]})
+        _summ[_cur["file"]].append(
+            {
+                "kind": "face",
+                "confidence": r["confidence"],
+                "consistent": r["consistent"],
+                "is_portrait": r["is_portrait"],
+                "view": r["view"],
+                "eye_line": r["eye_line"],
+            }
+        )
     return r
 
 
 def _wrap_pose(image, runs=2):
     r = _orig_pose(image, runs=runs)
     if _cur["file"] and r is not None:
-        _summ[_cur["file"]].append({"kind": "pose", "confidence": r["confidence"], "consistent": r["consistent"], "is_full_body": r["is_full_body"], "dynamism": r["dynamism"], "balance": r["balance"]})
+        _summ[_cur["file"]].append(
+            {
+                "kind": "pose",
+                "confidence": r["confidence"],
+                "consistent": r["consistent"],
+                "is_full_body": r["is_full_body"],
+                "dynamism": r["dynamism"],
+                "balance": r["balance"],
+            }
+        )
     return r
 
 
@@ -178,7 +219,9 @@ def run():
     backend = vision._BACKEND
     model = vision._MODEL
     flush_vlm()
-    print(f"{'=' * 100}\nPhase2 백엔드 평가 | backend={backend} model={model} | {len(SUBSET)}장\n{'=' * 100}")
+    print(
+        f"{'=' * 100}\nPhase2 백엔드 평가 | backend={backend} model={model} | {len(SUBSET)}장\n{'=' * 100}"
+    )
     print(f"{'file':34} {'clr':5} {'track':16} {'pred':22} ? gate")
     print("-" * 108)
     rows = []
@@ -195,8 +238,12 @@ def run():
         hit = score(pred, lab)
         # 게이트 신호 요약: 이 파일에서 관찰자가 낸 confidence 들
         gates = [f"{s['kind']}:{s['confidence']}" for s in _summ.get(f, [])]
-        rows.append((f, lab["clarity"], track, pred, hit, lab.get("acceptable", []), gates))
-        print(f"{f:34} {lab['clarity']:5} {str(track):16} {str(pred):22} {'O' if hit else 'X'} {','.join(gates)}")
+        rows.append(
+            (f, lab["clarity"], track, pred, hit, lab.get("acceptable", []), gates)
+        )
+        print(
+            f"{f:34} {lab['clarity']:5} {str(track):16} {str(pred):22} {'O' if hit else 'X'} {','.join(gates)}"
+        )
 
     clear = [r for r in rows if r[1] == "clear"]
     amb = [r for r in rows if r[1] == "ambiguous"]
@@ -216,9 +263,15 @@ def run():
     p50 = lat[n // 2] if n else 0
     mean = sum(lat) / n if n else 0
     print("-" * 108)
-    print(f"VLM 호출: {_metrics['calls']}  실패: {_metrics['fail']} {dict(_metrics['errs'])}")
-    print(f"레이턴시(초): mean={mean:.2f} p50={p50:.2f} max={(lat[-1] if lat else 0):.2f}")
-    print(f"파싱: ok={_parse_stat['ok']} none={_parse_stat['none']} (오류율 {_parse_stat['none']}/{sum(_parse_stat.values()) or 1})")
+    print(
+        f"VLM 호출: {_metrics['calls']}  실패: {_metrics['fail']} {dict(_metrics['errs'])}"
+    )
+    print(
+        f"레이턴시(초): mean={mean:.2f} p50={p50:.2f} max={(lat[-1] if lat else 0):.2f}"
+    )
+    print(
+        f"파싱: ok={_parse_stat['ok']} none={_parse_stat['none']} (오류율 {_parse_stat['none']}/{sum(_parse_stat.values()) or 1})"
+    )
 
     # 게이트 confidence 분포(관찰자 종류별)
     allconf = collections.Counter()
@@ -236,33 +289,73 @@ def run():
     if backend == "bedrock" and _usage:
         tin = sum(u.get("input_tokens", 0) for u in _usage)
         tout = sum(u.get("output_tokens", 0) for u in _usage)
-        p_in = float(os.environ.get("BEDROCK_VLM_PRICE_IN", "1.0"))   # $/1M in (가정 — 확인 필요)
+        p_in = float(
+            os.environ.get("BEDROCK_VLM_PRICE_IN", "1.0")
+        )  # $/1M in (가정 — 확인 필요)
         p_out = float(os.environ.get("BEDROCK_VLM_PRICE_OUT", "5.0"))  # $/1M out
         usd = tin / 1e6 * p_in + tout / 1e6 * p_out
         per_call = usd / len(_usage) if _usage else 0
         per_img = usd / len(SUBSET)
-        cost = {"in_tok": tin, "out_tok": tout, "calls": len(_usage), "price_in": p_in, "price_out": p_out,
-                "usd_total": round(usd, 4), "usd_per_call": round(per_call, 5), "usd_per_image": round(per_img, 5)}
+        cost = {
+            "in_tok": tin,
+            "out_tok": tout,
+            "calls": len(_usage),
+            "price_in": p_in,
+            "price_out": p_out,
+            "usd_total": round(usd, 4),
+            "usd_per_call": round(per_call, 5),
+            "usd_per_image": round(per_img, 5),
+        }
         print("-" * 108)
         print(f"토큰: in={tin} out={tout} over {len(_usage)} calls")
-        print(f"비용(@${p_in}/M in, ${p_out}/M out): total=${usd:.4f}  건당(call)=${per_call:.5f}  이미지당=${per_img:.5f}")
+        print(
+            f"비용(@${p_in}/M in, ${p_out}/M out): total=${usd:.4f}  건당(call)=${per_call:.5f}  이미지당=${per_img:.5f}"
+        )
 
     out = os.environ.get("OUT")
     if out:
         summary = {
-            "backend": backend, "model": model, "n_images": len(SUBSET),
+            "backend": backend,
+            "model": model,
+            "n_images": len(SUBSET),
             "acc_clear": [sum(r[4] for r in clear), len(clear)],
             "acc_amb": [sum(r[4] for r in amb), len(amb)],
             "acc_all": [sum(r[4] for r in rows), len(rows)],
-            "by_group": {g: [sum(r[4] for r in rows if r[0].startswith(g)), len([r for r in rows if r[0].startswith(g)])] for g in ("hand", "face", "figure", "edge")},
-            "calls": _metrics["calls"], "fail": _metrics["fail"], "errs": dict(_metrics["errs"]),
-            "latency": {"mean": round(mean, 3), "p50": round(p50, 3), "max": round(lat[-1] if lat else 0, 3)},
+            "by_group": {
+                g: [
+                    sum(r[4] for r in rows if r[0].startswith(g)),
+                    len([r for r in rows if r[0].startswith(g)]),
+                ]
+                for g in ("hand", "face", "figure", "edge")
+            },
+            "calls": _metrics["calls"],
+            "fail": _metrics["fail"],
+            "errs": dict(_metrics["errs"]),
+            "latency": {
+                "mean": round(mean, 3),
+                "p50": round(p50, 3),
+                "max": round(lat[-1] if lat else 0, 3),
+            },
             "parse": {"ok": _parse_stat["ok"], "none": _parse_stat["none"]},
-            "gate_confidence": dict(allconf), "gate_by_kind": {k: dict(c) for k, c in bykind.items()},
+            "gate_confidence": dict(allconf),
+            "gate_by_kind": {k: dict(c) for k, c in bykind.items()},
             "cost": cost,
-            "rows": [{"file": r[0], "clarity": r[1], "track": r[2], "pred": r[3], "hit": r[4], "acceptable": r[5], "gates": r[6]} for r in rows],
+            "rows": [
+                {
+                    "file": r[0],
+                    "clarity": r[1],
+                    "track": r[2],
+                    "pred": r[3],
+                    "hit": r[4],
+                    "acceptable": r[5],
+                    "gates": r[6],
+                }
+                for r in rows
+            ],
         }
-        json.dump(summary, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+        json.dump(
+            summary, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=2
+        )
         print(f"\n[written] {out}")
 
 
