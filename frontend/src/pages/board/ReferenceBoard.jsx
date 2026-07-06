@@ -26,6 +26,11 @@ const CHIPS = [
   { key: "ILLUST", label: "일러스트", disabled: true },
 ];
 
+// 클라이언트 페이징 — 검색 시 풀(POOL_K)을 한 번에 받아 INITIAL_VISIBLE 부터 PAGE_STEP 씩 더 노출.
+const POOL_K = 40; // 백엔드 상위 랭킹 풀(MAX_TOP_K 와 정합)
+const INITIAL_VISIBLE = 20;
+const PAGE_STEP = 10;
+
 // 반응 튜토리얼 — 새 프로젝트 생성 시 ProjectList 가 세팅하는 플래그(프로젝트 id).
 //   가이드(첫 진입) 튜토리얼이 닫힌 뒤에 노출.
 const REACTION_TUT_FLAG = "drawe_show_reaction_tutorial";
@@ -35,12 +40,123 @@ const PROJECT_TUT_FLAG = "drawe_show_project_tutorial";
 //   검색 결과·검색어·반응·필터를 복원해 자연스럽게 이어보게 한다(SPA 세션 한정).
 const boardCache = new Map();
 
-// 아이템을 N개 컬럼에 라운드로빈 분배(마소너리). 원본 ReferenceGrid 방식과 동일.
-function splitIntoColumns(items, columnCount) {
-  const columns = Array.from({ length: columnCount }, () => []);
-  items.forEach((item, idx) => columns[idx % columnCount].push(item));
-  return columns;
+// 무드보드 복원 — 리로드/로그아웃으로 메모리 캐시가 날아가도 직전 검색 결과를 이어보게 localStorage 로 승격.
+//   검색어(창)는 복원하지 않고 "결과만" 복원한다. 서명 url 만료·stale 방지로 TTL 을 둔다.
+const BOARD_TTL_MS = 30 * 60 * 1000;
+const persistKey = (projectId) => `drawe_board_${projectId}`;
+
+function loadPersistedBoard(projectId) {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(persistKey(projectId)) || "null",
+    );
+    if (!saved?.ts || Date.now() - saved.ts > BOARD_TTL_MS) return null;
+    return {
+      query: "", // 검색창은 비우고 결과만 복원
+      submittedQuery: saved.submittedQuery || "",
+      source: saved.source || "ALL",
+      corpusItems: saved.corpusItems || [],
+      generatedItems: saved.generatedItems || [],
+      corpusKey: saved.corpusKey ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
+
+function savePersistedBoard(projectId, state) {
+  try {
+    // 결과가 있을 때만 저장(빈 보드는 복원할 게 없음).
+    if (!state.corpusItems?.length && !state.generatedItems?.length) {
+      localStorage.removeItem(persistKey(projectId));
+      return;
+    }
+    localStorage.setItem(
+      persistKey(projectId),
+      JSON.stringify({ ts: Date.now(), ...state }),
+    );
+  } catch {
+    /* localStorage 가득/비활성 — 복원은 부가기능이라 무시 */
+  }
+}
+
+// 높이 인지 마소너리 — 각 카드를 "현재 가장 짧은 열"에 순서대로 넣어 좌우 높이를 맞춘다.
+//   index 홀짝 분배와 달리 이미지 원본 비율을 유지하면서 쏠림을 없앤다(핀터레스트식).
+//   카드 높이는 ResizeObserver 로 측정 → 이미지 로드/반응에 따라 자동 재배치. 번호는 자연스럽게 위→아래 증가.
+const MasonryColumns = ({
+  items,
+  columnCount,
+  gridClassName,
+  columnClassName,
+  renderCard,
+}) => {
+  const [heights, setHeights] = useState({});
+  const roRef = useRef(null);
+  const keyByEl = useRef(new Map()); // el -> key (RO 콜백 역참조)
+
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver((entries) => {
+      setHeights((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const e of entries) {
+          const key = keyByEl.current.get(e.target);
+          if (key == null) continue;
+          const h = Math.round(e.contentRect.height);
+          if (next[key] !== h) {
+            next[key] = h;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    });
+    roRef.current = ro;
+    return () => ro.disconnect();
+  }, []);
+
+  // 안정된 ref 콜백 — el 마운트 시 관찰, 언마운트 시 해제(React19 cleanup 반환; 미지원이면 disconnect 로 일괄 정리).
+  //   key 는 data-* 로 넘겨 렌더 중 ref 접근을 피한다(react-hooks/refs 준수).
+  const attach = useCallback((el) => {
+    const ro = roRef.current;
+    if (!el) return undefined;
+    keyByEl.current.set(el, el.dataset.masonryKey);
+    ro?.observe(el);
+    return () => {
+      ro?.unobserve(el);
+      keyByEl.current.delete(el);
+    };
+  }, []);
+
+  const columns = useMemo(() => {
+    const cols = Array.from({ length: columnCount }, () => []);
+    const colH = new Array(columnCount).fill(0);
+    for (const it of items) {
+      let m = 0;
+      for (let c = 1; c < columnCount; c++) {
+        if (colH[c] < colH[m]) m = c;
+      }
+      cols[m].push(it);
+      colH[m] += (heights[String(it.key)] ?? 320) + 20; // 미측정 카드는 추정 높이(+열 gap 20)
+    }
+    return cols;
+  }, [items, columnCount, heights]);
+
+  return (
+    <div className={gridClassName}>
+      {columns.map((col, ci) => (
+        <div key={ci} className={columnClassName}>
+          {col.map((it) => (
+            <div key={it.key} data-masonry-key={it.key} ref={attach}>
+              {renderCard(it)}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 /**
  * 키워드 검색 레퍼런스 보드(좌측 패널).
@@ -59,6 +175,7 @@ const ReferenceBoard = ({
   expanded,
   initialQuery = "",
   initialResults = null,
+  generatedImage = null,
 }) => {
   const navigate = useNavigate();
 
@@ -66,27 +183,26 @@ const ReferenceBoard = ({
   //   검색창(query)엔 키워드를 안 채운다 — 다 이어붙으면 어색하므로 비워두고 결과만.
   const cacheKey = String(projectId);
   const cached = boardCache.get(cacheKey);
+  // 메모리 캐시(SPA) 없으면 localStorage 복원(리로드/재진입, TTL 내) 시도.
+  const persisted = cached ? null : loadPersistedBoard(cacheKey);
   const seeded = Array.isArray(initialResults);
   const init =
     cached ||
+    persisted ||
     (seeded
       ? {
           query: "",
           submittedQuery: initialQuery,
           source: "ALL",
           corpusItems: initialResults,
-          archiveItems: [],
           corpusKey: initialQuery,
-          archiveKey: null,
         }
       : {
           query: "",
           submittedQuery: "",
           source: "ALL",
           corpusItems: [],
-          archiveItems: [],
           corpusKey: null,
-          archiveKey: null,
         });
 
   // 입력창은 케이스별로 다르게: 상세→뒤로(fromDetail)면 복원, 재진입/최초면 비움.
@@ -104,10 +220,15 @@ const ReferenceBoard = ({
   //   칩(전체/AI/사진)은 코퍼스 결과를 클라에서 image.source 로 필터만 → 재검색 안 함(churn 제거).
   //   아카이브만 별도 데이터라 source=ARCHIVE 로 조회.
   const [corpusItems, setCorpusItems] = useState(init.corpusItems); // [{ image, myReaction }]
-  const [archiveItems, setArchiveItems] = useState(init.archiveItems);
+  // SCRUM-118 — 우측에서 생성한 AI 레퍼런스("내 생성물"). 생성 즉시 보드 맨 앞에 노출되고
+  //   세션 내내 유지된다(색인 완료돼 검색결과로 잡히면 그쪽으로 통합).
+  const [generatedItems, setGeneratedItems] = useState(
+    () => init.generatedItems || [],
+  );
   const corpusQueryRef = useRef(init.corpusKey); // corpusItems 가 대응하는 검색어
-  const archiveQueryRef = useRef(init.archiveKey); // archiveItems 가 대응하는 검색어
   const [loading, setLoading] = useState(false);
+  // 더보기 = 클라이언트 페이징. 검색 시 풀(40)을 한 번에 받아 20개부터 10개씩 더 노출(shown 미사용).
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [error, setError] = useState("");
   const didInit = useRef(false);
 
@@ -160,29 +281,25 @@ const ReferenceBoard = ({
     };
   }, [projectId]);
 
-  // 실제 검색 호출. domain: "CORPUS"(source=ALL) | "ARCHIVE"(source=ARCHIVE).
+  // 실제 검색 호출 — 항상 corpus(source=ALL) 를 불러온다. 카테고리(전체/AI/사진/아카이브)는
+  //   이 결과에 대한 클라이언트 필터일 뿐 재검색하지 않는다(PD 정본). 무드보드용으로 20개 요청.
   const fetchSet = useCallback(
-    async (keyword, domain) => {
+    async (keyword) => {
       setLoading(true);
       setError("");
       try {
         const data = await searchReferenceBoard(projectId, {
           q: keyword,
-          source: domain === "ARCHIVE" ? "ARCHIVE" : "ALL",
-          // topK 미전송 → 백엔드 기본값(10) 사용
+          source: "ALL",
+          topK: POOL_K, // 풀 전체를 받아 클라에서 페이징
         });
         const results = data?.results ?? [];
-        if (domain === "ARCHIVE") {
-          setArchiveItems(results);
-          archiveQueryRef.current = keyword;
-        } else {
-          setCorpusItems(results);
-          corpusQueryRef.current = keyword;
-        }
+        setCorpusItems(results);
+        setVisibleCount(INITIAL_VISIBLE); // 새 검색 → 상위 20부터
+        corpusQueryRef.current = keyword;
         track("reference_board_searched", {
           project_id: projectId,
           query_length: keyword.length,
-          domain,
           result_count: results.length,
         });
       } catch (err) {
@@ -190,8 +307,7 @@ const ReferenceBoard = ({
           err.response?.data?.error?.message ||
             "검색에 실패했어요. 잠시 후 다시 시도해주세요.",
         );
-        if (domain === "ARCHIVE") setArchiveItems([]);
-        else setCorpusItems([]);
+        setCorpusItems([]);
       } finally {
         setLoading(false);
       }
@@ -203,10 +319,12 @@ const ReferenceBoard = ({
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
-    if (initialQuery && !seeded && !cached) {
+    // 복원(캐시/localStorage)이 있으면 그걸 쓰고 자동검색 안 함. persisted 는 첫 렌더값(마운트 1회) 기준.
+    if (initialQuery && !seeded && !cached && !persisted) {
       setSubmittedQuery(initialQuery);
-      fetchSet(initialQuery, "CORPUS");
+      fetchSet(initialQuery);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery, seeded, cached, fetchSet]);
 
   // 검색 상태를 프로젝트별 캐시에 저장 — 상세 갔다 돌아오면 복원.
@@ -216,54 +334,64 @@ const ReferenceBoard = ({
       submittedQuery,
       source,
       corpusItems,
-      archiveItems,
+      generatedItems,
       corpusKey: corpusQueryRef.current,
-      archiveKey: archiveQueryRef.current,
     });
-  }, [cacheKey, query, submittedQuery, source, corpusItems, archiveItems]);
+    // 무드보드 복원용 — 결과(검색·생성물)를 localStorage 에도 저장(검색창은 제외).
+    savePersistedBoard(cacheKey, {
+      submittedQuery,
+      source,
+      corpusItems,
+      generatedItems,
+      corpusKey: corpusQueryRef.current,
+    });
+  }, [cacheKey, query, submittedQuery, source, corpusItems, generatedItems]);
 
-  // 검색은 키워드 제출 때만. 현재 칩이 아카이브면 아카이브를, 아니면 코퍼스를 조회.
+  // SCRUM-118 — 우측 패널에서 생성 완료된 이미지를 "내 생성물" 레인 맨 앞에 추가(중복 방지, 최신 우선).
+  useEffect(() => {
+    if (!generatedImage?.id) return;
+    setGeneratedItems((prev) =>
+      prev.some((it) => it.image.id === generatedImage.id)
+        ? prev
+        : [{ image: generatedImage, myReaction: null }, ...prev],
+    );
+  }, [generatedImage]);
+
+  // 검색은 키워드 제출 때만. 항상 corpus 를 불러오고 카테고리는 클라 필터.
   const handleSubmit = (e) => {
     e?.preventDefault?.();
     const keyword = query.trim();
     setSubmittedQuery(keyword);
     if (!keyword) {
       setCorpusItems([]);
-      setArchiveItems([]);
+      setVisibleCount(INITIAL_VISIBLE);
       corpusQueryRef.current = null;
-      archiveQueryRef.current = null;
       return;
     }
-    fetchSet(keyword, source === "ARCHIVE" ? "ARCHIVE" : "CORPUS");
+    fetchSet(keyword);
   };
 
-  // 칩 클릭 — 전체/AI/사진은 코퍼스 결과를 클라 필터(재검색 안 함).
-  //   아카이브는 별도 데이터라 필요 시(같은 키워드로 아직 없으면) 조회.
-  //   아카이브 → 코퍼스로 돌아올 때 코퍼스가 이 키워드로 없으면(직전이 아카이브였음) 조회.
+  // 칩 클릭 — 전체/AI/사진/아카이브 모두 corpus 결과에 대한 클라이언트 필터(재검색 없음).
   const handleChip = (key, disabled) => {
     if (disabled || key === source) return;
     setSource(key);
-    const keyword = submittedQuery;
-    if (!keyword) return; // 검색 전이면 데이터 없음
-    if (key === "ARCHIVE") {
-      if (archiveQueryRef.current !== keyword) fetchSet(keyword, "ARCHIVE");
-    } else if (corpusQueryRef.current !== keyword) {
-      fetchSet(keyword, "CORPUS");
-    }
   };
+
+  // 더보기 — 받아둔 풀에서 PAGE_STEP 개 더 노출(추가 호출 없음).
+  const handleMore = () => setVisibleCount((v) => v + PAGE_STEP);
 
   // 입력창 X → 입력창만 비우고 결과는 그대로 유지.
   const clearInput = () => setQuery("");
 
   // 결과가 처음 뜨면 반응 튜토리얼 노출(새 프로젝트 + 가이드 튜토리얼 닫힌 뒤).
   useEffect(() => {
-    const hasResults = corpusItems.length > 0 || archiveItems.length > 0;
+    const hasResults = corpusItems.length > 0;
     const flagged =
       localStorage.getItem(REACTION_TUT_FLAG) === String(projectId);
     const guidePending =
       localStorage.getItem(PROJECT_TUT_FLAG) === String(projectId);
     if (hasResults && flagged && !guidePending) setShowReactionTut(true);
-  }, [corpusItems, archiveItems, projectId]);
+  }, [corpusItems, projectId]);
 
   const dismissReactionTut = () => {
     localStorage.removeItem(REACTION_TUT_FLAG);
@@ -277,14 +405,14 @@ const ReferenceBoard = ({
         it.image.id === imageId ? { ...it, myReaction: reaction } : it,
       );
     setCorpusItems((prev) => patch(prev));
-    setArchiveItems((prev) => patch(prev));
+    setGeneratedItems((prev) => patch(prev));
   }, []);
 
   const findItem = useCallback(
     (imageId) =>
       corpusItems.find((it) => it.image.id === imageId) ||
-      archiveItems.find((it) => it.image.id === imageId),
-    [corpusItems, archiveItems],
+      generatedItems.find((it) => it.image.id === imageId),
+    [corpusItems, generatedItems],
   );
 
   // 좋아요 토글 — 같은 반응 재클릭이면 취소. 좋아요한 카드는 상단으로 재정렬(클라이언트).
@@ -408,22 +536,22 @@ const ReferenceBoard = ({
     onRequestGenerate?.();
   };
 
-  // 표시 대상 결과셋 + 클라이언트 카테고리 필터 + 반응 정렬.
-  //   아카이브 칩은 archiveItems, 그 외는 corpusItems 를 image.source 로 필터(재검색 없음).
+  // 표시 대상 — 모든 카테고리는 corpus 검색 결과에 대한 클라이언트 필터(PD 정본):
+  //   전체=전부 / AI=source AI / 사진=비AI / 아카이브=내가 아카이브한 것(archivedIds, 즉시 반영).
   //   좋아요=위, 중립=중간, 싫어요=아래(안정 정렬로 그룹 내 순서 보존). 번호는 정렬 후 1..N.
   const displayItems = useMemo(() => {
-    const base = source === "ARCHIVE" ? archiveItems : corpusItems;
-    const filtered =
-      source === "AI"
-        ? base.filter((it) => it.image.source === "AI")
-        : source === "PHOTO"
-          ? base.filter((it) => !!it.image.source && it.image.source !== "AI")
-          : base; // ALL, ARCHIVE
+    const filtered = corpusItems.filter((it) => {
+      if (source === "AI") return it.image.source === "AI";
+      if (source === "PHOTO")
+        return !!it.image.source && it.image.source !== "AI";
+      if (source === "ARCHIVE") return archivedIds.has(it.image.id);
+      return true; // ALL
+    });
     const rank = (r) => (r === "LIKE" ? 0 : r === "DISLIKE" ? 2 : 1);
     return [...filtered].sort(
       (a, b) => rank(a.myReaction) - rank(b.myReaction),
     );
-  }, [corpusItems, archiveItems, source]);
+  }, [corpusItems, source, archivedIds]);
 
   // 고정(핀)도 현재 필터 카테고리에 맞는 것만 노출.
   //   전체=모두 / AI=생성이미지 / 사진=Unsplash 등 비AI / 아카이브=아카이브에 저장된 핀.
@@ -443,6 +571,27 @@ const ReferenceBoard = ({
     [displayItems, pinnedIds],
   );
 
+  // 클라 페이징 — 검색결과를 visibleCount 까지만 노출("더보기"로 증가). 핀·생성물은 페이징 대상 아님.
+  const pagedResults = useMemo(
+    () => resultItems.slice(0, visibleCount),
+    [resultItems, visibleCount],
+  );
+  const hasMore = resultItems.length > visibleCount;
+
+  // "내 생성물" 레인 — 생성물은 AI 라 전체·AI 에 뜨고, 아카이브 탭엔 아카이브한 것만(사진 탭엔 X).
+  //   핀·검색결과와 중복 제거(색인돼 검색결과로 잡히면 그쪽으로 통합). 그리드 맨 앞에 노출.
+  const visibleGenerated = useMemo(() => {
+    if (source === "PHOTO") return [];
+    const exclude = new Set([
+      ...pinnedIds,
+      ...resultItems.map((it) => it.image.id),
+    ]);
+    return generatedItems.filter((it) => {
+      if (source === "ARCHIVE" && !archivedIds.has(it.image.id)) return false;
+      return !exclude.has(it.image.id);
+    });
+  }, [generatedItems, source, archivedIds, pinnedIds, resultItems]);
+
   // 빈상태 3분기:
   //   noSearchResults — 검색 자체가 결과 0(핀 숨기고 생성 CTA + X)
   //   categoryEmpty   — 검색은 됐지만 이 카테고리 필터에만 결과 없음(기존 안내, 생성 문구 X)
@@ -451,7 +600,7 @@ const ReferenceBoard = ({
   //   못 냈을 때만. 아카이브는 '생성'으로 채워지는 데이터가 아니므로, 비면 항상
   //   categoryEmpty(다른 카테고리 안내)로 처리한다.
   const searched = submittedQuery !== "";
-  const overallHasResults = corpusItems.length > 0 || archiveItems.length > 0;
+  const overallHasResults = corpusItems.length > 0;
   const viewEmpty = !loading && searched && resultItems.length === 0;
   const noSearchResults =
     viewEmpty && source !== "ARCHIVE" && !overallHasResults;
@@ -460,8 +609,12 @@ const ReferenceBoard = ({
   // 핀 + 검색결과를 한 마소너리 그리드에(가로만 맞추고 비율 유지). 전체보기 3 / 분할 2컬럼.
   //   핀은 앞에("고정" 뱃지), 결과는 1..N. 핀된 이미지는 결과에서 이미 제외됨.
   const columnCount = expanded ? 3 : 2;
-  const hasCards = visiblePins.length > 0 || resultItems.length > 0;
-  const columns = useMemo(() => {
+  const hasCards =
+    visiblePins.length > 0 ||
+    resultItems.length > 0 ||
+    visibleGenerated.length > 0;
+  // 카드 descriptor 평평한 리스트(순서: 생성물 → 핀 → 검색결과). MasonryColumns 가 높이 인지로 열 분배.
+  const cards = useMemo(() => {
     const pinItems = visiblePins.map((image) => ({
       key: `pin-${image.id}`,
       image,
@@ -469,7 +622,7 @@ const ReferenceBoard = ({
       myReaction: null,
       isPinnedCard: true,
     }));
-    const refItems = resultItems.map(({ image, myReaction }, idx) => ({
+    const refItems = pagedResults.map(({ image, myReaction }, idx) => ({
       key: image.id,
       image,
       badge: String(idx + 1),
@@ -477,32 +630,31 @@ const ReferenceBoard = ({
       isPinnedCard: false,
       isFirst: idx === 0,
     }));
-    return splitIntoColumns([...pinItems, ...refItems], columnCount);
-  }, [visiblePins, resultItems, columnCount]);
+    // "내 생성물"(생성 뱃지) — 핀보다도 앞, 맨 처음. 방금 만든 걸 즉시 최상단에.
+    const genCards = visibleGenerated.map(({ image, myReaction }) => ({
+      key: `gen-${image.id}`,
+      image,
+      badge: "생성",
+      myReaction,
+      isPinnedCard: false,
+    }));
+    return [...genCards, ...pinItems, ...refItems];
+  }, [visiblePins, pagedResults, visibleGenerated]);
 
-  const renderColumns = (cols) => (
-    <div className={styles.grid}>
-      {cols.map((col, ci) => (
-        <div key={ci} className={styles.column}>
-          {col.map((it) => (
-            <BoardCard
-              key={it.key}
-              image={it.image}
-              badge={it.badge}
-              myReaction={it.myReaction}
-              isPinned={it.isPinnedCard || pinnedIds.has(it.image.id)}
-              isArchived={archivedIds.has(it.image.id)}
-              onClick={() => handleCardClick(it.image)}
-              onLike={() => handleLike(it.image.id)}
-              onDislike={() => handleDislike(it.image.id)}
-              onPinToggle={() => handlePinToggle(it.image.id)}
-              onArchive={() => handleArchive(it.image.id)}
-              menuBtnRef={it.isFirst ? firstMenuRef : undefined}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
+  const renderCard = (it) => (
+    <BoardCard
+      image={it.image}
+      badge={it.badge}
+      myReaction={it.myReaction}
+      isPinned={it.isPinnedCard || pinnedIds.has(it.image.id)}
+      isArchived={archivedIds.has(it.image.id)}
+      onClick={() => handleCardClick(it.image)}
+      onLike={() => handleLike(it.image.id)}
+      onDislike={() => handleDislike(it.image.id)}
+      onPinToggle={() => handlePinToggle(it.image.id)}
+      onArchive={() => handleArchive(it.image.id)}
+      menuBtnRef={it.isFirst ? firstMenuRef : undefined}
+    />
   );
 
   return (
@@ -569,6 +721,28 @@ const ReferenceBoard = ({
           <div className={styles.stateBox}>
             <p className={styles.stateHint}>레퍼런스를 찾고 있어요…</p>
           </div>
+        ) : hasCards ? (
+          // 핀 + 검색결과 + 내 생성물 그리드 (생성물이 있으면 검색 0이어도 여기로)
+          <>
+            <MasonryColumns
+              items={cards}
+              columnCount={columnCount}
+              gridClassName={styles.grid}
+              columnClassName={styles.column}
+              renderCard={renderCard}
+            />
+            {hasMore && (
+              <div className={styles.moreRow}>
+                <button
+                  type="button"
+                  className={styles.moreBtn}
+                  onClick={handleMore}
+                >
+                  더보기
+                </button>
+              </div>
+            )}
+          </>
         ) : noSearchResults ? (
           // 검색 자체가 결과 0 — 핀도 숨기고 안내만. (초기화는 입력창 X)
           <div className={styles.stateBox}>
@@ -592,9 +766,6 @@ const ReferenceBoard = ({
             <p className={styles.stateTitle}>검색 결과가 없어요</p>
             <p className={styles.stateHint}>다른 카테고리를 선택해보세요.</p>
           </div>
-        ) : hasCards ? (
-          // 핀 + 검색결과 그리드
-          renderColumns(columns)
         ) : (
           // 초기(검색 전 + 핀 없음) — 빈 보드 안내
           <div className={styles.stateBox}>

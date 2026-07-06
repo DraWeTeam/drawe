@@ -40,6 +40,8 @@ const ReferenceBoardPage = () => {
   const [guideDetail, setGuideDetail] = useState(null);
   // 정본: 가이드 생성 결과도 중앙 모달이 아니라 좌측 인라인 패널에 표시(로딩/에러 포함). GeneratePromptPanel 이 보고.
   const [genGuide, setGenGuide] = useState(null);
+  // SCRUM-118 — 우측에서 생성한 레퍼런스(AI)를 좌측 보드 하단 "내 생성물" 레인으로 흘려보낸다.
+  const [generatedImage, setGeneratedImage] = useState(null);
 
   // 헤더 ⋮ 메뉴(프로젝트 수정/삭제)
   const [menuOpen, setMenuOpen] = useState(false);
@@ -184,6 +186,7 @@ const ReferenceBoardPage = () => {
             expanded={mode === "boardFull"}
             initialQuery={presetQuery}
             initialResults={presetResults}
+            generatedImage={generatedImage}
           />
           {/* ⑧ 가이드 상세/생성 — 좌측 반 인라인 패널(중앙 모달 대신). 생성(genGuide) 우선, 없으면 카드 상세(guideDetail). */}
           {(genGuide?.open || guideDetail) && (
@@ -225,6 +228,7 @@ const ReferenceBoardPage = () => {
             onGuidesCount={setGuidesCount}
             onOpenGuide={setGuideDetail}
             onGuideState={setGenGuide}
+            onGenerated={setGeneratedImage}
           />
         </section>
       </div>
