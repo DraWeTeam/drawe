@@ -161,8 +161,9 @@
   line-height: 28px;
   color: var(--text-secondary);
 }
+/* §3·§6 라벨은 Figma 실측상 text/brand(#ff8534) — 114:15623·114:15737. 하드코딩 #ee6f2d 교정. */
 .sectionTitle.accent {
-  color: #ee6f2d;
+  color: var(--text-brand);
 }
 .sectionNum {
   font-weight: 700;
