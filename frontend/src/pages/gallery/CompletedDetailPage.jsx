@@ -732,16 +732,24 @@ const CompletedDetailPage = () => {
 
       {/* 모아보기 오버레이 — absolute 패널이 온전한 크기로 뜨도록 fixed 호스트 제공(버그2 포지셔닝). */}
       {collectionOpen && (
-        <div className={styles.panelHost}>
-          <GuideCollectionPanel
-            guides={guides}
-            onClose={() => setCollectionOpen(false)}
-            onCardClick={(g) => {
-              // 정본: 항목 클릭 → 해당 가이드 상세 팝업(GuideModal). 화면 리셋·네비게이션 없음.
-              setCollectionOpen(false);
-              setActiveGuide(g);
-            }}
-          />
+        <div
+          className={styles.panelHost}
+          onClick={() => setCollectionOpen(false)}
+        >
+          <div
+            className={styles.panelFrame}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GuideCollectionPanel
+              guides={guides}
+              onClose={() => setCollectionOpen(false)}
+              onCardClick={(g) => {
+                // 정본: 항목 클릭 → 해당 가이드 상세 팝업(GuideModal). 화면 리셋·네비게이션 없음.
+                setCollectionOpen(false);
+                setActiveGuide(g);
+              }}
+            />
+          </div>
         </div>
       )}
 

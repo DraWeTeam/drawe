@@ -4,12 +4,30 @@
   padding: 20px 24px 64px;
   color: #2b2b2b;
 }
-/* 모아보기 오버레이 호스트 — GuideCollectionPanel(.overlay=position:absolute)이 뷰포트 전체를
-   덮도록 fixed 기준 컨테이너 제공. 없으면 absolute 가 엉뚱한 조상 기준으로 짤려 보인다(버그2). */
+/* 모아보기 오버레이 호스트 — 딤 배경 + 중앙 정렬 모달.
+   GuideCollectionPanel(.overlay=position:absolute; inset:0)은 채팅에선 position:relative 인 rightPanel 을
+   채우도록 설계됨. 완성작 상세엔 그런 relative 부모가 없어, fixed inset:0 로 뷰포트 전체(=사이드바까지)를
+   덮으면 좌측 콘텐츠가 사이드바에 가려 짤린다(버그2 재발). → relative 프레임(.panelFrame)을 중앙에 두고
+   그 안을 채우게 한다. 사이드바는 딤 위에 그대로 두되 패널은 온전히 보인다. */
 .panelHost {
   position: fixed;
   inset: 0;
   z-index: 40;
+  background: rgba(40, 34, 28, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.panelFrame {
+  position: relative; /* GuideCollectionPanel .overlay(absolute inset:0)의 기준 */
+  width: 100%;
+  max-width: 760px;
+  height: 100%;
+  max-height: 82vh;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(15, 15, 15, 0.24);
 }
 .stateBox {
   padding: 80px 16px;
