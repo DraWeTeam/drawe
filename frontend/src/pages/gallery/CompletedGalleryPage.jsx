@@ -28,6 +28,20 @@ const CompletedGalleryPage = () => {
   const [downloadingIds, setDownloadingIds] = useState(() => new Set());
   // 정본(70:28528) 헤더 컨트롤: 그리드/리스트 보기 · 정렬.
   const [view, setView] = useState("grid"); // "grid" | "list"
+  const [menuOpenId, setMenuOpenId] = useState(null); // 카드 옵션(⋮) 메뉴 열린 projectId
+
+  // 카드 옵션 메뉴 — 바깥 클릭/ESC 로 닫기.
+  useEffect(() => {
+    if (menuOpenId == null) return undefined;
+    const close = () => setMenuOpenId(null);
+    const onKey = (e) => e.key === "Escape" && setMenuOpenId(null);
+    document.addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpenId]);
   const [sortDesc, setSortDesc] = useState(true); // 최근순(기본) ↔ 오래된순
   const navigate = useNavigate();
 
@@ -198,31 +212,53 @@ const CompletedGalleryPage = () => {
                         className={styles.thumb}
                       />
                     </button>
+                    {/* Figma 70:28528 카드 메타: [좌 제목+날짜] [우 옵션(⋮) icon_button] */}
                     <div className={styles.cardMeta}>
-                      <div className={styles.cardTitleRow}>
+                      <div className={styles.cardInfo}>
                         <span className={styles.cardTitle}>
                           {item.projectName || "완성작"}
                         </span>
-                        <span
-                          role="button"
-                          tabIndex={0}
+                        <span className={styles.cardDate}>
+                          {fmtDate(item.completedAt)}
+                        </span>
+                      </div>
+                      <div className={styles.kebabWrap}>
+                        <button
+                          type="button"
                           className={styles.kebab}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDownload(item.drawingUrl);
+                            setMenuOpenId(
+                              menuOpenId === item.projectId
+                                ? null
+                                : item.projectId,
+                            );
                           }}
-                          aria-disabled={
-                            imageId != null && downloadingIds.has(imageId)
-                          }
-                          aria-label="이미지 다운로드"
-                          title="다운로드"
+                          aria-label="옵션"
+                          aria-haspopup="menu"
+                          aria-expanded={menuOpenId === item.projectId}
                         >
-                          <DownloadIcon />
-                        </span>
+                          <MoreIcon />
+                        </button>
+                        {menuOpenId === item.projectId && (
+                          <div className={styles.cardMenu} role="menu">
+                            <button
+                              type="button"
+                              className={styles.cardMenuItem}
+                              disabled={
+                                imageId != null && downloadingIds.has(imageId)
+                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenId(null);
+                                handleDownload(item.drawingUrl);
+                              }}
+                            >
+                              다운로드
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <span className={styles.cardDate}>
-                        {fmtDate(item.completedAt)}
-                      </span>
                     </div>
                   </div>
                 );
@@ -259,18 +295,12 @@ const CloseIcon = () => (
   </svg>
 );
 
-const DownloadIcon = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 22 22"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M10.6667 16.1557L4.15567 9.64433L5.73333 8.04433L9.55567 11.8667V0H11.7777V11.8667L15.6 8.04433L17.1777 9.64433L10.6667 16.1557ZM2.22233 21.3333C1.62233 21.3333 1.10189 21.113 0.661 20.6723C0.220333 20.2314 0 19.711 0 19.111V14.6H2.22233V19.111H19.111V14.6H21.3333V19.111C21.3333 19.711 21.113 20.2314 20.6723 20.6723C20.2314 21.113 19.711 21.3333 19.111 21.3333H2.22233Z"
-      fill="currentColor"
-    />
+// 카드 옵션(⋮) — Figma 70:28528 icon_button(더보기·다운로드 등 옵션 메뉴 트리거).
+const MoreIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="5" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="12" cy="19" r="1.6" />
   </svg>
 );
 
