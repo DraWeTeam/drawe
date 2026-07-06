@@ -149,14 +149,17 @@
 .section {
   margin: 0 0 20px;
 }
+/* §섹션 라벨 — Figma subtitle1(114:15610 등 §2~§7 Label 공통): Bold 20/lineHeight 28/text-secondary.
+   컨테이너 gap-300(12px)이 라벨→콘텐츠 간격. */
 .sectionTitle {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin: 0 0 9px;
-  font-size: 14.5px;
+  margin: 0 0 var(--space-300);
+  font-size: 20px;
   font-weight: 700;
-  color: #2d2a26;
+  line-height: 28px;
+  color: var(--text-secondary);
 }
 .sectionTitle.accent {
   color: #ee6f2d;
@@ -183,7 +186,7 @@
 .analysisBox {
   display: flex;
   flex-direction: column;
-  gap: var(--space-400);
+  gap: var(--space-800); /* Figma 114:15611 gap-800(32px) */
   background: var(--bg-surface);
   border: 1px solid var(--border-input);
   border-radius: var(--radius-300);
@@ -893,35 +896,39 @@
 }
 
 /* 한 끗 포인트 — 번호 포인트(정본 114:15631) */
+/* §3 번호 포인트 — Figma 114:15631: 컨테이너/행 gap-200(8px) items-center. */
 .pointList {
   list-style: none;
   margin: var(--space-400) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-300);
+  gap: var(--space-200);
 }
 .pointItem {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-300);
+  align-items: center;
+  gap: var(--space-200);
 }
+/* 번호 badge — Figma 114:15633: 둥근사각 pill(h20·px8·rounded8), Medium 12/20, brand·inverse. */
 .pointNum {
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  height: 20px;
+  padding: 0 var(--space-200);
+  border-radius: var(--radius-200);
   background: var(--bg-brand);
   color: var(--text-inverse);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
+  line-height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
 }
+/* 포인트 텍스트 — Figma 114:15634 caption1: SemiBold 14/22/tertiary. */
 .pointText {
   font-size: 14px;
+  font-weight: 600;
   line-height: 22px;
   color: var(--text-tertiary);
 }
@@ -932,9 +939,10 @@
   flex-direction: column;
   gap: var(--space-300);
 }
+/* §3 '지금 바로 수정하기' — Figma 114:15640 subtitle2: Bold 18/24/tertiary. */
 .fixTitle {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 24px;
   color: var(--text-tertiary);
