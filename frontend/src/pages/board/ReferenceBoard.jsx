@@ -259,6 +259,7 @@ const ReferenceBoard = ({
         const results = data?.results ?? [];
         setCorpusItems(results);
         setVisibleCount(INITIAL_VISIBLE); // 새 검색 → 상위 20부터
+        setGeneratedItems([]); // 새 검색 → "내 생성물" 임시 레인 비움(생성 직후에만 맨앞, 이후엔 검색결과로 통합)
         corpusQueryRef.current = keyword;
         track("reference_board_searched", {
           project_id: projectId,
