@@ -32,7 +32,6 @@
 import collections
 import json
 import os
-import sys
 import time
 
 import guide.cache as cache
