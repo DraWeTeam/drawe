@@ -13,4 +13,7 @@ public interface CollectionRepository extends JpaRepository<Collection, Long> {
 
   /** 자동분류 축 컬렉션 조회(멱등 생성용). axis 는 유저별 유니크. */
   Optional<Collection> findByUserAndAxis(User user, String axis);
+
+  /** 시스템 컬렉션("미분류" 폴백) 조회. 유저당 name+is_system 로 하나만 둔다. */
+  Optional<Collection> findFirstByUserAndIsSystemTrueAndName(User user, String name);
 }

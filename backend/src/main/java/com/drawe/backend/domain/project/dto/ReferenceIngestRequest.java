@@ -12,4 +12,6 @@ public record ReferenceIngestRequest(
     String sourceType,
     String region,
     List<String> personas,
-    String category) {}
+    String category,
+    // 가이드 §4 축(sub_problem id, 예 value_structure) — 아카이브 컬렉션 자동 분류(레벨2)에 쓴다. 없으면 미분류.
+    String axis) {}
