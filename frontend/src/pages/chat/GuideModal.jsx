@@ -3,6 +3,7 @@ import { axisLabel, growthCaption, growthMessage } from "./guideLabels";
 import AuthedImage from "./AuthedImage";
 import OverlayImage from "./OverlayImage";
 import { ingestReference } from "../projects/api";
+import { rerollReference } from "./api";
 import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import styles from "./GuideModal.module.css";
 
@@ -165,10 +166,19 @@ const TrackBar = ({ track }) => {
 // 추천 레퍼런스 카드: 이미지(좌) + 우측 제목. 시안 SCR-GUIDE-02 세로 스택.
 //   추천 이유·키워드 badge 는 데이터 결손이라 이번 범위 아님(DOM 노드 자체를 만들지 않음).
 //   ⑤ 아카이브 담기 — 썸네일 위 glass 버튼(114:15652). projectId 있을 때만 노출, addReference 재사용.
-const RefCard = ({ reference, archived, onArchive }) => {
+const RefCard = ({ reference, archived, onArchive, moodLean }) => {
   const [failed, setFailed] = useState(false);
   const badges = refBadges(reference);
   const reason = refReason(reference);
+  // 무드 가시화(표시 전용): ref.personas ∩ 온보딩 무드 persona_lean 교집합(변별 persona)일 때만 표시.
+  //   교집합 '사실'만 주장 — "반영/골랐다/올렸다"류 금지(부스트·스코어링과 무관, 결이 맞는다는 관찰만).
+  const moodP = (reference.personas || []).find(
+    (p) => (moodLean || []).includes(p) && REF_BADGE_LABELS.persona[p],
+  );
+  const moodLabel = moodP ? REF_BADGE_LABELS.persona[moodP] : "";
+  const moodClause = moodLabel
+    ? `내 취향(${moodLabel})과 결이 맞는 참조예요.`
+    : "";
   return (
     <figure className={styles.refCard}>
       <div className={styles.refThumb}>
@@ -200,19 +210,21 @@ const RefCard = ({ reference, archived, onArchive }) => {
       </div>
       <div className={styles.refInfo}>
         <p className={styles.refTitle}>추천 레퍼런스 {reference.ordinal}</p>
-        {badges.length > 0 && (
+        {(badges.length > 0 || moodLabel) && (
           <div className={styles.refBadges}>
             {badges.map((bd) => (
               <span key={bd} className={styles.refBadge}>
                 {bd}
               </span>
             ))}
+            {moodLabel && <span className={styles.refBadgeMood}>취향 결</span>}
           </div>
         )}
-        {reason && (
+        {(reason || moodClause) && (
           <p className={styles.refReason}>
             <span className={styles.refReasonLabel}>추천 이유</span>
             {reason}
+            {moodClause && (reason ? ` ${moodClause}` : moodClause)}
           </p>
         )}
       </div>
@@ -473,6 +485,9 @@ const Coach = ({
   const blocks = guide.blocks || [];
   const primary = blocks[0];
   const next = guide.next_steps;
+  // 무드 가시화: 백엔드가 1회 실어준 온보딩 무드 취향 persona_lean(무드 미설정이면 없음/빈 배열).
+  //   가이드 응답서 1회 수신분을 RefCard(초기·reroll 컷 공통)에 넘겨 ref.personas 교집합 판정에만 쓴다.
+  const moodLean = guide.mood_profile?.persona_lean || [];
 
   // ⑤ 아카이브 담기 — 코퍼스 레퍼런스(UUID)를 backend 가 인제스트(원본 fetch→Image→ProjectReference, 멱등).
   //   정직 처리: 성공 응답 뒤에만 '담김' 표시, 실패는 조용히 넘기지 않고 토스트로 알린다.
@@ -589,8 +604,69 @@ const Coach = ({
             axis: axisByRefId[refId] || guide.primary_focus,
           };
         });
-  const canRefresh = refPool.length > 3;
-  const cycleRefs = () => setRefOffset((o) => (o + 3) % refPool.length);
+  // "다시 추천" 🔄 = 서버 재추천으로 *대체*(기존 클라 순환 cycleRefs 제거). 저장 축(subProblem)의 정적
+  //   질의로 새 컷을 받되, 화면에 노출된 ref 전부를 세션 누적해 배제(서버 무상태). 사유는 클라 결정론
+  //   재생성(axis 기반), badge 는 서버 meta 사용. 실패는 정직 알림 + 기존 표시 유지(silent 대체 금지).
+  const guideId = guide.guide_id;
+  const rerollAxis = primary?.sub_problem || guide.primary_focus;
+  const canReroll = !!(projectId && guideId && rerollAxis);
+  const [rerolled, setRerolled] = useState(null); // null=초기 top-3, array=재추천 결과
+  const [excludeIds, setExcludeIds] = useState(() => new Set());
+  const [rerollBusy, setRerollBusy] = useState(false);
+  const [rerollExhausted, setRerollExhausted] = useState(false);
+  const [rerollPending, setRerollPending] = useState("");
+  const [rerollError, setRerollError] = useState("");
+  // 가이드(풀)가 바뀌면 재추천 상태 초기화 + 초기 top-3 를 제외목록에 시드(노출된 ref 전부 누적 원칙).
+  const initialIds = displayedRefs.map((r) => r.refId).join(",");
+  const [prevInitialIds, setPrevInitialIds] = useState(null);
+  if (initialIds !== prevInitialIds) {
+    setPrevInitialIds(initialIds);
+    setRerolled(null);
+    setRerollExhausted(false);
+    setRerollPending("");
+    setRerollError("");
+    setExcludeIds(new Set(displayedRefs.map((r) => r.refId)));
+  }
+  const shownRefs = rerolled ?? displayedRefs;
+  const handleReroll = async () => {
+    if (!canReroll || rerollBusy || rerollExhausted) return;
+    setRerollBusy(true);
+    setRerollError("");
+    try {
+      const res = await rerollReference(projectId, guideId, rerollAxis, [
+        ...excludeIds,
+      ]);
+      if (res?.pendingMessage) {
+        setRerollPending(res.pendingMessage); // AI 적격 축 '생성 중' 흐름 유지
+      } else if (res?.exhausted || !(res?.references || []).length) {
+        setRerollExhausted(true); // 정직 고갈 — 안내 문구 + 🔄 비활성
+      } else {
+        const next = res.references.map((r, i) => ({
+          ordinal: i + 1,
+          refId: r.refId,
+          url: r.url || urlFor(r.refId),
+          sourceType: r.sourceType,
+          region: r.region,
+          personas: r.personas,
+          category: r.category,
+          axis: rerollAxis,
+        }));
+        setRerolled(next);
+        setRerollPending("");
+        setExcludeIds((prev) => {
+          const s = new Set(prev);
+          next.forEach((r) => s.add(r.refId));
+          return s;
+        });
+      }
+    } catch {
+      setRerollError(
+        "레퍼런스를 다시 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
+    } finally {
+      setRerollBusy(false);
+    }
+  };
   const hasGoal =
     next && (next.focus || next.next_goal || next.next_goal_practice);
   const hasChecklist = next && next.focus_practice;
@@ -723,26 +799,40 @@ const Coach = ({
       )}
 
       {/* 4. 추천 레퍼런스 (+ 피드백·새로고침) */}
-      {displayedRefs.length > 0 && (
+      {shownRefs.length > 0 && (
         <section className={styles.section}>
           <SectionTitle>추천 레퍼런스</SectionTitle>
           <div className={styles.refBoard}>
             <div className={styles.refGrid}>
-              {displayedRefs.map((r) => (
+              {shownRefs.map((r) => (
                 <RefCard
                   key={r.refId}
                   reference={r}
                   archived={archivedRefs.has(r.refId)}
                   onArchive={projectId ? () => handleArchive(r) : undefined}
+                  moodLean={moodLean}
                 />
               ))}
             </div>
             <RefFeedback
-              refIds={displayedRefs.map((r) => r.refId)}
-              canRefresh={canRefresh}
+              refIds={shownRefs.map((r) => r.refId)}
+              canRefresh={canReroll && !rerollExhausted && !rerollBusy}
               onFeedback={onRefFeedback}
-              onRefresh={cycleRefs}
+              onRefresh={handleReroll}
             />
+            {rerollPending && (
+              <p className={styles.rerollNote}>{rerollPending}</p>
+            )}
+            {rerollExhausted && (
+              <p className={styles.rerollNote}>
+                이 축에서 더 보여드릴 레퍼런스가 없어요.
+              </p>
+            )}
+            {rerollError && (
+              <p className={styles.archiveError} role="alert">
+                {rerollError}
+              </p>
+            )}
             {archiveError && (
               <p className={styles.archiveError} role="alert">
                 {archiveError}

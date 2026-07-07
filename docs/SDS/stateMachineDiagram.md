@@ -170,7 +170,7 @@ stateDiagram-v2
     }
 
     state AI이미지인덱싱 {
-        [*] --> 생성됨 : Bria 생성 + 영속(sourceId=ai_id)
+        [*] --> 생성됨 : Bedrock 생성 + 영속(sourceId=ai_id)
         생성됨 --> 인덱싱중 : AiImageCreatedEvent (AFTER_COMMIT · @Async)
         인덱싱중 --> 색인완료 : CLIP 임베딩 → Pinecone upsert → 태그 시드(indexedAt)
         인덱싱중 --> 미색인 : 실패(로그만, 트랜잭션 격리 REQUIRES_NEW)
