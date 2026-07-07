@@ -13,7 +13,7 @@
 | 3 | llm/core | [세션 · LLM Provider · 출력 무결성](./classDiagram/sessionProviderOutputClassDiagram.md) | 단기메모리·provider·[N] 무결성 |
 | 4 | search | [검색](./classDiagram/searchClassDiagram.md) | CLIP·Pinecone·IDF re-rank |
 | 5 | image/llm | [AI 이미지 생성 (GENERATE · legacy)](./classDiagram/generateImageClassDiagram.md) | Bedrock 생성 |
-| 6 | guide | ⭐ [이미지 기반 가이드](./classDiagram/guideClassDiagram.md) | 그림 진단·코칭 |
+| 6 | guide | ⭐ [한 끗 가이드(코칭 에이전트 파이프라인)](./classDiagram/guideClassDiagram.md) | 그림 진단·코칭 |
 | 7 | auth | [인증](./classDiagram/authClassDiagram.md) | 회원가입·로그인·OAuth·토큰 |
 | 8 | project | [프로젝트 · 핀](./classDiagram/projectClassDiagram.md) | CRUD·QueryDSL·핀 |
 | 9 | image | [이미지 · 피드백 · 저장](./classDiagram/imageClassDiagram.md) | 업로드·서빙·피드백·저장 추상화 |

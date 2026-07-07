@@ -12,7 +12,7 @@
 ## 10.2 외부 연동
 | 연동 | 용도 | 격리/비고 |
 |---|---|---|
-| Gemini / Grok / Claude | COMPOSE·키워드·의도 분류 | provider 추상화, 교체 가능 |
+| Grok / Claude (Gemini=dev 폴백) | COMPOSE·키워드·의도 분류 | provider 추상화, prod=Grok / PAID=Claude |
 | Bedrock(Stability) | AI 이미지 생성 | 검색 결과 없을 때 |
 | Pinecone / Qdrant | 벡터 검색 (채팅 추천 / 가이드) | Resilience4j 서킷브레이커 |
 | fastapi-embed / guide | CLIP·비전 | 클러스터 내부 호출 |
@@ -31,7 +31,7 @@
 ## 10.5 보안
 - **JWT**(access/refresh) + **Google OAuth2**. OAuth state는 **Spring Session(Valkey)** 공유 세션(멀티 replica 대응).
 - 비밀값은 git에 두지 않음 — **SSM Parameter Store → External Secrets → K8s Secret**(키리스). 추적 파일엔 placeholder만.
-- **IRSA**: 정적 액세스키 없이 SA 단위 최소권한(backend→S3 bria · guide→S3 artref 개별 스코프).
+- **IRSA**: 정적 액세스키 없이 SA 단위 최소권한(backend→S3 bria(구 bria, 현 Bedrock) · guide→S3 artref 개별 스코프).
 - 인프라 보안: **HTTPS**(ACM·ssl-redirect 443), **RDS** private·암호화(`publicly_accessible=false`), **S3** Block Public Access, **SSH(22) 차단**(SSM Session Manager).
 - 과거 커밋 노출분(jwt·pinecone)은 **키 재발급**으로 대응.
 

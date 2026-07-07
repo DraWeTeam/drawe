@@ -54,8 +54,8 @@
     <rect x="558" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#7FCFC2" stroke-width="1.6"/>
     <g transform="translate(572,294)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#DBF1EC"/><use href="#ic-observe" x="1.5" y="1.5"/></g>
     <text x="610" y="312" font-size="14" font-weight="700" fill="#2A2925">관찰 신호 추출</text>
-    <text x="610" y="331" font-size="9.5" fill="#9A948B">taxonomy · what_to_observe</text>
-    <text x="610" y="346" font-size="9.5" fill="#9A948B">+ mediapipe 손·포즈 게이트</text>
+    <text x="610" y="331" font-size="9.5" fill="#9A948B">mediapipe 포즈·손 키포인트</text>
+    <text x="610" y="346" font-size="9.5" fill="#9A948B">+ VLM 관찰 · Bedrock Claude</text>
   </g>
   <g>
     <rect x="818" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#C9B0EC" stroke-width="1.6"/>

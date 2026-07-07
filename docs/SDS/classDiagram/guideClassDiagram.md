@@ -1,6 +1,6 @@
 ## ⭐ Guide Class Diagram
 
-이미지 기반 그림 진단/코칭(한 끗 가이드) 도메인. 백엔드는 **오케스트레이션만** 담당하고, 실제 비전/코칭 파이프라인(OpenCLIP ViT-L/14 → observation 신호 + mediapipe 손 게이트 → Qdrant 레퍼런스 검색 → LLM 코칭)은 외부 `fastapi-guide` 서비스에서 수행한다.
+이미지 기반 그림 진단/코칭(한 끗 가이드 = 코칭 에이전트 파이프라인) 도메인. 백엔드는 **오케스트레이션만** 담당하고, 실제 파이프라인(관찰: 포즈/손 키포인트 mediapipe + VLM Bedrock Claude → 진단 → 결정 → Qdrant 검색(taxonomy 정적축 + 무드 soft boost + exclude 재탐색) → 코칭 Grok → 피드백 루프)은 외부 `fastapi-guide` 서비스에서 수행한다.
 
 ```mermaid
 classDiagram
@@ -164,7 +164,7 @@ classDiagram
 | **Operations** | list | `ApiResponse<List<GuideResult>>` | public | 가이드 이력 조회 (GET /projects/{id}/guide). 채팅 재진입 시 가이드 카드 복원용 — 프로젝트의 가이드 히스토리(오래된→최신) |
 | **Operations** | guide | `ApiResponse<GuideResult>` | public | 그림 업로드→가이드 (POST /projects/{id}/guide, multipart). file 업로드 후 외부 비전/코칭 파이프라인 결과 반환 |
 | **Operations** | guideFeedback | `ApiResponse<Void>` | public | 가이드 피드백 (POST /projects/{id}/guide/{guideId}/feedback). body `{"feedback":"like"\|"dislike"\|null}`, null은 토글 해제 |
-| **Operations** | referenceFeedback | `ApiResponse<Void>` | public | 추천 레퍼런스 피드백 (POST .../{guideId}/references/feedback). body `{"event":"liked"\|"disliked"}` — 본 레퍼런스(최대 3컷)에 묶음 기록 |
+| **Operations** | referenceFeedback | `ApiResponse<Void>` | public | 추천 레퍼런스 피드백 (POST .../{guideId}/references/feedback). body `{"event":"liked"\|"disliked"}` — 본 레퍼런스(최대 3컷)에 묶음 기록. 피드백 루프에는 adopt(liked/disliked)→adoption_log 외에 **#52 reroll**(🔄 노출분 제외 재탐색, LLM 0콜)과 **#54 취향 결**(온보딩 무드 persona 교집합 시 "결이 맞는 것 우선" 표시, soft boost)도 포함 |
 
 <br>
 
@@ -194,7 +194,7 @@ classDiagram
 | **Attributes** | guidePublicUrl | String | private | 레퍼런스 이미지 브라우저 도달용 base(`/image/{ref_id}`) |
 | **Operations** | guide | GuideResult | public | 업로드→가이드 핵심 흐름: 권한 확인 → 멱등 키 결정/dedup → bytes 추출 → (TX 밖) `guideClient.guideImage` 호출 → coach면 `persistGuide` → 결과 빌드 |
 | **Operations** | list | `List<GuideResult>` | public | 프로젝트 내 내 가이드 히스토리(DESC 조회 후 오래된→최신으로 뒤집음). 저장 payload로 레퍼런스 URL 재보강. `@Transactional(readOnly=true)` |
-| **Operations** | adoptReferences | void | public | 레퍼런스 묶음 피드백(liked/disliked) → 페이로드 ref 풀 화이트리스트 필터(없으면 top-3 폴백) 후 guide `/adopt`로 best-effort 적재. `@Transactional(readOnly=true)` |
+| **Operations** | adoptReferences | void | public | 레퍼런스 묶음 피드백(liked/disliked) → 페이로드 ref 풀 화이트리스트 필터(없으면 top-3 폴백) 후 guide `/adopt`로 best-effort 적재(→adoption_log). 이 피드백 루프에는 **#52 reroll**(노출분 제외 재탐색, LLM 0콜)과 **#54 취향 결**("결이 맞는 것 우선", 무드 soft boost)도 함께 동작. `@Transactional(readOnly=true)` |
 | **Operations** | setGuideFeedback | void | public | 가이드 전체 피드백 업서트(like/dislike) / null·빈값이면 토글 해제(삭제). (user_id, guide_id) UNIQUE로 사용자별 1행. `@Transactional` |
 | **Operations** | persistGuide | Guide | private | coach 가이드 영속. request_id UNIQUE 경합(동시 중복 제출) 시 DataIntegrityViolation 삼키고 null 반환 |
 | **Operations** | storeUploadQuietly | ImageBlob | private | 업로드 원본을 image_blobs에 저장(히스토리 썸네일용). 실패는 non-fatal — null 반환 |

@@ -20,7 +20,7 @@
 - 가이드(👍/👎) 피드백의 **모델 재학습 반영** — 표시·저장까지이며, 재학습 파이프라인은 미구현
 
 ## 1.3 시스템 개요
-DraWe는 **프론트(React) — 백엔드(Spring Boot) — AI 서비스(FastAPI ×2) — 데이터스토어(MySQL·Redis·Pinecone)** 로 구성된 멀티서비스 시스템이다.
+DraWe는 **프론트(React) — 백엔드(Spring Boot) — AI 서비스(FastAPI ×2) — 데이터스토어(MySQL·Redis·Pinecone(채팅·보드 검색)·Qdrant(가이드 코퍼스))** 로 구성된 멀티서비스 시스템이다.
 백엔드가 도메인 로직과 외부 연동을 오케스트레이션하고, CLIP 임베딩·벡터 검색·LLM 합성을 거쳐 레퍼런스와 미술 조언을 생성한다.
 (전체 토폴로지·파이프라인 그림은 [README](./README.md) 참고. 협업·배포 프로세스 요약은 [collab-process](./img/collab-process.svg) — Jira→PR→CI/리뷰→머지→CD→ArgoCD→EKS.)
 

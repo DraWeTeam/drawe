@@ -22,7 +22,7 @@ sequenceDiagram
     participant DB as MySQL (DB)
     participant CE as ComposeExecutor
     participant OIC as OutputIntegrityChecker
-    participant LLM as LlmService (Grok / Claude / Gemini)
+    participant LLM as LlmService (Grok / Claude)
     participant RS as Redis (SessionService)
 
     C->>CTL: POST /projects/{projectId}/chat<br/>(principal, projectId, ChatRequest{message, sessionId, imageUrl})
@@ -226,7 +226,7 @@ sequenceDiagram
     participant Sess as SessionService(Redis)
     participant WF as WorkflowService
     participant CE as ComposeExecutor
-    participant LLM as LlmService (Grok / Claude / Gemini)
+    participant LLM as LlmService (Grok / Claude)
 
     C->>CTL: POST /projects/{projectId}/chat (message)
     CTL->>Chat: chat(user, projectId, request)
@@ -385,7 +385,7 @@ sequenceDiagram
     participant Chat as ChatLlmService
     participant Gen as ImageGenerationService
     participant Trans as PromptTranslator (Grok)
-    participant Bria as BriaClient
+    participant Guide as GuideClient
     participant Store as ImageStorage
     participant Repo as ImageRepository / MySQL(DB)
     participant Index as AiImageIndexService<br/>(@Async, AFTER_COMMIT)
@@ -405,10 +405,10 @@ sequenceDiagram
         Chat->>Gen: generate(user, decision.keywords(), project)
         Gen->>Trans: translate(user, prompt, project)<br/>KO 원문 + 프로젝트 subject/technique/mood
         Trans-->>Gen: englishPrompt (JSON {"prompt": "..."} 파싱·실패 시 원문 fallback)
-        Gen->>Bria: generate(englishPrompt)
-        Note over Bria: POST {baseUrl}/v2/image/generate (header api_token)<br/>image_url 즉시 / status_url 폴링(최대 30회, 1s)
-        Bria-->>Gen: BriaGenerateResponse{imageUrl} (임시 URL)
-        Gen->>Gen: RestClient 다운로드 → bytes, mime (기본 image/png)
+        Gen->>Guide: generateImage(englishPrompt)
+        Note over Guide: POST {baseUrl}/generate-image (배포 backend=bedrock)<br/>Bedrock PNG 바이트 직반환(임시 URL·폴링 없음)
+        Guide-->>Gen: PNG bytes (Bedrock 생성물)
+        Gen->>Gen: bytes 확보, mime (기본 image/png)
         Gen->>Store: store(user, bytes, mime)
         Store-->>Gen: Stored{id, url}
         Gen->>Repo: save(Image{source=AI, url, prompt=englishPrompt, createdBy})
@@ -436,14 +436,14 @@ sequenceDiagram
 
 | 항목 | 흐름 요약 | 핵심 비즈니스 로직 |
 | --- | --- | --- |
-| 목표 | 사용자가 원하는 이미지를 검색 대신 AI(Bria)로 즉석 생성해 채팅 응답에 url 로 돌려준다 | `chat()` 진입 후 `routeIntent` 결과가 `GENERATE_NOW` 이면 검색·LLM 답변을 모두 건너뛴다 |
+| 목표 | 사용자가 원하는 이미지를 검색 대신 AI(Bedrock(guide))로 즉석 생성해 채팅 응답에 url 로 돌려준다 | `chat()` 진입 후 `routeIntent` 결과가 `GENERATE_NOW` 이면 검색·LLM 답변을 모두 건너뛴다 |
 | 트리거 (명시) | "만들어줘" 등 명시적 생성 발화 → `decision.action() == GENERATE_NOW` | live 게이트(`isLive`)·검색·LLM 호출 **이전**에 `handleGenerateNow(...)` 로 short-circuit (할루시네이션 차단 위해 고정 안내 문구 사용) |
 | 트리거 (검색 0건 제안) | `NEW_SEARCH` 인데 적합 레퍼런스 0건 → `offerGenerate=true` 안내만 반환 | 이번 턴은 생성하지 않고 제안 톤 응답 + `generatePrompt=message`. 사용자가 다음 턴에 수락하면 룰이 `GENERATE_NOW` 로 라우팅돼 (A) 경로로 들어간다 |
-| 프롬프트 번역 | 한국어 원문 → 영문 image-gen 프롬프트 | `PromptTranslator.translate(user, prompt, project)` — 고정 모델 Grok, 프로젝트 subject/technique/mood 반영, `{"prompt":"..."}` JSON 파싱(실패 시 sanitize·원문 fallback), `prompt_translation_logs` 기록 |
-| Bria 생성 | 영문 프롬프트로 Bria 호출 후 임시 url 수신 | `BriaClient.generate(englishPrompt)` — `POST /v2/image/generate`(`api_token` 헤더), 동기 `image_url` 또는 비동기 `status_url` 폴링(최대 30회·1s 간격). 임시 url 은 즉시 다운로드 |
+| 프롬프트 번역 | 한국어 원문 → 영문 image-gen 프롬프트(Bedrock(guide) 이미지 생성용) | `PromptTranslator.translate(user, prompt, project)` — 고정 모델 Grok, 프로젝트 subject/technique/mood 반영, `{"prompt":"..."}` JSON 파싱(실패 시 sanitize·원문 fallback), `prompt_translation_logs` 기록 |
+| Bedrock(guide) 생성 | 영문 프롬프트로 guide `POST /generate-image` 호출 후 PNG 바이트 수신 | `GuideClient.generateImage(englishPrompt)` — `POST /generate-image`(배포 backend=bedrock). Bedrock 이 생성한 PNG 바이트를 직반환(임시 URL·폴링·다운로드 없음) |
 | 저장 + 이벤트 | 다운로드 바이트를 우리 저장소·DB 로 영구화하고 인덱싱 이벤트 발행 | `ImageStorage.store` → `ImageRepository` 저장(`source=AI`, `prompt=englishPrompt`) → id 확정 후 `sourceId="ai_"+id` → `AiImageCreatedEvent` publish. `AiImageIndexService` 가 AFTER_COMMIT·@Async 로 CLIP→Pinecone upsert(응답과 비동기 분리) |
 | 응답 | 생성 이미지 url 을 채팅 응답으로 반환 | `ChatResponse{action="GENERATE_NOW", generatedImage=GeneratedImage(id, signed url, prompt)}` — `imageUrlSigner.sign` 으로 서명된 url. ASSISTANT 메시지도 함께 저장 |
-| 왜 LEGACY 인가 | GENERATE 는 신규 COMPOSE 워크플로에 종착되지 못한 직접 합성 경로로 남아있다 | ① 다른 의도와 달리 `COMPOSE 종착 계약`(스키마 강제 LLM→파싱→무결성)을 따르지 않음 ② `Image` 엔티티·`Bria/Storage` 인프라에 직접 의존 ③ Bria API 키 등 부팅 검증 의존성이 있어 워크플로 단계로 일반화하기 전까지 live 게이트 앞 short-circuit 으로 유지 |
+| 왜 LEGACY 인가 | GENERATE 는 신규 COMPOSE 워크플로에 종착되지 못한 직접 합성 경로로 남아있다 | ① 다른 의도와 달리 `COMPOSE 종착 계약`(스키마 강제 LLM→파싱→무결성)을 따르지 않음 ② `Image` 엔티티·`Bedrock(guide)/Storage` 인프라에 직접 의존 ③ guide 이미지 생성 등 부팅 검증 의존성이 있어 워크플로 단계로 일반화하기 전까지 live 게이트 앞 short-circuit 으로 유지 |
 
 ## 대화 초기화 (Reset) Sequence Diagram
 
