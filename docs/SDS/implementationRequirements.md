@@ -5,7 +5,7 @@
 |---|---|
 | Frontend | React, Vite |
 | Backend | Spring Boot 3.2, Java 17, Spring Data JPA, **QueryDSL**, Flyway, Resilience4j, Spring Security(OAuth2·JWT) |
-| AI 서비스 | FastAPI(Python), CLIP(ViT-L/14), mediapipe, Gemini VLM |
+| AI 서비스 | FastAPI(Python), CLIP(ViT-L/14), mediapipe, Bedrock Claude VLM |
 | 데이터 | MySQL 8, Redis/Valkey, **Pinecone**(채팅 추천), **Qdrant**(가이드) |
 | 인프라 | AWS EKS(EC2 Graviton arm64) · ArgoCD(GitOps) · Karpenter · IRSA · External Secrets, Cloudflare, ALB, GitHub Actions(CD), OTEL(관측) |
 
@@ -13,7 +13,7 @@
 | 연동 | 용도 | 격리/비고 |
 |---|---|---|
 | Gemini / Grok / Claude | COMPOSE·키워드·의도 분류 | provider 추상화, 교체 가능 |
-| Bria | AI 이미지 생성 | 검색 결과 없을 때 |
+| Bedrock(Stability) | AI 이미지 생성 | 검색 결과 없을 때 |
 | Pinecone / Qdrant | 벡터 검색 (채팅 추천 / 가이드) | Resilience4j 서킷브레이커 |
 | fastapi-embed / guide | CLIP·비전 | 클러스터 내부 호출 |
 | Google OAuth / GA4 / SMTP / S3 | 인증·분석·메일·스토리지 | |

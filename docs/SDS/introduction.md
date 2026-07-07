@@ -30,7 +30,7 @@ DraWe는 **프론트(React) — 백엔드(Spring Boot) — AI 서비스(FastAPI 
 | **인증(auth)** | Google OAuth 로그인, JWT(access/refresh) 발급·갱신, 로그아웃 |
 | **프로젝트(project)** | 생성, 목록(정렬·검색·상태필터·페이징), 상세, 수정, 삭제 |
 | **핀/레퍼런스** | 핀 추가·해제·조회(슬롯 3), 프로젝트 레퍼런스 |
-| **이미지(image)** | 업로드, 서빙, **AI 이미지 생성(Bria)** |
+| **이미지(image)** | 업로드, 서빙, **AI 이미지 생성(Bedrock Stability)** |
 | **검색(search)** | CLIP 임베딩 → Pinecone 벡터검색 → MySQL 메타 → **태그 IDF re-rank** |
 | **채팅/LLM(llm)** | 의도 분류 → 검색/유지/합성, 멀티턴, 초기화, **자기비평(이미지)**, 이미지 생성 |
 | **가이드(guide)** | 그림 업로드 진단·코칭, 가이드/레퍼런스 피드백, 성장(growth) |

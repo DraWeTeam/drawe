@@ -5,7 +5,7 @@
 - **Komoran** — 한국어 형태소 분석기.
 - **mediapipe** — 포즈 추정(가이드 비전).
 - **Gemini / Grok / Claude** — LLM provider.
-- **Bria** — 이미지 생성 API.
+- **Bedrock Stability** — 이미지 생성 API.
 
 ## 인프라 · 프레임워크
 - **Spring Boot 3.2 / Spring Data JPA / Spring Security**

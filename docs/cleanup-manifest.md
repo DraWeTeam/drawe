@@ -14,8 +14,10 @@
 | A3 | `project_id=31 AND request_id LIKE 'badge-verify-%'` (id 70·71) | ④ 추천 badge 3계층 검증 | request_id 접두 'badge-verify-' |
 | A4 | `project_id=31 AND DATE(created_at)='2026-07-05'` (id 72·73, request_id=uuid) | ⑥ track 검증(value_flat_00·figure_003) | project 31의 2026-07-05 생성분 2건, uuid request_id |
 | ★A5 | `project_id=32` (id 74, request_id=uuid) | ⑦ 성장 그래프 실렌더 | **D2 데모 확정 전 삭제 금지** |
-| A6 | `project_id=31 AND guide_id='cef90a83-6fa4-4a0b-b2fa-80660afbffe3'` (id 110, 2026-07-06) | README 데모 overlay 1마커 캡처 시도(미채택) | 데모 캡처 **미사용** — **push 시점 삭제 예정**. 동반 upload(images 135) 함께 정리 |
-| ★A7 | `project_id=31 AND guide_id='72a069f3-610f-4441-83ed-cb6b8cb76670'` (2026-07-06) | README 데모 4장 원본(§1~§7 full·그림 위 ①② overlay 2마커·추천 이유·태그) | **파이널 데모 확정 전 삭제 금지** — docs/demo/*.png 원본. 확정 후 동반 upload 함께 정리 |
+| ~~A6~~ | `guide_id='cef90a83-6fa4-4a0b-b2fa-80660afbffe3'` (id 110) | README 데모 overlay 1마커 캡처 시도(미채택) | ✅ **삭제 완료(2026-07-07)** — guides id 110 DELETE(guide_feedback 0건). 동반 upload id 135는 `images` 테이블 부재(별도/기정리) |
+| ~~★A7~~ | `guide_id='72a069f3-610f-4441-83ed-cb6b8cb76670'` (id 111) | README 데모 v1 원본(overlay 2마커) | **데모 v2(A9)로 교체 → 파이널 후보 아님.** 미사용화 — push 후 정리 가능(현 docs/demo 미참조) |
+| ~~A8~~ | `guide_id='06256ec7-e592-4537-9e5e-2f32c420e639'` (id 113, upload 141) | demo v2 후보(무게중심 focus·overlay 2마커·persona_lean 확인용) | **미채택**(값 focus 37b4225c 채택) — push 후 삭제 |
+| ★A9 | `guide_id='37b4225c-ac1f-476d-8008-66bbe146bb6c'` (id 114, upload 142, value_structure) | **README 데모 v2 원본**(§1~§7 full·§3 overlay 2마커·§4 추천이유+태그+**취향 결 뱃지**·persona_lean=[mood]) | **파이널 데모 확정 전 삭제 금지** — 현 docs/demo/guide.png·reason.png 원본. #54(mood 가시화) 실렌더 소스 |
 
 연쇄: `guide_feedback` 에 위 guide id 참조행 있으면 함께(FK/수동). 삭제 전 `SELECT` 로 범위 확인.
 
