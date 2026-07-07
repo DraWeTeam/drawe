@@ -56,5 +56,6 @@
 | E1 | `frontend/dist/` (vite 빌드 산출물) | 프론트 번들 검증(npm run build) | **gitignored** — 커밋 무관, 재빌드로 갱신. 삭제 무해 |
 | E2 | `drawe-guide` 컨테이너 `/tmp/*.py`·`/tmp/poc/`(verify_tone·poc_*·verify_track1 하네스) | FastAPI /reroll·/guide 스모크 하네스 | 컨테이너 로컬 임시 — recreate 시 소멸. 삭제 무해 |
 | E3 | 로컬 `drawe_guide` DB: /guide·톤 스모크가 남긴 `adoption_log`(event='shown')·`miss_log` 소량 | reroll 착수 전 검증 호출 부산물 | **로컬 docker 전용**(dev/prod 무관), 운영 로그성. reroll 자체는 DB 미기록(검색만). B 절차로 함께 정리 가능 |
+| ★E4 | **Qdrant `reference_images_dev`**(dev 클라우드) `source_type='ai_example'` **3점**(현재 컬렉션 count 12720 = 기존 12717 + 3) | ④ 실브라우저 검증 중 value_structure 고갈→backfill 자가치유 생성물(qc_and_ingest, `ai_fallback.py:113`) | **dev 클라우드 코퍼스**(로컬 전용 아님). 정상 backfill 산출물이나 **테스트 트리거**. 삭제=선택(무해, `source_type='ai_example'` 필터로 조회 후 delete_by). prod(`reference_images_prod`)와 별개 컬렉션 |
 
-주: 재추천 검증은 로컬 스택 한정 — **원격/DB 영구 데이터 생성 없음**(reroll 엔드포인트는 무상태·읽기전용 검색). scratchpad 하네스는 세션 임시(레포 밖).
+주: 재추천 **엔드포인트 자체는 무상태·읽기전용**(DB 미기록). 단 ④ 검증에서 고갈 강제 도달이 **AI적격축 backfill을 트리거**해 dev Qdrant에 ai_example 3점이 생성됨(E4) — 유일한 영구 생성물. scratchpad 하네스(pw/·*.png)는 세션 임시(레포 밖).
