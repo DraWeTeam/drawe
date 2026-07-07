@@ -122,6 +122,24 @@ export const sendReferenceFeedback = async (
 };
 
 /**
+ * 레퍼런스 재추천("다시 추천" 🔄). 저장 가이드의 축(subProblem)으로 새 컷을 받는다(LLM 미경유).
+ * exclude = 화면에 이미 노출된 ref_id 전부(세션 누적, 서버 무상태). 반환:
+ * { subProblem, exhausted, pendingMessage, references:[{ordinal,refId,url,sourceType,region,personas,category}] }.
+ */
+export const rerollReference = async (
+  projectId,
+  guideId,
+  subProblem,
+  exclude,
+) => {
+  const res = await api.post(
+    `/projects/${projectId}/guide/${guideId}/references/reroll`,
+    { subProblem, exclude },
+  );
+  return res.data.data;
+};
+
+/**
  * 가이드 전체 피드백(👍 like / 👎 dislike / 해제 null).
  * 사용자별 1행으로 수집되며, null 이면 토글 해제(삭제). best-effort.
  */

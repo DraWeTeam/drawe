@@ -655,6 +655,94 @@ def search_ep(
     }
 
 
+@router.post("/reroll")
+def reroll_ep(
+    request: Request,
+    sub_problem: str = Form(...),
+    exclude: str = Form(""),  # 콤마구분 — 이미 화면에 노출된 ref_id 전부
+    track: str = Form(None),
+    medium: str = Form(None),
+    k: int = Form(3),
+):
+    """단일 축(sub_problem) 재추천 — 저장 sub_problem 으로 정적 질의(taxonomy) 복원 + 이미 노출된 ref 배제.
+    LLM/진단/코칭 0콜(참조 벡터검색만). /guide 파이프라인·프롬프트·골든셋·/search(운영자툴) 무접촉.
+    query·persona_hint·hand filter 는 sub_problem 의 순수 함수(재해석 없음, _pipeline 과 동일 규칙).
+    고갈 시 AI적격 축은 backfill '생성 중'/인라인 흐름 유지, 그 외는 exhausted=true(프론트가 정직 안내)."""
+    tax = taxonomy()
+    entry = tax.get(sub_problem)
+    if not entry:
+        raise HTTPException(status_code=404, detail="unknown sub_problem")
+    query = entry.get("reference_query") or ""
+    personas = entry.get("personas") or []
+    persona_hint = personas[0] if personas else None
+    filters = {"region": "hand"} if sub_problem == "hand_structure" else None
+    excl = [x.strip() for x in (exclude or "").split(",") if x.strip()]
+    base = str(request.base_url).rstrip("/")
+
+    def _pack(hits):
+        metas = retrieve_meta([rid for rid, _ in hits]) if hits else {}
+        out = []
+        for rid, s in hits:
+            m = metas.get(rid) or {}
+            out.append(
+                {
+                    "ref_id": rid,
+                    "score": round(float(s), 4),
+                    "url": f"{base}/image/{rid}",
+                    # badge 재료(표시 전용) — reference_meta 와 동일 projection.
+                    "meta": {
+                        kk: m.get(kk)
+                        for kk in ("source_type", "region", "personas", "category")
+                    },
+                }
+            )
+        return out
+
+    hits = search_text(
+        query,
+        persona_hint,
+        k=k,
+        filters=filters,
+        sub_problem=sub_problem,
+        track=track,
+        medium=medium,
+        exclude=excl,
+    )
+    if not hits and filters:  # hand 필터로 비면 필터 없이 재시도(_pipeline 과 동형)
+        hits = search_text(
+            query,
+            persona_hint,
+            k=k,
+            sub_problem=sub_problem,
+            track=track,
+            medium=medium,
+            exclude=excl,
+        )
+    if hits:
+        return {"sub_problem": sub_problem, "exhausted": False, "hits": _pack(hits)}
+
+    # 고갈: AI적격 축(value/comp/light/color)이면 backfill '생성 중'/인라인, 그 외는 정직 exhausted.
+    job_id = start_backfill(sub_problem, track=track, medium=medium)
+    if job_id:
+        st = _ref_job_status(job_id)
+        if st["status"] == "ready" and st["ref_id"] and st["ref_id"] not in excl:
+            return {
+                "sub_problem": sub_problem,
+                "exhausted": False,
+                "hits": _pack([(st["ref_id"], 1.0)]),
+            }
+        if st["status"] == "generating":
+            return {
+                "sub_problem": sub_problem,
+                "exhausted": False,
+                "pending": {
+                    "job_id": job_id,
+                    "message": "이 부분에 맞는 레퍼런스를 만들고 있어요.",
+                },
+            }
+    return {"sub_problem": sub_problem, "exhausted": True, "hits": []}
+
+
 class AdoptEvent(BaseModel):
     guide_id: str
     reference_id: str

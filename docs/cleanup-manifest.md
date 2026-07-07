@@ -48,3 +48,13 @@
 | D2 | `drawe_guide.practice_log` (dev RDS) `user_id='5' AND project_id='28' AND guide_id LIKE 'dev-w-%'` | ⑦ 주별 성장 차트 dev 렌더용 합성 6주 이력 | 합성 전용(guide_id 접두 'dev-w-'), 실사용과 격리 |
 
 주: dev RDS는 로컬(drawe_guide docker)과 별개 인스턴스(drawe-dev-mysql). D2 삭제 시 범위 한정 필수. dev 013 마이그레이션(project_id 컬럼)은 **유지**(정본 스키마 정합 — 삭제 대상 아님).
+
+## E. 재추천(guide-ref-reroll) 검증 생성물 (2026-07-07, 로컬 전용)
+
+| # | 식별 방법 | 생성 목적 | 삭제 안전 확인 |
+|---|---|---|---|
+| E1 | `frontend/dist/` (vite 빌드 산출물) | 프론트 번들 검증(npm run build) | **gitignored** — 커밋 무관, 재빌드로 갱신. 삭제 무해 |
+| E2 | `drawe-guide` 컨테이너 `/tmp/*.py`·`/tmp/poc/`(verify_tone·poc_*·verify_track1 하네스) | FastAPI /reroll·/guide 스모크 하네스 | 컨테이너 로컬 임시 — recreate 시 소멸. 삭제 무해 |
+| E3 | 로컬 `drawe_guide` DB: /guide·톤 스모크가 남긴 `adoption_log`(event='shown')·`miss_log` 소량 | reroll 착수 전 검증 호출 부산물 | **로컬 docker 전용**(dev/prod 무관), 운영 로그성. reroll 자체는 DB 미기록(검색만). B 절차로 함께 정리 가능 |
+
+주: 재추천 검증은 로컬 스택 한정 — **원격/DB 영구 데이터 생성 없음**(reroll 엔드포인트는 무상태·읽기전용 검색). scratchpad 하네스는 세션 임시(레포 밖).
