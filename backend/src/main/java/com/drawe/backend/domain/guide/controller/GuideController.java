@@ -3,6 +3,8 @@ package com.drawe.backend.domain.guide.controller;
 import com.drawe.backend.domain.guide.dto.GuideFeedbackRequest;
 import com.drawe.backend.domain.guide.dto.GuideResult;
 import com.drawe.backend.domain.guide.dto.ReferenceFeedbackRequest;
+import com.drawe.backend.domain.guide.dto.RerollRequest;
+import com.drawe.backend.domain.guide.dto.RerollResult;
 import com.drawe.backend.domain.guide.service.GuideService;
 import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
@@ -68,6 +70,22 @@ public class GuideController {
     guideService.adoptReferences(
         principal.getUser(), projectId, guideId, request.event(), request.referenceIds());
     return ApiResponse.success();
+  }
+
+  /**
+   * 레퍼런스 재추천("다시 추천" 🔄). 저장된 가이드의 축(subProblem)으로 새 레퍼런스 컷을 받는다(LLM 미경유). body: {@code
+   * {"subProblem": "...", "exclude": ["ref_id", ...]}} — exclude = 화면에 이미 노출된 ref 전부. 응답: 새
+   * 컷(references) 또는 고갈(exhausted) 또는 생성 중(pendingMessage).
+   */
+  @PostMapping("/{guideId}/references/reroll")
+  public ApiResponse<RerollResult> rerollReference(
+      @AuthenticationPrincipal PrincipalDetails principal,
+      @PathVariable Long projectId,
+      @PathVariable String guideId,
+      @RequestBody RerollRequest request) {
+    return ApiResponse.success(
+        guideService.rerollReferences(
+            principal.getUser(), projectId, guideId, request.subProblem(), request.exclude()));
   }
 
   /**

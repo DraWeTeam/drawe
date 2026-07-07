@@ -26,7 +26,7 @@ import {
 } from "./api";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
-import GuideForm from "./GuideForm";
+import GuideForm, { CONCERNS } from "./GuideForm";
 import GuideCollectionPanel from "./GuideCollectionPanel";
 import { GuideContent } from "./GuideModal";
 import { axisLabel } from "./guideLabels";
@@ -290,6 +290,7 @@ const ChatPage = () => {
   //   up→like, down→dislike, 같은 버튼 재클릭(해제)→null(행 삭제). 전송 실패는 조용히 무시(best-effort).
   const setGuideCardFeedback = (gidVal, kind) => {
     const msg = messages.find((m) => m._gid === gidVal && m.type === "guide");
+    const prevKind = msg?.guideFeedback ?? null; // 실패 시 롤백용
     const nextKind = msg && msg.guideFeedback === kind ? null : kind; // 토글
     setMessages((prev) =>
       prev.map((m) =>
@@ -302,8 +303,49 @@ const ChatPage = () => {
     if (guideId) {
       const fb =
         nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
-      sendGuideFeedback(projectId, guideId, fb).catch(() => {});
-    }
+      // 정직화: 전송 실패 시 토글 롤백 + 인라인 안내(성공 문구는 실배선 없어 추가하지 않음).
+      sendGuideFeedback(projectId, guideId, fb).catch(() => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._gid === gidVal && m.type === "guide"
+              ? { ...m, guideFeedback: prevKind }
+              : m,
+          ),
+        );
+        setErrorMessage(
+          "피드백을 반영하지 못했어요. 잠시 후 다시 시도해주세요.",
+        );
+      });
+      // ↓ 트래킹 추가
+      const previousFb = previousKind === "up" ? "like" : previousKind === "down" ? "dislike" : "none";
+      const currentFb = fb || "none";
+      
+      let actionType;
+      if (!previousKind && nextKind) actionType = "applied";
+      else if (previousKind && nextKind && previousKind !== nextKind) actionType = "changed";
+      else if (previousKind && !nextKind) actionType = "removed";
+      else actionType = "applied";  // fallback
+      
+      // 가이드 생성 시각 저장이 필요 — msg.createdAt 활용
+      const generatedAt = msg.createdAt ? new Date(msg.createdAt).getTime() : null;
+      const timeSinceGenerated = generatedAt 
+        ? Math.round((Date.now() - generatedAt) / 1000) 
+        : 0;
+      
+      track("guide_feedback", {
+        project_id: projectId,
+        guide_id: guideId,
+        action_type: actionType,
+        current_feedback: currentFb,
+        previous_feedback: previousFb,
+        guide_category: msg.guide?.next_steps?.track?.group 
+          || msg.guide?.primary_focus 
+          || "",
+        time_since_generated_sec: timeSinceGenerated,
+        time_since_previous_action_sec: 0,  // 이전 action 시각 추적 안 하면 0
+      });
+
+      }
   };
 
   const closeGuide = () => {
@@ -335,7 +377,7 @@ const ChatPage = () => {
 
   const buttonViewedFired = useRef(false);
 
-  const lastDetectedStage = useRef(null);
+  // eslint-disable-next-line no-unused-vars -- GA4: 프롬프트 길이 추적용(UI 연결 예정)
   const lastPromptLength = useRef(0);
 
   // 현재 프로젝트의 아카이브 저장 목록 로드 (카드 메뉴 "아카이브됨" 표시용)
@@ -649,7 +691,7 @@ const ChatPage = () => {
         sessionId,
         imageUrl: sentAttachment?.url,
       });
-      console.log("=== sendMessage 응답 ===", res); 
+      console.log("=== sendMessage 응답 ===", res);
 
       if (res?.sessionId && res.sessionId !== sessionId) {
         setSessionId(res.sessionId);
@@ -657,34 +699,34 @@ const ChatPage = () => {
       }
 
       if (res?.detectedStage) {
-      track("prompt_stage_detected", {
-        project_id: projectId,
-        detected_stage: res.detectedStage,
-        previous_stage: lastDetectedStage.current,
-        stage_changed: lastDetectedStage.current !== res.detectedStage,
-        confidence_score: res.confidenceScore ?? null,
-        input_mode: inputMode,
-        prompt_length: text.length,
-      });
-    }
+        track("prompt_stage_detected", {
+          project_id: projectId,
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore ?? null,
+          input_mode: inputMode,
+          prompt_length: text.length,
+        });
+      }
 
-    // 이미지 업로드 + 감지 단계가 있을 때 발화
-    if (sentAttachment && res?.detectedStage) {
-      track("drawing_progress_detected", {
-        project_id: projectId,
-        detected_stage: res.detectedStage,
-        previous_stage: lastDetectedStage.current,
-        stage_changed: lastDetectedStage.current !== res.detectedStage,
-        confidence_score: res.confidenceScore ?? null,
-        image_id: sentAttachment.id || sentAttachment.url || "",
-        guide_id: res.guide?.guide_id || res.guide?.id || "",
-      });
-    }
+      // 이미지 업로드 + 감지 단계가 있을 때 발화
+      if (sentAttachment && res?.detectedStage) {
+        track("drawing_progress_detected", {
+          project_id: projectId,
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore ?? null,
+          image_id: sentAttachment.id || sentAttachment.url || "",
+          guide_id: res.guide?.guide_id || res.guide?.id || "",
+        });
+      }
 
-    // stage 업데이트 (다음 이벤트의 previous_stage 계산용)
-    if (res?.detectedStage) {
-      lastDetectedStage.current = res.detectedStage;
-    }
+      // stage 업데이트 (다음 이벤트의 previous_stage 계산용)
+      if (res?.detectedStage) {
+        lastDetectedStage.current = res.detectedStage;
+      }
       const action = res.referencesAction;
       const newRefs = res.references || [];
       const generated = res.generatedImage;
@@ -798,7 +840,20 @@ const ChatPage = () => {
       await updateProject(projectId, { status: "COMPLETED" });
       setProject((prev) => (prev ? { ...prev, status: "completed" } : prev));
       track("project_completed", { project_id: projectId });
-      alert("완성작 갤러리에 담았어요!");
+      // 완성작 갤러리는 완성 그림(drawingUrl)이 있어야 노출된다. 백엔드가 최근 가이드
+      //   업로드에서 대표 이미지를 자동 지정하므로, 재조회해 실제 담겼는지로 안내를 분기.
+      let added = true;
+      try {
+        const detail = await getProject(projectId);
+        added = Boolean(detail?.drawingUrl);
+      } catch {
+        added = true; // 조회 실패 시 낙관 메시지로 폴백
+      }
+      alert(
+        added
+          ? "완성작 갤러리에 담았어요!"
+          : "완료했어요. 다만 이 프로젝트엔 완성 그림이 없어 갤러리에는 담기지 않았어요.\n그림을 업로드해 가이드를 만든 뒤 완료하면 갤러리에 담겨요.",
+      );
     } catch (e2) {
       const message =
         e2.response?.data?.error?.message ||
@@ -1011,7 +1066,8 @@ const ChatPage = () => {
       });
       alert("아카이브에 저장했어요!");
     } catch (err) {
-      alert(
+      // 인라인 에러로 통일(앱에 토스트 시스템 없음 — 기존 errorMessage 인라인 재사용).
+      setErrorMessage(
         err.response?.data?.error?.message ||
           "저장에 실패했어요. 다시 시도해주세요.",
       );
@@ -1201,6 +1257,10 @@ const ChatPage = () => {
                               className={styles.assistantLogo}
                               src={logo}
                               alt=""
+                            />
+                            <span
+                              className={styles.inlineSpinner}
+                              aria-hidden="true"
                             />
                             한 끗 가이드를 만들고 있어요…
                           </div>

@@ -189,7 +189,16 @@ def _pipeline(
                     pending_by_sp[sp] = job_id  # 비동기: '생성 중' 으로 프런트에 신호
         refs_by_sp[sp] = [(rid, "") for rid, _ in hits]
         retrieved |= {rid for rid, _ in hits}
-    return (dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp), None
+    return (
+        dx,
+        refs_by_sp,
+        retrieved,
+        tax,
+        growth,
+        intent,
+        pending_by_sp,
+        mood_profile,
+    ), None
 
 
 @router.post("/analyze")
@@ -402,7 +411,7 @@ def _guide_sync(
     )
     if early:
         return early
-    dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp = ctx
+    dx, refs_by_sp, retrieved, tax, growth, intent, pending_by_sp, mood_profile = ctx
     # 채팅 한 줄 피드백용 사용자 의도 = 작가가 *명시적으로 입력한* 키워드만(detect_terms(message)).
     #   diagnose 의 from_user 는 subject 에스컬레이션(_extra_terms, 예: 손 이미지→hand_structure)까지 섞여
     #   mismatch 를 (A)로 삼킨다 — 여기선 순수 텍스트 관심만 필요. 발화 프레이밍 전용(진단 경로 무영향).
@@ -466,6 +475,11 @@ def _guide_sync(
             }
             for rid in shown_refs
         }
+    # 무드 가시화(표시 전용): 온보딩 무드 취향 persona_lean 을 *그대로* 노출(재계산 없음 — _pipeline 계산분).
+    #   프론트가 ref.personas 와 교집합 판정에만 쓴다(스코어링·부스트 로직 무변). 무드 미설정
+    #   (mood_profile=None)이면 필드 부재 → 기존 응답과 byte-identical.
+    if mood_profile and mood_profile.get("persona_lean"):
+        payload["mood_profile"] = {"persona_lean": mood_profile["persona_lean"]}
     # ⑥ 5단계 커리큘럼 트랙 — primary_focus(이 가이드가 다루는 축)의 그룹·단계를 track_map.yaml
     #   단일 소스로 조립(정의 데이터, LLM·스코어링 무관). next_steps 슬롯에 표시 전용으로 추가만.
     _track = build_track(resp.primary_focus)
@@ -524,7 +538,7 @@ def _guide_stream_sync(
             "data: [DONE]\n\n",
         ]
         return StreamingResponse(iter(body), media_type="text/event-stream")
-    dx, refs_by_sp, retrieved, tax, growth, intent, _pending = ctx
+    dx, refs_by_sp, retrieved, tax, growth, intent, _pending, mood_profile = ctx
     # 채팅 한 줄 피드백용 사용자 의도 = 명시 입력 키워드만(detect_terms). sync 경로와 동형.
     user_focus = list(detect_terms(message))
     decision, _ = agent.decide(
@@ -568,6 +582,9 @@ def _guide_stream_sync(
     def gen():
         payload = finalize_guide_response(resp, growth_obj=growth_obj)
         payload.update(_make_overlay(dx, growth))  # 모드 선택 → 스트림 payload
+        # 무드 가시화(표시 전용) — 비스트림과 동일. None 이면 필드 부재(byte-identical).
+        if mood_profile and mood_profile.get("persona_lean"):
+            payload["mood_profile"] = {"persona_lean": mood_profile["persona_lean"]}
         # 점진 렌더용: 블록을 하나씩 흘린 뒤, 마지막에 전체 응답(메타·next_steps 포함)을 보낸다.
         for b in payload.get("blocks", []):
             yield f"data: {json.dumps({'type': 'block', 'block': b}, ensure_ascii=False)}\n\n"
@@ -653,6 +670,94 @@ def search_ep(
             for rid, s in hits
         ]
     }
+
+
+@router.post("/reroll")
+def reroll_ep(
+    request: Request,
+    sub_problem: str = Form(...),
+    exclude: str = Form(""),  # 콤마구분 — 이미 화면에 노출된 ref_id 전부
+    track: str = Form(None),
+    medium: str = Form(None),
+    k: int = Form(3),
+):
+    """단일 축(sub_problem) 재추천 — 저장 sub_problem 으로 정적 질의(taxonomy) 복원 + 이미 노출된 ref 배제.
+    LLM/진단/코칭 0콜(참조 벡터검색만). /guide 파이프라인·프롬프트·골든셋·/search(운영자툴) 무접촉.
+    query·persona_hint·hand filter 는 sub_problem 의 순수 함수(재해석 없음, _pipeline 과 동일 규칙).
+    고갈 시 AI적격 축은 backfill '생성 중'/인라인 흐름 유지, 그 외는 exhausted=true(프론트가 정직 안내)."""
+    tax = taxonomy()
+    entry = tax.get(sub_problem)
+    if not entry:
+        raise HTTPException(status_code=404, detail="unknown sub_problem")
+    query = entry.get("reference_query") or ""
+    personas = entry.get("personas") or []
+    persona_hint = personas[0] if personas else None
+    filters = {"region": "hand"} if sub_problem == "hand_structure" else None
+    excl = [x.strip() for x in (exclude or "").split(",") if x.strip()]
+    base = str(request.base_url).rstrip("/")
+
+    def _pack(hits):
+        metas = retrieve_meta([rid for rid, _ in hits]) if hits else {}
+        out = []
+        for rid, s in hits:
+            m = metas.get(rid) or {}
+            out.append(
+                {
+                    "ref_id": rid,
+                    "score": round(float(s), 4),
+                    "url": f"{base}/image/{rid}",
+                    # badge 재료(표시 전용) — reference_meta 와 동일 projection.
+                    "meta": {
+                        kk: m.get(kk)
+                        for kk in ("source_type", "region", "personas", "category")
+                    },
+                }
+            )
+        return out
+
+    hits = search_text(
+        query,
+        persona_hint,
+        k=k,
+        filters=filters,
+        sub_problem=sub_problem,
+        track=track,
+        medium=medium,
+        exclude=excl,
+    )
+    if not hits and filters:  # hand 필터로 비면 필터 없이 재시도(_pipeline 과 동형)
+        hits = search_text(
+            query,
+            persona_hint,
+            k=k,
+            sub_problem=sub_problem,
+            track=track,
+            medium=medium,
+            exclude=excl,
+        )
+    if hits:
+        return {"sub_problem": sub_problem, "exhausted": False, "hits": _pack(hits)}
+
+    # 고갈: AI적격 축(value/comp/light/color)이면 backfill '생성 중'/인라인, 그 외는 정직 exhausted.
+    job_id = start_backfill(sub_problem, track=track, medium=medium)
+    if job_id:
+        st = _ref_job_status(job_id)
+        if st["status"] == "ready" and st["ref_id"] and st["ref_id"] not in excl:
+            return {
+                "sub_problem": sub_problem,
+                "exhausted": False,
+                "hits": _pack([(st["ref_id"], 1.0)]),
+            }
+        if st["status"] == "generating":
+            return {
+                "sub_problem": sub_problem,
+                "exhausted": False,
+                "pending": {
+                    "job_id": job_id,
+                    "message": "이 부분에 맞는 레퍼런스를 만들고 있어요.",
+                },
+            }
+    return {"sub_problem": sub_problem, "exhausted": True, "hits": []}
 
 
 class AdoptEvent(BaseModel):

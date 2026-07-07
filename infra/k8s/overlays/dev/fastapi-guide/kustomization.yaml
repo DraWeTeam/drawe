@@ -10,7 +10,7 @@ resources:
 images:
   - name: drawe-fastapi-guide
     newName: 570515227314.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-dev-fastapi-guide
-    newTag: b5cc2df7ebb29b038f070610e462194e9cc0a1c7
+    newTag: 1dd734553380d2e1ad764177898f6c58525d9af8
 
 # 환경별 env (fastapi-guide-env). 이름 고정 → Deployment envFrom 참조
 generatorOptions:
