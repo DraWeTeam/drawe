@@ -7,9 +7,10 @@ import Tooltip from "../components/Tooltip";
 import SearchModal from "./SearchModal";
 import PlanPage from "../pages/settings/PlanPage";
 import styles from "./Sidebar.module.css";
-import logo from "../assets/drawe_logo.png";
+import primaryLogo from "../assets/primary_logo.png";
 
 const HIDDEN_PATHS = [
+  "/landing",
   "/login",
   "/signup",
   "/signup/terms",
@@ -134,10 +135,7 @@ const Sidebar = () => {
         <div className={styles.top}>
           {!collapsed && (
             <Link to="/projects" className={styles.logo}>
-              <img className={styles.logoIcon} src={logo} />
-              <span className={styles.logoText}>
-                <span className={styles.logoHighlight}>Dra</span>We
-              </span>
+              <img className={styles.logoFull} src={primaryLogo} alt="DraWe" />
             </Link>
           )}
           <Tooltip
