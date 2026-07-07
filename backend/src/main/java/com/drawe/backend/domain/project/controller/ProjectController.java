@@ -1,9 +1,13 @@
 package com.drawe.backend.domain.project.controller;
 
+import com.drawe.backend.domain.enums.ProjectSort;
 import com.drawe.backend.domain.project.dto.CreateProjectRequest;
+import com.drawe.backend.domain.project.dto.KeywordExtractionRequest;
+import com.drawe.backend.domain.project.dto.KeywordExtractionResponse;
 import com.drawe.backend.domain.project.dto.ProjectDetailResponse;
 import com.drawe.backend.domain.project.dto.ProjectListResponse;
 import com.drawe.backend.domain.project.dto.UpdateProjectRequest;
+import com.drawe.backend.domain.project.service.ProjectKeywordService;
 import com.drawe.backend.domain.project.service.ProjectService;
 import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
@@ -32,6 +36,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectController {
 
   private final ProjectService projectService;
+  private final ProjectKeywordService projectKeywordService;
+
+  /** 1단계 — 주제 문장에서 프로젝트 이름 + 키워드 칩 추출(사용자 편집 전). */
+  @PostMapping("/keyword-extraction")
+  public ApiResponse<KeywordExtractionResponse> keywordExtraction(
+      @Valid @RequestBody KeywordExtractionRequest request) {
+    return ApiResponse.success(projectKeywordService.extract(request.topic()));
+  }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
@@ -44,10 +56,13 @@ public class ProjectController {
   @GetMapping
   public ApiResponse<ProjectListResponse> list(
       @AuthenticationPrincipal PrincipalDetails principal,
+      @RequestParam(required = false) String q,
       @RequestParam(required = false) String status,
+      @RequestParam(defaultValue = "RECENT") ProjectSort sort,
       @RequestParam(defaultValue = "20") @Min(1) int limit,
       @RequestParam(defaultValue = "0") @Min(0) int offset) {
-    return ApiResponse.success(projectService.getList(principal.getUser(), status, limit, offset));
+    return ApiResponse.success(
+        projectService.getList(principal.getUser(), q, status, sort, limit, offset));
   }
 
   @GetMapping("/{projectId}")

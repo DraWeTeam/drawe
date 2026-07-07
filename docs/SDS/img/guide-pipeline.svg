@@ -1,0 +1,96 @@
+<svg viewBox="0 0 1600 620" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">한끗가이드 이미지 기반 가이드 파이프라인</title>
+  <desc id="desc">그림 업로드부터 OpenCLIP 임베딩, 관찰 신호 추출과 mediapipe 게이트, Qdrant 검색, Grok LLM 코칭, 가이드 결과까지의 비전 파이프라인. growth 이력을 반영해 개인화하고, 비전 파이프라인은 fastapi-guide가 담당한다.</desc>
+
+  <defs>
+    <g id="ic-upload" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 15.5V5.5"/><path d="M8 9l4-4 4 4"/><path d="M5 14v3.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V14"/></g>
+    <g id="ic-spark" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 4.5c.7 4 2.8 6.1 6.8 6.8-4 .7-6.1 2.8-6.8 6.7-.7-3.9-2.8-6-6.8-6.7 4-.7 6.1-2.8 6.8-6.8z"/></g>
+    <g id="ic-observe" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.6"/></g>
+    <g id="ic-search" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20"/></g>
+    <g id="ic-chat" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M5 6.5h14v9H11l-4 3v-3H5z"/><path d="M8.5 11h7"/></g>
+    <g id="ic-resp" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M6 4.5h8l4.5 4.5V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"/><path d="M13.5 4.5V9H18"/><path d="M8.5 13.5l2 2 4-4"/></g>
+    <g id="ic-growth" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M4 17l5-5 3 3 7-7"/><path d="M15 8h4v4"/></g>
+    <marker id="g-teal" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#1E9486"/></marker>
+    <marker id="g-purple" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#7E51C8"/></marker>
+    <marker id="g-indigo" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#6E5AC8"/></marker>
+    <marker id="g-green" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#45A064"/></marker>
+    <marker id="g-amber" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#C28A2E"/></marker>
+  </defs>
+
+  <rect x="8" y="8" width="1584" height="604" rx="22" fill="#FBFAF7" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <text x="44" y="52" font-size="25" font-weight="800" fill="#23221F">Drawe<tspan fill="#9A948B" font-weight="600"> · 한끗가이드 — 이미지 기반 가이드 파이프라인</tspan></text>
+  <text x="46" y="76" font-size="12.5" fill="#8C867C">그림 업로드 → OpenCLIP 임베딩 → 관찰 신호 → Qdrant → LLM 코칭 → 가이드 결과</text>
+  <line x1="44" y1="92" x2="1556" y2="92" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <rect x="266" y="120" width="1014" height="262" rx="16" fill="#F0F8F6" stroke="#7BC8BC" stroke-width="1.5"/>
+  <text x="286" y="146" font-size="13.5" font-weight="700" fill="#147567">fastapi-guide · 비전 파이프라인</text>
+  <text x="286" y="164" font-size="11" fill="#5BA89C">OpenCLIP · mediapipe · Qdrant · LLM</text>
+
+  <path d="M230 330 L282 330" fill="none" stroke="#1E9486" stroke-width="2.6" marker-end="url(#g-teal)"/>
+  <path d="M490 330 L542 330" fill="none" stroke="#1E9486" stroke-width="2.6" marker-end="url(#g-teal)"/>
+  <path d="M750 330 L802 330" fill="none" stroke="#7E51C8" stroke-width="2.6" marker-end="url(#g-purple)"/>
+  <path d="M1010 330 L1062 330" fill="none" stroke="#6E5AC8" stroke-width="2.6" marker-end="url(#g-indigo)"/>
+  <path d="M1270 330 L1322 330" fill="none" stroke="#45A064" stroke-width="2.6" marker-end="url(#g-green)"/>
+  <path d="M1430 380 C 1432 430 1430 446 1418 470" fill="none" stroke="#C28A2E" stroke-width="2.2" marker-end="url(#g-amber)"/>
+  <text x="1444" y="438" font-size="10" font-weight="700" fill="#A6781F">coach 저장</text>
+  <path d="M1232 472 C 1206 442 1182 410 1172 382" fill="none" stroke="#C28A2E" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#g-amber)"/>
+  <text x="1120" y="446" font-size="10" font-weight="700" fill="#A6781F">이력 반영</text>
+
+  <g>
+    <rect x="38" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#9DBAEC" stroke-width="1.6"/>
+    <g transform="translate(52,294)" color="#3B6FD4"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#E5EDFB"/><use href="#ic-upload" x="1.5" y="1.5"/></g>
+    <text x="90" y="314" font-size="14.5" font-weight="700" fill="#2A2925">그림 업로드</text>
+    <text x="90" y="334" font-size="11" fill="#9A948B">multipart</text>
+    <rect x="54" y="348" width="160" height="20" rx="10" fill="#EFF1F0" stroke="#D8DAD8"/><text x="134" y="362" font-size="10" font-weight="600" text-anchor="middle" fill="#6B7270">백엔드 · 권한·멱등·영속</text>
+  </g>
+  <g>
+    <rect x="298" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#7FCFC2" stroke-width="1.6"/>
+    <g transform="translate(312,294)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#DBF1EC"/><use href="#ic-spark" x="1.5" y="1.5"/></g>
+    <text x="350" y="314" font-size="14" font-weight="700" fill="#2A2925">OpenCLIP ViT-L/14</text>
+    <text x="350" y="334" font-size="11" fill="#9A948B">768-dim 임베딩</text>
+  </g>
+  <g>
+    <rect x="558" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#7FCFC2" stroke-width="1.6"/>
+    <g transform="translate(572,294)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#DBF1EC"/><use href="#ic-observe" x="1.5" y="1.5"/></g>
+    <text x="610" y="312" font-size="14" font-weight="700" fill="#2A2925">관찰 신호 추출</text>
+    <text x="610" y="331" font-size="9.5" fill="#9A948B">taxonomy · what_to_observe</text>
+    <text x="610" y="346" font-size="9.5" fill="#9A948B">+ mediapipe 손·포즈 게이트</text>
+  </g>
+  <g>
+    <rect x="818" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#C9B0EC" stroke-width="1.6"/>
+    <g transform="translate(832,294)" color="#7E51C8"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#EEE4FA"/><use href="#ic-search" x="1.5" y="1.5"/></g>
+    <text x="870" y="314" font-size="14.5" font-weight="700" fill="#2A2925">Qdrant 검색</text>
+    <text x="870" y="334" font-size="11" fill="#9A948B">reference_images</text>
+  </g>
+  <g>
+    <rect x="1078" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#B9AEE6" stroke-width="2"/>
+    <g transform="translate(1092,294)" color="#6E5AC8"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#ECE6FA"/><use href="#ic-chat" x="1.5" y="1.5"/></g>
+    <text x="1130" y="312" font-size="14.5" font-weight="700" fill="#2A2925">LLM 코칭 · Grok</text>
+    <text x="1130" y="331" font-size="10" fill="#9A948B">약점 진단</text>
+    <text x="1130" y="346" font-size="10" fill="#9A948B">+ 한 끗 포인트</text>
+  </g>
+  <g>
+    <rect x="1338" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#93CBA1" stroke-width="1.6"/>
+    <g transform="translate(1352,294)" color="#45A064"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#E4F3E9"/><use href="#ic-resp" x="1.5" y="1.5"/></g>
+    <text x="1390" y="312" font-size="14.5" font-weight="700" fill="#2A2925">가이드 결과</text>
+    <text x="1390" y="331" font-size="10" fill="#9A948B">+ 추천 레퍼런스</text>
+    <text x="1390" y="346" font-size="10" fill="#9A948B">+ growth 반영</text>
+  </g>
+
+  <g>
+    <rect x="1232" y="470" width="240" height="80" rx="13" fill="#FFFFFF" stroke="#E2C07E" stroke-width="1.6"/>
+    <g transform="translate(1248,492)" color="#C28A2E"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#F8EDD5"/><use href="#ic-growth" x="1.5" y="1.5"/></g>
+    <text x="1288" y="502" font-size="14.5" font-weight="700" fill="#2A2925">growth</text>
+    <text x="1288" y="522" font-size="11" fill="#9A948B">user_id 단위 진척·이력</text>
+    <text x="1288" y="538" font-size="10" fill="#B0AAA0">coach 모드만 저장 → 개인화</text>
+  </g>
+
+  <g transform="translate(44,420)">
+    <rect x="0" y="0" width="780" height="148" rx="14" fill="#FFFFFF" stroke="#ECE7DF"/>
+    <text x="20" y="30" font-size="13" font-weight="700" fill="#2A2925">한끗가이드 핵심</text>
+    <circle cx="26" cy="58" r="6" fill="#6E5AC8"/><text x="42" y="62" font-size="11.5" fill="#4A463F"><tspan font-weight="700">검색 도구 → AI 코치</tspan> · 내가 그린 그림을 진단·코칭 (차별점 1)</text>
+    <circle cx="26" cy="86" r="6" fill="#C28A2E"/><text x="42" y="90" font-size="11.5" fill="#4A463F"><tspan font-weight="700">성장 중심 맞춤</tspan> · growth(user_id 진척)로 약점·이력 반영해 개인화</text>
+    <circle cx="26" cy="114" r="6" fill="#1E9486"/><text x="42" y="118" font-size="11.5" fill="#4A463F"><tspan font-weight="700">오케스트레이션 분리</tspan> · 백엔드=권한·멱등·영속 / fastapi-guide=비전 파이프라인</text>
+  </g>
+</svg>

@@ -32,13 +32,13 @@ public class PromptTranslator {
   private static final LlmProvider TRANSLATOR_PROVIDER = LlmProvider.GROK;
 
   private static final String SYSTEM_INSTRUCTION =
-      "You convert Korean user requests into a single English "
-          + "image-generation prompt for the Bria AI model.\n"
+      "You convert Korean user requests into a single English image-generation prompt "
+          + "for the Bria AI model.\n"
           + "Rules:\n"
           + "1. Respond with a single JSON object only: {\"prompt\": \"<english prompt>\"}\n"
           + "   No prose, no markdown, no code fences, no extra fields.\n"
-          + "2. Keep the prompt under 60 words. "
-          + "Concrete nouns, adjectives, lighting, composition, mood.\n"
+          + "2. Keep the prompt under 60 words. Concrete nouns, adjectives, lighting, "
+          + "composition, mood.\n"
           + "3. If project context is provided (subject, technique, mood), weave it in naturally.\n"
           + "4. Do not invent unrelated elements. Stay faithful to the user request.\n"
           + "5. Prefer commercial-safe descriptors. No brand names, no real person names.";
@@ -46,8 +46,8 @@ public class PromptTranslator {
   private static final Pattern CODE_FENCE = Pattern.compile("(?s)^```(?:json)?\\s*|\\s*```$");
   private static final Pattern LEADING_PREFIX =
       Pattern.compile(
-          "(?i)^(sure[,!.]?\\s*|here(?:'s| is)?\\s+(?:the\\s+)?(?:english\\s+)?prompt[:\\-\\s]*|"
-              + "prompt[:\\-\\s]*|english\\s+prompt[:\\-\\s]*)");
+          "(?i)^(sure[,!.]?\\s*|here(?:'s| is)?\\s+(?:the\\s+)?(?:english\\s+)?prompt[:\\-\\s]*"
+              + "|prompt[:\\-\\s]*|english\\s+prompt[:\\-\\s]*)");
 
   private final List<LlmService> llmServices;
   private final ObjectMapper objectMapper;

@@ -1,0 +1,34 @@
+# =============================================================================
+# Grafana 대시보드 프로비저닝 provider — EKS 전용, 공유 RDS 'grafana' 스키마 롤백 안전판
+#
+#  배경: prod EKS Grafana 와 ECS Grafana 는 같은 RDS MySQL 'grafana' 스키마를 쓴다
+#        (k8s/overlays/prod/observability/grafana.yaml, terraform-prod/observability.tf).
+#        파일 프로비저닝 대시보드는 디스크가 아니라 그 공유 DB 에 저장된다.
+#
+#  ⚠ Grafana 11.4.0(이 프로젝트 핀 버전) 동작:
+#     "프로비저닝 source 를 제거하면 disableDeletion=true 가 아닌 한 DB 에서 대시보드를 삭제한다."
+#     즉 ECS 로 롤백해 ECS Grafana(=이 provider 없음)가 기동하면, 공유 DB 의 고아
+#     프로비저닝 대시보드를 startup reconcile 때 지울 수 있다(11.x 의 알려진 동작; 12.1+ 에서 바뀜).
+#
+#  롤백 안전 설정:
+#     - disableDeletion: true   → reconcile 가 이 대시보드를 삭제하지 못하게 잠금.
+#     - allowUiUpdates: false   → UI 저장(→고아화→삭제 경로)을 원천 차단. read-only.
+#     - 고정 folder/folderUid    → 'DraWe' 폴더로 네임스페이스 격리(ECS 대시보드와 안 섞임).
+#     - 대시보드 JSON 의 고정 uid → 컷오버를 반복해도 같은 객체로 멱등 재생성.
+#
+#  마운트: /etc/grafana/provisioning/dashboards/ (provider), /var/lib/grafana/dashboards (JSON)
+#  자세한 운영/롤백 절차: 같은 폴더의 ROLLBACK.md 참고.
+# =============================================================================
+apiVersion: 1
+providers:
+  - name: drawe-eks
+    orgId: 1
+    folder: DraWe
+    folderUid: drawe-eks
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

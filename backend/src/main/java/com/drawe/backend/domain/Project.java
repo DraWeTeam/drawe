@@ -54,6 +54,15 @@ public class Project {
   @Column(name = "mood", length = 30)
   private String mood;
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "keywords", columnDefinition = "JSON")
+  private List<String> keywords = new ArrayList<>();
+
+  // SCRUM-113: 레퍼런스 보드 마지막 검색어 — 재진입 시 서버 기반으로 자동 복원(검색창은 비우고 결과만 재조회).
+  @Size(max = 500)
+  @Column(name = "last_reference_query", length = 500)
+  private String lastReferenceQuery;
+
   @NotNull
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false)

@@ -1,3 +1,28 @@
 .secrets/
 drawe-beta-extract/
 apply_*.py
+*.sh
+!infra/scripts/
+!infra/scripts/*.sh
+*.csv
+
+# 로컬 타임스탬프 백업 파일 (예: routes.py.bak.20260617-011411)
+*.bak
+*.bak.*
+
+# Terraform 산출물 (state/plan/캐시) - 절대 커밋 금지
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+
+# IntelliJ IDEA
+.idea/
+
+# 로컬 전용 (커밋 금지) — 에이전트 지침·설정·로컬 유틸 스크립트
+CLAUDE.md
+verify-email.sh
+.claude/

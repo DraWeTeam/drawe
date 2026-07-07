@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-guide-config
+  labels:
+    app: fastapi-guide
+data:
+  PORT: "8000"
+  WORKERS: "1"
+  SERVICE_ROLE: "guide"
+  VECTOR_BACKEND: "qdrant"
+  EMBEDDING_MODEL: "open_clip:ViT-L-14:openai"
+  S3_ENDPOINT: "https://s3.ap-northeast-2.amazonaws.com"
+  S3_PUBLIC_ENDPOINT: "https://s3.ap-northeast-2.amazonaws.com"
+  AWS_REGION: "ap-northeast-2"
+  REFERENCE_DIR: "/app/assets/reference"
+  VLM_BACKEND: "aistudio"
+  HAND_VLM: "1"
+  SUBJECT_VLM: "1"
+  LLM_PROVIDER: "grok"
+  LLM_MODEL: "grok-4.3"
+  AGENT_LLM_SELECT: "1"
+  AGENT_PLAN: "1"
+  AI_FALLBACK: "1"
+  # 기동 시 스키마 마이그레이션 자동 적용(guide.stores.migrate). GET_LOCK 로 레플리카 직렬화 +
+  #   schema_version 추적 + 멱등 errno + readiness 게이팅(파트셜 스키마 미서빙)이라 dev·prod 공통 안전.
+  #   빠뜨린 마이그레이션(예: 013 project_id)의 조용한 기능 비활성 방지. 런북 함정 12 는 검증/폴백으로 유지.
+  GUIDE_AUTO_MIGRATE: "1"
+  AI_GEN_PROVIDER: "gemini"
+  GEMINI_IMAGE_MODEL: "gemini-2.5-flash-image"
+  AI_FALLBACK_INLINE: "0"
+  # ②v1 섀도우 감사 로그 — read-only JSONL(발화 0 수정·스코어보드 무영향). dev·prod 공통 측정
+  #   (stdout → 각 환경 로그 스택). 구 prod-only 였으나 dev/prod 동형 측정으로 base 이동.
+  SHADOW_AUDIT: "1"
+  SHADOW_AUDIT_LOG: "/dev/stdout"
+  # ── OTEL → Alloy DaemonSet(observability ns) ──
+  OTEL_SERVICE_NAME: "fastapi-guide"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://alloy.observability.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_TRACES_SAMPLER: "parentbased_always_on"
+  OTEL_TRACES_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_LOGS_EXPORTER: "otlp"

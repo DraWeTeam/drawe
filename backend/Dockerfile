@@ -1,22 +1,8 @@
 # ─────────────────────────────────────────────────────────────
-# Stage 1: Build
-# ─────────────────────────────────────────────────────────────
-FROM gradle:jdk17 AS builder
-WORKDIR /app
-
-COPY gradlew .
-COPY gradle ./gradle
-COPY build.gradle settings.gradle ./
-RUN chmod +x ./gradlew
-
-# 의존성만 먼저 받기 — Docker layer caching 최적화
-RUN ./gradlew dependencies -x test --no-daemon || true
-
-COPY src ./src
-RUN ./gradlew bootJar -x test --no-daemon
-
-# ─────────────────────────────────────────────────────────────
-# Stage 2: Runtime — Temurin JRE + OTel Agent + 비루트 사용자
+# Runtime 단일 스테이지 — Temurin JRE + OTel Agent + RDS truststore + 비루트
+#  JAR 은 CI(GitHub Actions)에서 `./gradlew bootJar` 로 미리 빌드해 COPY 한다.
+#  (Docker 내부 gradle 컴파일 제거 → arm 빌드에서 QEMU 컴파일 비용 0, 중복 빌드 제거)
+#  CI 가 backend/app.jar 로 산출물을 복사해 둔다(.dockerignore 의 build/ 제외 회피).
 # ─────────────────────────────────────────────────────────────
 FROM eclipse-temurin:17-jre
 
@@ -48,7 +34,8 @@ RUN userdel -r ubuntu 2>/dev/null; \
     useradd -u 1000 -g drawe -m drawe
 
 WORKDIR /app
-COPY --from=builder --chown=drawe:drawe /app/build/libs/*-SNAPSHOT.jar app.jar
+# CI 에서 ./gradlew bootJar 로 미리 빌드한 jar (backend/app.jar) 복사
+COPY --chown=drawe:drawe app.jar /app/app.jar
 
 USER drawe:drawe
 EXPOSE 8080

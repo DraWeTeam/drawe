@@ -1,0 +1,68 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: drawe-prod
+
+resources:
+  - ../../../base/fastapi-guide
+
+images:
+  - name: drawe-fastapi-guide
+    newName: 933832340498.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-prod-fastapi-guide
+    newTag: latest
+
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: fastapi-guide-env
+    literals:
+      - S3_BUCKET=drawe-prod-artref
+      - QDRANT_COLLECTION=reference_images_prod
+      - CORS_ORIGINS=https://drawe.xyz
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,service.namespace=drawe
+      # ②v1 섀도우 계측(SHADOW_AUDIT)은 base configmap 으로 이동 — dev·prod 동형 측정.
+      #   /dev/stdout 싱크 → Alloy DaemonSet → Loki(파드 재시작·HPA 다중 파드에도 분포 보존).
+      #   read-only emit·결정 0 접촉·발화 불변. 로컬 compose 는 k8s configmap 미사용이라 여전히 off(selftest 오염 방지).
+      # 이미지 생성(ai_fallback) prod 전용 — base 의 AI_GEN_PROVIDER=gemini 를 override(envFrom 뒤가 이김).
+      #   Bedrock Stability stable-image-core(us-west-2; 서울엔 이미지 생성 모델 없음). 자격=IRSA.
+      #   dev 는 base(gemini) 상속. IRSA 의 bedrock:InvokeModel(guide-irsa.tf) 적용이 선행.
+      - AI_GEN_PROVIDER=bedrock
+      - BEDROCK_IMAGE_REGION=us-west-2
+      - BEDROCK_IMAGE_MODEL=stability.stable-image-core-v1:1
+      # VLM 관찰(vision.py) prod 전용 — base 의 VLM_BACKEND=aistudio 를 override(envFrom 뒤가 이김).
+      #   Claude Haiku 4.5(us. 크로스리전 추론 프로파일, us-west-2). 자격=IRSA(guide-irsa.tf VlmClaudeHaiku45).
+      #   region 은 코드 기본 us-west-2. dev 는 base(aistudio) 상속. 골든셋 평가 (a)전환가능 근거.
+      - VLM_BACKEND=bedrock
+      - BEDROCK_VLM_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0
+
+patches:
+  - target:
+      kind: ServiceAccount
+      name: fastapi-guide
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::933832340498:role/drawe-prod-fastapi-guide
+  - target:
+      kind: SecurityGroupPolicy
+      name: fastapi-guide-rds
+    patch: |-
+      - op: replace
+        path: /spec/securityGroups/groupIds
+        value:
+          - sg-03266d4b8793d8258        # drawe-prod-pods-db
+          - sg-01cd9b17e6765c840        # 클러스터 SG
+  - target:
+      kind: ExternalSecret
+      name: guide-secrets
+    patch: |-
+      - op: replace
+        path: /spec/data
+        value:
+          - { secretKey: DB_DSN,         remoteRef: { key: /drawe/prod/artref-db-dsn } }
+          - { secretKey: QDRANT_URL,     remoteRef: { key: /drawe/prod/qdrant-url } }
+          - { secretKey: QDRANT_API_KEY, remoteRef: { key: /drawe/prod/qdrant-api-key } }
+          - { secretKey: XAI_API_KEY,    remoteRef: { key: /drawe/prod/grok-api-key } }
+          - { secretKey: GEMINI_API_KEY, remoteRef: { key: /drawe/prod/gemini-api-key } }
+          - { secretKey: BRIA_API_KEY,   remoteRef: { key: /drawe/prod/bria-api-key } }

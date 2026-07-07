@@ -1,0 +1,71 @@
+# =============================================================================
+# fastapi-embed / fastapi-guide (OTel auto-instrument → OTLP → Alloy spanmetrics)
+# 알림 룰 — Prometheus/Mimir rule-group 포맷
+#
+# 적재: dev → mimirtool rules load / prod → AMP ruler 업로드 (backend.rules.yaml 동일)
+#
+# 검증된 사실:
+#   - 두 서비스 모두 `opentelemetry-instrument`로 기동(OTEL_METRICS_EXPORTER=otlp,
+#     OTEL_SERVICE_NAME=fastapi-embed | fastapi-guide). /metrics 엔드포인트 없음.
+#   - RED는 Alloy의 otelcol.connector.spanmetrics가 트레이스에서 생성:
+#       * traces_spanmetrics_calls_total              (카운터)
+#       * traces_spanmetrics_duration_milliseconds_bucket (히스토그램 → p95 가능)
+#     라벨: service_name, span_name, status_code(span), 그리고 설정 디멘션
+#           http_method, http_status_code, http_route.
+#   - ⚠ 단위 접미사 확인 권장: 스토어에서
+#       count by (__name__) ({__name__=~"traces_spanmetrics_duration.*"})
+#     로 _milliseconds vs _seconds 확인 후 필요 시 치환.
+# =============================================================================
+groups:
+  - name: drawe-fastapi-red
+    rules:
+      - alert: FastapiHigh5xxRate
+        expr: |
+          sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~"fastapi-.*",http_status_code=~"5.."}[5m]))
+          /
+          sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~"fastapi-.*"}[5m]))
+          > 0.05
+        for: 5m
+        labels: { severity: warning, layer: app }
+        annotations:
+          summary: "{{ $labels.service_name }} 5xx 비율 5% 초과"
+      - alert: FastapiHigh5xxRateCritical
+        expr: |
+          sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~"fastapi-.*",http_status_code=~"5.."}[5m]))
+          /
+          sum by (service_name) (rate(traces_spanmetrics_calls_total{service_name=~"fastapi-.*"}[5m]))
+          > 0.10
+        for: 5m
+        labels: { severity: critical, layer: app }
+        annotations:
+          summary: "{{ $labels.service_name }} 5xx 비율 10% 초과 (긴급)"
+      # p95 지연 (ms). embed=CLIP 임베드, guide=CLIP(+LLM) 이라 임계는 서비스별 튜닝.
+      - alert: FastapiHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service_name, le) (rate(traces_spanmetrics_duration_milliseconds_bucket{service_name=~"fastapi-.*"}[5m]))
+          ) > 3000
+        for: 10m
+        labels: { severity: warning, layer: app }
+        annotations:
+          summary: "{{ $labels.service_name }} p95 지연 3s 초과 ({{ $value }}ms)"
+
+  - name: drawe-fastapi-availability
+    rules:
+      # guide는 워밍업 중 /health 503 반환. 503이 오래 지속되면 워밍업 실패/멈춤.
+      - alert: FastapiGuideWarmupStuck
+        expr: |
+          sum(rate(traces_spanmetrics_calls_total{service_name="fastapi-guide",http_status_code="503"}[5m])) > 0
+        for: 15m
+        labels: { severity: warning, service: fastapi-guide, layer: app }
+        annotations:
+          summary: "fastapi-guide 503(워밍업) 15분 지속 — 워밍업 점검"
+      # 트래픽/트레이스 완전 소실(다운 가능성). idle 환경(dev 재우기)에선 오탐 → 주석.
+      # - alert: FastapiNoTraffic
+      #   expr: absent(traces_spanmetrics_calls_total{service_name="fastapi-guide"})
+      #   for: 10m
+      #   labels: { severity: warning, service: fastapi-guide, layer: app }
+      #
+      # 참고: liveness/readiness는 k8s probe(/health)가 1차 방어선이다.
+      #       파드 단위 Pod NotReady/Restart 알림을 원하면 kube-state-metrics를
+      #       파이프라인에 추가해야 한다(현재 미수집).

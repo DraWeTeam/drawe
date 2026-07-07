@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: drawe-dev
+
+resources:
+  - ../../../base/fastapi-embed
+
+# placeholder 이미지 → 실제 dev ECR
+images:
+  - name: drawe-fastapi
+    newName: 570515227314.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-dev-fastapi
+    newTag: 3fca8fdae33aff258206b79cacb2f7b1106160bf
+
+# 환경별 env (fastapi-embed-env). disableNameSuffixHash 로 이름 고정 → Deployment envFrom 가 참조
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: fastapi-embed-env
+    literals:
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=dev,service.namespace=drawe

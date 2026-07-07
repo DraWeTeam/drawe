@@ -1,0 +1,104 @@
+############################################################
+# Loki — monolithic, S3 backend (IRSA)
+#   ECS aws_ecs_service.loki 의 EKS 포팅. config 는 configMapGenerator(loki-config).
+#   S3 는 loki SA 의 IRSA(drawe-prod-obs-loki)로 인증 (static key 없음).
+############################################################
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loki
+  namespace: observability
+  annotations:
+    # 3-platform output: obs_loki_role_arn
+    eks.amazonaws.com/role-arn: arn:aws:iam::933832340498:role/drawe-prod-obs-loki
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: observability
+  labels:
+    app: loki
+spec:
+  type: ClusterIP
+  selector:
+    app: loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+    - name: grpc
+      port: 9095
+      targetPort: 9095
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: observability
+  labels:
+    app: loki
+spec:
+  replicas: 1
+  # 단일 S3 writer — 롤링 중 2-pod 동시 쓰기 방지
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      serviceAccountName: loki
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: loki
+          image: grafana/loki:3.3.0
+          args:
+            - -config.file=/etc/loki/loki-config.yaml
+            - -config.expand-env=true   # ${LOKI_S3_BUCKET}/${AWS_REGION} 확장에 필수
+            - -target=all
+          env:
+            - name: LOKI_S3_BUCKET
+              value: drawe-prod-loki-chunks
+            - name: AWS_REGION
+              value: ap-northeast-2
+          ports:
+            - name: http
+              containerPort: 3100
+            - name: grpc
+              containerPort: 9095
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: storage
+              mountPath: /tmp/loki
+      volumes:
+        - name: config
+          configMap:
+            name: loki-config
+        - name: storage
+          emptyDir: {}

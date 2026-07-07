@@ -3,11 +3,13 @@ package com.drawe.backend.domain.project.service;
 import com.drawe.backend.domain.ChatSession;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.enums.ProjectSort;
 import com.drawe.backend.domain.enums.ProjectStatus;
 import com.drawe.backend.domain.llm.repository.ChatSessionRepository;
 import com.drawe.backend.domain.llm.repository.LlmMessageRepository;
 import com.drawe.backend.domain.log.SearchLogRepository;
 import com.drawe.backend.domain.project.dto.CreateProjectRequest;
+import com.drawe.backend.domain.project.dto.KeywordClassification;
 import com.drawe.backend.domain.project.dto.ProjectDetailResponse;
 import com.drawe.backend.domain.project.dto.ProjectListItem;
 import com.drawe.backend.domain.project.dto.ProjectListResponse;
@@ -16,6 +18,7 @@ import com.drawe.backend.domain.project.repository.ProjectReferenceRepository;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -31,15 +34,22 @@ public class ProjectService {
   private final ChatSessionRepository chatSessionRepository;
   private final LlmMessageRepository llmMessageRepository;
   private final SearchLogRepository searchLogRepository;
+  private final ProjectKeywordService projectKeywordService;
+  private final com.drawe.backend.domain.guide.repository.GuideRepository guideRepository;
 
   @Transactional
   public ProjectDetailResponse create(User user, CreateProjectRequest request) {
+    List<String> keywords = request.keywords() == null ? List.of() : request.keywords();
+    // 백그라운드 분류 — 키워드에서 subject(필수)/mood/technique 를 뽑아 채운다(downstream: AI 색인·전역검색·어드민 유지).
+    KeywordClassification cls = projectKeywordService.classify(keywords);
+
     Project project = new Project();
     project.setUser(user);
     project.setName(request.name());
-    project.setSubject(request.subject());
-    project.setTechnique(request.technique());
-    project.setMood(request.mood());
+    project.setKeywords(new ArrayList<>(keywords));
+    project.setSubject(cls.subject());
+    project.setTechnique(cls.technique());
+    project.setMood(cls.mood());
     project.setDescription(request.description());
     project.setStatus(ProjectStatus.IN_PROGRESS);
     Project saved = projectRepository.save(project);
@@ -47,14 +57,12 @@ public class ProjectService {
   }
 
   @Transactional(readOnly = true)
-  public ProjectListResponse getList(User user, String statusParam, int limit, int offset) {
+  public ProjectListResponse getList(
+      User user, String q, String statusParam, ProjectSort sort, int limit, int offset) {
     ProjectStatus status = parseStatus(statusParam);
 
-    List<Project> projects = projectRepository.findPage(user, status, limit, offset);
-    long total =
-        status == null
-            ? projectRepository.countByUser(user)
-            : projectRepository.countByUserAndStatus(user, status);
+    List<Project> projects = projectRepository.findPage(user, status, sort, q, limit, offset);
+    long total = projectRepository.countPage(user, status, q);
 
     List<ProjectListItem> items =
         projects.stream()
@@ -92,8 +100,23 @@ public class ProjectService {
     if (request.status() != null) {
       project.setStatus(parseStatusStrict(request.status()));
     }
+    if (request.drawingUrl() != null) {
+      project.setDrawingUrl(request.drawingUrl());
+    }
     if (request.detailAnswers() != null) {
       project.setDetailAnswers(request.detailAnswers());
+    }
+    // 프로젝트 완료 시 대표 이미지가 없으면 최근 가이드 업로드를 완성작 대표로 자동 지정한다.
+    //   정본: '프로젝트 완료'는 별도 파일 업로드 없이 status=COMPLETED 만 보내고 완성작 갤러리에 담긴다.
+    //   완성작 갤러리(findCompletedWithDrawing)는 drawingUrl 있는 것만 노출하므로 여기서 확보.
+    if (project.getStatus() == ProjectStatus.COMPLETED
+        && (project.getDrawingUrl() == null || project.getDrawingUrl().isBlank())) {
+      guideRepository
+          .findByUser_IdAndProject_IdOrderByCreatedAtDesc(user.getId(), projectId)
+          .stream()
+          .filter(g -> g.getUpload() != null)
+          .findFirst()
+          .ifPresent(g -> project.setDrawingUrl("/images/" + g.getUpload().getId()));
     }
   }
 

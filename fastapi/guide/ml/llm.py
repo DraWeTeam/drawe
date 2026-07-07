@@ -6,6 +6,7 @@ import json
 import re
 import requests
 from guide.config import settings
+from guide._trace import trace
 
 _OBS = re.compile(r"<<OBS>>(.*?)<<END>>", re.S)
 _REFS = re.compile(r"<<REFS>>(.*?)<<END>>", re.S)
@@ -88,7 +89,11 @@ class RealLLM:
         self._fallback = DummyLLM()
 
     def complete_json(self, prompt: str) -> str:
+        # [경계5] llm: 프롬프트 크기 + 폴백 여부. fallback=True면 '결과가 안 나온다'가
+        #   컨텍스트 문제가 아니라 Grok 미연결/실패 문제 — 이 한 줄이 둘을 즉시 가른다.
+        trace("llm.in", prompt_chars=len(prompt), provider="grok")
         if not self.key:
+            trace("llm.out", fallback=True, reason="no_key")
             return self._fallback.complete_json(prompt)
         try:
             r = requests.post(
@@ -107,15 +112,32 @@ class RealLLM:
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": 0.3,
-                    "max_tokens": 4000,
+                    "max_tokens": 8000,  # was 4000 — grok-4.3는 reasoning 모델이라 추론+출력이 토큰을 공유. 4000이면 추론이 먹고 JSON이 잘려(finish=length) primary_focus 누락 → 검증 탈락. 넉넉히.
                 },
                 timeout=90,
             )
             r.raise_for_status()
-            content = r.json()["choices"][0]["message"]["content"]
-            return _extract_json(content)
+            data = r.json()
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
+            # 디버그(원인 확정 후 제거 가능): 잘렸는지(finish=length) + 추론이 토큰을 얼마나 먹었는지.
+            #   finish=length → max_tokens 더 올리거나 추론 줄이기. finish=stop인데도 None이면 프롬프트/grounding 문제.
+            print(
+                f"[llm] grok finish={choice.get('finish_reason')} "
+                f"clen={len(content or '')} "
+                f"reasoning={(data.get('usage') or {}).get('completion_tokens_details', {}).get('reasoning_tokens')}"
+            )
+            out = _extract_json(content)
+            trace(
+                "llm.out",
+                fallback=False,
+                out_chars=len(out),
+                finish=choice.get("finish_reason"),
+            )
+            return out
         except Exception as e:
             print(f"[llm] Grok 호출 실패 → 템플릿 폴백: {type(e).__name__}: {e}")
+            trace("llm.out", fallback=True, reason=type(e).__name__)
             return self._fallback.complete_json(prompt)
 
     def stream(self, prompt: str):

@@ -149,7 +149,8 @@ const ProjectFormModal = ({ mode, initial, onClose, onSubmit }) => {
   // (모달 내부에서 누르고 밖에서 떼는 드래그로 모달이 닫히는 문제 방지)
   const handleBackdropMouseUp = (e) => {
     const closedOnBackdrop =
-      e.target === e.currentTarget && mouseDownTarget.current === e.currentTarget;
+      e.target === e.currentTarget &&
+      mouseDownTarget.current === e.currentTarget;
     mouseDownTarget.current = null;
     if (!closedOnBackdrop) return;
 

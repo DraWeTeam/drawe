@@ -1,0 +1,4 @@
+# 평가 이미지는 커밋하지 않는다 — 라벨 구조(폴더)와 README 만 공유.
+*
+!.gitignore
+!README.md

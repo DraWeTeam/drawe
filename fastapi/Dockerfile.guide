@@ -1,5 +1,5 @@
 # Dockerfile.guide — guide 서비스(무거움). embed(Dockerfile)와 별개. embed 는 무변경.
-# 정책은 embed Dockerfile 과 동일(멀티스테이지 + CPU torch + OTel + 가중치 베이크).
+# 정책은 embed Dockerfile 과 동일(멀티스테이지 + CPU torch + OTel + 가중치 베이크 + 비루트 실행).
 
 # ── Stage 1: Builder ──────────────────────────────────
 FROM python:3.11-slim AS builder
@@ -7,7 +7,10 @@ ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential ca-certificates \
+        libgl1 libglib2.0-0 libxcb1 libsm6 libxext6 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
+# ↑ libgl1/libxcb1 등: ViTPose 베이크 시 transformers AutoProcessor 가 cv2 계열을 import(런타임
+#   Stage2 와 동일 libs). 없으면 'libxcb.so.1: cannot open shared object file' 로 베이크 실패.
 
 # CPU torch (embed 와 동일)
 RUN pip install --user \
@@ -18,7 +21,7 @@ RUN pip install --user \
 #  mediapipe: 최신 0.10.35는 linux aarch64 wheel 없음, 구버전 핀은 protobuf<4·numpy 충돌.
 #  손/포즈 게이트는 ml/pose·ml/hands 지연 import+try/except 로 런타임 degrade(서비스 정상 기동).
 COPY requirements.guide.txt .
-RUN grep -vE '^(torch==|torchvision==|nvidia-|mediapipe)' requirements.guide.txt > req-cpu.txt && \
+RUN grep -vE '^(torch==|torchvision==|nvidia-)' requirements.guide.txt > req-cpu.txt && \
     pip install --user -r req-cpu.txt
 
 # OTel auto-instrumentation
@@ -31,29 +34,50 @@ ARG HF_TOKEN=""
 RUN HF_TOKEN="$HF_TOKEN" HUGGING_FACE_HUB_TOKEN="$HF_TOKEN" \
     python -c "import open_clip; open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai', force_quick_gelu=True)"
 
+# ViTPose 가중치 베이크(usyd-community/vitpose-base, COCO-17) → cold start 다운로드 제거.
+#   ml/pose.py 와 동일 로더(AutoProcessor + VitPoseForPoseEstimation). HF 캐시(~/.cache/huggingface)에
+#   내려받아 두면 런타임 최초 pose 호출이 오프라인으로 뜬다(Stage2 가 /root/.cache 를 유저 홈으로 복사).
+RUN HF_TOKEN="$HF_TOKEN" HUGGING_FACE_HUB_TOKEN="$HF_TOKEN" \
+    python -c "from transformers import AutoProcessor, VitPoseForPoseEstimation; \
+AutoProcessor.from_pretrained('usyd-community/vitpose-base'); \
+VitPoseForPoseEstimation.from_pretrained('usyd-community/vitpose-base')"
+
 # ── Stage 2: Runtime ──────────────────────────────────
 FROM python:3.11-slim
+
+# 비루트 사용자 (1000:1000) 로 실행 — security best practice. backend/Dockerfile 과 동일 정책.
+# 빌더에서 pip --user(/root/.local)와 OpenCLIP/HF 가중치(/root/.cache)가 root 홈에 생긴다.
+# 그대로 두면 비루트 유저가 못 읽으므로(/root 0700) 유저 홈(/home/drawe)으로 옮기고 소유권 이전.
+RUN groupadd -g 1000 drawe && useradd -u 1000 -g drawe -m drawe
+
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
-    PATH=/root/.local/bin:$PATH \
+    HOME=/home/drawe \
+    PYTHONUSERBASE=/home/drawe/.local \
+    PATH=/home/drawe/.local/bin:$PATH \
     REFERENCE_DIR=/app/assets/reference
 WORKDIR /app
 
 # curl(healthcheck) + mediapipe/opencv 런타임 라이브러리
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl ca-certificates libgomp1 libgl1 libglib2.0-0 \
+        curl ca-certificates libgomp1 libgl1 libglib2.0-0 libxcb1 libsm6 libxext6 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /root/.local /root/.local
-COPY --from=builder /root/.cache /root/.cache
+# pip --user 패키지 + OpenCLIP/HF 가중치 캐시: /root → 유저 홈으로 이동 + 소유권 drawe
+#  (open_clip 은 ~/.cache/clip 을 expanduser 로 찾으므로 HOME=/home/drawe 와 함께 그대로 해소됨)
+COPY --from=builder --chown=drawe:drawe /root/.local /home/drawe/.local
+COPY --from=builder --chown=drawe:drawe /root/.cache /home/drawe/.cache
 
-COPY guide ./guide
-COPY assets ./assets
+COPY --chown=drawe:drawe guide ./guide
+COPY --chown=drawe:drawe assets ./assets
 
 EXPOSE 8000
 
 # OpenCLIP(+P1 mediapipe) 워밍업 시간 → start-period 넉넉히
 HEALTHCHECK --interval=30s --timeout=10s --start-period=150s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
+
+# 비루트로 전환 (이 지점 이후 모든 프로세스는 drawe 권한)
+USER drawe:drawe
 
 # graceful-shutdown(110s) < ECS stopTimeout(120s) 로 spot in-flight 보장
 CMD ["opentelemetry-instrument", "uvicorn", "guide.app:app", \

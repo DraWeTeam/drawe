@@ -1,0 +1,199 @@
+/* 요금제 보기 모달 — Figma 201:15482: 중앙 팝업 + 딤 배경 + X 닫기(전체화면 페이지 아님). */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(40, 34, 28, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.modal {
+  width: 100%;
+  max-width: 760px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-surface, #fefeff);
+  border-radius: 20px;
+  padding: 32px;
+  box-sizing: border-box;
+  box-shadow: 0 20px 60px rgba(15, 15, 15, 0.24);
+}
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.modalTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-secondary, #24221f);
+}
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-tertiary, #4a4846);
+  cursor: pointer;
+  border-radius: 8px;
+}
+.closeBtn:hover {
+  background: var(--bg-subtle, #f6f6f6);
+}
+
+.page {
+  padding: 32px 40px 64px;
+  max-width: 840px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #8a8580;
+}
+
+.stateBox {
+  text-align: center;
+  color: #8a8580;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 80px 20px;
+}
+
+/* ── 플랜 그리드 ── */
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 640px) {
+  .planGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.planCard {
+  background: #fff;
+  border: 1px solid #ece8e3;
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.highlight {
+  border-color: var(--text-brand);
+  box-shadow: 0 4px 18px rgba(255, 133, 52, 0.12);
+}
+
+.currentCard {
+  border-color: #2e2c2a;
+}
+
+.planHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.planName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2e2c2a;
+}
+
+.currentBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: #2e2c2a;
+  border-radius: 20px;
+  padding: 3px 9px;
+}
+
+.planPrice {
+  font-size: 28px;
+  font-weight: 800;
+  color: #2e2c2a;
+  margin-bottom: 18px;
+}
+
+.planPeriod {
+  font-size: 14px;
+  font-weight: 500;
+  color: #8a8580;
+  margin-left: 4px;
+}
+
+.featureList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  flex: 1;
+}
+
+.feature {
+  font-size: 14px;
+  color: #4a4846;
+  padding: 7px 0 7px 22px;
+  position: relative;
+}
+
+.feature::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--text-brand);
+  font-weight: 700;
+}
+
+.currentBtn {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8a8580;
+  background: #f4f1ec;
+  border: 1px solid #e3ddd5;
+  border-radius: 9px;
+  padding: 11px;
+  cursor: default;
+}
+
+.upgradeBtn {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--text-brand);
+  border: none;
+  border-radius: 9px;
+  padding: 11px;
+  cursor: not-allowed;
+  opacity: 0.75;
+}

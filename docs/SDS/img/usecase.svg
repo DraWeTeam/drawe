@@ -1,0 +1,98 @@
+<svg viewBox="0 0 1080 820" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">DraWe UML 유스케이스 다이어그램</title>
+  <desc id="desc">사용자와 관리자 액터가 DraWe 시스템 경계 안의 8개 유스케이스(로그인, 프로젝트 관리, 레퍼런스 추천 채팅, 레퍼런스 핀, AI 이미지 생성, 그림 가이드, 갤러리, 대시보드)와 연관되며, 추천 채팅은 핀을 include 하고 결과 없음 시 AI 생성으로 extend 되는 UML 유스케이스 다이어그램.</desc>
+
+  <defs>
+    <marker id="uml-open" markerWidth="12" markerHeight="12" refX="9" refY="5" orient="auto"><path d="M2 2 L9 5 L2 8" fill="none" stroke="#1E9486" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+
+  <rect x="8" y="8" width="1064" height="804" rx="22" fill="#FBFAF7" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <text x="44" y="50" font-size="24" font-weight="800" fill="#23221F">Drawe<tspan fill="#9A948B" font-weight="600"> · UML 유스케이스 다이어그램</tspan></text>
+  <text x="46" y="74" font-size="12.5" fill="#8C867C">액터 — 유스케이스 — 시스템 경계 · «include» / «extend»</text>
+
+  <!-- ===== SYSTEM BOUNDARY ===== -->
+  <rect x="420" y="92" width="320" height="700" rx="14" fill="#FCFBF9" stroke="#B9B3A8" stroke-width="1.6"/>
+  <text x="580" y="120" font-size="14.5" font-weight="700" text-anchor="middle" fill="#6B6660">DraWe 시스템</text>
+  <line x1="436" y1="132" x2="724" y2="132" stroke="#EAE5DC" stroke-width="1.2"/>
+
+  <!-- ===== ASSOCIATIONS (under ellipses) ===== -->
+  <g stroke="#A8A29A" stroke-width="1.4" fill="none">
+    <path d="M168 420 L482 158"/>
+    <path d="M168 422 L482 240"/>
+    <path d="M168 425 L482 322"/>
+    <path d="M168 428 L482 404"/>
+    <path d="M168 430 L482 486"/>
+    <path d="M168 432 L482 568"/>
+    <path d="M168 435 L482 650"/>
+    <path d="M872 422 L678 158"/>
+    <path d="M872 430 L678 732"/>
+  </g>
+
+  <!-- ===== include / extend ===== -->
+  <path d="M580 356 L580 368" fill="none" stroke="#1E9486" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#uml-open)"/>
+  <text x="592" y="366" font-size="11.5" font-style="italic" font-weight="600" fill="#1B8576">«include»</text>
+  <path d="M678 478 C 726 456 726 366 680 346" fill="none" stroke="#1E9486" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#uml-open)"/>
+  <text x="732" y="408" font-size="11.5" font-style="italic" font-weight="600" fill="#1B8576">«extend»</text>
+  <text x="732" y="424" font-size="10" font-weight="600" fill="#7E9A50">{결과 없음}</text>
+
+  <!-- ===== USE CASES (ellipses) ===== -->
+  <g text-anchor="middle">
+    <ellipse cx="580" cy="158" rx="98" ry="34" fill="#FFFFFF" stroke="#6E86C0" stroke-width="1.7"/>
+    <text x="580" y="163" font-size="13.5" font-weight="700" fill="#2A2925">로그인 / 인증</text>
+    <ellipse cx="580" cy="240" rx="98" ry="34" fill="#FFFFFF" stroke="#6E86C0" stroke-width="1.7"/>
+    <text x="580" y="236" font-size="13.5" font-weight="700" fill="#2A2925">프로젝트 관리</text>
+    <text x="580" y="253" font-size="10" fill="#8C867C">생성·정렬·검색·수정·삭제</text>
+    <ellipse cx="580" cy="322" rx="98" ry="34" fill="#FFFFFF" stroke="#6E86C0" stroke-width="2"/>
+    <text x="580" y="318" font-size="13.5" font-weight="700" fill="#2A2925">레퍼런스 추천 채팅</text>
+    <text x="580" y="335" font-size="10" fill="#8C867C">검색·멀티턴·비교</text>
+    <ellipse cx="580" cy="404" rx="98" ry="34" fill="#FFFFFF" stroke="#6E86C0" stroke-width="1.7"/>
+    <text x="580" y="409" font-size="13.5" font-weight="700" fill="#2A2925">레퍼런스 핀</text>
+    <ellipse cx="580" cy="486" rx="98" ry="34" fill="#FFFFFF" stroke="#6E86C0" stroke-width="1.7"/>
+    <text x="580" y="491" font-size="13.5" font-weight="700" fill="#2A2925">AI 이미지 생성</text>
+    <ellipse cx="580" cy="568" rx="98" ry="34" fill="#FFFFFF" stroke="#6E86C0" stroke-width="1.7"/>
+    <text x="580" y="564" font-size="13.5" font-weight="700" fill="#2A2925">그림 가이드</text>
+    <text x="580" y="581" font-size="10" fill="#8C867C">업로드 진단·코칭</text>
+    <ellipse cx="580" cy="650" rx="98" ry="34" fill="#FFFFFF" stroke="#6E86C0" stroke-width="1.7"/>
+    <text x="580" y="655" font-size="12" font-weight="700" fill="#2A2925">갤러리 / 레퍼런스 아카이브</text>
+    <ellipse cx="580" cy="732" rx="98" ry="34" fill="#FFFFFF" stroke="#C9A14A" stroke-width="1.7"/>
+    <text x="580" y="729" font-size="12" font-weight="700" fill="#2A2925">사용량·비용·품질</text>
+    <text x="580" y="745" font-size="10.5" fill="#8C867C">대시보드</text>
+  </g>
+
+  <!-- ===== ACTORS ===== -->
+  <g stroke="#4A463F" stroke-width="2" fill="none" stroke-linecap="round">
+    <circle cx="160" cy="378" r="15" fill="#FFFFFF"/>
+    <path d="M160 393 L160 432"/>
+    <path d="M136 408 L184 408"/>
+    <path d="M160 432 L140 466"/>
+    <path d="M160 432 L180 466"/>
+  </g>
+  <text x="160" y="490" font-size="14" font-weight="700" text-anchor="middle" fill="#2A2925">사용자</text>
+  <g stroke="#4A463F" stroke-width="2" fill="none" stroke-linecap="round">
+    <circle cx="880" cy="378" r="15" fill="#FFFFFF"/>
+    <path d="M880 393 L880 432"/>
+    <path d="M856 408 L904 408"/>
+    <path d="M880 432 L860 466"/>
+    <path d="M880 432 L900 466"/>
+  </g>
+  <text x="880" y="490" font-size="14" font-weight="700" text-anchor="middle" fill="#2A2925">관리자</text>
+  <text x="880" y="508" font-size="10.5" fill="#9A948B" text-anchor="middle">UC1 · UC8</text>
+
+  <!-- ===== LEGEND ===== -->
+  <g transform="translate(44,544)">
+    <rect x="0" y="0" width="332" height="210" rx="14" fill="#FFFFFF" stroke="#ECE7DF"/>
+    <text x="20" y="30" font-size="13" font-weight="700" fill="#2A2925">UML 유스케이스 표기</text>
+    <line x1="20" y1="58" x2="64" y2="58" stroke="#A8A29A" stroke-width="1.6"/>
+    <text x="76" y="62" font-size="11.5" fill="#6B6660">연관(association) · 액터 — 유스케이스</text>
+    <line x1="20" y1="88" x2="58" y2="88" stroke="#1E9486" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#uml-open)"/>
+    <text x="76" y="84" font-size="11.5" font-weight="600" fill="#2A2925">«include»</text>
+    <text x="76" y="99" font-size="10.5" fill="#6B6660">추천 채팅이 항상 ‘핀’을 포함</text>
+    <line x1="20" y1="128" x2="58" y2="128" stroke="#1E9486" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#uml-open)"/>
+    <text x="76" y="124" font-size="11.5" font-weight="600" fill="#2A2925">«extend»</text>
+    <text x="76" y="139" font-size="10.5" fill="#6B6660">결과 없음 시 ‘AI 생성’으로 확장</text>
+    <text x="76" y="153" font-size="10" fill="#9A948B">화살표는 확장 → 베이스(UC5 → UC3)</text>
+    <line x1="20" y1="176" x2="44" y2="176" stroke="#C9A14A" stroke-width="2"/>
+    <text x="56" y="180" font-size="11" fill="#6B6660">관리자 전용 유스케이스 (대시보드)</text>
+  </g>
+</svg>

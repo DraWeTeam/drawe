@@ -1,0 +1,89 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: drawe-prod
+
+resources:
+  - ../../../base/backend
+
+images:
+  - name: drawe-backend
+    newName: 933832340498.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-prod-backend
+    newTag: 6b9cc683ceac6048557e34d4f0919ad2355ddddf
+
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: backend-env
+    literals:
+      - DB_HOST=drawe-prod-mysql.cds86q4oy48b.ap-northeast-2.rds.amazonaws.com
+      - REDIS_HOST=master.drawe-prod-valkey.c0hrlm.apn2.cache.amazonaws.com
+      - REDIS_TLS=true                                       # prod ElastiCache = TLS
+      - S3_BUCKET=drawe-prod-bria-ai
+      - S3_REGION=ap-northeast-2
+      - SPRING_PROFILES_ACTIVE=s3
+      - APP_CORS_ALLOWED_ORIGINS=https://drawe.xyz,https://drawe.pages.dev
+      - APP_OAUTH2_REDIRECT_URI=https://drawe.xyz/oauth/callback
+      - FASTAPI_GUIDE_PUBLIC_URL=https://api.drawe.xyz
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,service.namespace=drawe
+      - WORKFLOW_COMPOSE_LIVE_INTENTS=NEW_SEARCH,KEEP,SKIP,COMPOSITION,LIGHTING,COLOR,TECHNIQUE,FOLLOWUP,COMPARE,OUT_OF_DOMAIN,SELF_CRITIQUE
+
+patches:
+  - target:
+      kind: SecurityGroupPolicy
+      name: backend-rds
+    patch: |-
+      - op: replace
+        path: /spec/securityGroups/groupIds
+        value:
+          - sg-03266d4b8793d8258        # drawe-prod-pods-db (3-platform output)
+          - sg-01cd9b17e6765c840        # 클러스터 SG (2-cluster output)
+  - target:
+      kind: ServiceAccount
+      name: backend
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::933832340498:role/drawe-prod-backend
+  - target:
+      kind: ExternalSecret
+      name: backend-secrets
+    patch: |-
+      - op: replace
+        path: /spec/data
+        value:
+          - { secretKey: DB_USERNAME,          remoteRef: { key: /drawe/prod/db-username } }
+          - { secretKey: DB_PASSWORD,          remoteRef: { key: /drawe/prod/db-password } }
+          - { secretKey: REDIS_PASSWORD,       remoteRef: { key: /drawe/prod/redis-password } }
+          - { secretKey: JWT_SECRET,           remoteRef: { key: /drawe/prod/jwt-secret } }
+          - { secretKey: GROK_API_KEY,         remoteRef: { key: /drawe/prod/grok-api-key } }
+          - { secretKey: CLAUDE_API_KEY,       remoteRef: { key: /drawe/prod/claude-api-key } }
+          - { secretKey: GEMINI_API_KEY,       remoteRef: { key: /drawe/prod/gemini-api-key } }
+          - { secretKey: GOOGLE_CLIENT_ID,     remoteRef: { key: /drawe/prod/google-client-id } }
+          - { secretKey: GOOGLE_CLIENT_SECRET, remoteRef: { key: /drawe/prod/google-client-secret } }
+          - { secretKey: PINECONE_API_KEY,     remoteRef: { key: /drawe/prod/pinecone-api-key } }
+          - { secretKey: PINECONE_HOST,        remoteRef: { key: /drawe/prod/pinecone-host } }
+          - { secretKey: PINECONE_INDEX,       remoteRef: { key: /drawe/prod/pinecone-index } }
+          - { secretKey: BRIA_API_KEY,         remoteRef: { key: /drawe/prod/bria-api-key } }
+          - { secretKey: BRIA_BASE_URL,        remoteRef: { key: /drawe/prod/bria-base-url } }
+          - { secretKey: ADMIN_PASSWORD,       remoteRef: { key: /drawe/prod/admin-password } }
+          - { secretKey: GA4_SA_KEY_JSON,      remoteRef: { key: /drawe/prod/ga4-sa-key } }
+          - { secretKey: SMTP_USERNAME,        remoteRef: { key: /drawe/prod/smtp-username } }
+          - { secretKey: SMTP_PASSWORD,        remoteRef: { key: /drawe/prod/smtp-password } }
+  - target:
+      kind: Ingress
+      name: backend
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.drawe.xyz
+      - op: replace
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1group.name
+        value: drawe-prod
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1certificate-arn
+        value: arn:aws:acm:ap-northeast-2:933832340498:certificate/f2a265a4-e0f9-41f0-8e96-d89059e77630
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1inbound-cidrs
+        value: 173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22

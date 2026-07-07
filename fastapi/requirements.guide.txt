@@ -19,13 +19,19 @@ qdrant-client            # 가이딩 ref 검색(reference_images_dev)
 SQLAlchemy               # drawe_guide (성장/로그). DSN 스킴에 맞춰 드라이버 선택
 PyMySQL                  # DB_DSN = mysql+pymysql://...
 boto3                    # S3(에셋 해소·presign)
-mediapipe                # 손/포즈(게이트). aarch64 휠은 P5 빌드에서 확인
+mediapipe==0.10.14                # 손/얼굴 게이트(HandLandmarker/FaceLandmarker). aarch64 휠은 P5 빌드에서 확인
 opencv-python-headless
+transformers==4.49.0     # ml/pose.py — ViTPose(vitpose-base, COCO-only·Apache-2.0)로 포즈 교체. torch<2.6/hf_hub<1·protobuf<5 유지(mediapipe 공존). VitPose 는 4.47+ 필요.
+scipy                    # transformers VitPose 이미지프로세서(affine_transform) 의존
+google-auth              # vision.py vertex 백엔드(ADC 토큰 발급). VLM_BACKEND=vertex 일 때만 사용
 
-# 지연/게이트라 우리 구성(aistudio·qdrant)에선 생략:
-#   google-auth(vertex 전용) · pinecone(VECTOR_BACKEND=pinecone) · rembg(SUBJECT_MASK) · redis(REDIS_URL)
+# 지연/게이트라 우리 구성에선 생략:
+#   pinecone(VECTOR_BACKEND=pinecone) · rembg(SUBJECT_MASK) · redis(REDIS_URL)
 
-# Observability (embed 와 동일 표준)
-opentelemetry-distro==0.50b0
-opentelemetry-exporter-otlp==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
+# Observability
+#  embed 는 1.29.0/0.50b0. guide 는 mediapipe==0.10.14(protobuf<5) 와의 충돌 때문에
+#  protobuf<5 를 유지하는 마지막 OTel 라인(1.27.0/0.48b0)으로 핀. 1.28.0+ 는 protobuf>=5 요구.
+opentelemetry-distro==0.48b0
+opentelemetry-exporter-otlp==1.27.0
+opentelemetry-instrumentation-fastapi==0.48b0
+redis==5.2.1

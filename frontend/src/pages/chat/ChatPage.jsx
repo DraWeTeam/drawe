@@ -7,7 +7,9 @@ import {
   useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getProject } from "../projects/api";
+import { addReference, getProject, updateProject } from "../projects/api";
+import { getReferenceArchive } from "../gallery/api";
+import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import {
   addPin,
   generateImage,
@@ -24,12 +26,14 @@ import {
 } from "./api";
 import ReferenceGrid from "./ReferenceGrid";
 import AttachmentPicker from "./AttachmentPicker";
-import GuideForm from "./GuideForm";
+import GuideForm, { CONCERNS } from "./GuideForm";
+import GuideCollectionPanel from "./GuideCollectionPanel";
 import { GuideContent } from "./GuideModal";
 import { axisLabel } from "./guideLabels";
 import { downloadGuidePdf } from "./guidePdf";
 import AuthedImage from "./AuthedImage";
 import TutorialCoachmark from "./TutorialCoachmark";
+import Tooltip from "../../components/Tooltip";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 import { track } from "../../analytics";
@@ -48,9 +52,13 @@ const GENERATING_MESSAGES = [
 const pickGeneratingMsg = () =>
   GENERATING_MESSAGES[Math.floor(Math.random() * GENERATING_MESSAGES.length)];
 
-const GENERATE_INTENT_PATTERN = /만들|그려|생성|AI|이미지/i;
+// 백엔드 RulePreRouter.GENERATE(그려줘/만들어줘 어미) 미러 + 단어 단위(만들/그려/생성/AI)도 폭넓게 매칭.
+// 방법 질문("어떻게 그려?")은 HOW_QUESTION 으로 제외. '이미지'는 검색 대부분에 들어가 오탐이 커서 뺐다.
+const GENERATE_INTENT_PATTERN =
+  /(그려|그리|만들어|만들|생성|제작)\s*(해)?\s*(줘|줄래|주세요|주라)|만들|그려|생성|AI|generate|draw it|make it|create an image/i;
+const HOW_QUESTION = /어떻게|어떡|어케|방법|how\s+to/i;
 const looksLikeGenerateRequest = (text) =>
-  !!text && GENERATE_INTENT_PATTERN.test(text);
+  !!text && GENERATE_INTENT_PATTERN.test(text) && !HOW_QUESTION.test(text);
 
 const ChatPage = () => {
   const { projectId } = useParams();
@@ -58,11 +66,14 @@ const ChatPage = () => {
 
   const [project, setProject] = useState(null);
   const [messages, setMessages] = useState([]);
+  // 가이드 모아보기 오버레이 — getGuides 결과(복원된 guide 메시지) 재사용, 새 fetch 없음.
+  const [guideListOpen, setGuideListOpen] = useState(false);
   const [sessionId, setSessionId] = useState(null);
 
   const [input, setInput] = useState("");
   const [followUp, setFollowUp] = useState(null);
   const [sending, setSending] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [attachment, setAttachment] = useState(null);
 
@@ -74,12 +85,15 @@ const ChatPage = () => {
   const [guideError, setGuideError] = useState("");
   const [guidePreview, setGuidePreview] = useState(null);
   const lastGuideArgs = useRef(null);
+  const lastDetectedStage = useRef(null); // 직전 감지 스테이지 (전송 간 비교용)
 
   const [references, setReferences] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
 
   const [pinnedRefs, setPinnedRefs] = useState([]);
   const [pinError, setPinError] = useState("");
+  // 이 프로젝트에서 이미 아카이브에 저장된 imageId 집합 (카드 메뉴 상태표시용)
+  const [archivedIds, setArchivedIds] = useState(() => new Set());
 
   // 모드: "split" | "refFull" | "chatFull"
   const [mode, setMode] = useState("split");
@@ -243,7 +257,11 @@ const ChatPage = () => {
 
   // 채팅의 가이드 카드 클릭 → 전체 가이드 모달 열기(카드에 담아둔 결과 사용)
   const openGuideFromCard = (m) => {
-    setGuideResult({ guide: m.guide, references: m.references });
+    setGuideResult({
+      guide: m.guide,
+      references: m.references,
+      requestText: m.requestText, // ① 상세 §2 사용자 버블
+    });
     setGuidePreview(m.guidePreview || null);
     setGuideError("");
     setGuideOpen(true);
@@ -272,6 +290,7 @@ const ChatPage = () => {
   //   up→like, down→dislike, 같은 버튼 재클릭(해제)→null(행 삭제). 전송 실패는 조용히 무시(best-effort).
   const setGuideCardFeedback = (gidVal, kind) => {
     const msg = messages.find((m) => m._gid === gidVal && m.type === "guide");
+    const prevKind = msg?.guideFeedback ?? null; // 실패 시 롤백용
     const nextKind = msg && msg.guideFeedback === kind ? null : kind; // 토글
     setMessages((prev) =>
       prev.map((m) =>
@@ -284,7 +303,19 @@ const ChatPage = () => {
     if (guideId) {
       const fb =
         nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
-      sendGuideFeedback(projectId, guideId, fb).catch(() => {});
+      // 정직화: 전송 실패 시 토글 롤백 + 인라인 안내(성공 문구는 실배선 없어 추가하지 않음).
+      sendGuideFeedback(projectId, guideId, fb).catch(() => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._gid === gidVal && m.type === "guide"
+              ? { ...m, guideFeedback: prevKind }
+              : m,
+          ),
+        );
+        setErrorMessage(
+          "피드백을 반영하지 못했어요. 잠시 후 다시 시도해주세요.",
+        );
+      });
     }
   };
 
@@ -317,8 +348,31 @@ const ChatPage = () => {
 
   const buttonViewedFired = useRef(false);
 
-  const lastDetectedStage = useRef(null);
+  // eslint-disable-next-line no-unused-vars -- GA4: 프롬프트 길이 추적용(UI 연결 예정)
   const lastPromptLength = useRef(0);
+
+  // 현재 프로젝트의 아카이브 저장 목록 로드 (카드 메뉴 "아카이브됨" 표시용)
+  useEffect(() => {
+    if (!projectId) return;
+    let alive = true;
+    (async () => {
+      try {
+        const data = await getReferenceArchive();
+        if (!alive) return;
+        const section = (data?.sections ?? []).find(
+          (s) => String(s.projectId) === String(projectId),
+        );
+        setArchivedIds(
+          new Set((section?.references ?? []).map((r) => r.imageId)),
+        );
+      } catch {
+        // 상태표시는 부가 정보 — 실패해도 무시
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [projectId]);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -359,29 +413,56 @@ const ChatPage = () => {
   }, [projectId]);
 
   useEffect(() => {
-    if (!sessionId) return;
-    const fetchHistory = async () => {
-      try {
-        const data = await getHistory(projectId, sessionId);
-        const restored = (data?.messages ?? []).map((m) => ({
-          role: m.role,
-          content: m.content,
-          references: m.references,
-          imageUrl: m.imageUrl ?? null,
-          createdAt: m.createdAt ?? null,
-          // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
-          // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
-          isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
-        }));
-        setMessages(restored);
-
-        // 영속된 가이드 복원 — 채팅 히스토리엔 가이드 카드가 없으므로 별도로 불러와 시간순으로 합친다.
-        //   getGuides 는 오래된→최신, 각 항목에 createdAt + uploadUrl(저장된 업로드 원본) 포함.
-        //   주의: 가이드는 프로젝트 단위(세션 무관)라 같은 프로젝트의 가이드는 모두 표시됨.
+    // ★가이드 복원은 세션과 무관(프로젝트 단위 영속)하므로 sessionId 가 아니라 projectId 로 게이트한다.
+    //   이전엔 if(!sessionId) return 이 getGuides 까지 막아, 채팅 없이 가이드만 한 프로젝트에서
+    //   영속된 가이드가 새로고침 시 복원되지 않았다(이슈 B). getHistory 만 세션 조건부로 돌린다.
+    if (!projectId) return;
+    const fetchAll = async () => {
+      // 1) 채팅 히스토리 — 세션 있을 때만. 없으면 빈 배열(가이드-우선 흐름).
+      let restored = [];
+      if (sessionId) {
         try {
-          const guides = await getGuides(projectId);
-          if (Array.isArray(guides) && guides.length > 0) {
-            const guideCards = guides.map((g, i) => ({
+          const data = await getHistory(projectId, sessionId);
+          restored = (data?.messages ?? []).map((m) => ({
+            role: m.role,
+            content: m.content,
+            references: m.references,
+            imageUrl: m.imageUrl ?? null,
+            createdAt: m.createdAt ?? null,
+            // 백엔드 isAi 필드 추가 전 임시 휴리스틱:
+            // assistant가 보낸 imageUrl은 generate-image 경로뿐이라 AI로 간주
+            isAi: m.isAi ?? (m.role === "assistant" && !!m.imageUrl),
+          }));
+        } catch (err) {
+          if (err.response?.status === 404) {
+            // stale 세션(대화 초기화·세션 정리로 삭제됨) — localStorage 를 비우고 서버의 최신
+            //   세션으로 재해결한다. 폴백 없이 null 만 두면, DB 에 유효 세션·메시지가 있어도
+            //   initSession 이 재실행되지 않아(deps [projectId]) 채팅이 복원되지 않는다.
+            localStorage.removeItem(sessionKey(projectId));
+            try {
+              const latest = await getLatestSession(projectId);
+              if (latest?.sessionId && latest.sessionId !== sessionId) {
+                localStorage.setItem(sessionKey(projectId), latest.sessionId);
+                setSessionId(latest.sessionId); // → fetchAll 재실행 → 유효 세션 복원
+              } else {
+                setSessionId(null);
+              }
+            } catch {
+              setSessionId(null);
+            }
+          }
+        }
+      }
+
+      // 2) 영속된 가이드 — 세션 무관, projectId 단위로 항상 복원. 각 항목에 createdAt + uploadUrl.
+      //    사용자 질문(requestText)이 있으면 가이드 카드 앞에 주황 말풍선을 재구성한다
+      //    (라이브 전송 순서 user→assistant 를 복원에서도 보존). 빈 값이면 말풍선 생략.
+      let guideCards = [];
+      try {
+        const guides = await getGuides(projectId);
+        if (Array.isArray(guides) && guides.length > 0) {
+          guideCards = guides.flatMap((g, i) => {
+            const card = {
               role: "assistant",
               type: "guide",
               _gid: `restored-${i}`,
@@ -391,36 +472,42 @@ const ChatPage = () => {
               guidePreview: g.uploadUrl ?? null,
               guideFeedback: null,
               createdAt: g.createdAt ?? null,
-            }));
-            // 채팅 메시지 + 가이드 카드를 createdAt 기준으로 시간순 정렬(가이드가 맨 밑에 깔리지 않도록).
-            //   타임스탬프 없는 항목은 0으로 취급(맨 앞). sort 는 안정 정렬이라 동시각 순서는 보존.
-            setMessages((prev) =>
-              [...prev, ...guideCards].sort(
-                (a, b) =>
-                  (a.createdAt ? Date.parse(a.createdAt) : 0) -
-                  (b.createdAt ? Date.parse(b.createdAt) : 0),
-              ),
-            );
-          }
-        } catch {
-          /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
+              requestText: g.requestText ?? null, // ① 상세 §2 사용자 버블
+            };
+            const text = g.requestText?.trim();
+            if (!text) return [card];
+            const userBubble = {
+              role: "user",
+              content: g.requestText,
+              imageUrl: g.uploadUrl ?? null,
+              createdAt: g.createdAt ?? null,
+            };
+            return [userBubble, card];
+          });
         }
+      } catch {
+        /* 가이드 복원 실패는 치명적이지 않음 — 채팅은 그대로 둔다. */
+      }
 
-        const lastWithReferences = [...restored]
-          .reverse()
-          .find((m) => m.references && m.references.length > 0);
+      // 3) ★채팅 + 가이드를 createdAt 시간순으로 *한 번에* 병합해 set(REPLACE/APPEND 레이스 제거).
+      //    타임스탬프 없는 항목은 0(맨 앞). sort 는 안정 정렬이라 동시각 순서 보존.
+      setMessages(
+        [...restored, ...guideCards].sort(
+          (a, b) =>
+            (a.createdAt ? Date.parse(a.createdAt) : 0) -
+            (b.createdAt ? Date.parse(b.createdAt) : 0),
+        ),
+      );
 
-        if (lastWithReferences) {
-          setReferences(lastWithReferences.references);
-        }
-      } catch (err) {
-        if (err.response?.status === 404) {
-          localStorage.removeItem(sessionKey(projectId));
-          setSessionId(null);
-        }
+      // 4) 참고작 프리필 — 복원된 채팅 중 마지막 references.
+      const lastWithReferences = [...restored]
+        .reverse()
+        .find((m) => m.references && m.references.length > 0);
+      if (lastWithReferences) {
+        setReferences(lastWithReferences.references);
       }
     };
-    fetchHistory();
+    fetchAll();
   }, [projectId, sessionId]);
 
   useEffect(() => {
@@ -528,9 +615,8 @@ const ChatPage = () => {
     const inputMode = sentAttachment ? "text_image" : "text";
 
     if (isFirstSubmission) {
-      // 첫 제출
-      if (sentAttachment) {
-      } else {
+      // 첫 제출 — 첨부 없는 텍스트 제출만 추적
+      if (!sentAttachment) {
         track("prompt_submitted", {
           project_id: projectId,
           prompt_length: text.length,
@@ -576,7 +662,7 @@ const ChatPage = () => {
         sessionId,
         imageUrl: sentAttachment?.url,
       });
-      console.log("=== sendMessage 응답 ===", res); 
+      console.log("=== sendMessage 응답 ===", res);
 
       if (res?.sessionId && res.sessionId !== sessionId) {
         setSessionId(res.sessionId);
@@ -584,34 +670,34 @@ const ChatPage = () => {
       }
 
       if (res?.detectedStage) {
-      track("prompt_stage_detected", {
-        project_id: projectId,
-        detected_stage: res.detectedStage,
-        previous_stage: lastDetectedStage.current,
-        stage_changed: lastDetectedStage.current !== res.detectedStage,
-        confidence_score: res.confidenceScore ?? null,
-        input_mode: inputMode,
-        prompt_length: text.length,
-      });
-    }
+        track("prompt_stage_detected", {
+          project_id: projectId,
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore ?? null,
+          input_mode: inputMode,
+          prompt_length: text.length,
+        });
+      }
 
-    // 이미지 업로드 + 감지 단계가 있을 때 발화
-    if (sentAttachment && res?.detectedStage) {
-      track("drawing_progress_detected", {
-        project_id: projectId,
-        detected_stage: res.detectedStage,
-        previous_stage: lastDetectedStage.current,
-        stage_changed: lastDetectedStage.current !== res.detectedStage,
-        confidence_score: res.confidenceScore ?? null,
-        image_id: sentAttachment.id || sentAttachment.url || "",
-        guide_id: res.guide?.guide_id || res.guide?.id || "",
-      });
-    }
+      // 이미지 업로드 + 감지 단계가 있을 때 발화
+      if (sentAttachment && res?.detectedStage) {
+        track("drawing_progress_detected", {
+          project_id: projectId,
+          detected_stage: res.detectedStage,
+          previous_stage: lastDetectedStage.current,
+          stage_changed: lastDetectedStage.current !== res.detectedStage,
+          confidence_score: res.confidenceScore ?? null,
+          image_id: sentAttachment.id || sentAttachment.url || "",
+          guide_id: res.guide?.guide_id || res.guide?.id || "",
+        });
+      }
 
-    // stage 업데이트 (다음 이벤트의 previous_stage 계산용)
-    if (res?.detectedStage) {
-      lastDetectedStage.current = res.detectedStage;
-    }
+      // stage 업데이트 (다음 이벤트의 previous_stage 계산용)
+      if (res?.detectedStage) {
+        lastDetectedStage.current = res.detectedStage;
+      }
       const action = res.referencesAction;
       const newRefs = res.references || [];
       const generated = res.generatedImage;
@@ -656,9 +742,8 @@ const ChatPage = () => {
         });
       }
 
-      const lastDetectedStage = useRef(null);
-
-      if (res?.detectedStage) {  // 백엔드 응답에 이 필드 와야 함
+      if (res?.detectedStage) {
+        // 백엔드 응답에 이 필드 와야 함
         track("prompt_stage_detected", {
           detected_stage: res.detectedStage,
           previous_stage: lastDetectedStage.current,
@@ -686,9 +771,10 @@ const ChatPage = () => {
         reference_count: responseType === "reference" ? newRefs.length : 0,
         generation_time_ms: Date.now() - responseStartTime,
         iteration_count: currentIteration,
-        reference_ids: responseType === "reference"
-          ? newRefs.map(r => r.id).join(",")
-          : "",
+        reference_ids:
+          responseType === "reference"
+            ? newRefs.map((r) => r.id).join(",")
+            : "",
       });
 
       lastResponseTime.current = Date.now();
@@ -713,6 +799,39 @@ const ChatPage = () => {
     } finally {
       if (rotator) clearInterval(rotator);
       setSending(false);
+    }
+  };
+
+  // 완성하기 — 정본: 파일 업로드 없이 status=COMPLETED 만. 백엔드가 최근 가이드 업로드를 대표 이미지로
+  //   자동 지정 → 완성작 갤러리에 담긴다(뜬금없는 파일첨부창 없음).
+  const handleComplete = async () => {
+    if (completing) return;
+    setCompleting(true);
+    try {
+      await updateProject(projectId, { status: "COMPLETED" });
+      setProject((prev) => (prev ? { ...prev, status: "completed" } : prev));
+      track("project_completed", { project_id: projectId });
+      // 완성작 갤러리는 완성 그림(drawingUrl)이 있어야 노출된다. 백엔드가 최근 가이드
+      //   업로드에서 대표 이미지를 자동 지정하므로, 재조회해 실제 담겼는지로 안내를 분기.
+      let added = true;
+      try {
+        const detail = await getProject(projectId);
+        added = Boolean(detail?.drawingUrl);
+      } catch {
+        added = true; // 조회 실패 시 낙관 메시지로 폴백
+      }
+      alert(
+        added
+          ? "완성작 갤러리에 담았어요!"
+          : "완료했어요. 다만 이 프로젝트엔 완성 그림이 없어 갤러리에는 담기지 않았어요.\n그림을 업로드해 가이드를 만든 뒤 완료하면 갤러리에 담겨요.",
+      );
+    } catch (e2) {
+      const message =
+        e2.response?.data?.error?.message ||
+        "완성 처리에 실패했어요. 다시 시도해주세요.";
+      alert(message);
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -906,34 +1025,75 @@ const ChatPage = () => {
     }
   };
 
+  // 레퍼런스 카드 ⋮ → 아카이브에 저장
+  const handleArchiveReference = async (imageId) => {
+    try {
+      await addReference(projectId, imageId);
+      setArchivedIds((prev) => new Set(prev).add(imageId));
+      notifyArchiveChanged();
+      track("reference_archived", {
+        reference_id: imageId,
+        project_id: projectId,
+      });
+      alert("아카이브에 저장했어요!");
+    } catch (err) {
+      // 인라인 에러로 통일(앱에 토스트 시스템 없음 — 기존 errorMessage 인라인 재사용).
+      setErrorMessage(
+        err.response?.data?.error?.message ||
+          "저장에 실패했어요. 다시 시도해주세요.",
+      );
+    }
+  };
+
   const goToChatFull = () => setMode("chatFull");
   const goToRefFull = () => setMode("refFull");
   const goToSplit = () => setMode("split");
+
+  // 모아보기용 가이드 목록 = 복원/생성된 guide 카드 메시지. 1건+ 있을 때만 진입 아이콘 노출.
+  const guideMessages = messages.filter((m) => m.type === "guide");
+  const hasGuides = guideMessages.length > 0;
 
   return (
     <div className={styles.layout}>
       {/* 페이지 헤더 — 상단 전체 */}
       <header className={styles.pageHeader}>
-        <button
-          type="button"
-          className={styles.iconBtn}
-          onClick={() => navigate("/projects")}
-          aria-label="목록"
-          title="목록"
-        >
-          <BackIcon />
-        </button>
+        <Tooltip label="뒤로가기" placement="bottom">
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={() => navigate("/projects")}
+            aria-label="뒤로가기"
+          >
+            <BackIcon />
+          </button>
+        </Tooltip>
         <h1 className={styles.pageTitle}>{project?.name ?? "..."}</h1>
-        <button
-          type="button"
-          className={styles.iconBtn}
-          onClick={handleReset}
-          disabled={!sessionId}
-          aria-label="대화 초기화"
-          title="대화 초기화"
-        >
-          <DotsIcon />
-        </button>
+        {hasGuides && (
+          <Tooltip label="가이드 모아보기" placement="bottom">
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${
+                guideListOpen ? styles.iconBtnActive : ""
+              }`}
+              onClick={() => setGuideListOpen((o) => !o)}
+              aria-label="가이드 모아보기"
+              aria-pressed={guideListOpen}
+            >
+              <GuideCollectionIcon />
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip label="대화 초기화" placement="bottom">
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={handleReset}
+            disabled={!sessionId}
+            aria-label="대화 초기화"
+          >
+            <DotsIcon />
+          </button>
+        </Tooltip>
       </header>
 
       {/* 본문 — 좌/우 분할 */}
@@ -954,6 +1114,8 @@ const ChatPage = () => {
             onClearPinError={() => setPinError("")}
             onPinToggle={handlePinToggle}
             onCardClick={handleCardClick}
+            onArchive={handleArchiveReference}
+            archivedIds={archivedIds}
             expanded={mode === "refFull"}
             firstMenuRef={firstRefMenuRef}
           />
@@ -968,10 +1130,27 @@ const ChatPage = () => {
                 onClose={closeGuide}
                 onRetry={retryGuide}
                 onRefFeedback={handleRefFeedback}
+                onGuideFeedback={(kind) => {
+                  // 열린 가이드(guideResult)에 해당하는 카드 메시지를 guide_id 로 찾아 토글
+                  //   (기존 setGuideCardFeedback 재사용 — 백엔드 guide_feedback 반영).
+                  const gid = guideResult?.guide?.guide_id;
+                  const msg = messages.find(
+                    (m) => m.type === "guide" && m.guide?.guide_id === gid,
+                  );
+                  if (msg) setGuideCardFeedback(msg._gid, kind);
+                }}
+                guideFeedback={
+                  messages.find(
+                    (m) =>
+                      m.type === "guide" &&
+                      m.guide?.guide_id === guideResult?.guide?.guide_id,
+                  )?.guideFeedback ?? null
+                }
                 onToggleFull={() =>
                   setMode((cur) => (cur === "refFull" ? "split" : "refFull"))
                 }
                 isFull={mode === "refFull"}
+                projectId={projectId}
               />
             </div>
           )}
@@ -988,32 +1167,38 @@ const ChatPage = () => {
             <div className={styles.chatTop}>
               {mode === "split" && (
                 <>
-                  <button
-                    className={styles.iconBtn}
-                    onClick={goToChatFull}
-                    title="전체화면"
-                  >
-                    <ExpandIcon />
-                  </button>
-                  <button
-                    className={styles.iconBtn}
-                    onClick={goToRefFull}
-                    title="채팅 최소화"
-                  >
-                    <MinimizeIcon />
-                  </button>
+                  <Tooltip label="전체화면 보기" placement="bottom">
+                    <button
+                      className={styles.iconBtn}
+                      onClick={goToChatFull}
+                      aria-label="전체화면 보기"
+                    >
+                      <ExpandIcon />
+                    </button>
+                  </Tooltip>
+                  <Tooltip label="닫기" placement="bottom">
+                    <button
+                      className={styles.iconBtn}
+                      onClick={goToRefFull}
+                      aria-label="닫기"
+                    >
+                      <MinimizeIcon />
+                    </button>
+                  </Tooltip>
                 </>
               )}
               {mode === "chatFull" && (
                 <>
                   <span />
-                  <button
-                    className={styles.iconBtn}
-                    onClick={goToSplit}
-                    title="분할 보기"
-                  >
-                    <CollapseIcon />
-                  </button>
+                  <Tooltip label="분할 보기" placement="bottom">
+                    <button
+                      className={styles.iconBtn}
+                      onClick={goToSplit}
+                      aria-label="분할 보기"
+                    >
+                      <CollapseIcon />
+                    </button>
+                  </Tooltip>
                 </>
               )}
             </div>
@@ -1043,6 +1228,10 @@ const ChatPage = () => {
                               className={styles.assistantLogo}
                               src={logo}
                               alt=""
+                            />
+                            <span
+                              className={styles.inlineSpinner}
+                              aria-hidden="true"
                             />
                             한 끗 가이드를 만들고 있어요…
                           </div>
@@ -1076,27 +1265,72 @@ const ChatPage = () => {
                     }
                     // 가이드 카드(채팅 반영) — 클릭 시 전체 보기, 아래 좋아요/싫어요/PDF
                     if (m.type === "guide") {
+                      // 채팅 인라인 AI 발화 = 이 그림 '한 줄 피드백'(결정론). 백엔드가 조립한
+                      //   chat_feedback(현재 그림 진단 + 사용자 의도 진입, 성장 없음)을 우선 쓴다.
+                      //   없으면(구버전 응답 등) 현재 그림 관찰로 폴백. ★성장(next_steps.note/synthesis)은
+                      //   더 이상 채팅에 안 끌어옴 — 성장 흐름은 한 끗 상세 모달에만.
+                      const g = m.guide || {};
+                      // clarify/redirect 등 비-coach 응답은 chat_feedback·blocks 가 없으므로
+                      //   안내 문구(message)를 채팅에도 한 줄 띄운다(빈 버블 침묵 해소).
+                      const utterance =
+                        g.chat_feedback ||
+                        g.blocks?.[0]?.observation ||
+                        (g.mode !== "coach" ? g.message : "") ||
+                        "";
                       return (
                         <div key={idx} className={styles.assistantMessage}>
+                          {utterance && (
+                            <div className={styles.assistantBubble}>
+                              <img
+                                className={styles.assistantLogo}
+                                src={logo}
+                                alt=""
+                              />
+                              <span>{utterance}</span>
+                            </div>
+                          )}
                           <button
                             type="button"
                             className={styles.guideCard}
                             onClick={() => openGuideFromCard(m)}
                           >
                             <span className={styles.guideCardThumb}>
-                              <ImgPlaceholderIcon />
+                              {m.guidePreview ? (
+                                <AuthedImage
+                                  className={styles.guideCardThumbImg}
+                                  src={m.guidePreview}
+                                  alt=""
+                                />
+                              ) : (
+                                <ImgPlaceholderIcon />
+                              )}
                             </span>
-                            <span className={styles.guideCardBody}>
-                              <span className={styles.guideCardTitle}>
-                                {m.guideTitle}
+                            <span className={styles.guideCardFooter}>
+                              <span className={styles.guideCardBody}>
+                                <span className={styles.guideCardTitle}>
+                                  {m.guideTitle}
+                                </span>
+                                <span className={styles.guideCardSub}>
+                                  가이드 보기
+                                </span>
                               </span>
-                              <span className={styles.guideCardSub}>
-                                한 끗 가이드 보기
-                              </span>
+                              <ChevronRightIcon />
                             </span>
-                            <ChevronRightIcon />
                           </button>
                           <div className={styles.guideActions}>
+                            <button
+                              type="button"
+                              className={styles.guideActBtn}
+                              aria-label="PDF 다운로드"
+                              onClick={() =>
+                                downloadGuidePdf(
+                                  { guide: m.guide, references: m.references },
+                                  m.guidePreview,
+                                )
+                              }
+                            >
+                              <DownloadIcon />
+                            </button>
                             <button
                               type="button"
                               className={styles.guideActBtn}
@@ -1116,19 +1350,6 @@ const ChatPage = () => {
                               }
                             >
                               <ThumbDownIcon />
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.guideActBtn}
-                              aria-label="PDF 다운로드"
-                              onClick={() =>
-                                downloadGuidePdf(
-                                  { guide: m.guide, references: m.references },
-                                  m.guidePreview,
-                                )
-                              }
-                            >
-                              <DownloadIcon />
                             </button>
                           </div>
                         </div>
@@ -1159,13 +1380,10 @@ const ChatPage = () => {
                                 className={
                                   m.isAi ? styles.aiImage : styles.bubbleImage
                                 }
-                                onClick={
-                                  m.isAi
-                                    ? () =>
-                                        setLightboxSrc(
-                                          m.localPreviewUrl || m.imageUrl,
-                                        )
-                                    : undefined
+                                onClick={() =>
+                                  setLightboxSrc(
+                                    m.localPreviewUrl || m.imageUrl,
+                                  )
                                 }
                               />
                               {m.isAi && (
@@ -1237,6 +1455,26 @@ const ChatPage = () => {
             {errorMessage && <p className={styles.error}>{errorMessage}</p>}
 
             <form className={styles.inputBar} onSubmit={handleSend}>
+              {/* 액션 칩 줄 — 프로젝트 완료(완성작 갤러리에 담기, 파일 업로드 없음) */}
+              <div className={styles.actionChips}>
+                <button
+                  type="button"
+                  className={styles.completeChip}
+                  onClick={handleComplete}
+                  disabled={completing}
+                  title="완성작 갤러리에 담아요"
+                >
+                  <CompleteIcon />
+                  <span>
+                    {completing
+                      ? "완료 중…"
+                      : project?.status === "completed"
+                        ? "다시 완료하기"
+                        : "프로젝트 완료"}
+                  </span>
+                </button>
+              </div>
+
               {/* 첨부 미리보기 — 있을 때만 위쪽에 표시 */}
               {attachment && (
                 <div className={styles.attachmentPreviews}>
@@ -1287,21 +1525,38 @@ const ChatPage = () => {
               </div>
             </form>
           </div>
+
+          {/* 가이드 모아보기 — 채팅 위 오버레이(뒤 채팅 유지) */}
+          {guideListOpen && hasGuides && (
+            <GuideCollectionPanel
+              guides={guideMessages}
+              onClose={() => setGuideListOpen(false)}
+              onCardClick={(g) => {
+                setGuideListOpen(false);
+                openGuideFromCard(g);
+              }}
+            />
+          )}
         </section>
       </div>
 
       {/* FAB — 항상 mount, 클래스로 토글 */}
-      <button
-        type="button"
-        className={`${styles.fab} ${
-          mode === "refFull" ? styles.fabVisible : ""
+      <div
+        className={`${styles.fabTip} ${
+          mode === "refFull" ? styles.fabTipVisible : ""
         }`}
-        onClick={goToSplit}
-        aria-label="채팅 열기"
-        title="채팅 열기"
       >
-        <img className={styles.fabIcon} src={logo} alt="" />
-      </button>
+        <Tooltip label="DraWe에게 질문하기" placement="top">
+          <button
+            type="button"
+            className={styles.fab}
+            onClick={goToSplit}
+            aria-label="DraWe에게 질문하기"
+          >
+            <img className={styles.fabIcon} src={logo} alt="" />
+          </button>
+        </Tooltip>
+      </div>
 
       {/* 첫 프로젝트 진입 튜토리얼 */}
       {showTutorial && (
@@ -1379,6 +1634,23 @@ const BackIcon = () => (
   </svg>
 );
 
+// 가이드 모아보기 진입 — 겹친 카드(컬렉션) 글리프
+const GuideCollectionIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="7" width="14" height="14" rx="2" />
+    <path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
+  </svg>
+);
+
 const ExpandIcon = () => (
   <svg
     width="18"
@@ -1421,6 +1693,22 @@ const MinimizeIcon = () => (
       d="M0 14L5 7L0 0H2.45L7.45 7L2.45 14H0ZM5.95 14L10.95 7L5.95 0H8.4L13.4 7L8.4 14H5.95Z"
       fill="#4A4846"
     />
+  </svg>
+);
+
+const CompleteIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M20 6L9 17l-5-5" />
   </svg>
 );
 

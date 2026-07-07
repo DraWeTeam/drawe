@@ -1,0 +1,81 @@
+# =============================================================================
+# dev 알림 룰 적재 — Grafana Cloud(Mimir) ruler
+#
+#  무엇: infra/observability/rules/*.yaml 를 dev 의 Grafana Cloud ruler 에 올린다.
+#        (prod 는 terraform-prod/amp-rules.tf 가 담당. dev 는 AMP 가 아니라
+#         Grafana Cloud 라서 terraform 리소스가 없어 이 워크플로로 대신한다.)
+#
+#  언제: develop 브랜치에서 rules 파일이 바뀌면 자동 실행 + 수동 실행(Run workflow).
+#
+#  ── 사전 준비: GitHub repo Secrets 3개 등록 ──
+#    repo → Settings → Secrets and variables → Actions → New repository secret
+#      GRAFANA_CLOUD_PROM_URL  : Grafana Cloud Prometheus 의 base URL
+#                                (예: https://prometheus-prod-XX-prod-ap-XX.grafana.net)
+#                                Grafana Cloud Portal → Prometheus 스택 → "Remote Write Endpoint"
+#                                에서 /api/prom 앞까지의 호스트. mimirtool 은 base URL 을 받는다.
+#      GRAFANA_CLOUD_TENANT_ID : 그 스택의 인스턴스 ID(숫자, = Prometheus username)
+#      GRAFANA_CLOUD_API_KEY   : MetricsPublisher 권한의 Access Policy 토큰(또는 API key)
+#
+#  참고: load 는 생성/갱신만 한다(원격의 다른 rule group 을 지우지 않음, 안전).
+#        로컬에 없는 룰까지 원격에서 삭제하며 완전 동기화하려면 load 대신
+#        `mimirtool rules sync` 를 쓴다(단, 같은 tenant 의 다른 룰도 지울 수 있으니 주의).
+# =============================================================================
+name: dev-alert-rules
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "infra/observability/rules/**"
+      - ".github/workflows/dev-alert-rules.yml"
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행 가능
+
+permissions:
+  contents: read
+
+jobs:
+  load-rules:
+    runs-on: ubuntu-latest
+    env:
+      MIMIRTOOL_VERSION: "3.1.1"   # 최신 릴리스로 주기적으로 올리면 됨 (github.com/grafana/mimir/releases)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mimirtool
+        run: |
+          set -euo pipefail
+          url="https://github.com/grafana/mimir/releases/download/mimir-${MIMIRTOOL_VERSION}/mimirtool-linux-amd64"
+          curl -fSL "$url" -o /usr/local/bin/mimirtool
+          chmod +x /usr/local/bin/mimirtool
+          mimirtool version
+
+      # 적용 전 변경분을 로그로 보여줌(원격과 비교). 실패해도 진행.
+      - name: Diff rules (informational)
+        continue-on-error: true
+        env:
+          GRAFANA_CLOUD_PROM_URL:  ${{ secrets.GRAFANA_CLOUD_PROM_URL }}
+          GRAFANA_CLOUD_TENANT_ID: ${{ secrets.GRAFANA_CLOUD_TENANT_ID }}
+          GRAFANA_CLOUD_API_KEY:   ${{ secrets.GRAFANA_CLOUD_API_KEY }}
+        run: |
+          mimirtool rules diff \
+            infra/observability/rules/backend.rules.yaml \
+            infra/observability/rules/fastapi.rules.yaml \
+            --address "$GRAFANA_CLOUD_PROM_URL" \
+            --id      "$GRAFANA_CLOUD_TENANT_ID" \
+            --key     "$GRAFANA_CLOUD_API_KEY"
+
+      - name: Load rules into Grafana Cloud ruler
+        env:
+          GRAFANA_CLOUD_PROM_URL:  ${{ secrets.GRAFANA_CLOUD_PROM_URL }}
+          GRAFANA_CLOUD_TENANT_ID: ${{ secrets.GRAFANA_CLOUD_TENANT_ID }}
+          GRAFANA_CLOUD_API_KEY:   ${{ secrets.GRAFANA_CLOUD_API_KEY }}
+        run: |
+          set -euo pipefail
+          mimirtool rules load \
+            infra/observability/rules/backend.rules.yaml \
+            infra/observability/rules/fastapi.rules.yaml \
+            --address "$GRAFANA_CLOUD_PROM_URL" \
+            --id      "$GRAFANA_CLOUD_TENANT_ID" \
+            --key     "$GRAFANA_CLOUD_API_KEY"
+          echo "✓ dev alert rules loaded"

@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: var(--space-600);
   z-index: 1000;
 }
 
@@ -29,7 +29,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-300);
   padding: 18px 22px;
   border-bottom: 1px solid #f0ece6;
 }
@@ -51,7 +51,7 @@
   background: #fdf1df;
   border: 1px solid #f4e2c6;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
   white-space: nowrap;
 }
 .closeBtn {
@@ -62,7 +62,7 @@
   color: #9a9186;
   cursor: pointer;
   padding: 2px 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
 }
 .closeBtn:hover {
   background: #f4f1ec;
@@ -125,7 +125,7 @@
   object-fit: contain;
   background: #f6f4f1;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   margin-bottom: 14px;
 }
 /* 이력 반영 한 줄(= next_steps.note). 상단에 '한 번만' 노출(중복 제거). */
@@ -149,17 +149,21 @@
 .section {
   margin: 0 0 20px;
 }
+/* §섹션 라벨 — Figma subtitle1(114:15610 등 §2~§7 Label 공통): Bold 20/lineHeight 28/text-secondary.
+   컨테이너 gap-300(12px)이 라벨→콘텐츠 간격. */
 .sectionTitle {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin: 0 0 9px;
-  font-size: 14.5px;
+  margin: 0 0 var(--space-300);
+  font-size: 20px;
   font-weight: 700;
-  color: #2d2a26;
+  line-height: 28px;
+  color: var(--text-secondary);
 }
+/* §3·§6 라벨은 Figma 실측상 text/brand(#ff8534) — 114:15623·114:15737. 하드코딩 #ee6f2d 교정. */
 .sectionTitle.accent {
-  color: #ee6f2d;
+  color: var(--text-brand);
 }
 .sectionNum {
   font-weight: 700;
@@ -175,46 +179,83 @@
 .practiceBox {
   background: #ffffff;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   padding: 14px 16px;
 }
 
-/* ── 최초 가이드: 1. 분석 / 2. 읽히는 느낌 ── */
+/* ── 2. 현재 그림 분석 (시안 114:15609): surface 카드 = 업로드 이미지 + "AI가 발견한 문제" 소제목 + 설명 ── */
 .analysisBox {
-  background: #ffffff;
-  border: 1px solid #efeae3;
-  border-radius: 12px;
-  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-800); /* Figma 114:15611 gap-800(32px) */
+  background: var(--bg-surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
 }
 .analysisImg {
   display: block;
-  max-width: 220px;
-  max-height: 220px;
-  border-radius: 10px;
-  margin: 0 0 10px;
-  object-fit: contain;
-  background: #f4f1ec;
+  width: 322px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  object-fit: cover;
+  border-radius: var(--radius-300);
+  background: var(--bg-subtle);
+}
+.analysisFindings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+.findingTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}
+.findingText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
+}
+/* 사용자 질문 말풍선(시안 114:15613) — 카드 상단 우측정렬, request_text 있을 때만 */
+.userQuestion {
+  align-self: flex-end;
+  max-width: 100%;
+  margin: 0;
+  padding: var(--space-300) var(--space-400);
+  background: var(--bg-brand);
+  color: var(--text-inverse);
+  font-size: 14px;
+  line-height: 22px;
+  border-radius: var(--radius-300) var(--radius-300) var(--space-100)
+    var(--radius-300);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .readBox {
   background: #ffffff;
   border: 1px solid #efeae3;
-  border-radius: 12px;
+  border-radius: var(--radius-300);
   padding: 14px 16px;
 }
 
-/* ── 2. 한 끗 포인트 ── */
+/* ── 3. 한 끗 포인트 (시안 114:15624): brand-weak 카드 ── */
 .tipBox {
-  background: #fdf4e8;
-  border: 1px solid #f6e3c8;
-  border-radius: 14px;
-  padding: 16px;
+  background: var(--bg-brand-weak);
+  border: 1px solid #ffdba9; /* 시안 border/brand-weak (전역 토큰 미정 — 후속 토큰화 대상) */
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
 }
 .tipText {
   margin: 0;
   font-size: 14px;
-  line-height: 1.65;
-  color: #6b4e2e;
-  font-weight: 500;
+  line-height: 22px;
+  color: var(--text-tertiary);
+  font-weight: 600;
 }
 .assetFig {
   margin: 14px 0 0;
@@ -231,21 +272,98 @@
 }
 
 /* ── 3. 추천 레퍼런스 ── */
+/* 시안 SCR-GUIDE-03 §4(114:15652): 감싸는 surface 카드 안에 레퍼런스 행 세로 스택 + 피드백.
+   각 행은 이미지(좌) + 우측 정보영역. */
+.refBoard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-400);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
+}
 .refGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-400);
 }
 .refCard {
   margin: 0;
+  display: flex;
+  gap: var(--space-600);
+  align-items: flex-start;
 }
 .refThumb {
   position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 12px;
+  width: 240px;
+  height: 240px;
+  flex-shrink: 0;
+  border-radius: var(--radius-300);
   overflow: hidden;
-  background: #ededed;
-  border: 1px solid #e7e3dd;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-input);
+}
+/* §4 카드 콘텐츠 — Figma 114:15660: flex-col gap-300(12px), py-300, 세로 가운데. */
+.refInfo {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-300);
+  padding: var(--space-300) 0;
+}
+.refTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ④ 추천 레퍼런스 badge(114:15652 49×30) — 출처+부위+persona/category. 중립 pill(키워드 주황과 구분). */
+.refBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-100);
+  margin-top: var(--space-200);
+}
+/* §4 레퍼런스 badge — Figma 114:15666: Regular 14/22, subtle·tertiary, px12/py4·r8. */
+.refBadge {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
+/* 무드 가시화 — "취향 결" 뱃지(주황 강조, 교집합일 때만). accent 로 기존 중립 뱃지와 구분. */
+.refBadgeMood {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  color: var(--accent, #e8770f);
+  background: var(--accent-subtle, #fff2e6);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
+/* ③ 추천 이유(114:15652) — 축과의 연결 한 문장. 라벨은 주황 강조, 문장은 보조 텍스트. */
+/* §4 추천 이유 — Figma 114:15662: 라벨(SemiBold 14, 별도 줄) + 이유(Regular 14/22), 모두 tertiary. */
+.refReason {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
+}
+.refReasonLabel {
+  display: block;
+  font-weight: 600;
+  color: var(--text-tertiary);
 }
 .refNum {
   position: absolute;
@@ -262,7 +380,40 @@
   font-weight: 700;
   color: #fff;
   background: rgba(45, 42, 38, 0.78);
-  border-radius: 999px;
+  border-radius: var(--radius-999);
+}
+/* ⑤ 아카이브 담기 — 썸네일 우상단 glass 버튼(114:15652) */
+/* §4 아카이브 glass 버튼 — Figma 114:15658 glass_button: 48px, bg rgba(254,254,255,0.2),
+   border weak, blur 2px, r8, 상시 노출(정본). */
+.refArchiveBtn {
+  position: absolute;
+  top: var(--space-200);
+  right: var(--space-200);
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-200);
+  background: rgba(254, 254, 255, 0.2);
+  backdrop-filter: blur(2px);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 1;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.refArchiveBtn:hover {
+  background: rgba(254, 254, 255, 0.4);
+}
+.refArchiveBtn[data-archived] {
+  opacity: 1;
+  background: var(--bg-brand);
+  color: #fff;
+  cursor: default;
 }
 .refImg {
   width: 100%;
@@ -290,18 +441,18 @@
 /* 레퍼런스 묶음 피드백(👍 👎 🔄) */
 .refFeedback {
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-200);
+  padding: 0 var(--space-300);
 }
 .fbBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid #ece7e0;
-  border-radius: 10px;
-  background: #fff;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-200);
+  background: transparent;
   color: #8a8074;
   cursor: pointer;
   transition:
@@ -316,7 +467,7 @@
 }
 .fbBtnActive,
 .fbBtnActive:hover {
-  color: #ff8534;
+  color: var(--text-brand);
   background: #fff3e9;
   border-color: #f6e3c8;
 }
@@ -337,39 +488,15 @@
   font-weight: 700;
 }
 
-/* ── 4. 앞으로 해야 할 것 ── */
+/* ── 5. 앞으로 해야 할 것 ── */
 .nextSteps {
   margin: 0 0 20px;
 }
-.nextGoal {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  background: #fbf8f4;
-  border: 1px solid #efeae3;
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-.goalBadge {
-  font-size: 11px;
-  font-weight: 700;
-  color: #ee6f2d;
-  background: #fdeede;
-  padding: 3px 9px;
-  border-radius: 999px;
-}
-.goalAxis {
-  font-size: 14px;
-  font-weight: 700;
-  color: #2d2a26;
-}
 .goalText {
-  flex: 1 1 100%;
-  margin: 2px 0 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: #4a443d;
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
 }
 
 /* ── 성장 흐름 ── */
@@ -377,24 +504,40 @@
   margin: 0;
 }
 .growthBox {
-  background: #fff5e9;
-  border: 1px solid #f7e6cd;
-  border-radius: 14px;
-  padding: 16px;
+  background: var(--bg-brand-weak);
+  border: 1px solid #ffdba9; /* 시안 border/brand-weak (전역 토큰 미정 — §3와 공통 잔여) */
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
 }
 .growthFirst {
   margin: 0;
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: #7a6a52;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
 }
 .chartWrap {
   margin: 0;
 }
-.chartTitle {
-  margin: 0 0 8px;
-  font-size: 12.5px;
-  color: #9a8a72;
+/* §6 박스 안 헤더 — Figma 114:15740 subtitle2(18/700/24/tertiary) + 114:15741 축설명 caption2(12/500/20/quaternary), gap-100. */
+.growthHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  margin: 0 0 var(--space-300);
+}
+.growthHeadTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}
+.growthAxis {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-quaternary);
 }
 .chartArea {
   position: relative;
@@ -403,6 +546,14 @@
   display: block;
   width: 100%;
   height: 132px;
+}
+/* ⑦ X축 = 주(정본 114:15736: 첫 주 … 이번 주 날짜). */
+.chartXAxis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-100);
+  font-size: 12px;
+  color: var(--text-quaternary);
 }
 /* 차트 위 변화 배지(trend로 계산) */
 .deltaTag {
@@ -415,15 +566,22 @@
   color: #c2632c;
   background: rgba(255, 245, 233, 0.85);
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
   pointer-events: none;
 }
 .growthMsg {
-  margin: 14px 0 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: #c2632c;
-  font-weight: 600;
+  margin: var(--space-400) 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
+}
+/* 성장 흐름 delta 문장 아래 정본 해설 캡션(114:15761) — body2 Regular 14/22 tertiary, gap 4px. */
+.growthCaption {
+  margin: var(--space-100) 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--text-tertiary);
 }
 
 /* ── 칩 ── */
@@ -431,8 +589,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-200);
+  margin-top: var(--space-300);
 }
 .chipRowLabel {
   font-size: 12.5px;
@@ -445,7 +603,20 @@
   background: #f4f1ec;
   border: 1px solid #ebe6df;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
+}
+/* 강조 칩(주황) — 가장 자주 막힌 축처럼 한 끗 포인트로 짚을 때 */
+.chipAccent {
+  color: #c2632c;
+  font-weight: 600;
+  background: #fff3e9;
+  border-color: #f6e3c8;
+}
+/* 가이드 본문 최상단 '이번에 다룬 축' 요약 줄 — 섹션 전 구분선까지 */
+.summaryChips {
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f3efe9;
 }
 
 /* ── PDF 다운로드 버튼(복사 대신) ── */
@@ -459,7 +630,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-999);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -490,10 +661,336 @@
   border: none;
   background: transparent;
   color: #8a857e;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
   cursor: pointer;
 }
 .iconHeaderBtn:hover {
   background: #f3f1ee;
-  color: #4a4846;
+  color: var(--text-tertiary);
+}
+
+/* ── SCR-GUIDE-03 C1 스캐폴딩 (시안 토큰) ───────────────────────────── */
+/* §1 타이틀 메타 — 요청일자 + 주요 키워드 badge */
+.titleMeta {
+  margin: 0 0 18px;
+}
+.reqDate {
+  margin: 0 0 var(--space-200);
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.keywordRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-100);
+}
+.keywordLabel {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.keywordBadge {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--text-brand);
+  background: var(--bg-brand-subtle);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
+/* #4 의미·예시 키워드 — 대그룹(오렌지 keywordBadge)과 구분되는 중립 뱃지. */
+.keywordBadgeSub {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
+/* §5 감싸는 surface 카드(시안 114:15703) */
+.nextStepsBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-600);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-300);
+  padding: var(--space-600);
+}
+/* §5 현재/다음 단계 */
+.stageRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-400);
+  margin: 0;
+}
+.stageItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-100);
+}
+.stageLabel {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.stageBadge {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  padding: var(--space-100) var(--space-300);
+  border-radius: var(--radius-200);
+}
+.stageBadgeNext {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-brand);
+  background: var(--bg-brand-subtle);
+  padding: var(--space-100) var(--space-300);
+  border-radius: var(--radius-200);
+}
+/* ⑥ 5단계 커리큘럼 프로그레스 바(114:15701) — 바+fill+5노드+5라벨. 현재 노드/라벨 주황 강조. */
+.trackWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+.trackGroup {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.trackGroupName {
+  font-weight: 700;
+  color: var(--text-brand);
+}
+.trackTrack {
+  position: relative;
+  height: 8px;
+  margin: var(--space-200) 6px var(--space-100);
+  background: var(--bg-subtle);
+  border-radius: 999px;
+}
+.trackFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--bg-brand, var(--text-brand));
+  border-radius: 999px;
+}
+.trackNode {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 2px solid var(--border-input);
+}
+.trackNodeOn {
+  background: var(--text-brand);
+  border-color: var(--text-brand);
+}
+.trackNodeCur {
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  box-shadow: 0 0 0 3px var(--bg-brand-subtle);
+}
+.trackLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-100);
+}
+.trackLabel {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-quaternary);
+}
+.trackLabel:first-child {
+  text-align: left;
+}
+.trackLabel:last-child {
+  text-align: right;
+}
+.trackLabelCur {
+  font-weight: 700;
+  color: var(--text-brand);
+}
+/* §5 체크리스트 */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-400);
+  margin: 0;
+}
+.checklistTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
+}
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+}
+.checkbox {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--space-100);
+}
+.checkText {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-tertiary);
+}
+/* §7 피드백 chip 2 */
+/* §7 피드백 가로 카드(시안 114:15762): 질문 좌 + chip 우 */
+.fbCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-400);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-300);
+  padding: var(--space-400) var(--space-600);
+}
+.fbQuestion {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  color: var(--text-quaternary);
+}
+.guideFb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-200);
+}
+.fbChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-200);
+  height: 44px;
+  box-sizing: border-box;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-quaternary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-200);
+  padding: var(--space-200) var(--space-400) var(--space-200) var(--space-300);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fbChip svg {
+  flex-shrink: 0;
+}
+.fbChip:hover {
+  background: var(--bg-subtle);
+}
+.fbChipActive {
+  color: var(--text-brand);
+  background: var(--bg-brand-weak);
+  border-color: var(--border-input-focus);
+}
+
+/* §1 타이틀 — Figma heading2(114:15601·90:16602, 전체화면·split 두 정본 실측 동일): 36/700/52, text/primary.
+   컨테이너 gap-300(12px)이 타이틀→요청일자 간격(margin-bottom 으로 반영). */
+.guideTitle {
+  margin: 0 0 var(--space-300);
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 52px;
+  color: var(--text-primary);
+}
+/* 코퍼스 레퍼런스 담기 실패 토스트(정직한 실패 알림) */
+.archiveError {
+  margin: var(--space-300) 0 0;
+  padding: var(--space-300) var(--space-400);
+  background: #fdecec;
+  border: 1px solid #f5c2c2;
+  border-radius: var(--radius-300);
+  color: #c0392b;
+  font-size: 13px;
+  line-height: 20px;
+}
+/* 재추천 안내(고갈·생성 중) — 중립 muted 노트(에러 아님) */
+.rerollNote {
+  margin: var(--space-300) 0 0;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* 한 끗 포인트 — 번호 포인트(정본 114:15631) */
+/* §3 번호 포인트 — Figma 114:15631: 컨테이너/행 gap-200(8px) items-center. */
+.pointList {
+  list-style: none;
+  margin: var(--space-400) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-200);
+}
+.pointItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+}
+/* 번호 badge — Figma 114:15633: 둥근사각 pill(h20·px8·rounded8), Medium 12/20, brand·inverse. */
+.pointNum {
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 var(--space-200);
+  border-radius: var(--radius-200);
+  background: var(--bg-brand);
+  color: var(--text-inverse);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 포인트 텍스트 — Figma 114:15634 caption1: SemiBold 14/22/tertiary. */
+.pointText {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--text-tertiary);
+}
+/* 지금 바로 수정하기(정본 114:15638) */
+.fixBox {
+  margin-top: var(--space-500);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+/* §3 '지금 바로 수정하기' — Figma 114:15640 subtitle2: Bold 18/24/tertiary. */
+.fixTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--text-tertiary);
 }

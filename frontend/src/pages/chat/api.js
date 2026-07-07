@@ -88,6 +88,21 @@ export const getGuides = async (projectId) => {
 };
 
 /**
+ * '생성 중' 레퍼런스 폴링. guide.pending_references[].job_id 로 호출.
+ * 반환(정규화): { status: 'generating'|'ready'|'failed'|'unknown', refId, imagePath }
+ * (Spring 이 fastapi /guide/ref-job/{jobId} 를 프록시 — ready 면 refId 로 이미지 표시.)
+ */
+export const getRefJob = async (projectId, jobId) => {
+  const res = await api.get(`/projects/${projectId}/guide/ref-job/${jobId}`);
+  const d = res.data.data || {};
+  return {
+    status: d.status,
+    refId: d.refId ?? d.ref_id ?? null,
+    imagePath: d.imagePath ?? d.image_path ?? null,
+  };
+};
+
+/**
  * 가이드 내 레퍼런스 묶음 피드백(👍 liked / 👎 disliked).
  * 그 가이드가 보여준 레퍼런스(최대 3컷)에 이벤트가 기록된다. best-effort.
  */
@@ -104,6 +119,24 @@ export const sendReferenceFeedback = async (
       referenceIds,
     },
   );
+};
+
+/**
+ * 레퍼런스 재추천("다시 추천" 🔄). 저장 가이드의 축(subProblem)으로 새 컷을 받는다(LLM 미경유).
+ * exclude = 화면에 이미 노출된 ref_id 전부(세션 누적, 서버 무상태). 반환:
+ * { subProblem, exhausted, pendingMessage, references:[{ordinal,refId,url,sourceType,region,personas,category}] }.
+ */
+export const rerollReference = async (
+  projectId,
+  guideId,
+  subProblem,
+  exclude,
+) => {
+  const res = await api.post(
+    `/projects/${projectId}/guide/${guideId}/references/reroll`,
+    { subProblem, exclude },
+  );
+  return res.data.data;
 };
 
 /**

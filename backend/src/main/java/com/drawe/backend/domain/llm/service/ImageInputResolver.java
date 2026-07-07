@@ -1,6 +1,7 @@
 package com.drawe.backend.domain.llm.service;
 
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.image.service.DbImageStorage;
 import com.drawe.backend.domain.image.service.ImageStorage;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
@@ -30,7 +31,8 @@ public class ImageInputResolver {
       Pattern.compile("^data:(?<mime>[^;]+);base64,(?<data>.+)$", Pattern.DOTALL);
   private static final Pattern INTERNAL_URL = Pattern.compile("^/images/(?<id>\\d+)$");
 
-  private final ImageStorage imageStorage;
+  // /images/{id} load + data: 저장 모두 MySQL 전제(javadoc) — s3 @Primary(load=throw) 회피.
+  private final DbImageStorage imageStorage;
 
   public Resolved resolve(User owner, String imageUrl) {
     if (imageUrl == null || imageUrl.isBlank()) {

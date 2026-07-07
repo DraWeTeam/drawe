@@ -1,0 +1,50 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: drawe-dev
+
+resources:
+  - ../../../base/backend
+
+# base 의 placeholder 이미지 → 실제 dev ECR (계정 570515227314)
+images:
+  - name: drawe-backend
+    newName: 570515227314.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-dev-backend
+    newTag: 1dd734553380d2e1ad764177898f6c58525d9af8   # apache5-client 제외(STS/Presigner HTTP, 커밋 ea903b5). selfHeal 환경이라 SHA 핀 → ArgoCD 롤
+
+# 환경별 env (backend-env). disableNameSuffixHash 로 이름 고정 → Deployment envFrom 가 그대로 참조
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: backend-env
+    literals:
+      - DB_HOST=drawe-dev-mysql.c12aeigicmr9.ap-northeast-2.rds.amazonaws.com                       # ← FILL: RDS 엔드포인트
+      - REDIS_HOST=10.0.10.36               # ← FILL: Valkey EC2 사설 IP
+      - S3_BUCKET=drawe-dev-bria-ai                      # ← FILL: bria S3 버킷명
+      - S3_REGION=ap-northeast-2
+      - SPRING_PROFILES_ACTIVE=s3
+      - APP_CORS_ALLOWED_ORIGINS=https://develop.drawe.pages.dev      # ← FILL: 프론트 URL
+      - APP_OAUTH2_REDIRECT_URI=https://develop.drawe.pages.dev/oauth/callback   # ← FILL
+      - FASTAPI_GUIDE_PUBLIC_URL=https://api-dev.drawe.xyz
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=dev,service.namespace=drawe
+
+# SecurityGroupPolicy 의 SG id 를 실제값으로 (pods-db + 클러스터 SG)
+patches:
+  - target:
+      kind: SecurityGroupPolicy
+      name: backend-rds
+    patch: |-
+      - op: replace
+        path: /spec/securityGroups/groupIds
+        value:
+          - sg-0204cf50ec3a19b99        # ← FILL: drawe-dev-pods-db
+          - sg-0f815ecda2fb7e9fc     # ← FILL: 클러스터 SG
+  # backend IRSA 롤 (3-platform output: backend_irsa_role_arn)
+  - target:
+      kind: ServiceAccount
+      name: backend
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::570515227314:role/drawe-dev-backend

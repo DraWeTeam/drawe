@@ -1,0 +1,484 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ===== 검색바 ===== */
+.searchForm {
+  flex-shrink: 0;
+  padding: 8px 40px 16px 64px;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid #e0ded9;
+  border-radius: 16px;
+  background: #fff;
+  transition: border-color 0.15s ease;
+}
+
+.searchBox:focus-within {
+  border-color: #ff8534;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  color: #24221f;
+  min-width: 0;
+}
+
+.searchInput::placeholder {
+  color: #b3aea8;
+}
+
+.clearBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #b3aea8;
+  padding: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.clearBtn:hover {
+  color: #6f6b66;
+  background: #f2efec;
+}
+
+/* ===== 필터 칩 ===== */
+.chips {
+  display: flex;
+  gap: 8px;
+  padding: 0 40px 20px 64px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chip {
+  background: #fbfcfa;
+  border: 1px solid #d8d7d5;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #888685;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.chip:hover:not(:disabled):not(.chipActive) {
+  border-color: #ff8534;
+  color: #ff8534;
+}
+
+.chipActive {
+  background: #ff8534;
+  border-color: #ff8534;
+  color: #fff;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== 에러 배너 ===== */
+.errorBanner {
+  background: #fef2f2;
+  color: #d83a3a;
+  padding: 10px 16px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  margin: 0 40px 12px 64px;
+  flex-shrink: 0;
+}
+
+.errorClose {
+  background: none;
+  border: none;
+  color: #d83a3a;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* ===== 콘텐츠 스크롤 영역 (핀존 + 결과존) ===== */
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 32px 32px 64px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 그리드 (마소너리 — 가로만 맞추고 비율 유지) ===== */
+.grid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* ===== 카드 ===== */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: transform 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.cardActive {
+  z-index: 10;
+}
+
+.cardImage {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0eeec;
+  transition: opacity 0.15s ease;
+}
+
+/* 싫어요한 카드 — 이미지만 살짝 흐리게(옵션/라벨은 그대로). 정렬상 맨 아래로. */
+.cardDisliked .cardImage {
+  opacity: 0.62;
+}
+
+.cardDisliked:hover .cardImage {
+  opacity: 0.8;
+}
+
+.image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.imageFallback {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f1ec;
+}
+
+/* 핀 버튼 — 기본 숨김, 카드 호버 시 노출. 기존 ReferenceGrid .pinBtn 참고. */
+.pinBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: #fcfbfa;
+  opacity: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4a4846;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.card:hover .pinBtn {
+  opacity: 0.9;
+}
+
+.pinBtn:hover {
+  transform: scale(1.08);
+  color: #555;
+}
+
+/* 핀된 카드 — 항상 표시. 기존 챗 ReferenceGrid 처럼 배경 없이 흰색 아이콘. */
+.pinBtnActive,
+.card:hover .pinBtnActive {
+  opacity: 1;
+  background: none;
+  color: #fff;
+}
+
+.pinBtnActive:hover {
+  background: none;
+  transform: scale(1.08);
+  color: #fff;
+}
+
+.aiBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* ===== 카드 footer ===== */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 2px;
+}
+
+.cardLabel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4a4846;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.indexBadge {
+  color: #a7a29c;
+  font-size: 12px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.pinBadge {
+  color: #e8590c;
+  font-weight: 700;
+}
+
+.labelText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ===== 카드 메뉴 ===== */
+.menuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menuBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.menuBtn:hover {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.menuPopup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 150px;
+  z-index: 30;
+  animation: pop-in 0.15s ease;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #444;
+  font-family: inherit;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.menuItem:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.menuItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menuItemActive {
+  color: #ff8534;
+  background: #fff7f0;
+  font-weight: 600;
+}
+
+.menuItemActive:hover:not(:disabled) {
+  background: #ffe8d4;
+}
+
+.menuItemActive svg {
+  color: #ff8534;
+}
+
+/* ===== 로딩 / 빈 상태 ===== */
+.stateBox {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 20px 60px;
+  gap: 6px;
+}
+
+.stateTitle {
+  margin: 12px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #4a4846;
+}
+
+.stateHint {
+  margin: 0;
+  font-size: 13px;
+  color: #b0aba5;
+}
+
+/* 생성 유도 CTA (blocked 결과) */
+.generateCta {
+  margin-top: 16px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 999px;
+  background: #ff8534;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.generateCta:hover {
+  background: #ff7a25;
+}
+
+/* 더보기 (클라 페이징) — 검색결과 아래 중앙 */
+.moreRow {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 20px;
+}
+
+.moreBtn {
+  padding: 9px 24px;
+  border: 1px solid #e0ded9;
+  border-radius: 999px;
+  background: #fff;
+  color: #6f6b66;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.moreBtn:hover {
+  border-color: #ff8534;
+  color: #ff8534;
+}
+
+/* 스크롤바 */
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}

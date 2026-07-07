@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  labels:
+    app: backend
+data:
+  SERVER_PORT: "8080"
+  DB_PORT: "3306"
+  DB_NAME: "drawe_db"
+  DB_SSL_MODE: "VERIFY_IDENTITY"
+  REDIS_PORT: "6379"
+  JPA_DDL_AUTO: "update"
+  JPA_SHOW_SQL: "false"
+  LOG_LEVEL_SQL: "warn"
+  # 같은 네임스페이스(drawe-dev) 내 서비스 → 짧은 이름으로 해석 (환경 무관)
+  FASTAPI_URL: "http://fastapi-embed:8000"
+  FASTAPI_GUIDE_URL: "http://fastapi-guide:8000"
+  # ── OTEL → Alloy DaemonSet(observability ns) gRPC 진입점 ──
+  OTEL_SERVICE_NAME: "backend"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://alloy.observability.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_TRACES_SAMPLER: "parentbased_always_on"
+  OTEL_TRACES_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_LOGS_EXPORTER: "otlp"

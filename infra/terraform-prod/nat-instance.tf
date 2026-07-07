@@ -26,7 +26,7 @@
 # ── fck-nat AMI (ARM64) ─────────────────────────────────
 data "aws_ami" "fck_nat" {
   most_recent = true
-  owners      = ["568608671756"]   # fck-nat publisher account
+  owners      = ["568608671756"] # fck-nat publisher account
 
   filter {
     name   = "name"
@@ -286,12 +286,14 @@ resource "aws_launch_template" "nat_c" {
 resource "aws_autoscaling_group" "nat_a" {
   name_prefix         = "${local.name_prefix}-nat-a-"
   vpc_zone_identifier = [aws_subnet.public_a.id]
-  min_size            = var.prod_enabled ? 1 : 0
-  max_size            = var.prod_enabled ? 1 : 0
-  desired_capacity    = var.prod_enabled ? 1 : 0
+  min_size            = (var.prod_enabled || var.nat_enabled) ? 1 : 0
+  max_size            = (var.prod_enabled || var.nat_enabled) ? 1 : 0
+  desired_capacity    = (var.prod_enabled || var.nat_enabled) ? 1 : 0
 
   health_check_type         = "EC2"
   health_check_grace_period = 60
+  enabled_metrics     = ["GroupInServiceInstances"]
+  metrics_granularity = "1Minute"
 
   launch_template {
     id      = aws_launch_template.nat_a.id
@@ -310,12 +312,14 @@ resource "aws_autoscaling_group" "nat_a" {
 resource "aws_autoscaling_group" "nat_c" {
   name_prefix         = "${local.name_prefix}-nat-c-"
   vpc_zone_identifier = [aws_subnet.public_c.id]
-  min_size            = var.prod_enabled ? 1 : 0
-  max_size            = var.prod_enabled ? 1 : 0
-  desired_capacity    = var.prod_enabled ? 1 : 0
+  min_size            = (var.prod_enabled || var.nat_enabled) ? 1 : 0
+  max_size            = (var.prod_enabled || var.nat_enabled) ? 1 : 0
+  desired_capacity    = (var.prod_enabled || var.nat_enabled) ? 1 : 0
 
   health_check_type         = "EC2"
   health_check_grace_period = 60
+  enabled_metrics     = ["GroupInServiceInstances"]
+  metrics_granularity = "1Minute"
 
   launch_template {
     id      = aws_launch_template.nat_c.id

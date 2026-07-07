@@ -1,0 +1,24 @@
+# ArgoCD Application — observability(Alloy)를 GitOps 로 동기화.
+# 3-platform 의 root app(app-of-apps)이 이 파일이 있는 디렉터리를 watch 하면 자동 등록됨.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # ★ 본인 GitOps 레포 URL 로 교체
+    repoURL: https://github.com/DraWeTeam/drawe.git
+    targetRevision: develop
+    # 레포 내 overlay 경로. 별도 infra repo 면 k8s/..., 모노레포면 infra/k8s/...
+    path: infra/k8s/overlays/dev/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

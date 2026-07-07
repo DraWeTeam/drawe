@@ -6,6 +6,7 @@
 !**/*.tfvars.example
 **/crash.log
 **/.terraform.lock.hcl
+**/.build/
 
 # IDE
 .idea/
@@ -30,3 +31,7 @@ Thumbs.db
 *.sql
 beta_snapshot
 extract_beta_snapshot.py
+*.bak-*
+
+# Local-only compose overrides (머신 종속: 개인 .aws 경로 등 — 커밋 금지)
+docker-compose.bedrock.local.yml

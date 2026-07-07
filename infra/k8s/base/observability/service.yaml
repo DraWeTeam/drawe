@@ -1,0 +1,19 @@
+# 앱이 OTLP 를 보낼 진입점. internalTrafficPolicy=Local 로 같은 노드의 Alloy 로 전송(node-agent).
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: alloy
+spec:
+  selector:
+    app.kubernetes.io/name: alloy
+  internalTrafficPolicy: Local
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318

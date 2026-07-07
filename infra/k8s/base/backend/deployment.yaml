@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      serviceAccountName: backend   # IRSA → bria-ai S3 (/images 서빙·업로드)
+      # SGP(securitygrouppolicy.yaml) 워크로드는 ENI trunking(branch ENI) 필수 → nitro(m/c/r)에만
+      #   스케줄. 버스터블(t/a)·시스템NG(라벨 없음)는 배제 = pod-eni 미부착→RDS 불통(함정 1) 방지.
+      #   환경 무관 진실이라 base 배치. prod 는 Karpenter 가 이미 m/c/r 만이라 무해.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: karpenter.k8s.aws/instance-category
+                    operator: In
+                    values: ["m", "c", "r"]
+      # 그레이스풀 종료: Spring 이 in-flight 요청 마무리할 시간
+      terminationGracePeriodSeconds: 60
+      # 파드 레벨 보안 컨텍스트 — 이미지(USER drawe 1000:1000)와 정합.
+      # backend 이미지는 이미 비루트라 즉시 적용 가능.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: drawe-backend:latest   # overlay 의 images: 가 실제 ECR 주소로 치환
+          # 컨테이너 레벨 보안 컨텍스트 — 권한 상승·불필요 capability 차단
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: backend-config        # base: 고정 env
+            - configMapRef:
+                name: backend-env            # overlay(dev): 환경별 env (DB_HOST 등)
+            - secretRef:
+                name: drawe-backend-secrets  # ESO 가 SSM 에서 동기화
+          # Spring Boot 기동 ~30~60초 → startupProbe 로 충분히 기다린 뒤 liveness 시작
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 5      # CPU 경합 노드에서 JVM 워밍업 중 1초(기본값) 응답 실패 방지
+            failureThreshold: 30   # 최대 150초 대기
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              memory: "1536Mi"   # ECS backend_memory=1536 과 동일. CPU limit 은 스로틀 방지 위해 미설정

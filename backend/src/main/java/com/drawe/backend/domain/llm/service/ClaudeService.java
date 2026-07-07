@@ -4,6 +4,7 @@ import com.drawe.backend.domain.enums.LlmProvider;
 import com.drawe.backend.domain.enums.MessageRole;
 import com.drawe.backend.domain.llm.dto.LlmCallContext;
 import com.drawe.backend.domain.llm.dto.LlmCallResult;
+import com.drawe.backend.global.client.HttpClientFactory;
 import com.drawe.backend.global.config.LlmProperties;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
@@ -12,22 +13,28 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+/**
+ * Claude(Anthropic) LLM 클라이언트. connect 3s / read 30s 타임아웃으로 hang 차단. 서킷 제외(실패는 {@code
+ * AI_SERVICE_ERROR} 로 변환되어 상위에서 처리). 설계: {@code docs/decisions/S1-resilience4j-design.md}.
+ */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ClaudeService implements LlmService {
 
   private static final String ANTHROPIC_VERSION = "2023-06-01";
   private static final int DEFAULT_MAX_TOKENS = 1024;
 
   private final LlmProperties properties;
-  private final RestClient restClient = RestClient.create();
+  private final RestClient restClient = HttpClientFactory.restClient(3000, 30000);
+
+  public ClaudeService(LlmProperties properties) {
+    this.properties = properties;
+  }
 
   @Override
   public LlmProvider provider() {
@@ -153,10 +160,16 @@ public class ClaudeService implements LlmService {
   private void logCacheUsage(Map<?, ?> response) {
     Object usage = response.get("usage");
     if (usage instanceof Map<?, ?> u) {
-      Object created = u.get("cache_creation_input_tokens");
-      Object read = u.get("cache_read_input_tokens");
-      Object input = u.get("input_tokens");
-      log.debug("Claude usage - input={}, cache_created={}, cache_read={}", input, created, read);
+      // 전후 비교용 단일 포맷(GrokService 와 동일 "TOKENCOST" 태그로 grep). Claude 의 usage 의미:
+      //  - input_tokens = 비캐시 입력(정가), cache_read_input_tokens = 캐시 적중(≈0.1×),
+      // cache_creation_input_tokens = 캐시 쓰기(1.25×)
+      //  - 전체 입력 = input + cache_read + cacheWrite. cached(적중)는 cache_read 기준.
+      log.debug(
+          "TOKENCOST provider=CLAUDE prompt={} cached={} cacheWrite={} completion={}",
+          u.get("input_tokens"),
+          u.get("cache_read_input_tokens"),
+          u.get("cache_creation_input_tokens"),
+          u.get("output_tokens"));
     }
   }
 }

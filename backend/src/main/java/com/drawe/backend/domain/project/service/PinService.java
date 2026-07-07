@@ -28,6 +28,12 @@ public class PinService {
   private final ProjectRepository projectRepository;
   private final ImageRepository imageRepository;
   private final ImageDraweTagRepository imageDraweTagRepository;
+  private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
+
+  /** 브라우저 노출용 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(시드)·null 은 원본. */
+  private String signed(String url) {
+    return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
+  }
 
   @Transactional
   public void addPins(User user, Long projectId, Long imageId) {
@@ -102,14 +108,17 @@ public class PinService {
   private PinItem toPinItem(Image img, ImageDraweTag tag) {
     return new PinItem(
         img.getId(),
-        img.getUrl(),
+        signed(img.getUrl()),
         img.getPhotographerName(),
         img.getPhotographerUsername(),
         img.getSource() != null ? img.getSource().name() : null,
         tag != null ? tag.getTechnique() : null,
         tag != null ? tag.getSubject() : null,
         tag != null ? tag.getMood() : null,
-        img.getRawTags() != null ? img.getRawTags() : Collections.emptyList());
+        img.getRawTags() != null ? img.getRawTags() : Collections.emptyList(),
+        tag != null ? tag.getFreeTags() : null,
+        img.getPrompt(),
+        img.getAiDescription());
   }
 
   private Project loadAuthorized(User user, Long projectId) {

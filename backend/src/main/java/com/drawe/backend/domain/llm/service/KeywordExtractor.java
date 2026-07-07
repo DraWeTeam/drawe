@@ -2,11 +2,14 @@ package com.drawe.backend.domain.llm.service;
 
 import com.drawe.backend.domain.enums.LlmProvider;
 import com.drawe.backend.domain.enums.MessageRole;
+import com.drawe.backend.domain.llm.contract.IntentCode;
 import com.drawe.backend.domain.llm.dto.ExtractionResult;
 import com.drawe.backend.domain.llm.dto.LlmCallContext;
 import com.drawe.backend.domain.llm.dto.LlmCallResult;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,7 +24,7 @@ public class KeywordExtractor {
           You are a search decision system for a drawing reference image search.
 
           Read the user's message AND recent conversation history.
-          Decide ONE of four actions:
+          Decide ONE of five actions:
 
           ## 1. NEW_SEARCH: <english keywords>
 
@@ -50,18 +53,22 @@ public class KeywordExtractor {
           Abstract to broad visual concepts CLIP can match (mood, style, scene).
           Avoid specific pose details (CLIP can't match them well).
 
-          ## Reference by number ("[N]번 같은 거")
+          ## Similar-by-number — REFERENCE_SIMILAR / PIN_SIMILAR (SCRUM-112)
 
-          When the user references a specific previously shown image by number
-          (e.g. "1번 같은 거", "3번 비슷한 분위기", "2번처럼 더 줘"):
+          When the user asks to SEE/FIND images VISUALLY SIMILAR to a specific
+          previously shown image referred to by number, output a dedicated action
+          (the system anchors on that exact image's vector — do NOT extract keywords):
 
-          1. Look at the previous assistant message in history.
-          2. The assistant has described what each [N] image is\s
-             (typically mentions technique, mood, subject, or visual elements).
-          3. Extract 3-5 core visual keywords from that description.
-          4. Output as NEW_SEARCH with English keywords.
+          - Reference image: "1번 같은 거", "3번 비슷한 분위기", "2번처럼 더 줘",
+            "3번 같은 그림 보여줘", "[2]번이랑 유사한 사진"
+            → output "REFERENCE_SIMILAR: N"   (N = the number, digits only)
+          - Pinned image (with 고정/핀 prefix): "고정 1번이랑 비슷한 거", "핀 2번 같은 느낌"
+            → output "PIN_SIMILAR: N"
 
-          If you cannot find clear description of [N] in history, fall back to KEEP.
+          Only when the intent is to SEE similar images (보여줘/찾아줘/더 줘 + 비슷/유사/같은 그림/처럼).
+          NOT for technique/theory questions about [N] ("1번 어떻게 그려?", "3번 보색은?") → KEEP.
+          NOT for generation ("[2]번처럼 만들어줘") → GENERATE_NOW.
+          If you cannot determine N, fall back to NEW_SEARCH (keywords) or KEEP.
 
           ## 2. KEEP
 
@@ -83,8 +90,25 @@ public class KeywordExtractor {
           - "더 보여줘" → NEW_SEARCH (asking for more images)
           - "다른 방법으로 설명해줘" → KEEP (refinement)
           - "다른 거 보여줘" → NEW_SEARCH (different images)
-          - "[N]번 같은 거 더" → NEW_SEARCH (anchor pattern)
+          - "[N]번 같은 거 더" → REFERENCE_SIMILAR (anchor 유사검색)
           - "[N]번 어떻게 그려" → KEEP (technique question)
+
+          ### KEEP art-intent label (REQUIRED when KEEP)
+
+          When you decide KEEP, also classify the art intent of the question into
+          exactly ONE of these labels, output as "KEEP: <LABEL>":
+          - COMPOSITION — 구도/배치/시점/프레이밍 (layout, pose framing, perspective, balance)
+          - LIGHTING    — 빛/명암/그림자/하이라이트 (light source, shadow, highlight, value)
+          - COLOR       — 색감/색상/팔레트/채도 (hue, palette, saturation, color harmony)
+          - TECHNIQUE   — 그리는 방법/도구/매체/붓질 (how-to, brushwork, medium, rendering)
+
+          If the question fits none clearly or is ambiguous, output bare "KEEP" (no label).
+          Examples:
+          - "이 구도 어떻게 잡아요?"        → KEEP: COMPOSITION
+          - "그림자를 어떻게 넣어요?"        → KEEP: LIGHTING
+          - "이 색감 어떻게 만들어요?"       → KEEP: COLOR
+          - "수채화 번지는 기법 알려줘"       → KEEP: TECHNIQUE
+          - "더 자세히 알려줘"              → KEEP   (ambiguous, no label)
 
           ## 3. SKIP
 
@@ -120,13 +144,60 @@ public class KeywordExtractor {
           Include subject, style, mood, lighting if implied by context.
           Use project/conversation context to make the prompt vivid.
 
+          ## 5. FOLLOWUP
+
+          User reacts to YOUR (the assistant's) most recent answer and wants you to
+          continue, expand, re-explain, or evaluate what you JUST said — NOT new images.
+          No search, no generation: pick up your previous answer and carry it forward.
+
+          Signals (almost always SHORT, and only make sense against the previous turn):
+          - "더 설명", "더 설명해줘", "자세히", "계속", "그래서?"  (asking you to expand your last answer)
+          - "말로 설명", "말로 해줘", "말을 하라고", "말좀해", "말!"  (user wants a WORDED answer, not an image)
+          - "어때?", "어떻게 생각해?", "이거 어색하지 않아?", "그 외는?", "피드백해줘"  (asking you to evaluate / give an opinion)
+          - "왜?", "왜 그래?", "다시 설명"  (asking you to justify / restate your last point)
+          - "가이드를 해라", "그럼 어떻게 해" following your own previous guidance
+
+          CRITICAL — FOLLOWUP vs the others (the previous turn decides):
+          - It refers to YOUR last answer, not to a reference image or a new subject.
+          - It does NOT ask for images ("보여줘"/"레퍼런스"/"더 줘" → NEW_SEARCH).
+          - It does NOT ask to make an image ("만들어줘"/"그려줘" → GENERATE_NOW).
+          - It is NOT a greeting/thanks/abstract-theory (those → SKIP).
+          - A bare "더" after images were shown → NEW_SEARCH; but "더 설명"/"더 말해" → FOLLOWUP.
+          When the user is clearly pressing you to TALK / EXPLAIN / JUDGE your own prior
+          message (often repeating or getting frustrated), choose FOLLOWUP — never fall
+          back to offering an AI image.
+
+          ## 6. COMPARE
+
+          User asks you to COMPARE / CONTRAST things that are ALREADY in the conversation —
+          two reference images that were shown ("[1]과 [2] 중 뭐가 더 나아?"), or options you
+          already described. No search, no generation: weigh what is already on the table and
+          explain the differences. The cousin of FOLLOWUP — both reuse existing context, but
+          COMPARE specifically asks "which / what is the difference between A and B".
+
+          Signals (a comparison between TWO-OR-MORE things already shown / mentioned):
+          - "[1]이랑 [2] 중 뭐가 더 나아?", "1번하고 2번 비교해줘", "둘 중 어느 게 좋아?"
+          - "이 둘 차이가 뭐야?", "뭐가 달라?", "어느 쪽이 더 나아?", "장단점 비교해줘"
+          - "A랑 B 중에 골라줘", "which is better", "compare these two", "what's the difference"
+
+          CRITICAL — COMPARE vs the others:
+          - It compares TWO-OR-MORE things ALREADY in context (refs/options you showed).
+          - "보색이 뭐야?"/"RGB와 CMYK 차이가 뭐야?" → abstract theory, not about shown items → SKIP.
+          - "다른 거 보여줘"/"비슷한 거 더 줘" → wants NEW images → NEW_SEARCH.
+          - If only ONE thing is referenced (e.g. "1번 어때?") → FOLLOWUP/KEEP, not COMPARE.
+          - Never offer an AI image: the user wants your judgment on existing items.
+
           ---
 
           Output format: EXACTLY one line, no quotes, no extra text.
           - NEW_SEARCH: cherry blossoms spring landscape
-          - KEEP
+          - KEEP: COMPOSITION     (KEEP with art-intent label; or bare "KEEP" if ambiguous)
           - SKIP
           - GENERATE_NOW: a cheerful golden retriever walking in soft sunlight, watercolor style
+          - FOLLOWUP
+          - COMPARE
+          - REFERENCE_SIMILAR: 3   (visually similar to shown reference [3])
+          - PIN_SIMILAR: 1         (visually similar to pinned image 1)
 
           ---
 
@@ -168,6 +239,18 @@ public class KeywordExtractor {
           User: "비슷한 인물 사진 더 보여줘"
           → NEW_SEARCH: portrait person photography
 
+          History: waterfall references shown [1][2][3]
+          User: "3번 같은 그림 보여줘"
+          → REFERENCE_SIMILAR: 3
+
+          History: references shown, user pinned some
+          User: "고정 1번이랑 비슷한 거 보여줘"
+          → PIN_SIMILAR: 1
+
+          History: waterfall references shown [1][2][3]
+          User: "3번 어떻게 그려?"
+          → KEEP: TECHNIQUE
+
           History: cat drawing topic
           User: "혹시 기지개 펴는 고양이 레퍼런스를 볼 수 있을까?"
           → NEW_SEARCH: cat stretching pose animal
@@ -204,8 +287,7 @@ public class KeywordExtractor {
           User: "RGB와 CMYK 차이가 뭐야?"
           → SKIP
 
-          History (assistant said): "[1]번 이미지처럼 수채화로 부드러운 색감을 표현하시면 좋습니다.
-          [2]번은 잉크 풍 강한 대비가 특징이고, [3]번은 정물화 따뜻한 분위기예요."
+          History (assistant said): "[1]번 이미지처럼 수채화로 부드러운 색감을 표현하시면 좋습니다. [2]번은 잉크 풍 강한 대비가 특징이고, [3]번은 정물화 따뜻한 분위기예요."
           User: "1번 같은 거 더 보여줘"
           → NEW_SEARCH: watercolor soft pastel portrait
 
@@ -223,6 +305,71 @@ public class KeywordExtractor {
 
           User: "1번 어떻게 그려?"  ← guide question
           → KEEP
+
+          ## FOLLOWUP examples (react to YOUR previous answer; no images, no generation)
+
+          History (assistant gave anatomy guidance): "어깨에서 손목까지 각도를 조금 낮추고, 팔꿈치가 더 자연스럽게 접히게 해보는 건 어때요?"
+          User: "더 설명"
+          → FOLLOWUP
+
+          History (assistant just explained a fix in words)
+          User: "말로 설명"
+          → FOLLOWUP
+
+          History (assistant suggested a pose change)
+          User: "포즈가 다르잖아. 아니면 말로 설명해"
+          → FOLLOWUP
+
+          History (assistant evaluated the user's drawing)
+          User: "그 외는?"
+          → FOLLOWUP
+
+          History (user keeps asking for an opinion on their own drawing, assistant kept deflecting)
+          User: "아니 어떻냐고 어색하진 않냐고"
+          → FOLLOWUP
+
+          User: "말좀해"        ← pressing you to talk, not asking for images
+          → FOLLOWUP
+
+          User: "말을 하라고"     ← same
+          → FOLLOWUP
+
+          User: "피드백해줘"      ← asking your opinion on the current work
+          → FOLLOWUP
+
+          History (assistant gave guidance)
+          User: "왜 그렇게 해?"   ← asking you to justify your last point
+          → FOLLOWUP
+
+          Contrast (do NOT confuse with FOLLOWUP):
+          User: "더 보여줘"       → NEW_SEARCH (wants more images)
+          User: "다른 거 보여줘"   → NEW_SEARCH
+          User: "고마워"          → SKIP
+          User: "보색이 뭐야?"     → SKIP (abstract theory, not about your last answer)
+          User: "그렇게 만들어줘"   → GENERATE_NOW
+
+          ## COMPARE examples (weigh TWO-OR-MORE things already in context; no images, no generation)
+
+          History (3 references shown): "[1] 수채화 인물, [2] 잉크 강한 대비, [3] 정물화"
+          User: "1번이랑 2번 중 뭐가 더 나아?"
+          → COMPARE
+
+          History (two references shown earlier)
+          User: "둘 중에 어느 쪽이 초보한테 좋아?"
+          → COMPARE
+
+          History (assistant described two pose options)
+          User: "두 개 차이가 뭐야?"
+          → COMPARE
+
+          History (references [1] [2] shown)
+          User: "1번하고 2번 장단점 비교해줘"
+          → COMPARE
+
+          Contrast (do NOT confuse with COMPARE):
+          User: "1번 어때?"        → FOLLOWUP/KEEP (only one item, not a comparison)
+          User: "RGB와 CMYK 차이가 뭐야?" → SKIP (abstract theory, not shown items)
+          User: "다른 거랑 비교되게 더 보여줘" → NEW_SEARCH (wants new images)
         """;
 
   private final List<LlmService> llmServices;
@@ -261,7 +408,31 @@ public class KeywordExtractor {
     }
   }
 
+  /** 앵커 번호 추출용 — "REFERENCE_SIMILAR: 3" 의 값에서 첫 정수. */
+  private static final Pattern ANCHOR_DIGITS = Pattern.compile("\\d+");
+
   private ExtractionResult parseResult(String output) {
+    // SCRUM-112: 레퍼런스/핀 유사검색 — 앵커 N 을 실어 전용 핸들러로 라우팅(키워드 추측 아님).
+    if (output.startsWith("REFERENCE_SIMILAR:")) {
+      Integer n = parseAnchorIndex(output.substring("REFERENCE_SIMILAR:".length()));
+      if (n != null) {
+        log.info("레퍼런스 유사검색 (REFERENCE_SIMILAR, n={})", n);
+        return ExtractionResult.referenceSimilar(n);
+      }
+      log.warn("REFERENCE_SIMILAR 앵커 파싱 실패 → KEEP");
+      return ExtractionResult.keep();
+    }
+
+    if (output.startsWith("PIN_SIMILAR:")) {
+      Integer n = parseAnchorIndex(output.substring("PIN_SIMILAR:".length()));
+      if (n != null) {
+        log.info("핀 유사검색 (PIN_SIMILAR, n={})", n);
+        return ExtractionResult.pinSimilar(n);
+      }
+      log.warn("PIN_SIMILAR 앵커 파싱 실패 → KEEP");
+      return ExtractionResult.keep();
+    }
+
     if (output.startsWith("NEW_SEARCH:")) {
       String keywords = output.substring("NEW_SEARCH:".length()).trim();
       if (keywords.isEmpty()) {
@@ -281,9 +452,30 @@ public class KeywordExtractor {
       return ExtractionResult.generateNow(prompt);
     }
 
+    if (output.startsWith("KEEP:")) {
+      String label = output.substring("KEEP:".length()).trim();
+      IntentCode artIntent = parseArtIntent(label);
+      if (artIntent == null) {
+        log.debug("이전 references 유지 (KEEP, 미술 의도 라벨 미인식: '{}')", label);
+        return ExtractionResult.keep();
+      }
+      log.debug("이전 references 유지 (KEEP, art_intent={})", artIntent.code());
+      return ExtractionResult.keep(artIntent);
+    }
+
     if ("KEEP".equalsIgnoreCase(output)) {
-      log.debug("이전 references 유지 (KEEP)");
+      log.debug("이전 references 유지 (KEEP, 미분류)");
       return ExtractionResult.keep();
+    }
+
+    if ("FOLLOWUP".equalsIgnoreCase(output)) {
+      log.debug("직전 답변 부연 (FOLLOWUP, 012)");
+      return ExtractionResult.followup();
+    }
+
+    if ("COMPARE".equalsIgnoreCase(output)) {
+      log.debug("맥락 대상 비교 (COMPARE, 013)");
+      return ExtractionResult.compare();
     }
 
     if ("SKIP".equalsIgnoreCase(output)) {
@@ -293,6 +485,39 @@ public class KeywordExtractor {
 
     log.warn("판단 결과 형식 오류, SKIP 처리: output_length={}", output.length());
     return ExtractionResult.skip();
+  }
+
+  /** "REFERENCE_SIMILAR: 3" 등 라벨 값에서 첫 정수 N 추출. 없으면 null. */
+  private static Integer parseAnchorIndex(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    Matcher m = ANCHOR_DIGITS.matcher(raw);
+    if (m.find()) {
+      try {
+        return Integer.parseInt(m.group());
+      } catch (NumberFormatException e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * KEEP 라벨(COMPOSITION/LIGHTING/COLOR/TECHNIQUE)을 미술 의도 {@link IntentCode}(001~004)로 매핑. 인식 불가면
+   * null → 호출 측이 미분류 KEEP(006) 으로 폴백.
+   */
+  private IntentCode parseArtIntent(String label) {
+    if (label == null || label.isBlank()) {
+      return null;
+    }
+    return switch (label.trim().toUpperCase()) {
+      case "COMPOSITION" -> IntentCode.COMPOSITION; // 001
+      case "LIGHTING" -> IntentCode.LIGHTING; // 002
+      case "COLOR" -> IntentCode.COLOR; // 003
+      case "TECHNIQUE" -> IntentCode.TECHNIQUE; // 004
+      default -> null;
+    };
   }
 
   private LlmService pickService(LlmProvider provider) {

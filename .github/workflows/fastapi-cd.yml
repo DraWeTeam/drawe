@@ -1,10 +1,9 @@
 name: FastAPI CD
 
+# [eks-gitops-reform] dev(develop)=EKS ArgoCD GitOps / prod(main)=EKS ArgoCD GitOps
 on:
   push:
     branches: [develop, main]
-    # embed 전용. guide(Dockerfile.guide)가 COPY 하는 경로는 제외 → guide-only 변경 시 중복 배포 안 함.
-    # (guide 는 fastapi-guide-cd.yml 이 담당)
     paths:
       - "fastapi/**"
       - "!fastapi/guide/**"
@@ -22,7 +21,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   resolve-env:
@@ -42,7 +41,7 @@ jobs:
 
   deploy:
     needs: resolve-env
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm   # 네이티브 arm64 러너 (QEMU 에뮬레이션 제거)
     environment: ${{ needs.resolve-env.outputs.env_name }}
 
     env:
@@ -56,11 +55,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set up QEMU (ARM64 cross-build)
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -71,65 +65,112 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & push Docker image (linux/arm64)
-        id: build
-        working-directory: fastapi
+      - name: Build & push Docker image (native arm64 + ECR layer cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./fastapi
+          file: ./fastapi/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false   # ECR 호환(단일 매니페스트) + 빌드 단순화
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi:latest
+          # ECR 레지스트리 레이어 캐시 (repo별로 분리됨 → embed/guide 캐시 안 섞임)
+          # image-manifest=true,oci-mediatypes=true : ECR 가 캐시 매니페스트를 받게 하는 필수 옵션
+          cache-from: type=registry,ref=${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi:buildcache
+          cache-to: type=registry,ref=${{ steps.ecr.outputs.registry }}/drawe-${{ env.ENV_NAME }}-fastapi:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+
+      # ───────── DEV: EKS GitOps (ArgoCD) ─────────
+      - name: "[dev] Bump overlay newTag → commit (ArgoCD GitOps)"
+        if: env.ENV_NAME == 'dev'
         env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-          REPO: drawe-${{ env.ENV_NAME }}-fastapi
-          TAG: ${{ github.sha }}
+          OVERLAY: infra/k8s/overlays/dev/fastapi-embed/kustomization.yaml
+          SHA: ${{ github.sha }}
         run: |
-          docker buildx build \
-              --platform linux/arm64 \
-              -t $REGISTRY/$REPO:$TAG \
-              -t $REGISTRY/$REPO:latest \
-              --push \
-              .
-          echo "image_uri=$REGISTRY/$REPO:$TAG" >> $GITHUB_OUTPUT
+          sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\1${SHA}|" "$OVERLAY"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OVERLAY"
+          if git diff --cached --quiet; then
+            echo "newTag 이미 ${SHA} — 커밋 없음"; exit 0
+          fi
+          git commit -m "ci(dev): bump fastapi-embed image -> ${SHA} [skip ci]"
+          # 동시 push 경합(race) 대비 — rebase 후 재시도 (최대 5회).
+          # 다른 CD 가 먼저 main 을 옮기면 push 가 non-fast-forward 로 거부되므로,
+          # 내 bump 커밋은 유지한 채 origin 을 rebase 로 당겨 위로 얹고 다시 push.
+          REF="${{ github.ref_name }}"
+          git config pull.rebase true
+          # [fix] 러너의 무관한 추적파일(terraform 산출물 등)로 작업트리가 더러우면
+          #       git pull --rebase 가 'unstaged changes' 로 막혀 rebase 가 시작도 못 한다.
+          #       우리 bump 커밋만 남기고 트리를 깨끗이 한다(러너 1회용 → stash 미복구 OK).
+          git stash push --include-untracked --quiet || true
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:${REF}"; then
+              echo "✅ overlay 갱신 푸시 — ArgoCD(develop 추적)가 롤아웃합니다."
+              exit 0
+            fi
+            echo "⚠ push 거부(경합 추정) — 재시도 ${attempt}/5: origin/${REF} rebase"
+            if ! git pull --rebase origin "${REF}"; then
+              # 같은 overlay 를 양쪽이 건드려 충돌 → 우리 newTag(${SHA})로 해소
+              echo "rebase 충돌 — newTag ${SHA} 로 재적용"
+              sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\\1${SHA}|" "$OVERLAY"
+              git add "$OVERLAY"
+              if [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+                GIT_EDITOR=true git rebase --continue || git rebase --abort
+              else
+                # [fix] rebase 미시작(더티 트리/네트워크 등) → 'no rebase in progress' 로 죽지 않게 정리만
+                git rebase --abort >/dev/null 2>&1 || true
+                git stash push --include-untracked --quiet || true
+              fi
+            fi
+            sleep $((RANDOM % 5 + 2))   # 2~6초 지터로 동시 재시도 분산
+          done
+          echo "✘ 5회 재시도 후에도 push 실패 — 수동 확인 필요"; exit 1
 
-      - name: Register new task definition with SHA tag
-        id: register-td
+      # ───────── PROD: EKS GitOps (ArgoCD) ─────────
+      - name: "[prod] Bump overlay newTag → commit (ArgoCD GitOps)"
+        if: env.ENV_NAME == 'prod'
         env:
-          SERVICE: drawe-${{ env.ENV_NAME }}-fastapi
-          CONTAINER_NAME: drawe-${{ env.ENV_NAME }}-fastapi
-          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+          OVERLAY: infra/k8s/overlays/prod/fastapi-embed/kustomization.yaml
+          SHA: ${{ github.sha }}
         run: |
-          aws ecs describe-task-definition \
-              --task-definition $SERVICE \
-              --region $AWS_REGION \
-              --query 'taskDefinition' > td.json
-
-          jq --arg img "$IMAGE_URI" --arg name "$CONTAINER_NAME" \
-              '.containerDefinitions |= map(if .name == $name then .image = $img else . end) |
-               del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
-                   .compatibilities, .registeredAt, .registeredBy)' \
-              td.json > td-new.json
-
-          NEW_TD_ARN=$(aws ecs register-task-definition \
-              --cli-input-json file://td-new.json \
-              --region $AWS_REGION \
-              --query 'taskDefinition.taskDefinitionArn' --output text)
-
-          echo "td_arn=$NEW_TD_ARN" >> $GITHUB_OUTPUT
-          echo "✅ New TD registered: $NEW_TD_ARN"
-
-      - name: Update ECS service to new task definition
-        run: |
-          aws ecs update-service \
-              --cluster drawe-${{ env.ENV_NAME }}-cluster \
-              --service drawe-${{ env.ENV_NAME }}-fastapi \
-              --task-definition ${{ steps.register-td.outputs.td_arn }} \
-              --region $AWS_REGION
-
-      - name: Wait for deployment to stabilize
-        run: |
-          # aws ecs wait services-stable 는 10분(40x15s) 고정 한계.
-          # 큰 이미지 pull·롤링으로 12분+ 걸릴 수 있어, 1차 타임아웃 시 한 번 더 대기(최대 ~20분).
-          ecs_wait() {
-            aws ecs wait services-stable \
-              --cluster drawe-${{ env.ENV_NAME }}-cluster \
-              --services drawe-${{ env.ENV_NAME }}-fastapi \
-              --region "$AWS_REGION"
-          }
-          ecs_wait || ecs_wait
-          echo "✅ Deployment stable. New revision: ${{ steps.register-td.outputs.td_arn }}"
+          sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\1${SHA}|" "$OVERLAY"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$OVERLAY"
+          if git diff --cached --quiet; then
+            echo "newTag 이미 ${SHA} — 커밋 없음"; exit 0
+          fi
+          git commit -m "ci(prod): bump fastapi-embed image -> ${SHA} [skip ci]"
+          # 동시 push 경합(race) 대비 — rebase 후 재시도 (최대 5회).
+          # 다른 CD 가 먼저 main 을 옮기면 push 가 non-fast-forward 로 거부되므로,
+          # 내 bump 커밋은 유지한 채 origin 을 rebase 로 당겨 위로 얹고 다시 push.
+          REF="${{ github.ref_name }}"
+          git config pull.rebase true
+          # [fix] 러너의 무관한 추적파일(terraform 산출물 등)로 작업트리가 더러우면
+          #       git pull --rebase 가 'unstaged changes' 로 막혀 rebase 가 시작도 못 한다.
+          #       우리 bump 커밋만 남기고 트리를 깨끗이 한다(러너 1회용 → stash 미복구 OK).
+          git stash push --include-untracked --quiet || true
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:${REF}"; then
+              echo "✅ overlay 갱신 푸시 — ArgoCD(main 추적)가 롤아웃합니다."
+              exit 0
+            fi
+            echo "⚠ push 거부(경합 추정) — 재시도 ${attempt}/5: origin/${REF} rebase"
+            if ! git pull --rebase origin "${REF}"; then
+              # 같은 overlay 를 양쪽이 건드려 충돌 → 우리 newTag(${SHA})로 해소
+              echo "rebase 충돌 — newTag ${SHA} 로 재적용"
+              sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\\1${SHA}|" "$OVERLAY"
+              git add "$OVERLAY"
+              if [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+                GIT_EDITOR=true git rebase --continue || git rebase --abort
+              else
+                # [fix] rebase 미시작(더티 트리/네트워크 등) → 'no rebase in progress' 로 죽지 않게 정리만
+                git rebase --abort >/dev/null 2>&1 || true
+                git stash push --include-untracked --quiet || true
+              fi
+            fi
+            sleep $((RANDOM % 5 + 2))   # 2~6초 지터로 동시 재시도 분산
+          done
+          echo "✘ 5회 재시도 후에도 push 실패 — 수동 확인 필요"; exit 1

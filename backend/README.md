@@ -43,7 +43,26 @@ backend 는 가이드 자체를 생성하지 않고, **fastapi · guide** 서비
 - `POST /projects/{projectId}/guide/{guideId}/feedback` — 가이드 피드백(👍/👎)
 - `POST /projects/{projectId}/guide/{guideId}/references/feedback` — 추천 레퍼런스 피드백
 
-> guide 서비스 주소는 `FASTAPI_GUIDE_URL`(내부 Service Connect: `fastapi-guide.drawe-{env}.local:8000`)로 주입됩니다. 브라우저가 참고 이미지에 직접 닿아야 하는 경로는 `FASTAPI_GUIDE_PUBLIC_URL` 로 분리됩니다.
+> guide 서비스 주소는 `FASTAPI_GUIDE_URL`(클러스터 내부 ClusterIP DNS: `http://fastapi-guide:8000`)로 주입됩니다. 브라우저가 참고 이미지에 직접 닿아야 하는 경로는 `FASTAPI_GUIDE_PUBLIC_URL` 로 분리됩니다.
+
+## AI 추천 파이프라인
+
+위 도메인 중 `search` 와 `chat`(llm) 이 함께 만드는 흐름이 레퍼런스 추천 파이프라인입니다. 사용자의 한국어 요청을 **의도**에 따라 라우팅하고, **CLIP 검색 + 태그 IDF re-rank**로 정확도를 높여 레퍼런스와 미술 조언을 생성합니다.
+
+![레퍼런스 검색 파이프라인](./docs/img/reference-search-pipeline.svg)
+
+- **의도 분류** — `RulePreRouter`(규칙) 우선 + Grok 분류(`IntentCode`). 검색이 필요한 의도(NEW_SEARCH)만 검색, 나머지(KEEP·FOLLOWUP 등)는 직전 맥락 재사용.
+- **키워드 추출** — Komoran 형태소 + **미술 사용자 사전(KO→EN, 247개)** → 사전 미스율이 높으면 **Grok 폴백**. 요청 동사("그려줘") 불용어 처리, "수채화풍" 같은 복합어 보존.
+- **검색 + IDF re-rank** — CLIP → Pinecone overfetch → MySQL 메타 결합 → `TagIdfIndex` 가중 재정렬: `score = CLIP + min(cap, scale·ΣIDF(matched tags))`. CLIP을 덮지 않게 cap 튜닝, 점수 가드로 무관 결과 차단.
+- **COMPOSE** — 페르소나 + 레퍼런스 컨텍스트(태그 + **ai_description 캡션**) → 스키마 강제 LLM 호출 → **출력 무결성 검사**로 `[N]` 범위 밖 환각 인용 제거.
+- **ai_description** — 픽셀을 못 보는 LLM이 태그 추정 대신 **실제 이미지 내용 캡션**으로 설명 → 할루시네이션(없는 디테일 묘사) 완화.
+- **핀 / 레퍼런스 주입** — 핀 이미지는 "고정 N" 네임스페이스로 분리, 검색 `[N]`에서 제외하고 1..N 재부여.
+- **멀티턴** — Redis 단기메모리(`previousReferences`)로 KEEP/FOLLOWUP 맥락 유지. 대화 초기화 시 DB 메시지 + Redis 동시 정리.
+
+### legacy ↔ live 경로
+의도별 게이트로 점진 전환합니다. `workflow.compose.live-intents`(env `WORKFLOW_COMPOSE_LIVE_INTENTS`)에 나열된 의도는 **StepExecutor 워크플로(live)** 로, 나머지는 **직접 합성(legacy)** 로 처리합니다. live 의도는 **COMPOSE로 끝나는 것만 허용**(부팅 시 검증).
+
+> 챗 레퍼런스 검색(embed + **Pinecone**)과 이미지 가이드 코퍼스(**Qdrant**)는 분리되어 섞이지 않습니다.
 
 ## 스키마 (Flyway)
 
@@ -91,17 +110,18 @@ http://localhost:8080/swagger-ui/index.html
 
 Actuator + Micrometer(Prometheus) 메트릭을 노출하며, OTel Java Agent 로 trace/metric/log 를 Alloy 에 OTLP 전송합니다. 수집·라우팅·PII redaction 구성 상세는 [`infra/README.md`](../infra/README.md) 의 관측성 섹션 참고.
 
-## 배포
+## 배포 (GitOps)
 
-- **타깃**: AWS ECS (EC2, Graviton ARM64)
-- **트리거**: `backend/**` 변경 시 `backend-cd` 워크플로
-- **흐름**: JAR 빌드 → Docker(ARM64) 빌드 → ECR push → ECS 새 TD 등록·서비스 업데이트 (Circuit Breaker 자동 롤백)
-- **인증**: GitHub OIDC 로 AWS 역할 assume (자격증명 비저장)
+- **타깃**: AWS EKS (EC2, Graviton arm64)
+- **트리거**: `backend/**` 변경 → GitHub Actions `backend-cd`
+- **흐름**: JAR → Docker(arm64) 빌드 → ECR push(:SHA) → **overlay newTag bump** → **ArgoCD 자동 롤아웃** (무중단: 롤링 + PDB minAvailable 1 + readiness)
+- **인증**: GitHub OIDC 로 AWS 역할 assume(자격증명 비저장), 파드 권한은 **IRSA**
 
 자세한 환경(dev/prod) 차이와 배포 정책은 [`infra/README.md`](../infra/README.md) 참고.
 
 ## 관련 문서
 
 - [루트 README](../README.md) — 전체 아키텍처·모노레포 원칙
+- [`docs/SDS/`](../docs/SDS/README.md) — 시스템 설계 문서(SDS): 아키텍처·AI 파이프라인·유스케이스·클래스/시퀀스/상태 다이어그램·데이터 설계
 - [`fastapi/README.md`](../fastapi/README.md) — 임베딩(embed)·이미지 가이드(guide) 서버
 - [`infra/README.md`](../infra/README.md) — 배포·환경·관측성

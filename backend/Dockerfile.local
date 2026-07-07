@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────────────────────
+# 로컬 전용 멀티스테이지 Dockerfile — 소스에서 직접 컴파일한다.
+#  목적: `docker compose -f infra/docker-compose.local.yml build backend` 만으로
+#        항상 최신 소스가 반영된다(수동 ./gradlew bootJar + app.jar 복사 불필요).
+#        → "소스는 바뀌었는데 컨테이너 jar 이 옛 버전" 류의 stale-build 500 을 근절.
+#  ★CI/CD 는 기존 backend/Dockerfile(사전빌드 jar COPY, arm QEMU 비용 회피)을 그대로 쓴다.
+#    이 파일은 오직 docker-compose.local.yml 이 참조하는 로컬 개발용.
+#  로컬은 OTel Agent·RDS truststore 를 뺀다(4318 export 스팸·RDS 인증서 로컬 불필요).
+# ─────────────────────────────────────────────────────────────
+
+# 1) 빌드 스테이지 — gradle bootJar (JDK)
+FROM eclipse-temurin:17-jdk AS build
+WORKDIR /src
+# 래퍼·빌드스크립트 먼저 복사 → 의존성 레이어 캐시(소스만 바뀌면 deps 재다운로드 안 함)
+COPY gradlew settings.gradle build.gradle ./
+COPY gradle ./gradle
+RUN chmod +x gradlew && ./gradlew --no-daemon dependencies > /dev/null 2>&1 || true
+# 소스 복사 후 bootJar (테스트는 로컬 반복빌드 속도 위해 스킵)
+COPY src ./src
+RUN ./gradlew --no-daemon bootJar -x test
+
+# 2) 런타임 스테이지 — JRE(경량) + 비루트
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+# Ubuntu 24.04 base 엔 default ubuntu 사용자(UID 1000)가 이미 있어 groupadd/useradd 가 충돌한다
+#   → 기존 Dockerfile 과 동일하게 ubuntu 제거 후 drawe(1000:1000) 재생성(|| true 로 삼키지 말 것).
+RUN userdel -r ubuntu 2>/dev/null; \
+    groupadd -g 1000 drawe && \
+    useradd -u 1000 -g drawe -m drawe
+# bootJar(실행가능) 만 매칭 — *-SNAPSHOT.jar 은 -plain.jar 을 매칭하지 않는다
+COPY --from=build --chown=drawe:drawe /src/build/libs/*-SNAPSHOT.jar /app/app.jar
+USER drawe:drawe
+EXPOSE 8080
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

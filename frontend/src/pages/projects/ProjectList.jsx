@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  createProject,
-  deleteProject,
-  getProject,
-  getProjects,
-  updateProject,
-} from "./api";
+import { useLocation, useNavigate } from "react-router-dom";
+import { deleteProject, getProject, getProjects, updateProject } from "./api";
 import ProjectFormModal from "./ProjectFormModal";
+import ProjectCreateModal from "./ProjectCreateModal";
 import ConfirmModal from "./ConfirmModal";
+import Tooltip from "../../components/Tooltip";
 import styles from "./ProjectList.module.css";
 import { track } from "../../analytics";
 
@@ -16,6 +12,13 @@ const STATUS_LABEL = {
   in_progress: "진행 중",
   completed: "완료",
 };
+
+// 백엔드 ProjectSort enum과 매핑 (RECENT | CREATED | NAME)
+const SORT_OPTIONS = [
+  { value: "RECENT", label: "최근" },
+  { value: "CREATED", label: "만든 날짜" },
+  { value: "NAME", label: "이름" },
+];
 
 const formatDate = (iso) => {
   if (!iso) return "";
@@ -29,6 +32,7 @@ const formatDate = (iso) => {
 
 const ProjectList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -37,15 +41,19 @@ const ProjectList = () => {
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const [viewMode, setViewMode] = useState("grid"); // 그리드만 동작
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const [openMenuId, setOpenMenuId] = useState(null);
   const menuRef = useRef(null);
 
-  const fetchProjects = async () => {
+  const [sort, setSort] = useState("RECENT");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef(null);
+
+  const fetchProjects = async (sortValue = sort) => {
     setLoading(true);
     setErrorMessage("");
     try {
-      const data = await getProjects();
+      const data = await getProjects({ sort: sortValue });
       setProjects(data?.projects ?? []);
     } catch (err) {
       const message =
@@ -59,7 +67,26 @@ const ProjectList = () => {
 
   useEffect(() => {
     fetchProjects();
+    // 최초 1회 로드 (정렬 변경은 handleSortChange에서 직접 호출)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 검색 모달의 "새 프로젝트 만들기"로 진입 시 생성 모달 자동 오픈
+  useEffect(() => {
+    if (location.state?.openCreate) {
+      setCreateOpen(true);
+      track("project_create_clicked");
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+
+  const handleSortChange = (value) => {
+    setSortOpen(false);
+    if (value === sort) return;
+    setSort(value);
+    fetchProjects(value);
+  };
 
   // 바깥 클릭으로 카드 메뉴 닫기
   useEffect(() => {
@@ -73,19 +100,17 @@ const ProjectList = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
 
-  const handleCreate = async (payload) => {
-    const detail = await createProject(payload);
-    setCreateOpen(false);
-    if (detail?.id) {
-      // 새 프로젝트를 만들 때마다 채팅 튜토리얼 코치마크 노출 (프로젝트 id로 키잉)
-      const pid = String(detail.id);
-      localStorage.setItem("drawe_show_project_tutorial", pid);
-      localStorage.setItem("drawe_show_reaction_tutorial", pid);
-      navigate(`/projects/${detail.id}/chat`);
-    } else {
-      fetchProjects();
-    }
-  };
+  // 바깥 클릭으로 정렬 메뉴 닫기
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handleClickOutside = (e) => {
+      if (sortRef.current && !sortRef.current.contains(e.target)) {
+        setSortOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [sortOpen]);
 
   const handleEditClick = async (projectId) => {
     setOpenMenuId(null);
@@ -114,7 +139,9 @@ const ProjectList = () => {
 
   const handleCardClick = (projectId) => {
     if (openMenuId) return;
-    navigate(`/projects/${projectId}/chat`);
+    // 채팅 제거 → 새 레퍼런스 보드 워크스페이스로 진입.
+    // navigate(`/projects/${projectId}/chat`);
+    navigate(`/projects/${projectId}/board`);
   };
 
   return (
@@ -126,39 +153,74 @@ const ProjectList = () => {
           <div className={styles.headerLeft}>
             {projects.length > 0 && (
               <div className={styles.viewToggle}>
-                <button
-                  type="button"
-                  className={`${styles.viewBtn} ${
-                    viewMode === "grid" ? styles.viewBtnActive : ""
-                  }`}
-                  onClick={() => setViewMode("grid")}
-                  aria-label="그리드 보기"
-                  title="그리드 보기"
-                >
-                  <GridIcon />
-                </button>
-                <button
-                  type="button"
-                  className={styles.viewBtn}
-                  disabled
-                  aria-label="리스트 보기"
-                  title="리스트 보기 (준비 중)"
-                >
-                  <ListIcon />
-                </button>
+                <Tooltip label="대시보드 보기" className={styles.viewTip}>
+                  <button
+                    type="button"
+                    className={`${styles.viewBtn} ${
+                      viewMode === "grid" ? styles.viewBtnActive : ""
+                    }`}
+                    onClick={() => setViewMode("grid")}
+                    aria-label="대시보드 보기"
+                  >
+                    <GridIcon />
+                  </button>
+                </Tooltip>
+                <Tooltip label="리스트 보기" className={styles.viewTip}>
+                  <button
+                    type="button"
+                    className={`${styles.viewBtn} ${
+                      viewMode === "list" ? styles.viewBtnActive : ""
+                    }`}
+                    onClick={() => setViewMode("list")}
+                    aria-label="리스트 보기"
+                  >
+                    <ListIcon />
+                  </button>
+                </Tooltip>
               </div>
             )}
           </div>
           <div className={styles.headerRight}>
             {projects.length > 0 && (
-              <button
-                type="button"
-                className={styles.sortBtn}
-                disabled
-                title="정렬 (준비 중)"
-              >
-                최근 <ChevronDownIcon />
-              </button>
+              <div className={styles.sortWrap} ref={sortRef}>
+                <button
+                  type="button"
+                  className={styles.sortBtn}
+                  onClick={() => setSortOpen((o) => !o)}
+                  aria-haspopup="listbox"
+                  aria-expanded={sortOpen}
+                >
+                  {SORT_OPTIONS.find((o) => o.value === sort)?.label}
+                  <span
+                    className={`${styles.sortChevron} ${
+                      sortOpen ? styles.sortChevronOpen : ""
+                    }`}
+                  >
+                    <ChevronDownIcon />
+                  </span>
+                </button>
+                {sortOpen && (
+                  <div className={styles.sortMenu} role="listbox">
+                    {SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="option"
+                        aria-selected={sort === opt.value}
+                        className={`${styles.sortItem} ${
+                          sort === opt.value ? styles.sortItemActive : ""
+                        }`}
+                        onClick={() => handleSortChange(opt.value)}
+                      >
+                        <span className={styles.sortCheck}>
+                          {sort === opt.value && <CheckIcon />}
+                        </span>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             <button
               type="button"
@@ -186,6 +248,37 @@ const ProjectList = () => {
             새 프로젝트 버튼을 클릭하여 첫 프로젝트를 만들어보세요!
           </p>
         </div>
+      ) : viewMode === "list" ? (
+        <div className={styles.list}>
+          {projects.map((p) => (
+            <div
+              key={p.id}
+              className={`${styles.row} ${
+                openMenuId === p.id ? styles.cardActive : ""
+              }`}
+              onClick={() => handleCardClick(p.id)}
+            >
+              <div className={styles.rowMain}>
+                <span className={styles.rowName}>{p.name}</span>
+                <span className={styles.rowDate}>
+                  {formatDate(p.createdAt)}
+                </span>
+              </div>
+              <ProjectMenu
+                open={openMenuId === p.id}
+                menuRef={openMenuId === p.id ? menuRef : null}
+                onToggle={() =>
+                  setOpenMenuId((id) => (id === p.id ? null : p.id))
+                }
+                onEdit={() => handleEditClick(p.id)}
+                onDelete={() => {
+                  setOpenMenuId(null);
+                  setDeleteTarget(p);
+                }}
+              />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className={styles.grid}>
           {projects.map((p) => (
@@ -208,45 +301,18 @@ const ProjectList = () => {
               <div className={styles.info}>
                 <div className={styles.infoTop}>
                   <span className={styles.cardName}>{p.name}</span>
-                  <div
-                    className={styles.menuWrap}
-                    ref={openMenuId === p.id ? menuRef : null}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      className={styles.menuBtn}
-                      onClick={() =>
-                        setOpenMenuId((id) => (id === p.id ? null : p.id))
-                      }
-                      aria-label="더보기"
-                    >
-                      <DotsIcon />
-                    </button>
-                    {openMenuId === p.id && (
-                      <div className={styles.menuPopup}>
-                        <button
-                          type="button"
-                          className={styles.menuItem}
-                          onClick={() => handleEditClick(p.id)}
-                        >
-                          <EditIcon />
-                          <span>프로젝트 수정</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            setDeleteTarget(p);
-                          }}
-                        >
-                          <TrashIcon />
-                          <span>삭제하기</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <ProjectMenu
+                    open={openMenuId === p.id}
+                    menuRef={openMenuId === p.id ? menuRef : null}
+                    onToggle={() =>
+                      setOpenMenuId((id) => (id === p.id ? null : p.id))
+                    }
+                    onEdit={() => handleEditClick(p.id)}
+                    onDelete={() => {
+                      setOpenMenuId(null);
+                      setDeleteTarget(p);
+                    }}
+                  />
                 </div>
                 <p className={styles.cardDate}>{formatDate(p.createdAt)}</p>
               </div>
@@ -256,11 +322,7 @@ const ProjectList = () => {
       )}
 
       {createOpen && (
-        <ProjectFormModal
-          mode="create"
-          onClose={() => setCreateOpen(false)}
-          onSubmit={handleCreate}
-        />
+        <ProjectCreateModal onClose={() => setCreateOpen(false)} />
       )}
 
       {editTarget && (
@@ -285,6 +347,42 @@ const ProjectList = () => {
   );
 };
 
+/* ===== 공통: 프로젝트 옵션 메뉴 (⋮ + 수정/삭제) ===== */
+const ProjectMenu = ({ open, menuRef, onToggle, onEdit, onDelete }) => (
+  <div
+    className={styles.menuWrap}
+    ref={menuRef}
+    onClick={(e) => e.stopPropagation()}
+  >
+    <Tooltip label="옵션 보기">
+      <button
+        type="button"
+        className={styles.menuBtn}
+        onClick={onToggle}
+        aria-label="옵션 보기"
+      >
+        <DotsIcon />
+      </button>
+    </Tooltip>
+    {open && (
+      <div className={styles.menuPopup}>
+        <button type="button" className={styles.menuItem} onClick={onEdit}>
+          <EditIcon />
+          <span>프로젝트 수정</span>
+        </button>
+        <button
+          type="button"
+          className={`${styles.menuItem} ${styles.menuItemDanger}`}
+          onClick={onDelete}
+        >
+          <TrashIcon />
+          <span>삭제하기</span>
+        </button>
+      </div>
+    )}
+  </div>
+);
+
 /* ===== 아이콘 ===== */
 const PlusIcon = () => (
   <svg
@@ -308,7 +406,7 @@ const GridIcon = () => (
   >
     <path
       d="M0 8V0H8V8H0ZM0 18V10H8V18H0ZM10 8V0H18V8H10ZM10 18V10H18V18H10ZM2 6H6V2H2V6ZM12 6H16V2H12V6ZM12 16H16V12H12V16ZM2 16H6V12H2V16Z"
-      fill="#4A4846"
+      fill="currentColor"
     />
   </svg>
 );
@@ -321,7 +419,10 @@ const ListIcon = () => (
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M0 12V10H12V12H0ZM0 7V5H18V7H0ZM0 2V0H18V2H0Z" fill="#888685" />
+    <path
+      d="M0 12V10H12V12H0ZM0 7V5H18V7H0ZM0 2V0H18V2H0Z"
+      fill="currentColor"
+    />
   </svg>
 );
 
@@ -425,6 +526,21 @@ const FolderPlusIcon = () => (
         />
       </filter>
     </defs>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 14 14"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M5.25 9.4L2.85 7L2 7.85L5.25 11.1L12 4.35L11.15 3.5L5.25 9.4Z"
+      fill="#FF8534"
+    />
   </svg>
 );
 

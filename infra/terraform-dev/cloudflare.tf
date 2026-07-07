@@ -48,8 +48,20 @@ resource "cloudflare_record" "api" {
   zone_id = var.cloudflare_zone_id
   name    = var.domain_name           # FQDN — CF 가 알아서 zone 매칭
   type    = "CNAME"
-  content = aws_lb.main.dns_name
+  content = local.api_target_alb_dns # 우선순위: override > EKS 컷오버(태그탐색) > ECS ALB — cutover-eks.tf
   ttl     = var.cloudflare_proxied ? 1 : 300   # proxied=true 면 ttl 무시 (1=auto)
   proxied = var.cloudflare_proxied
   comment = "Managed by Terraform — DraWe dev API"
+}
+
+############################################################
+# EKS 컷오버 스위치 — api-dev DNS 가 가리킬 ALB 오버라이드
+#   "" (기본) → ECS ALB(aws_lb.main.dns_name)
+#   "<eks-alb-dns>" → EKS ALB 로 컷오버. 롤백 = 다시 "" 로 apply.
+#   dev 는 proxied=false·ttl=300 → 전파 ~5분.
+############################################################
+variable "api_alb_dns_override" {
+  description = "api-dev 가 가리킬 ALB DNS 강제 지정(EKS 전환용). 빈 값이면 ECS ALB."
+  type        = string
+  default     = ""
 }

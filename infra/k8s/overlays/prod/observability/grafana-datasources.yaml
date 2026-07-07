@@ -1,0 +1,75 @@
+# ────────────────────────────────────────────────────────
+# Grafana Datasource Provisioning (prod)
+#
+# /etc/grafana/provisioning/datasources/datasources.yaml 에 mount (EKS prod)
+# 환경변수 expansion 으로 Grafana Deployment 의 env 와 연동
+# ────────────────────────────────────────────────────────
+apiVersion: 1
+
+datasources:
+  # ── AMP (Mimir 대체) ──────────────────────────────────
+  - name: AMP
+    type: prometheus
+    uid: amp-uid
+    access: proxy
+    url: ${AMP_QUERY_URL}
+    jsonData:
+      httpMethod: POST
+      sigV4Auth: true
+      sigV4AuthType: default     # task role credential 자동 사용
+      sigV4Region: ${AWS_REGION}
+      manageAlerts: false
+    isDefault: true
+    editable: false
+
+  # ── Loki (self-host) ──────────────────────────────────
+  - name: Loki
+    type: loki
+    uid: loki-uid
+    access: proxy
+    url: ${LOKI_URL}
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+      derivedFields:
+        # Loki 로그의 traceId 필드 → Tempo trace 로 연결
+        - name: trace_id
+          datasourceUid: tempo-uid
+          matcherRegex: 'trace_id["\s:]+([a-f0-9]+)'
+          url: '$${__value.raw}'
+    editable: false
+
+  # ── Tempo (self-host) ─────────────────────────────────
+  - name: Tempo
+    type: tempo
+    uid: tempo-uid
+    access: proxy
+    url: ${TEMPO_URL}
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki-uid
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        tags: ['service.name']
+      tracesToMetrics:
+        datasourceUid: amp-uid
+        tags: ['service.name']
+        queries:
+          - name: 'Request rate'
+            query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'
+      serviceMap:
+        datasourceUid: amp-uid
+      nodeGraph:
+        enabled: true
+    editable: false
+
+  # ── X-Ray (관리형, 보조) ───────────────────────────────
+  # AWS 네이티브 서비스 (RDS Performance Insights, NAT GW 등)
+  # 추적 보조용. 메인 트레이스는 Tempo.
+  - name: X-Ray
+    type: grafana-x-ray-datasource
+    access: proxy
+    jsonData:
+      authType: default          # task role
+      defaultRegion: ${AWS_REGION}
+    editable: false

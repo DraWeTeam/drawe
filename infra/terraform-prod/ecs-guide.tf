@@ -38,6 +38,18 @@ variable "guide_hand_vlm" {
   default     = "1" # 해제(ON) — Gemini 손 관찰자 활성. GEMINI_API_KEY 실제값 필요
 }
 
+variable "guide_subject_vlm" {
+  description = "주제 분류 VLM 게이트. CLIP person_p 가 애매(0.35~0.60)할 때만 Gemini 1회로 주제(손/풍경 등) 판정 → 진단 축 오라우팅 교정. dev 검증 후 prod 적용 권장. GEMINI_API_KEY 필요."
+  type        = string
+  default     = "1" # ON — 애매 케이스만 호출(확신/명시 track 은 호출 0). dev-first 원하면 tfvars 로 0.
+}
+
+variable "guide_ai_fallback" {
+  description = "미스(검색 실패)+적격 축(명암·구도·빛·색·대기원근·깊이)에서 Gemini 로 ai_example 이미지를 생성→QC→Qdrant Cloud 적재. 인체/포즈/손은 코드(ai_qc/ai_fallback)가 제외. GEMINI_API_KEY 필요(이미 주입됨). dev 검증 후 prod 적용 권장 — dev-first 원하면 tfvars 로 0."
+  type        = string
+  default     = "1" # ON
+}
+
 # ── ECR ──────────────────────────────────────────────
 resource "aws_ecr_repository" "fastapi_guide" {
   name                 = "${local.name_prefix}-fastapi-guide"
@@ -145,8 +157,13 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         { name = "REFERENCE_DIR", value = "/app/assets/reference" },
 
         # ── 모델 게이트 ──
-        { name = "VLM_BACKEND", value = "aistudio" }, # Gemini(aistudio)
-        { name = "HAND_VLM", value = var.guide_hand_vlm }, # 해제(ON): Gemini 손 관찰자
+        #   ★k8s prod overlay(overlays/prod/fastapi-guide) 와 패리티(EKS 롤백 보험). VLM 관찰=Bedrock
+        #   Claude Haiku 4.5(us. 추론 프로파일, us-west-2). 자격=ecs_task 롤(iam-bedrock.tf VlmClaudeHaiku45).
+        #   GEMINI_API_KEY(secrets)·GEMINI_IMAGE_MODEL 은 aistudio 롤백용으로 남김.
+        { name = "VLM_BACKEND", value = "bedrock" },
+        { name = "BEDROCK_VLM_MODEL", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
+        { name = "HAND_VLM", value = var.guide_hand_vlm },       # 해제(ON): 손 관찰자(백엔드=bedrock)
+        { name = "SUBJECT_VLM", value = var.guide_subject_vlm }, # 애매대역만 Gemini 주제 분류(축 오라우팅 교정)
         { name = "LLM_PROVIDER", value = "grok" },
         { name = "LLM_MODEL", value = "grok-4.3" },
 
@@ -155,17 +172,33 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
         { name = "AGENT_LLM_SELECT", value = "1" }, # decide(): 후보 중 무엇을·어떤 순서·톤으로 선택
         { name = "AGENT_PLAN", value = "1" },       # plan_next(): 다음 단계 학습 경로(Layer 3)
 
+        # ── 미스 시 자동 생성(ai_example) — Bedrock Stability 이미지 생성 → QC → Qdrant Cloud 적재 ──
+        #   적격 축(명암·구도·빛·색·대기원근·깊이)만. 인체/포즈/손은 코드(ai_qc/ai_fallback)가 제외.
+        #   ★EKS 롤백 보험 — k8s prod overlay(overlays/prod/fastapi-guide)와 동일 값 유지.
+        #   Bedrock 은 us-west-2(서울엔 이미지 생성 모델 없음). 자격=ecs_task 롤(iam-bedrock.tf).
+        #   GEMINI_IMAGE_MODEL 은 gemini 롤백용으로 남김(bedrock 일 때 미사용).
+        { name = "AI_FALLBACK", value = var.guide_ai_fallback },
+        { name = "AI_GEN_PROVIDER", value = "bedrock" },
+        { name = "BEDROCK_IMAGE_REGION", value = "us-west-2" },
+        { name = "BEDROCK_IMAGE_MODEL", value = "stability.stable-image-core-v1:1" },
+        { name = "GEMINI_IMAGE_MODEL", value = "gemini-2.5-flash-image" },
+        { name = "AI_FALLBACK_INLINE", value = "0" }, # 0=비동기('생성 중'→폴링), 1=동기(이번 턴)
+
         # ── 브라우저 출처(CORS) ──
         { name = "CORS_ORIGINS", value = var.frontend_url },
 
         { name = "OTEL_SERVICE_NAME", value = "guide" },
+        # ②v1 섀도우 계측 — ★k8s prod overlay 와 패리티(EKS 롤백 시 계측 조용히 꺼지는 갭 해소).
+        #   /dev/stdout → awslogs. 결정 0 접촉·발화 불변(코드 기본 off, read-only emit).
+        { name = "SHADOW_AUDIT", value = "1" },
+        { name = "SHADOW_AUDIT_LOG", value = "/dev/stdout" },
       ], local.otel_env)
 
       secrets = [
         { name = "DB_DSN", valueFrom = aws_ssm_parameter.artref_db_dsn.arn }, # drawe_guide DSN
         { name = "QDRANT_URL", valueFrom = aws_ssm_parameter.qdrant_url.arn },
         { name = "QDRANT_API_KEY", valueFrom = aws_ssm_parameter.qdrant_api_key.arn },
-        { name = "XAI_API_KEY", valueFrom = aws_ssm_parameter.grok_api_key.arn },     # 코칭 LLM(xAI/Grok)
+        { name = "XAI_API_KEY", valueFrom = aws_ssm_parameter.grok_api_key.arn },      # 코칭 LLM(xAI/Grok)
         { name = "GEMINI_API_KEY", valueFrom = aws_ssm_parameter.gemini_api_key.arn }, # 손 VLM(aistudio)
       ]
 
@@ -194,10 +227,10 @@ resource "aws_ecs_task_definition" "fastapi_guide" {
 
 # ── ECS Service — fastapi-guide (내부 전용, spot + on-demand 베이스라인) ──
 resource "aws_ecs_service" "fastapi_guide" {
-  name            = "${local.name_prefix}-fastapi-guide"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.fastapi_guide.arn
-  desired_count   = var.prod_enabled ? var.fastapi_guide_desired_count : 0
+  name                               = "${local.name_prefix}-fastapi-guide"
+  cluster                            = aws_ecs_cluster.main.id
+  task_definition                    = aws_ecs_task_definition.fastapi_guide.arn
+  desired_count                      = var.prod_enabled ? var.fastapi_guide_desired_count : 0
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
 

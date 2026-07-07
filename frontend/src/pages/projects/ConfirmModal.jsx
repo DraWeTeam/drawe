@@ -5,6 +5,7 @@ const ConfirmModal = ({
   title,
   description,
   confirmLabel = "확인",
+  cancelLabel = "취소",
   onConfirm,
   onClose,
 }) => {
@@ -38,7 +39,7 @@ const ConfirmModal = ({
             className={styles.cancelBtn}
             disabled={loading}
           >
-            취소
+            {cancelLabel}
           </button>
           <button
             type="button"

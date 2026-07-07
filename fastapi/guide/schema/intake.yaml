@@ -95,6 +95,12 @@ lexicon:
   동세: action_line
   동작: action_line
   액션: action_line
+  # 진단 불가(벽) 축의 교습 카드 전용 키워드 → 개념 카드로만 표면(자동 진단 안 함).
+  콘트라포스토: contrapposto
+  콘트라포즈: contrapposto
+  역경사: contrapposto
+  체형: body_shape
+  실루엣: body_shape
   # 풍경 전용(landscape track). '원근'은 인물 기본(단축)으로 두고, 풍경 어휘는 별도로 추가.
   대기원근: atmospheric_perspective
   선원근: linear_perspective

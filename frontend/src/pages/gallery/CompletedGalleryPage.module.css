@@ -1,0 +1,395 @@
+.page {
+  padding: 32px 40px 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.headLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+/* Figma 70:28532 툴바 행 — 타이틀(header) 아래 별도 행. 좌: 보기전환 토글 / 우: 정렬 + 새 프로젝트. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Figma 70:29422 보기전환 토글 — 연한 배경(#f6f6f6) rounded-12, p-4, 활성 세그먼트=흰(#fefeff) rounded-8. */
+.viewToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f6f6f6;
+  border-radius: 12px;
+  padding: 4px;
+}
+.viewBtn {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #8a8580;
+}
+.viewBtnOn {
+  background: #fefeff;
+  color: #2e2c2a;
+}
+.sortBtn {
+  border: 1px solid #edebea;
+  background: #fefeff;
+  border-radius: 8px;
+  padding: 11px 12px 11px 16px;
+  font-size: 16px;
+  cursor: pointer;
+  color: #4a4846;
+}
+.newBtn {
+  border: none;
+  background: #ff8534;
+  color: #fefeff;
+  border-radius: 8px;
+  padding: 11px 24px 11px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #8a8580;
+}
+
+.stateBox {
+  text-align: center;
+  color: #8a8580;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 80px 20px;
+}
+
+/* Masonry — CSS column 으로 그림 원래 비율 유지한 채 높이 제각각으로 쌓는다. */
+.grid {
+  column-count: 4;
+  column-gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 760px) {
+  .grid {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 460px) {
+  .grid {
+    column-count: 1;
+  }
+}
+
+/* 카드 = 썸네일(버튼) + 하단 메타(제목·날짜·⋮). 정본 70:28528. */
+.card {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  margin-bottom: 18px;
+}
+.cardThumbBtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f0ece7;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+.cardThumbBtn:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+.thumb {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+/* AuthedImage 로딩 중 placeholder(div.thumb)에 최소 높이 — masonry 출렁임 완화 */
+div.thumb {
+  min-height: 180px;
+}
+/* Figma 70:28528 카드 메타: [좌 제목+날짜 세로] [우 옵션(⋮) 세로중앙]. */
+.cardMeta {
+  padding: 10px 4px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.kebabWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.cardMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 5;
+  min-width: 120px;
+  margin-top: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #e3ddd5;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 15, 15, 0.14);
+}
+.cardMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #2e2c2a;
+  cursor: pointer;
+}
+.cardMenuItem:hover {
+  background: #f6f6f6;
+}
+.cardMenuItem:disabled {
+  color: #9a948d;
+  cursor: default;
+}
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2e2c2a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cardDate {
+  font-size: 12px;
+  color: #9a948d;
+}
+/* Figma 70:28528 icon_button 36×36. */
+.kebab {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #8a8580;
+}
+.kebab:hover {
+  background: #f6f6f6;
+}
+.kebab:hover {
+  background: #f2ede7;
+  color: #4b4b4b;
+}
+
+/* 리스트 보기 — 썸네일 작게 + 가로 행 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.list .card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 0;
+  border: 1px solid #efeae3;
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+.list .cardThumbBtn {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  box-shadow: none;
+}
+.list .thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}
+.list div.thumb {
+  min-height: 72px;
+}
+.list .cardMeta {
+  flex: 1;
+  padding: 0;
+}
+
+.sentinel {
+  height: 1px;
+}
+
+.loadingMore {
+  text-align: center;
+  color: #8a8580;
+  font-size: 14px;
+  padding: 24px 20px;
+}
+
+/* ===== 라이트박스 (확대 보기) ===== */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  box-sizing: border-box;
+  animation: lightboxFade 0.15s ease;
+}
+
+@keyframes lightboxFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lightboxClose {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.lightboxClose:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.lightboxInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 92vw;
+  max-height: 88vh;
+}
+
+.lightboxImage {
+  max-width: 100%;
+  max-height: 78vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  background: #fff;
+}
+
+/* AuthedImage 로딩 중 placeholder(div) — 깜빡임 완화 */
+div.lightboxImage {
+  width: 60vw;
+  height: 60vh;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lightboxBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lightboxTitle {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.lightboxDownload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ff8534;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 999px;
+  transition: background 0.15s;
+}
+
+.lightboxDownload:hover {
+  background: #ff7a25;
+}

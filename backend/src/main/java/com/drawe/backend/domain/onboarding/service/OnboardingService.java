@@ -26,6 +26,12 @@ public class OnboardingService {
   private final ImageDraweTagRepository imageDraweTagRepository;
   private final UserPrefTagRepository userPrefTagRepository;
   private final AnalyticsEventService analyticsEventService;
+  private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
+
+  /** 브라우저 노출용 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(시드)·null 은 원본. */
+  private String signed(String url) {
+    return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
+  }
 
   /** 사용자가 온보딩 완료했는지 여부. */
   @Transactional(readOnly = true)
@@ -58,7 +64,7 @@ public class OnboardingService {
               String label = buildLabel(tag);
               return new OnboardingImage(
                   img.getId(),
-                  img.getUrl(),
+                  signed(img.getUrl()),
                   tag != null ? tag.getTechnique() : null,
                   tag != null ? tag.getSubject() : null,
                   tag != null ? tag.getMood() : null,

@@ -9,6 +9,7 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -71,6 +72,13 @@ public class Image {
   @Column(name = "prompt", columnDefinition = "text")
   private String prompt;
 
+  /**
+   * Unsplash 네이티브 AI 캡션(alt-text) — 실제 이미지 내용을 묘사하는 문장. LLM 이 레퍼런스/핀을 픽셀 없이 설명할 때의 근거(할루시네이션 방지).
+   * Unsplash 만 채워지고 AI 이미지는 NULL(그쪽은 prompt 가 동일 역할).
+   */
+  @Column(name = "ai_description", columnDefinition = "text")
+  private String aiDescription;
+
   /** AI 이미지의 생성자. 전체 공개 정책이지만 감사·필터링용으로 보관. */
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "created_by_user_id")
@@ -80,4 +88,9 @@ public class Image {
   /** Pinecone 적재 완료 시각. NULL = 미적재 (실패했거나 아직 비동기 처리 전). */
   @Column(name = "indexed_at")
   private Instant indexedAt;
+
+  /** 생성 시각. 완성작 갤러리 최신순 정렬용. 기존 행(마이그레이션 V12 이전 적재)은 NULL. */
+  @CreationTimestamp
+  @Column(name = "created_at", updatable = false)
+  private Instant createdAt;
 }
