@@ -5,8 +5,8 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 | 축 | 정체 | 저장소 | 절 |
 |---|---|---|---|
 | **A. 한 끗 가이드** ⭐ | 코칭 에이전트 파이프라인(그림 관찰→코칭) | Qdrant | §5.1 |
-| **B. 레퍼런스 보드** | 순수 키워드 의미검색(의도 라우팅 없음) | Pinecone | §5.2 |
-| **C. 채팅** | 의도 분류 · AI 이미지 생성(추천 합성은 dormant) | Pinecone · Bedrock | §5.3 |
+| **B. 레퍼런스 보드** | 키워드 의미검색 + AI 생성 + 피드백(의도 라우팅 없음) | Pinecone · Bedrock | §5.2 |
+| **C. 채팅** | 의도 분류(LIVE) · 추천 워크플로 dormant | Pinecone | §5.3 |
 
 > 검색 경로는 셋으로 분리된다: **가이드 코칭=Qdrant**(정적 축 질의), **보드·채팅 추천=Pinecone**(CLIP 의미검색), **전역 검색(SearchModal)=MySQL LIKE**(엔티티 텍스트, 벡터 아님). 본 섹션은 각 축의 실제 동작과 설계 근거를 기술한다.
 
@@ -30,13 +30,14 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 - **피드백 루프**: 🔄 **reroll**(`POST /reroll`) = 저장 sub_problem의 정적 질의 복원 + 노출분 exclude, **LLM/진단/코칭 0콜**. `is_miss`(소진/저품질) 시 AI적격 축(value/composition/light/color)만 **backfill**(생성기 prod=Bedrock Stability) → **QC 5단계 게이트**(축적격·일러스트 여부·개념 CLIP·축교차 CLIP·해부 pose/hands) 통과분만 corpus 편입(`source_type='ai_example'`).
 - **성장**: `coach` 모드만 `growth`(user_id 진척) 이력으로 저장해 개인화(성장 그래프 시연은 합성 이력 기반).
 
-## 5.2 축 B — 레퍼런스 보드 (키워드 검색)
+## 5.2 축 B — 레퍼런스 보드 (키워드 검색 · AI 생성)
 
-보드는 **순수 키워드 검색**이다 — 의도 분류·라우팅은 쓰지 않는다(코드상 IntentRouter/Classifier 호출·import 부재).
+보드의 **검색은 순수 키워드 검색**이다 — 의도 분류·라우팅은 쓰지 않는다(코드상 IntentRouter/Classifier 호출·import 부재). 검색·생성·피드백을 한 보드에서 오케스트레이션한다.
 
-- **진입·경로**: `ReferenceBoardController.search` → `ReferenceBoardService.search` → `searchCorpus` → 키워드 추출 → `SearchService.search`.
-- **키워드 추출**: **Komoran** 형태소(`DEFAULT_MODEL.FULL`) + user-dic → **미술 사용자 사전(ArtTerms) KO→EN CSV** → 사전 미스율 **>30%면 Grok(xAI) 폴백**(영문 키워드 재추출).
+- **진입·경로**: `ReferenceBoardController`(search·generate·generations·like·dislike·reaction·ack) → `ReferenceBoardService`.
+- **키워드 추출**: **Komoran** 형태소(`DEFAULT_MODEL.FULL`) + user-dic → **미술 사용자 사전(ArtTerms) KO→EN CSV**(`dictionary.lookup`) → 사전 미스율 **>30%면 Grok(xAI) 폴백**.
 - **의미 검색**: 쿼리 → **CLIP ViT-L/14(768d)** 임베딩(`POST /embed/text`, 전용 embed 서비스) → **Pinecone** `queryByVector`. 하이브리드 재정렬 = dense CLIP + 태그 IDF soft boost(cap 0.05). 관련성 게이트(키워드 미매칭 or max<0.18) → "결과 없음"(생성 유도).
+- **AI 생성(보드 통합)**: 원하는 레퍼런스가 없으면 보드에서 직접 생성 — `POST /reference-board/generate` → `ReferenceBoardService.generateReference` → `imageGenerationService.generate`(→ GuideClient → **Bedrock Stability**) → source=AI Image 저장·인덱싱. **생성 대화(프롬프트→이미지)** 는 저장돼 보드 재진입 시 복원(`GET /generations`).
 - **피드백**: **싫어요** = 저장 + 세션 카운터 + 다음 검색에서 image id 제외, **3회 누적 → 생성 유도 모달**. **좋아요** = 반응 저장(카드 표식만), **아카이브·랭킹 무영향**.
 
 ## 5.3 축 C — 채팅 (AI 이미지 생성 · 추천)
@@ -44,7 +45,7 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 **의도 분류는 매 요청 실행**(`RulePreRouter.route` 결정적 → 미스 시 Grok 폴백)되지만, 그 아래 **라우팅→COMPOSE 워크플로는 현재 미가동(dormant)** 이다 — `workflow.compose.live-intents` 기본값이 빈 집합(`liveIntents = EnumSet.noneOf`)이라, **현행 채팅 응답은 레거시 직접합성**이 만든다.
 
 - **실제 사용자 액션**(`ChatLlmService.chat`): NEW_SEARCH · KEEP/SKIP · FOLLOWUP/COMPARE · GENERATE_NOW · PIN/REFERENCE_SIMILAR · OUT_OF_DOMAIN · SELF_CRITIQUE.
-- **AI 이미지 생성(현행)**: `GENERATE_NOW`는 게이트 이전에 short-circuit → `ImageGenerationService.generate` → `GuideClient.generateImage`(`POST /generate-image`) → **prod Bedrock Stability**(stable-image-core). PIN/REFERENCE_SIMILAR도 게이트 이전 short-circuit.
+- **AI 이미지 생성 엔진**: `ImageGenerationService.generate` → `GuideClient.generateImage`(`POST /generate-image`) → **prod Bedrock Stability**(stable-image-core). **현행 유저 surface는 레퍼런스 보드**(§5.2, `POST /reference-board/generate`)이며, 챗 `GENERATE_NOW`(게이트 이전 short-circuit)도 같은 엔진을 호출한다. PIN/REFERENCE_SIMILAR도 게이트 이전 short-circuit.
 - **워크플로(설계·미가동)**: `IntentRouting.ROUTING`은 의도→StepExecutor 시퀀스의 정적 매핑(NEW_SEARCH=`[EXTRACT_KEYWORDS,SEARCH,COMPOSE]`, 대부분 `[COMPOSE]`, GENERATE=`[TRANSLATE,GENERATE_IMAGE]`). 이는 **live 게이트가 켜졌을 때만** 도는 설계 스펙이며, 부팅 검증이 COMPOSE 미종착 의도(GENERATE 등)의 live 진입을 막는다(fail-fast).
 - **유령(DEAD)**: `WorkflowService`·`StepExecutor` 계열(`GenerateImageExecutor` 등)은 **미연결 골격** — 게이트가 켜지지 않는 한 실행되지 않는다. shadow 경로(Komoran 워크플로 병렬 1회)는 비교·메트릭 수집만 하며 실응답에 영향 없다.
 

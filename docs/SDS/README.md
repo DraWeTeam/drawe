@@ -51,8 +51,8 @@
 
 ## 4. 핵심 ② — 레퍼런스 탐색 · 생성 ⭐
 
-- **레퍼런스 보드(순수 키워드 검색)**: Komoran 형태소 → **미술 사용자 사전(ArtTerms) KO→EN** → 미스율 >30%면 Grok 폴백 → CLIP ViT-L/14(768d) → **Pinecone** 의미검색. **의도 라우팅 없음**. 싫어요=다음 검색 제외(+3회 누적 시 생성 유도 모달), 좋아요=반응 저장(카드 표식만, **랭킹 무영향**).
-- **채팅**: 의도 분류(RulePreRouter → Grok 폴백)는 매 요청 실행. **AI 이미지 생성** = `GuideClient` → `POST /generate-image` → **Bedrock Stability**. 단, 의도 라우팅→COMPOSE 워크플로는 **현재 미가동(dormant, live-intents 빈값)** — 현행 채팅 응답은 **레거시 직접합성**이 만든다(자세히 [aiPipelineDesign §5.3](./aiPipelineDesign.md)).
+- **레퍼런스 보드(검색 + 생성 + 피드백)**: 키워드 검색 = Komoran 형태소 → **미술 사용자 사전(ArtTerms) KO→EN** → 미스율 >30%면 Grok 폴백 → CLIP ViT-L/14(768d) → **Pinecone** 의미검색(**의도 라우팅 없음**). 원하는 레퍼런스가 없으면 **보드에서 AI 생성**(`POST /reference-board/generate` → Bedrock, 생성 대화 저장·복원). 싫어요=다음 검색 제외(+3회 누적 시 생성 유도 모달), 좋아요=반응 저장(표식만, **랭킹 무영향**).
+- **채팅(구 파이프라인)**: 의도 분류(RulePreRouter → Grok 폴백)는 매 요청 실행되나, 의도 라우팅→COMPOSE 워크플로는 **미가동(dormant, live-intents 빈값)** — 현행 응답은 레거시 직접합성. AI 이미지 생성 엔진은 `GuideClient` → `POST /generate-image` → **Bedrock Stability**(보드 생성과 공용, 자세히 [aiPipelineDesign §5.3](./aiPipelineDesign.md)).
 - **전역 검색(SearchModal)**: 엔티티 텍스트 **MySQL LIKE**(벡터 아님) — 위 두 벡터 경로와 별개.
 
 ## 5. 기술 스택

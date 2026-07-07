@@ -1,6 +1,8 @@
 # 채팅 (LLM) 시퀀스 다이어그램
 
-AI 추천 파이프라인 진입(`POST /projects/{id}/chat`)에서 **의도(IntentCode)** 에 따라 갈라지는 흐름들. 핵심은 ⭐ NEW_SEARCH.
+채팅 진입(`POST /projects/{id}/chat`)에서 **의도(IntentCode)** 에 따라 갈라지는 흐름들.
+
+> **현행 상태(코드 실측)**: 의도 분류는 매 요청 실행되지만, 아래 NEW_SEARCH의 **SEARCH→COMPOSE 워크플로는 dormant**(`workflow.compose.live-intents` 기본 빈값) — 현행 응답은 **레거시 직접합성**이 만든다. 이 시퀀스는 워크플로의 **설계 흐름**이다. 레퍼런스 탐색·생성의 현행 유저 surface는 **레퍼런스 보드**([aiPipelineDesign §5.2](../aiPipelineDesign.md))다.
 
 
 ## ⭐ 레퍼런스 검색 (NEW_SEARCH) Sequence Diagram
