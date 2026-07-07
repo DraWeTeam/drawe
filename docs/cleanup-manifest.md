@@ -14,6 +14,8 @@
 | A3 | `project_id=31 AND request_id LIKE 'badge-verify-%'` (id 70·71) | ④ 추천 badge 3계층 검증 | request_id 접두 'badge-verify-' |
 | A4 | `project_id=31 AND DATE(created_at)='2026-07-05'` (id 72·73, request_id=uuid) | ⑥ track 검증(value_flat_00·figure_003) | project 31의 2026-07-05 생성분 2건, uuid request_id |
 | ★A5 | `project_id=32` (id 74, request_id=uuid) | ⑦ 성장 그래프 실렌더 | **D2 데모 확정 전 삭제 금지** |
+| A6 | `project_id=31 AND guide_id='cef90a83-6fa4-4a0b-b2fa-80660afbffe3'` (id 110, 2026-07-06) | README 데모 overlay 1마커 캡처 시도(미채택) | 데모 캡처 **미사용** — **push 시점 삭제 예정**. 동반 upload(images 135) 함께 정리 |
+| ★A7 | `project_id=31 AND guide_id='72a069f3-610f-4441-83ed-cb6b8cb76670'` (2026-07-06) | README 데모 4장 원본(§1~§7 full·그림 위 ①② overlay 2마커·추천 이유·태그) | **파이널 데모 확정 전 삭제 금지** — docs/demo/*.png 원본. 확정 후 동반 upload 함께 정리 |
 
 연쇄: `guide_feedback` 에 위 guide id 참조행 있으면 함께(FK/수동). 삭제 전 `SELECT` 로 범위 확인.
 
