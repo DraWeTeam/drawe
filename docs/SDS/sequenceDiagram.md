@@ -13,4 +13,4 @@
 | **이미지** | [imageSequenceDiagram](./sequenceDiagram/imageSequenceDiagram.md) | 업로드·서빙 · 좋아요/싫어요 피드백 |
 | **갤러리 · 아카이브** | [gallerySequenceDiagram](./sequenceDiagram/gallerySequenceDiagram.md) | 완성작 갤러리(AI 생성) · 레퍼런스 아카이브 |
 
-> 채팅 도메인의 의도 라우팅 정본은 [aiPipelineDesign §5.3.2](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.
+> 채팅 도메인의 의도 분류·라우팅 스펙(워크플로는 dormant)은 [aiPipelineDesign §5.3](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.
