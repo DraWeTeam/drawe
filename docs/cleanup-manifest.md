@@ -59,3 +59,12 @@
 | ★E4 | **Qdrant `reference_images_dev`**(dev 클라우드) `source_type='ai_example'` **3점**(현재 컬렉션 count 12720 = 기존 12717 + 3) | ④ 실브라우저 검증 중 value_structure 고갈→backfill 자가치유 생성물(qc_and_ingest, `ai_fallback.py:113`) | **dev 클라우드 코퍼스**(로컬 전용 아님). 정상 backfill 산출물이나 **테스트 트리거**. 삭제=선택(무해, `source_type='ai_example'` 필터로 조회 후 delete_by). prod(`reference_images_prod`)와 별개 컬렉션 |
 
 주: 재추천 **엔드포인트 자체는 무상태·읽기전용**(DB 미기록). 단 ④ 검증에서 고갈 강제 도달이 **AI적격축 backfill을 트리거**해 dev Qdrant에 ai_example 3점이 생성됨(E4) — 유일한 영구 생성물. scratchpad 하네스(pw/·*.png)는 세션 임시(레포 밖).
+
+## F. 무드 가시화(mood-match-visibility) 검증 생성물 (2026-07-07, 로컬)
+
+| # | 식별 방법 | 생성 목적 | 삭제 안전 확인 |
+|---|---|---|---|
+| F1 | `drawe_db.guides` project_id=36, `guide_id='0a65872f-e202-46ef-a584-fd7e465ae6c1'`(user 1) | ④ mood_profile 필드 통과 + "취향 결" 뱃지 실렌더 검증(신규 coach 가이드) | 사용자 1 실 프로젝트 36의 검증 가이드. 삭제 무해(참조 `guide_feedback` 없음 확인 후). 동반 upload(image_blobs) 함께 정리 |
+| F2 | scratchpad `pw/`(verify_mood2·verify2 등) + `*.png`(mood_set2 등) + `backend/build/` jar | playwright 무드/reroll 검증 하네스·스크린샷·빌드 | 세션 임시(레포 밖) / build gitignored. 삭제 무해 |
+
+주: 무드 가시화는 **표시 전용**(스코어링·부스트 무변). F1은 fresh 가이드라야 `mood_profile` 필드가 담긴다(구 가이드 payload엔 미포함 → 프론트 폴백 정상=뱃지 0).

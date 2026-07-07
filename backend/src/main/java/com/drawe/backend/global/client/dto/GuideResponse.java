@@ -36,12 +36,19 @@ public record GuideResponse(
     //   _make_overlay 가 생성(좌표·번호 badge, 사용자 입력 없음). Spring 은 순수 통과 — 프론트가 OverlayImage 로 합성.
     String overlay,
     // #8 시각 모드 선택 결과(theory_axes=이론으로 설명할 축, overlay_axes=그림 위 표기할 축). 순수 통과.
-    VisualMode visualMode) {
+    VisualMode visualMode,
+    // 무드 가시화(표시 전용): 온보딩 무드 취향 persona_lean. fastapi 계산분 순수 통과 — 프론트가
+    //   ref.personas 교집합 판정에만 사용(스코어링·부스트 무관). 무드 미설정이면 null.
+    MoodProfile moodProfile) {
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record ReferenceMeta(
       String sourceType, String region, List<String> personas, String category) {}
+
+  @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record MoodProfile(List<String> personaLean) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
