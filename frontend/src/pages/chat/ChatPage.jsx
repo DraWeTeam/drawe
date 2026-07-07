@@ -261,6 +261,7 @@ const ChatPage = () => {
   //   up→like, down→dislike, 같은 버튼 재클릭(해제)→null(행 삭제). 전송 실패는 조용히 무시(best-effort).
   const setGuideCardFeedback = (gidVal, kind) => {
     const msg = messages.find((m) => m._gid === gidVal && m.type === "guide");
+    const prevKind = msg?.guideFeedback ?? null; // 실패 시 롤백용
     const nextKind = msg && msg.guideFeedback === kind ? null : kind; // 토글
     setMessages((prev) =>
       prev.map((m) =>
@@ -273,7 +274,19 @@ const ChatPage = () => {
     if (guideId) {
       const fb =
         nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
-      sendGuideFeedback(projectId, guideId, fb).catch(() => {});
+      // 정직화: 전송 실패 시 토글 롤백 + 인라인 안내(성공 문구는 실배선 없어 추가하지 않음).
+      sendGuideFeedback(projectId, guideId, fb).catch(() => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._gid === gidVal && m.type === "guide"
+              ? { ...m, guideFeedback: prevKind }
+              : m,
+          ),
+        );
+        setErrorMessage(
+          "피드백을 반영하지 못했어요. 잠시 후 다시 시도해주세요.",
+        );
+      });
     }
   };
 
@@ -995,7 +1008,8 @@ const ChatPage = () => {
       });
       alert("아카이브에 저장했어요!");
     } catch (err) {
-      alert(
+      // 인라인 에러로 통일(앱에 토스트 시스템 없음 — 기존 errorMessage 인라인 재사용).
+      setErrorMessage(
         err.response?.data?.error?.message ||
           "저장에 실패했어요. 다시 시도해주세요.",
       );
@@ -1185,6 +1199,10 @@ const ChatPage = () => {
                               className={styles.assistantLogo}
                               src={logo}
                               alt=""
+                            />
+                            <span
+                              className={styles.inlineSpinner}
+                              aria-hidden="true"
                             />
                             한 끗 가이드를 만들고 있어요…
                           </div>
