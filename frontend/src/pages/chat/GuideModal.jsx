@@ -166,10 +166,19 @@ const TrackBar = ({ track }) => {
 // 추천 레퍼런스 카드: 이미지(좌) + 우측 제목. 시안 SCR-GUIDE-02 세로 스택.
 //   추천 이유·키워드 badge 는 데이터 결손이라 이번 범위 아님(DOM 노드 자체를 만들지 않음).
 //   ⑤ 아카이브 담기 — 썸네일 위 glass 버튼(114:15652). projectId 있을 때만 노출, addReference 재사용.
-const RefCard = ({ reference, archived, onArchive }) => {
+const RefCard = ({ reference, archived, onArchive, moodLean }) => {
   const [failed, setFailed] = useState(false);
   const badges = refBadges(reference);
   const reason = refReason(reference);
+  // 무드 가시화(표시 전용): ref.personas ∩ 온보딩 무드 persona_lean 교집합(변별 persona)일 때만 표시.
+  //   교집합 '사실'만 주장 — "반영/골랐다/올렸다"류 금지(부스트·스코어링과 무관, 결이 맞는다는 관찰만).
+  const moodP = (reference.personas || []).find(
+    (p) => (moodLean || []).includes(p) && REF_BADGE_LABELS.persona[p],
+  );
+  const moodLabel = moodP ? REF_BADGE_LABELS.persona[moodP] : "";
+  const moodClause = moodLabel
+    ? `내 취향(${moodLabel})과 결이 맞는 참조예요.`
+    : "";
   return (
     <figure className={styles.refCard}>
       <div className={styles.refThumb}>
@@ -201,19 +210,21 @@ const RefCard = ({ reference, archived, onArchive }) => {
       </div>
       <div className={styles.refInfo}>
         <p className={styles.refTitle}>추천 레퍼런스 {reference.ordinal}</p>
-        {badges.length > 0 && (
+        {(badges.length > 0 || moodLabel) && (
           <div className={styles.refBadges}>
             {badges.map((bd) => (
               <span key={bd} className={styles.refBadge}>
                 {bd}
               </span>
             ))}
+            {moodLabel && <span className={styles.refBadgeMood}>취향 결</span>}
           </div>
         )}
-        {reason && (
+        {(reason || moodClause) && (
           <p className={styles.refReason}>
             <span className={styles.refReasonLabel}>추천 이유</span>
             {reason}
+            {moodClause && (reason ? ` ${moodClause}` : moodClause)}
           </p>
         )}
       </div>
@@ -474,6 +485,9 @@ const Coach = ({
   const blocks = guide.blocks || [];
   const primary = blocks[0];
   const next = guide.next_steps;
+  // 무드 가시화: 백엔드가 1회 실어준 온보딩 무드 취향 persona_lean(무드 미설정이면 없음/빈 배열).
+  //   가이드 응답서 1회 수신분을 RefCard(초기·reroll 컷 공통)에 넘겨 ref.personas 교집합 판정에만 쓴다.
+  const moodLean = guide.mood_profile?.persona_lean || [];
 
   // ⑤ 아카이브 담기 — 코퍼스 레퍼런스(UUID)를 backend 가 인제스트(원본 fetch→Image→ProjectReference, 멱등).
   //   정직 처리: 성공 응답 뒤에만 '담김' 표시, 실패는 조용히 넘기지 않고 토스트로 알린다.
@@ -796,6 +810,7 @@ const Coach = ({
                   reference={r}
                   archived={archivedRefs.has(r.refId)}
                   onArchive={projectId ? () => handleArchive(r) : undefined}
+                  moodLean={moodLean}
                 />
               ))}
             </div>

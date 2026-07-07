@@ -342,6 +342,16 @@
   border-radius: var(--radius-200);
   padding: var(--space-100) var(--space-300);
 }
+/* 무드 가시화 — "취향 결" 뱃지(주황 강조, 교집합일 때만). accent 로 기존 중립 뱃지와 구분. */
+.refBadgeMood {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  color: var(--accent, #e8770f);
+  background: var(--accent-subtle, #fff2e6);
+  border-radius: var(--radius-200);
+  padding: var(--space-100) var(--space-300);
+}
 /* ③ 추천 이유(114:15652) — 축과의 연결 한 문장. 라벨은 주황 강조, 문장은 보조 텍스트. */
 /* §4 추천 이유 — Figma 114:15662: 라벨(SemiBold 14, 별도 줄) + 이유(Regular 14/22), 모두 tertiary. */
 .refReason {
