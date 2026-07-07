@@ -52,7 +52,7 @@
 |---|---|
 | Frontend | React, Vite |
 | Backend | Spring Boot 3.2, Java 17, JPA, QueryDSL, Flyway, Resilience4j |
-| AI 서비스 | FastAPI, CLIP (ViT-L/14), mediapipe, Gemini VLM |
+| AI 서비스 | FastAPI, CLIP (ViT-L/14), mediapipe, Bedrock Claude VLM |
 | 데이터 | MySQL 8, Redis · Valkey, Pinecone |
 | 인프라 | AWS EKS(EC2 Graviton arm64) · ArgoCD(GitOps) · Karpenter · IRSA · External Secrets, Cloudflare, ALB, GitHub Actions CD |
 
