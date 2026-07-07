@@ -6,11 +6,11 @@
 
 | 도메인 | 문서 | 포함 흐름 |
 |---|---|---|
-| **채팅 (LLM)** | [chatSequenceDiagram](./sequenceDiagram/chatSequenceDiagram.md) | ⭐ NEW_SEARCH(레퍼런스 검색) · KEEP/FOLLOWUP(재사용) · COMPOSE 종착 의도(조언·비교·거절·SKIP) · SELF_CRITIQUE(자기비평) · GENERATE(이미지 생성) · 대화 초기화 |
 | **이미지 가이드** | [guideSequenceDiagram](./sequenceDiagram/guideSequenceDiagram.md) | ⭐ 한 끗 가이드(코칭 에이전트) — 관찰→진단→결정→검색→코칭→피드백 · 가이드 피드백·레퍼런스 채택 |
+| **채팅 (LLM)** | [chatSequenceDiagram](./sequenceDiagram/chatSequenceDiagram.md) | ⭐ NEW_SEARCH(레퍼런스 검색) · KEEP/FOLLOWUP(재사용) · COMPOSE 종착 의도(조언·비교·거절·SKIP) · SELF_CRITIQUE(자기비평) · GENERATE(이미지 생성) · 대화 초기화 |
 | **인증** | [authSequenceDiagram](./sequenceDiagram/authSequenceDiagram.md) | 이메일 회원가입 · 이메일 로그인 · Google OAuth2 · 토큰 갱신(rotation) |
 | **프로젝트 · 핀** | [projectSequenceDiagram](./sequenceDiagram/projectSequenceDiagram.md) | 생성·수정 · 목록(QueryDSL 정렬·검색·필터) · 핀 추가 · 삭제(cascade) |
 | **이미지** | [imageSequenceDiagram](./sequenceDiagram/imageSequenceDiagram.md) | 업로드·서빙 · 좋아요/싫어요 피드백 |
 | **갤러리 · 아카이브** | [gallerySequenceDiagram](./sequenceDiagram/gallerySequenceDiagram.md) | 완성작 갤러리(AI 생성) · 레퍼런스 아카이브 |
 
-> 채팅 도메인의 의도 라우팅 정본은 [aiPipelineDesign §5.2.1](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.
+> 채팅 도메인의 의도 라우팅 정본은 [aiPipelineDesign §5.3.2](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.
