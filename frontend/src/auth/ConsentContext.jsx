@@ -15,6 +15,7 @@ export const useConsent = () => useContext(ConsentContext);
 
 // 약관 동의 게이트에서 제외할(공개) 경로
 const PUBLIC_PATHS = [
+  "/landing",
   "/login",
   "/signup",
   "/oauth/callback",
