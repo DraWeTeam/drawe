@@ -1351,12 +1351,30 @@ const ChatPage = () => {
                               type="button"
                               className={styles.guideActBtn}
                               aria-label="PDF 다운로드"
-                              onClick={() =>
+                              onClick={() =>{
+                                const generatedAt = m.createdAt ? new Date(m.createdAt).getTime() : null;
+                                const previousFeedback =
+                                  m.guideFeedback === "up" ? "like" :
+                                  m.guideFeedback === "down" ? "dislike" : "none";
+                                
+                                track("guide_saved", {
+                                  project_id: projectId,
+                                  guide_id: m.guide?.guide_id || "",
+                                  guide_category: m.guide?.next_steps?.track?.group 
+                                    || m.guide?.primary_focus 
+                                    || "",
+                                  previous_feedback: previousFeedback,
+                                  time_since_generated_sec: generatedAt 
+                                    ? Math.round((Date.now() - generatedAt) / 1000) 
+                                    : 0,
+                                  save_entry_point: "guide_view",
+                                });
                                 downloadGuidePdf(
                                   { guide: m.guide, references: m.references },
                                   m.guidePreview,
                                 )
                               }
+                            }
                             >
                               <DownloadIcon />
                             </button>
