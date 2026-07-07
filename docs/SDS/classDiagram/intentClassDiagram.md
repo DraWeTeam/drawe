@@ -311,7 +311,7 @@ classDiagram
 | **Attributes** | NEW_SEARCH | `"005"` | enum | 새 레퍼런스 요청. 키워드 추출 → 검색 수행. |
 | **Attributes** | KEEP | `"006"` | enum | 기존 레퍼런스 유지 / 같은 레퍼런스 세부 질문(미분류). |
 | **Attributes** | SKIP | `"007"` | enum | 잡담/감사. 짧은 응답, 레퍼런스 없음. |
-| **Attributes** | GENERATE | `"008"` | enum | AI 이미지 생성 요청. PromptTranslator → Bria 호출. |
+| **Attributes** | GENERATE | `"008"` | enum | AI 이미지 생성 요청. PromptTranslator → Bedrock(guide) 생성 호출. |
 | **Attributes** | SELF_CRITIQUE | `"010"` | enum | 사용자 본인 작업물 비평(이미지 업로드 + 평가 요청). 멀티모달. |
 | **Attributes** | LEARNING_PATH | `"011"` | enum | 학습 경로 / 커리큘럼 코칭("초보자는 뭐부터?"). 빈도 낮아 라우팅 보류. |
 | **Attributes** | FOLLOWUP | `"012"` | enum | 직전 답변 부연·후속 질문. KEEP 과 달리 레퍼런스 유지가 아님. |

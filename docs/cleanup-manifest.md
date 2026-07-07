@@ -14,8 +14,10 @@
 | A3 | `project_id=31 AND request_id LIKE 'badge-verify-%'` (id 70·71) | ④ 추천 badge 3계층 검증 | request_id 접두 'badge-verify-' |
 | A4 | `project_id=31 AND DATE(created_at)='2026-07-05'` (id 72·73, request_id=uuid) | ⑥ track 검증(value_flat_00·figure_003) | project 31의 2026-07-05 생성분 2건, uuid request_id |
 | ★A5 | `project_id=32` (id 74, request_id=uuid) | ⑦ 성장 그래프 실렌더 | **D2 데모 확정 전 삭제 금지** |
-| A6 | `project_id=31 AND guide_id='cef90a83-6fa4-4a0b-b2fa-80660afbffe3'` (id 110, 2026-07-06) | README 데모 overlay 1마커 캡처 시도(미채택) | 데모 캡처 **미사용** — **push 시점 삭제 예정**. 동반 upload(images 135) 함께 정리 |
-| ★A7 | `project_id=31 AND guide_id='72a069f3-610f-4441-83ed-cb6b8cb76670'` (2026-07-06) | README 데모 4장 원본(§1~§7 full·그림 위 ①② overlay 2마커·추천 이유·태그) | **파이널 데모 확정 전 삭제 금지** — docs/demo/*.png 원본. 확정 후 동반 upload 함께 정리 |
+| ~~A6~~ | `guide_id='cef90a83-6fa4-4a0b-b2fa-80660afbffe3'` (id 110) | README 데모 overlay 1마커 캡처 시도(미채택) | ✅ **삭제 완료(2026-07-07)** — guides id 110 DELETE(guide_feedback 0건). 동반 upload id 135는 `images` 테이블 부재(별도/기정리) |
+| ~~★A7~~ | `guide_id='72a069f3-610f-4441-83ed-cb6b8cb76670'` (id 111) | README 데모 v1 원본(overlay 2마커) | **데모 v2(A9)로 교체 → 파이널 후보 아님.** 미사용화 — push 후 정리 가능(현 docs/demo 미참조) |
+| ~~A8~~ | `guide_id='06256ec7-e592-4537-9e5e-2f32c420e639'` (id 113, upload 141) | demo v2 후보(무게중심 focus·overlay 2마커·persona_lean 확인용) | **미채택**(값 focus 37b4225c 채택) — push 후 삭제 |
+| ★A9 | `guide_id='37b4225c-ac1f-476d-8008-66bbe146bb6c'` (id 114, upload 142, value_structure) | **README 데모 v2 원본**(§1~§7 full·§3 overlay 2마커·§4 추천이유+태그+**취향 결 뱃지**·persona_lean=[mood]) | **파이널 데모 확정 전 삭제 금지** — 현 docs/demo/guide.png·reason.png 원본. #54(mood 가시화) 실렌더 소스 |
 
 연쇄: `guide_feedback` 에 위 guide id 참조행 있으면 함께(FK/수동). 삭제 전 `SELECT` 로 범위 확인.
 
@@ -68,3 +70,15 @@
 | F2 | scratchpad `pw/`(verify_mood2·verify2 등) + `*.png`(mood_set2 등) + `backend/build/` jar | playwright 무드/reroll 검증 하네스·스크린샷·빌드 | 세션 임시(레포 밖) / build gitignored. 삭제 무해 |
 
 주: 무드 가시화는 **표시 전용**(스코어링·부스트 무변). F1은 fresh 가이드라야 `mood_profile` 필드가 담긴다(구 가이드 payload엔 미포함 → 프론트 폴백 정상=뱃지 0).
+
+## G. prod 스모크·데모 검증 생성물 (2026-07-07, **drawe.xyz prod** · 검수계정 user 3)
+
+> ⚠️ **prod 데이터**(로컬 아님) — 삭제는 prod DB/실 사용자 프로젝트 대상이라 **신중**. user 3 실 프로젝트 4·6. G4-④ prod 스모크/마커 재현 중 생성. 파괴 액션 없이 조회·생성만 사용.
+
+| # | 식별 방법 | 생성 목적 | 삭제 안전 확인 |
+|---|---|---|---|
+| ★G1 | prod `guide_id='6508380b-d283-46a8-bb94-1be17967483a'` (project 4, user 3) | **마커 재현 채택** — §3 그림 위 overlay 마커(weight_balance) 실렌더 · **파이널 데모 후보** | **데모 확정 전 삭제 금지**. 재현조건=전신그림+"비율이랑 무게중심이 이상해요"+해당 축 recurring 성립 |
+| G2 | prod `guide_id='979f2aca-389d-42f9-9972-e406e2ba20ed'` (project 4, user 3) | 마커 1차 시도(overlay_axes=[]·theory, recurring 미성립) | 미채택 — **파이널 후 삭제** |
+| ★G3 | prod `guide_id='a7fec6a7-d07f-4d55-96dc-2e59ec9864ec'` (project 6, user 3) | G4-④ 스모크 — §4 **취향 결 뱃지 성사**·persona_lean 실증 · **파이널 데모 후보** | **데모 확정 전 삭제 금지** |
+
+> **기존 상태 재확인(2026-07-07)**: ★**A9**(37b4225c·local `drawe_db` project 31) = README demo v2 원본 = **유지**. ~~★A7~~(72a069f3) = A9로 교체돼 **파이널 후보 아님**(push 후 정리 가능). **F1**(0a65872f·local project 36) = 무드 뱃지 로컬 검증분, 유지. **파이널 데모 후보 종합 = A9(README 원본, local) · G1·G3(prod 실렌더)**. prod(G) 삭제는 로컬(A~F)과 별도 절차·신중.

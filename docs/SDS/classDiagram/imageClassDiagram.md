@@ -94,13 +94,12 @@ classDiagram
     class ImageGenerationService {
         <<Service>>
         -DEFAULT_MIME: String
-        -briaClient: BriaClient
+        -guideClient: GuideClient
         -imageStorage: ImageStorage
         -imageRepository: ImageRepository
         -promptTranslator: PromptTranslator
         -eventPublisher: ApplicationEventPublisher
         -analyticsEventService: AnalyticsEventService
-        -downloader: RestClient
         +generate(user: User, prompt: String, project: Project): Image
     }
 
@@ -395,15 +394,14 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
-| **class** | ImageGenerationService | - | public | Bria로 이미지를 생성하고 결과 바이트를 `ImageStorage`에 영구 저장한 뒤 `Image` 엔티티를 만들어 반환. 임시 Bria URL은 즉시 다운로드해 우리 저장소로 옮긴다. (Bria 전체 흐름은 별도 문서) |
-| **Attributes** | briaClient | BriaClient | private | Bria 이미지 생성 클라이언트 |
+| **class** | ImageGenerationService | - | public | Bedrock(guide)로 이미지를 생성하고 결과 PNG 바이트를 `ImageStorage`에 영구 저장한 뒤 `Image` 엔티티를 만들어 반환. guide 서비스가 PNG 바이트를 직반환하므로 다운로드 단계는 없다. (Bedrock(guide) 전체 흐름은 별도 문서) |
+| **Attributes** | guideClient | GuideClient | private | guide 서비스 이미지 생성 클라이언트(`POST /generate-image`) |
 | **Attributes** | imageStorage | ImageStorage | private | 생성 바이트 저장 |
 | **Attributes** | imageRepository | ImageRepository | private | Image 영속화 |
 | **Attributes** | promptTranslator | PromptTranslator | private | 한국어 → 영문 프롬프트 변환 |
 | **Attributes** | eventPublisher | ApplicationEventPublisher | private | `AiImageCreatedEvent` 발행 |
 | **Attributes** | analyticsEventService | AnalyticsEventService | private | IMAGE_GENERATED 집계 이벤트 |
-| **Attributes** | downloader | RestClient | private | Bria 임시 URL에서 바이트 다운로드 |
-| **Operations** | generate | Image | public | 프롬프트 번역 → Bria 생성 → 바이트 다운로드 → 저장 → Image 저장(`sourceId="ai_<id>"`) → commit 후 `AiImageCreatedEvent` 발행(AFTER_COMMIT 비동기 인덱싱 트리거). @Transactional |
+| **Operations** | generate | Image | public | 프롬프트 번역 → Bedrock(guide) 생성(PNG 바이트 직반환) → 저장 → Image 저장(`sourceId="ai_<id>"`) → commit 후 `AiImageCreatedEvent` 발행(AFTER_COMMIT 비동기 인덱싱 트리거). @Transactional |
 
 <br>
 

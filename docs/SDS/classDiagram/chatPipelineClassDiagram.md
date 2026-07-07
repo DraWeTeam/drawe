@@ -1,6 +1,8 @@
 ## ⭐ AI 추천 파이프라인 (Chat) Class Diagram
 
-`ProjectChatController.chat()` 가 진입점으로 `ChatLlmService.chat()` 를 호출한다. `chat()` 은 먼저 `routeIntent()` 로 의도를 분류(룰 프리라우터 → Grok 폴백)하고, `GENERATE_NOW` 면 `handleGenerateNow()` 로 단락(검색·LLM 답변 생략, 즉시 Bria 생성)한다. 이어서 `OUT_OF_DOMAIN`·`SELF_CRITIQUE` 게이트를 통과하면, 의도가 `WorkflowComposeProperties.isLive()` 로 켜졌는지에 따라 **live 경로(`chatViaWorkflow()` → `WorkflowService.run()`)** 와 **legacy 경로(`handleSearchDecision()` 직접 합성)** 로 갈린다. live 경로에서 `WorkflowService` 는 `IntentRouting.ROUTING` 의 step 시퀀스를 순회하며 각 `StepExecutor`(EXTRACT_KEYWORDS → SEARCH → COMPOSE 등)를 실행해 불변 `StepContext` 를 누적하고, `ComposeExecutor` 가 referenceContext 구성 → 스키마 강제 LLM 호출 → 파싱 → 무결성 검사로 `ComposedOutput` 을 만든다. 합성 결과를 받아 `chatViaWorkflow()` 가 세션 메시지 저장·Redis 단기메모리 반영·analytics·메트릭을 처리하고 `ChatResponse` 를 조립해 반환한다.
+`ProjectChatController.chat()` 가 진입점으로 `ChatLlmService.chat()` 를 호출한다. `chat()` 은 먼저 `routeIntent()` 로 의도를 분류(룰 프리라우터 → Grok 폴백)하고, `GENERATE_NOW` 면 `handleGenerateNow()` 로 단락(검색·LLM 답변 생략, 즉시 Bedrock(guide) 생성)한다. 이어서 `OUT_OF_DOMAIN`·`SELF_CRITIQUE` 게이트를 통과하면, 의도가 `WorkflowComposeProperties.isLive()` 로 켜졌는지에 따라 **live 경로(`chatViaWorkflow()` → `WorkflowService.run()`)** 와 **legacy 경로(`handleSearchDecision()` 직접 합성)** 로 갈린다. live 경로에서 `WorkflowService` 는 `IntentRouting.ROUTING` 의 step 시퀀스를 순회하며 각 `StepExecutor`(EXTRACT_KEYWORDS → SEARCH → COMPOSE 등)를 실행해 불변 `StepContext` 를 누적하고, `ComposeExecutor` 가 referenceContext 구성 → 스키마 강제 LLM 호출 → 파싱 → 무결성 검사로 `ComposedOutput` 을 만든다. 합성 결과를 받아 `chatViaWorkflow()` 가 세션 메시지 저장·Redis 단기메모리 반영·analytics·메트릭을 처리하고 `ChatResponse` 를 조립해 반환한다.
+
+> **현행 상태(코드 실측)**: `workflow.compose.live-intents` 기본값이 빈 집합(`liveIntents = EnumSet.noneOf`)이라 **live 경로는 미가동(dormant)** — 기본 배포에서는 **legacy 직접 합성이 실제 응답을 만든다**. 아래 다이어그램의 `WorkflowService`·`StepExecutor` 계열(`GenerateImageExecutor` 등)은 **설계·미연결 골격**이며 게이트가 켜지지 않는 한 실행되지 않는다.
 
 ```mermaid
 classDiagram
@@ -237,7 +239,7 @@ classDiagram
 | **Operations** | chat | `ApiResponse<ChatResponse>` | public | **POST `/projects/{projectId}/chat`** — 메인 대화 엔드포인트. `chatLlmService.chat()` 호출. |
 | **Operations** | history | `ApiResponse<ChatHistoryResponse>` | public | **GET `/projects/{projectId}/chat/{sessionId}/history`** — 세션 대화 이력 조회. |
 | **Operations** | reset | `ApiResponse<Map>` | public | **POST `/projects/{projectId}/chat/{sessionId}/reset`** — 세션 메시지·Redis 단기메모리 초기화. |
-| **Operations** | generateImage | `ApiResponse<GenerateImageResponse>` | public | **POST `/projects/{projectId}/chat/{sessionId}/generate`** — "AI 이미지 생성" 버튼 처리(Bria). |
+| **Operations** | generateImage | `ApiResponse<GenerateImageResponse>` | public | **POST `/projects/{projectId}/chat/{sessionId}/generate`** — "AI 이미지 생성" 버튼 처리(Bedrock(guide)). |
 | **Operations** | getLatestSession | `ApiResponse<Map>` | public | **GET `/projects/{projectId}/chat/latest-session`** — 최근 세션 id 반환. |
 
 <br>
@@ -258,7 +260,7 @@ classDiagram
 | **Attributes** | llmServices | `List<LlmService>` | private | provider(GROK/CLAUDE)별 LLM 서비스 풀(legacy 합성용). |
 | **Operations** | chat | ChatResponse | public | **대화 진입점** — 세션 로드/생성 → 핀 맥락 주입 → `routeIntent` 의도분류 → GENERATE_NOW 단락 → OUT_OF_DOMAIN/SELF_CRITIQUE 게이트 → live 게이트 분기 → legacy 직접 합성·세션저장·응답조립. |
 | **Operations** | chatViaWorkflow | ChatResponse | private | **live 경로** — Redis 복원 → `StepContext.startForCompose` → `workflowService.run()` → `ComposedOutput` 추출 → 핀 제외·세션메시지 저장·단기메모리 반영·SEARCH/DECISION analytics 재현·ChatResponse 조립. |
-| **Operations** | handleGenerateNow | ChatResponse | private | **GENERATE_NOW 단락** — live 게이트보다 먼저 동작. 검색·LLM 답변을 모두 건너뛰고 추출 프롬프트로 즉시 Bria 생성, 고정 문구 + `generatedImage` 로 응답. |
+| **Operations** | handleGenerateNow | ChatResponse | private | **GENERATE_NOW 단락** — live 게이트보다 먼저 동작. 검색·LLM 답변을 모두 건너뛰고 추출 프롬프트로 즉시 Bedrock(guide) 생성, 고정 문구 + `generatedImage` 로 응답. |
 | **Operations** | handleSearchDecision | `List<ImageResult>` | private | **legacy 검색 결정** — action(NEW_SEARCH/KEEP/SKIP/FOLLOWUP/COMPARE)별 분기. NEW_SEARCH 면 검색+점수가드(avg<0.2 AND max<0.24 차단)·analytics·shadow 워크플로 실행. |
 | **Operations** | routeIntent | RoutedIntent | private | **의도분류** — 룰 프리라우터 먼저, 미스면 Grok 폴백. 룰 히트/미스 analytics·메트릭(latency) 집계. |
 | **Operations** | shadowWorkflow | void | private | legacy 검색 결과는 그대로 두고 Komoran 경로를 병렬 1회 실행해 ref id 겹침(match/partial/miss)만 비교·메트릭. 응답에 무영향, 예외 삼킴. |
@@ -266,7 +268,7 @@ classDiagram
 | **Operations** | emitSearchAnalytics | void | private | live 경로 SEARCH_EXECUTED/BLOCKED 발사(SearchExecutor 가 채운 `SearchStats` 기준, legacy payload 동등). |
 | **Operations** | emitDecisionAnalytics | void | private | live 경로 DECISION_KEEP/SKIP/FOLLOWUP/COMPARE 발사(legacy KEEP/SKIP case 재현). |
 | **Operations** | buildReferenceContext | String | private | legacy 경로 검색 레퍼런스 → `[N]` 인용 가이드 SYSTEM turn 구성(환각 방지 가이드 포함). |
-| **Operations** | generateImage | GenerateImageResponse | public | "AI 이미지 생성" 버튼 처리 — Bria 생성 후 ASSISTANT 메시지로 기록. |
+| **Operations** | generateImage | GenerateImageResponse | public | "AI 이미지 생성" 버튼 처리 — Bedrock(guide) 생성 후 ASSISTANT 메시지로 기록. |
 | **Operations** | getHistory | ChatHistoryResponse | public | SYSTEM 제외 대화 이력 반환(URL 서명 포함). |
 | **Operations** | resetSession | void | private→public | DB 메시지(비-SYSTEM) + Redis 단기메모리 동시 초기화. |
 
@@ -353,9 +355,9 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
-| **class** | TranslateExecutor | `<<골격>>` | public | **골격(미구현)** — GENERATE(008) 1단계. KO→EN Bria 프롬프트 변환 위임 미이관. 실행되면 WARN(미구현 의도가 live 도달 신호). |
+| **class** | TranslateExecutor | `<<골격>>` | public | **골격(미구현)** — GENERATE(008) 1단계. KO→EN 이미지생성(Bedrock) 프롬프트 변환 위임 미이관. 실행되면 WARN(미구현 의도가 live 도달 신호). |
 | **Operations** | execute | StepContext | public | 컨텍스트 그대로 통과(`PromptTranslator` 위임 TODO). |
-| **class** | GenerateImageExecutor | `<<골격>>` | public | **골격(미구현)** — GENERATE 2단계. Bria 이미지 생성 위임 미이관(현재 `handleGenerateNow` 가 legacy 로 처리). |
+| **class** | GenerateImageExecutor | `<<골격>>` | public | **골격(미구현)** — GENERATE 2단계. Bedrock(guide) 이미지 생성 위임 미이관(현재 `handleGenerateNow` 가 legacy 로 처리). |
 | **Operations** | execute | StepContext | public | 컨텍스트 그대로 통과(`ImageGenerationService` 위임 TODO). |
 
 <br>
@@ -401,7 +403,7 @@ classDiagram
 
 1. **진입** — `ProjectChatController.chat()` 이 `ChatLlmService.chat(user, projectId, request)` 호출. 세션을 로드/생성(`resolveOrCreateSession`)하고 핀 고정 이미지를 SYSTEM 맥락으로 주입한다.
 2. **의도 분류** — `routeIntent()` 가 `RulePreRouter.route()` 를 먼저 시도하고, 미스면 `KeywordExtractor.extract()`(Grok) 로 폴백해 `ExtractionResult`(action·keywords) 를 얻는다.
-3. **GENERATE_NOW 단락** — action 이 `GENERATE_NOW` 면 `handleGenerateNow()` 로 검색·LLM 답변을 모두 건너뛰고 즉시 Bria 생성, `ChatResponse.generatedImage` 에 담아 반환(live 게이트보다 우선).
+3. **GENERATE_NOW 단락** — action 이 `GENERATE_NOW` 면 `handleGenerateNow()` 로 검색·LLM 답변을 모두 건너뛰고 즉시 Bedrock(guide) 생성, `ChatResponse.generatedImage` 에 담아 반환(live 게이트보다 우선).
 4. **게이트** — `RulePreRouter.isOutOfDomain()` + `isLive(OUT_OF_DOMAIN)`, 업로드+`isCritiqueRequest()` + `isLive(SELF_CRITIQUE)` 게이트를 차례로 검사해 해당하면 `chatViaWorkflow()` 로 보낸다.
 5. **live/legacy 분기** — `intentResultAdapter.adapt()` 로 `IntentResult` 를 만들고 `workflowComposeProperties.isLive(intent.code())` 가 true 면 **live 경로**, 아니면 **legacy 경로**.
 6. **(live) 워크플로 실행** — `chatViaWorkflow()` 가 `SessionService.getOrRestore()` 로 직전 레퍼런스를 복원하고 `StepContext.startForCompose()` 로 초기 컨텍스트를 만든 뒤 `WorkflowService.run(intent, initial)` 호출.
