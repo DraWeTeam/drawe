@@ -434,6 +434,18 @@ kubectl rollout restart deploy/backend -n drawe-prod
 
 **교훈**: 배포 시퀀스에 **DB 스키마 마이그레이션 확인·적용** 단계를 둔다(플랫폼 설치 후 · 앱 등록 전후). 새 컬럼을 쓰는 기능(⑦ growth의 project_id 등)은 코드·프론트만 배포하고 마이그레이션을 빠뜨리면 런타임에 조용히 죽는다 — readiness만 보면 놓친다.
 
+### 13. 벡터 스토어 필터가 조용히 무효화 — 배제 필터는 '결과'로 검증
+
+**증상**: "이미 본 레퍼런스 제외" 같은 배제 필터를 넣었는데 실제로 배제가 안 되거나(무효) 500이 난다. 코드에 필터를 넣었으니 됐다고 착각 → 사용자에겐 중복 노출 또는 에러.
+
+**원인(백엔드·인덱스에 의존)**:
+- **Qdrant** (가이드 서비스 = 로컬·prod 모두. `infra/terraform-prod/ecs-guide.tf:146 VECTOR_BACKEND=qdrant`): payload에 **값이 저장돼 있어도** 필터하려면 **명시적 payload 인덱스**가 필요. 인덱스 없는 키로 `must_not` 하면 `400 Bad Request: Index required but not found for "<key>"`. (reroll의 `ref_id` 배제에서 실측 — reference_images 컬렉션에 ref_id 인덱스 없음.)
+- **Pinecone** (backend(Spring)·embed fastapi = 챗 추천·이미지 임베딩 층. `overlays/prod/backend`·`ecs.tf`의 PINECONE_*): 벡터 `id`는 **metadata가 아니라** upsert의 `id`라 `{id: {$nin:[...]}}` 같은 metadata 필터는 **매칭 대상이 없어 조용히 무효**(에러도 없이 배제 0).
+
+**해결**: 후보(top-K)를 받은 뒤 **애플리케이션 post-filter**로 배제(reroll = `search_text(exclude=)` 후보 후처리). 인덱스·백엔드와 무관하게 동작하고 스코어링 로직 불변. 트레이드오프: 배제가 후보 상한(`BROAD_K`) 안에서만 되므로 상한만큼 소진 시 고갈(축당 ~상한/페이지 회). 스토어에 필터를 위임할 땐 **배제 '결과'(리턴 id에 배제 대상이 없는지)로 검증** — 코드에 필터가 있다는 사실이 아니라 관측된 결과로.
+
+**교훈**: 스토어 추상화(must/must_not)는 백엔드마다 다르게, 때론 조용히 안 되게 동작한다. 설계 시 "payload에 저장됨 = 필터 가능"으로 추론 금지 — 실제 인덱스/필드 귀속을 **config로 확인**(어느 서비스가 어느 스토어를 타는지)하고, 배제는 반드시 **결과로 검증**하라.
+
 ## 결정 기록
 
 | 날짜 | 결정 | 이유 |

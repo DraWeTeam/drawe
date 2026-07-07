@@ -923,6 +923,14 @@
   font-size: 13px;
   line-height: 20px;
 }
+/* 재추천 안내(고갈·생성 중) — 중립 muted 노트(에러 아님) */
+.rerollNote {
+  margin: var(--space-300) 0 0;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
 
 /* 한 끗 포인트 — 번호 포인트(정본 114:15631) */
 /* §3 번호 포인트 — Figma 114:15631: 컨테이너/행 gap-200(8px) items-center. */
