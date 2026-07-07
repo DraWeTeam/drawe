@@ -172,6 +172,9 @@
 
 .moreLink {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   background: none;
   border: none;
   padding: 0;

@@ -7,9 +7,9 @@ import {
   useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { addReference, getProject, updateProject } from "../projects/api";
+import { getProject, updateProject } from "../projects/api";
+import ArchiveToCollectionModal from "../gallery/ArchiveToCollectionModal";
 import { getReferenceArchive } from "../gallery/api";
-import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import {
   addPin,
   generateImage,
@@ -94,6 +94,8 @@ const ChatPage = () => {
   const [pinError, setPinError] = useState("");
   // 이 프로젝트에서 이미 아카이브에 저장된 imageId 집합 (카드 메뉴 상태표시용)
   const [archivedIds, setArchivedIds] = useState(() => new Set());
+  // 아카이브 저장 → 컬렉션 선택 모달 대상 imageId (null=닫힘).
+  const [archiveModalImageId, setArchiveModalImageId] = useState(null);
 
   // 모드: "split" | "refFull" | "chatFull"
   const [mode, setMode] = useState("split");
@@ -899,23 +901,17 @@ const ChatPage = () => {
     }
   };
 
-  // 레퍼런스 카드 ⋮ → 아카이브에 저장
-  const handleArchiveReference = async (imageId) => {
-    try {
-      await addReference(projectId, imageId);
-      setArchivedIds((prev) => new Set(prev).add(imageId));
-      notifyArchiveChanged();
-      track("reference_archived", {
-        reference_id: imageId,
-        project_id: projectId,
-      });
-      alert("아카이브에 저장했어요!");
-    } catch (err) {
-      alert(
-        err.response?.data?.error?.message ||
-          "저장에 실패했어요. 다시 시도해주세요.",
-      );
-    }
+  // 레퍼런스 카드 ⋮ → 아카이브에 저장 = 컬렉션 선택 모달 열기(신규 collections).
+  const handleArchiveReference = (imageId) => {
+    setArchiveModalImageId(imageId);
+  };
+
+  const handleArchived = (imageId) => {
+    setArchivedIds((prev) => new Set(prev).add(imageId));
+    track("reference_archived", {
+      reference_id: imageId,
+      project_id: projectId,
+    });
   };
 
   const goToChatFull = () => setMode("chatFull");
@@ -1481,6 +1477,15 @@ const ChatPage = () => {
           onSubmit={handleGuideSubmit}
           onClose={() => setGuideFormOpen(false)}
           submitting={guideLoading}
+        />
+      )}
+
+      {/* 아카이브 저장 → 컬렉션 선택 모달(신규 collections) */}
+      {archiveModalImageId != null && (
+        <ArchiveToCollectionModal
+          imageId={archiveModalImageId}
+          onClose={() => setArchiveModalImageId(null)}
+          onSaved={() => handleArchived(archiveModalImageId)}
         />
       )}
     </div>

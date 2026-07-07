@@ -1,6 +1,7 @@
 package com.drawe.backend.domain.collection.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -19,5 +20,10 @@ public record CollectionDetailResponse(
     List<ReferenceItem> references) {
 
   public record ReferenceItem(
-      Long imageId, String url, String source, boolean pinned) {}
+      Long imageId,
+      String url,
+      String source,
+      boolean pinned,
+      Instant addedAt,
+      List<String> keywords) {}
 }

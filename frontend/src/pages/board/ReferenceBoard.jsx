@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import Tooltip from "../../components/Tooltip";
 import TutorialCoachmark from "../chat/TutorialCoachmark";
 import { unsplashSized } from "../chat/imageUtils";
-import { addReference, addPin, getPins, removePin } from "../projects/api";
+import { addPin, getPins, removePin } from "../projects/api";
 import { getReferenceArchive } from "../gallery/api";
 import { notifyArchiveChanged } from "../gallery/archiveEvents";
+import ArchiveToCollectionModal from "../gallery/ArchiveToCollectionModal";
 import { track } from "../../analytics";
 import {
   ackGenerationSuggestion,
@@ -113,6 +114,8 @@ const ReferenceBoard = ({
 
   const [pinnedRefs, setPinnedRefs] = useState([]);
   const [archivedIds, setArchivedIds] = useState(() => new Set());
+  // 아카이브 저장 → 컬렉션 선택 모달 대상 imageId (null=닫힘).
+  const [archiveModalImageId, setArchiveModalImageId] = useState(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [showReactionTut, setShowReactionTut] = useState(false);
 
@@ -361,21 +364,18 @@ const ReferenceBoard = ({
     }
   };
 
-  const handleArchive = async (imageId) => {
-    try {
-      await addReference(projectId, imageId);
-      setArchivedIds((prev) => new Set(prev).add(imageId));
-      notifyArchiveChanged();
-      track("reference_archived", {
-        project_id: projectId,
-        reference_id: imageId,
-      });
-    } catch (err) {
-      setError(
-        err.response?.data?.error?.message ||
-          "아카이브 저장에 실패했어요. 다시 시도해주세요.",
-      );
-    }
+  // 아카이브 저장 = 컬렉션 선택 모달 열기(신규 collections 로 저장). 옛 project_references 직접 저장 대신.
+  const handleArchive = (imageId) => {
+    setArchiveModalImageId(imageId);
+  };
+
+  // 모달에서 실제 저장 완료 시 — 담긴 상태 반영 + 이벤트/트래킹.
+  const handleArchived = (imageId) => {
+    setArchivedIds((prev) => new Set(prev).add(imageId));
+    track("reference_archived", {
+      project_id: projectId,
+      reference_id: imageId,
+    });
   };
 
   const handleCardClick = (image) => {
@@ -626,6 +626,15 @@ const ReferenceBoard = ({
         <GenerationSuggestModal
           onLater={handleLaterFromModal}
           onGenerate={handleGenerateFromModal}
+        />
+      )}
+
+      {/* 아카이브 저장 → 컬렉션 선택 모달(신규 collections) */}
+      {archiveModalImageId != null && (
+        <ArchiveToCollectionModal
+          imageId={archiveModalImageId}
+          onClose={() => setArchiveModalImageId(null)}
+          onSaved={() => handleArchived(archiveModalImageId)}
         />
       )}
     </div>

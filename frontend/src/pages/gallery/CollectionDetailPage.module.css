@@ -45,12 +45,104 @@
   padding: 72px 20px;
 }
 
-/* 필터 탭 (전체/AI/사진/일러스트) */
+/* 필터 탭(좌) + 정렬·새 프로젝트(우) 한 행 (SCR-ARCH-05) */
 .filterRow {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+}
+
+.filterChips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterActionsRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 정렬 드롭다운(최근 ▾) */
+.sortWrap {
+  position: relative;
+}
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #e6e0d9;
+  background: #fff;
+  color: #4a4846;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.sortBtn:hover {
+  border-color: #d8d0c7;
+}
+
+.sortDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 120px;
+  background: #fff;
+  border: 1px solid #eee5db;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  z-index: 20;
+}
+
+.sortItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #4a4846;
+  cursor: pointer;
+}
+
+.sortItem:hover {
+  background: #f6f2ee;
+}
+
+.sortItemActive {
+  color: #2e2c2a;
+  font-weight: 600;
+}
+
+/* + 새 프로젝트 버튼 */
+.newProjectBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f5945b;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.newProjectBtn:hover {
+  background: #ec8547;
 }
 
 .filterChip {
@@ -121,19 +213,48 @@
   padding: 2px 8px;
 }
 
-.pinBadge {
+/* 카드 밑 대표 키워드 3개(SCR-ARCH-05) */
+.cardTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.cardTag {
+  font-size: 12px;
+  color: #7a746e;
+  background: #f0ece7;
+  border-radius: 8px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* AI 생성 마크 — 썸네일 우상단 (source=AI). 보드의 AI 배지와 동일 톤.
+   다운로드 버튼(hover 시 우상단 노출)과 겹치지 않도록 z-index 로 위에 두고,
+   hover 시엔 다운로드 버튼이 그 자리를 덮는다(배지는 평상시 식별용). */
+.aiBadge {
   position: absolute;
   top: 8px;
-  left: 8px;
-  width: 26px;
-  height: 26px;
+  right: 8px;
+  z-index: 1;
+  padding: 2px 8px;
   border-radius: 7px;
-  background: rgba(245, 148, 91, 0.95);
+  background: linear-gradient(135deg, #a855f7, #ec4899);
   color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+/* hover 로 다운로드 버튼이 뜨면 AI 배지를 숨겨 겹침을 피한다. */
+.cardThumb:hover .aiBadge {
+  opacity: 0;
 }
 
 .downloadBtn {
@@ -403,14 +524,43 @@
 }
 
 /* ── 태그 편집기 ── */
+.fieldHint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #a8a39e;
+}
+
 .tagEditor {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   border: 1px solid #e6e0d9;
   border-radius: 9px;
   padding: 8px;
-  min-height: 20px;
+  min-height: 42px;
+}
+
+.tagEditor:focus-within {
+  border-color: #f5945b;
+}
+
+.tagAddBtn {
+  flex-shrink: 0;
+  border: none;
+  background: #f5945b;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tagAddBtn:disabled {
+  background: #efe7df;
+  color: #c3bcb4;
+  cursor: default;
 }
 
 .tagChip {
@@ -512,4 +662,62 @@
   color: #d9463e;
   font-size: 13px;
   margin: 12px 0 0;
+}
+
+/* ── 정보 수정(컬렉션 이동) 모달 — 대상 컬렉션 선택 목록 ── */
+.moveList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.moveItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #eee5db;
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.moveItem:hover {
+  border-color: #d8d0c7;
+}
+
+.moveItemActive {
+  border-color: #f5945b;
+  background: #fef4ee;
+}
+
+.moveItemName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2e2c2a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moveItemCount {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #a8a39e;
+}
+
+.moveEmpty {
+  text-align: center;
+  color: #8a8580;
+  font-size: 14px;
+  padding: 32px 16px;
 }

@@ -5,11 +5,14 @@ import {
   updateCollection,
   deleteCollection,
   togglePin,
+  moveReference,
   removeReferenceFromCollection,
 } from "./api";
 import { downloadImage } from "./download";
+import { koreanTags } from "./tagLabels";
 import AuthedImage from "../chat/AuthedImage";
 import CollectionEditModal from "./CollectionEditModal";
+import MoveReferenceModal from "./MoveReferenceModal";
 import styles from "./CollectionDetailPage.module.css";
 
 // SCR-ARCH-04 컬렉션 상세 — 헤더(뒤로/제목/⋮) + 필터 탭(전체/AI/사진/일러스트) + 레퍼런스 그리드.
@@ -30,6 +33,12 @@ const SOURCE_LABEL = {
 };
 const sourceLabel = (source) => SOURCE_LABEL[source] ?? "기타";
 
+// 정렬 옵션(SCR-ARCH-05 '최근 ▾'). 고정 우선은 항상 유지하고 그 안에서 정렬.
+const SORTS = [
+  { key: "recent", label: "최근" },
+  { key: "oldest", label: "오래된순" },
+];
+
 const CollectionDetailPage = () => {
   const { collectionId } = useParams();
   const navigate = useNavigate();
@@ -37,6 +46,10 @@ const CollectionDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [filter, setFilter] = useState("ALL");
+  // 정렬 키(최근/오래된순) + 드롭다운 열림.
+  const [sort, setSort] = useState("recent");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef(null);
   const [downloadingIds, setDownloadingIds] = useState(() => new Set());
   // 헤더 ⋮ 메뉴 열림 여부.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -46,6 +59,10 @@ const CollectionDetailPage = () => {
   const [busy, setBusy] = useState(false);
   // 카드 ⋮ 메뉴 열린 imageId (하나만).
   const [cardMenu, setCardMenu] = useState(null);
+  // 정보 수정(컬렉션 이동) 모달 대상 imageId (null=닫힘).
+  const [moveImageId, setMoveImageId] = useState(null);
+  // 이동 진행 중(버튼 중복 방지).
+  const [moving, setMoving] = useState(false);
   const menuRef = useRef(null);
   const cardMenuRef = useRef(null);
 
@@ -84,6 +101,18 @@ const CollectionDetailPage = () => {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [menuOpen]);
+
+  // 바깥 클릭 시 정렬 드롭다운 닫기.
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onDown = (e) => {
+      if (sortRef.current && !sortRef.current.contains(e.target)) {
+        setSortOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [sortOpen]);
 
   // 바깥 클릭 시 카드 ⋮ 메뉴 닫기.
   useEffect(() => {
@@ -161,6 +190,26 @@ const CollectionDetailPage = () => {
     }
   };
 
+  // 정보 수정(컬렉션 이동) — 대상 컬렉션으로 옮기고 현재 목록에서 제거.
+  const handleMove = async (targetCollectionId) => {
+    if (moveImageId == null) return;
+    setMoving(true);
+    try {
+      await moveReference(collectionId, moveImageId, targetCollectionId);
+      setCollection((prev) => ({
+        ...prev,
+        references: prev.references.filter((r) => r.imageId !== moveImageId),
+      }));
+      setMoveImageId(null);
+    } catch (err) {
+      setErrorMessage(
+        err.response?.data?.error?.message || "레퍼런스를 이동하지 못했어요.",
+      );
+    } finally {
+      setMoving(false);
+    }
+  };
+
   const handleDownload = async (imageId, url) => {
     if (imageId == null || downloadingIds.has(imageId)) return;
     setDownloadingIds((prev) => new Set(prev).add(imageId));
@@ -176,10 +225,24 @@ const CollectionDetailPage = () => {
   };
 
   const refs = collection?.references ?? [];
-  const filtered = useMemo(
-    () => (filter === "ALL" ? refs : refs.filter((r) => r.source === filter)),
-    [refs, filter],
-  );
+  const filtered = useMemo(() => {
+    const base =
+      filter === "ALL" ? refs : refs.filter((r) => r.source === filter);
+    // 고정 우선은 항상 유지하고, 그 안에서 addedAt 기준 정렬(최근/오래된순).
+    // addedAt 은 백엔드가 이미 (고정 우선, 최신순)으로 내려주므로 recent 는 원순서 유지.
+    const withIndex = base.map((r, i) => ({ r, i }));
+    withIndex.sort((a, b) => {
+      const pinDiff =
+        (b.r.pinned ? 1 : 0) - (a.r.pinned ? 1 : 0);
+      if (pinDiff !== 0) return pinDiff;
+      const ta = a.r.addedAt ? Date.parse(a.r.addedAt) : -a.i;
+      const tb = b.r.addedAt ? Date.parse(b.r.addedAt) : -b.i;
+      return sort === "recent" ? tb - ta : ta - tb;
+    });
+    return withIndex.map((x) => x.r);
+  }, [refs, filter, sort]);
+
+  const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "최근";
 
   return (
     <div className={styles.page}>
@@ -239,18 +302,58 @@ const CollectionDetailPage = () => {
         <div className={styles.stateBox}>{errorMessage}</div>
       ) : (
         <>
-          {/* 필터 탭 (전체/AI/사진/일러스트) */}
+          {/* 필터 탭 (전체/AI/사진/일러스트) + 정렬 + 새 프로젝트 (SCR-ARCH-05) */}
           <div className={styles.filterRow}>
-            {FILTERS.map((f) => (
+            <div className={styles.filterChips}>
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`${styles.filterChip} ${filter === f.key ? styles.filterActive : ""}`}
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.filterActionsRight}>
+              <div className={styles.sortWrap} ref={sortRef}>
+                <button
+                  type="button"
+                  className={styles.sortBtn}
+                  onClick={() => setSortOpen((o) => !o)}
+                  aria-haspopup="true"
+                  aria-expanded={sortOpen}
+                >
+                  {sortLabel}
+                  <ChevronDown />
+                </button>
+                {sortOpen && (
+                  <div className={styles.sortDropdown}>
+                    {SORTS.map((s) => (
+                      <button
+                        key={s.key}
+                        type="button"
+                        className={`${styles.sortItem} ${sort === s.key ? styles.sortItemActive : ""}`}
+                        onClick={() => {
+                          setSort(s.key);
+                          setSortOpen(false);
+                        }}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
-                key={f.key}
                 type="button"
-                className={`${styles.filterChip} ${filter === f.key ? styles.filterActive : ""}`}
-                onClick={() => setFilter(f.key)}
+                className={styles.newProjectBtn}
+                onClick={() => navigate("/projects")}
               >
-                {f.label}
+                <PlusIcon /> 새 프로젝트
               </button>
-            ))}
+            </div>
           </div>
 
           {filtered.length === 0 ? (
@@ -263,21 +366,38 @@ const CollectionDetailPage = () => {
             <div className={styles.grid}>
               {filtered.map((ref) => (
                 <div key={ref.imageId} className={styles.card}>
-                  <div className={styles.cardThumb}>
+                  <div
+                    className={styles.cardThumb}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      navigate(`/archive/reference/${ref.imageId}`)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        navigate(`/archive/reference/${ref.imageId}`);
+                      }
+                    }}
+                    aria-label="레퍼런스 상세 보기"
+                  >
                     <AuthedImage
                       src={ref.url}
                       alt="레퍼런스"
                       className={styles.thumb}
                     />
-                    {ref.pinned && (
-                      <span className={styles.pinBadge} title="고정됨">
-                        <PinIcon />
+                    {ref.source === "AI" && (
+                      <span className={styles.aiBadge} title="AI 생성 이미지">
+                        AI
                       </span>
                     )}
                     <button
                       type="button"
                       className={styles.downloadBtn}
-                      onClick={() => handleDownload(ref.imageId, ref.url)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(ref.imageId, ref.url);
+                      }}
                       disabled={downloadingIds.has(ref.imageId)}
                       aria-label="이미지 다운로드"
                       title="다운로드"
@@ -304,13 +424,26 @@ const CollectionDetailPage = () => {
                         <MoreIcon />
                       </button>
                       {cardMenu === ref.imageId && (
-                        <div className={styles.cardMenuDropdown}>
+                        <div
+                          className={styles.cardMenuDropdown}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             type="button"
                             className={styles.menuItem}
                             onClick={() => handleTogglePin(ref.imageId)}
                           >
                             {ref.pinned ? "고정 해제" : "고정하기"}
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.menuItem}
+                            onClick={() => {
+                              setCardMenu(null);
+                              setMoveImageId(ref.imageId);
+                            }}
+                          >
+                            정보 수정
                           </button>
                           <button
                             type="button"
@@ -324,15 +457,38 @@ const CollectionDetailPage = () => {
                     </div>
                   </div>
                   <div className={styles.cardMeta}>
-                    <span className={styles.sourceBadge}>
-                      {sourceLabel(ref.source)}
-                    </span>
+                    {(() => {
+                      const koTags = koreanTags(ref.keywords, 3);
+                      return koTags.length > 0 ? (
+                        <div className={styles.cardTags}>
+                          {koTags.map((k) => (
+                            <span key={k} className={styles.cardTag}>
+                              {k}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className={styles.sourceBadge}>
+                          {sourceLabel(ref.source)}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </>
+      )}
+
+      {/* 정보 수정(컬렉션 이동) 모달 (SCR-ARCH-05 카드 ⋮) */}
+      {moveImageId != null && (
+        <MoveReferenceModal
+          currentCollectionId={collectionId}
+          busy={moving}
+          onCancel={() => setMoveImageId(null)}
+          onMove={handleMove}
+        />
       )}
 
       {/* 컬렉션 수정 모달 (SCR-ARCH-06) */}
@@ -399,11 +555,38 @@ const ChevronLeft = () => (
   </svg>
 );
 
-const PinIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M16 3l5 5-4 1-3 3-1 5-2-2-4 4-1-1 4-4-2-2 5-1 3-3 1-4z" />
+const ChevronDown = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
+
+const PlusIcon = () => (
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    aria-hidden="true"
+  >
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
 
 const MoreIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

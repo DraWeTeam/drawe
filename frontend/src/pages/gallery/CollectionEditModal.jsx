@@ -65,6 +65,9 @@ const CollectionEditModal = ({ collection, busy, onCancel, onSave }) => {
         />
 
         <label className={styles.fieldLabel}>태그</label>
+        <p className={styles.fieldHint}>
+          자동으로 분류된 태그예요. 직접 추가하거나 X로 삭제할 수 있어요.
+        </p>
         <div className={styles.tagEditor}>
           {tags.map((tag) => (
             <span key={tag} className={styles.tagChip}>
@@ -85,8 +88,17 @@ const CollectionEditModal = ({ collection, busy, onCancel, onSave }) => {
             onChange={(e) => setTagDraft(e.target.value)}
             onKeyDown={onTagKeyDown}
             onBlur={addTag}
-            placeholder={tags.length ? "" : "태그 입력 후 Enter"}
+            placeholder="태그 입력 후 Enter"
           />
+          <button
+            type="button"
+            className={styles.tagAddBtn}
+            onClick={addTag}
+            disabled={!tagDraft.trim()}
+            aria-label="태그 추가"
+          >
+            추가
+          </button>
         </div>
 
         <div className={styles.modalActions}>

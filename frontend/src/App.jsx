@@ -13,6 +13,7 @@ import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
 import ReferenceListPage from "./pages/gallery/ReferenceListPage";
 import CollectionDetailPage from "./pages/gallery/CollectionDetailPage";
+import ReferenceDetailPage from "./pages/gallery/ReferenceDetailPage";
 import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
 import CompletedDetailPage from "./pages/gallery/CompletedDetailPage";
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -54,6 +55,10 @@ function App() {
               <Route
                 path="/archive/collections/:collectionId"
                 element={<CollectionDetailPage />}
+              />
+              <Route
+                path="/archive/reference/:imageId"
+                element={<ReferenceDetailPage />}
               />
               <Route path="/gallery" element={<CompletedGalleryPage />} />
               <Route

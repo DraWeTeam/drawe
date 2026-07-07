@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { getCollections, getCompletedGallery } from "./api";
 import { downloadImage } from "./download";
 import CollectionCard from "./CollectionCard";
-import DirectAddModal from "./DirectAddModal";
 import AuthedImage from "../chat/AuthedImage";
 import styles from "./ArchivePage.module.css";
 
@@ -25,18 +24,6 @@ const ArchivePage = () => {
   const [completedLoading, setCompletedLoading] = useState(true);
   // 다운로드 중인 imageId 집합 (버튼 중복 클릭 방지)
   const [downloadingIds, setDownloadingIds] = useState(() => new Set());
-  // 직접 추가하기 모달 열림 여부.
-  const [showAdd, setShowAdd] = useState(false);
-
-  // 컬렉션만 재조회(직접 추가 후 갱신용).
-  const reloadCollections = async () => {
-    try {
-      const data = await getCollections();
-      setCollections(data?.collections ?? []);
-    } catch {
-      /* 무시 — 목록은 다음 진입에 갱신 */
-    }
-  };
 
   useEffect(() => {
     let alive = true;
@@ -98,40 +85,17 @@ const ArchivePage = () => {
     collections.length === 0 &&
     completed.length === 0;
 
-  const addButton = (
-    <button
-      type="button"
-      className={styles.addBtn}
-      onClick={() => setShowAdd(true)}
-    >
-      <PlusIcon /> 직접 추가하기
-    </button>
-  );
-
-  const addModal = showAdd && (
-    <DirectAddModal
-      onCancel={() => setShowAdd(false)}
-      onCreated={(id) => {
-        setShowAdd(false);
-        if (id) navigate(`/archive/collections/${id}`);
-        else reloadCollections();
-      }}
-    />
-  );
-
   if (isEmpty) {
     return (
       <div className={styles.page}>
         <header className={styles.header}>
           <h1 className={styles.title}>아카이브</h1>
-          <div className={styles.headerActions}>{addButton}</div>
         </header>
         <div className={styles.emptyState}>
           <ArchiveBoxIcon />
           <p className={styles.emptyTitle}>아직 아카이브에 저장된 자료가 없어요.</p>
           <p className={styles.emptyDesc}>마음에 드는 레퍼런스를 아카이브 해보세요!</p>
         </div>
-        {addModal}
       </div>
     );
   }
@@ -140,7 +104,6 @@ const ArchivePage = () => {
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>아카이브</h1>
-        <div className={styles.headerActions}>{addButton}</div>
       </header>
 
       {/* ── 레퍼런스(컬렉션) 요약 ── */}
@@ -152,7 +115,7 @@ const ArchivePage = () => {
             className={styles.moreLink}
             onClick={() => navigate("/archive/references")}
           >
-            더보기
+            전체보기 <ChevronRight />
           </button>
         </div>
         {refLoading ? (
@@ -189,7 +152,7 @@ const ArchivePage = () => {
             className={styles.moreLink}
             onClick={() => navigate("/gallery")}
           >
-            더보기
+            전체보기 <ChevronRight />
           </button>
         </div>
         {completedLoading ? (
@@ -237,8 +200,6 @@ const ArchivePage = () => {
           </div>
         )}
       </section>
-
-      {addModal}
     </div>
   );
 };
@@ -272,18 +233,20 @@ const DownloadIcon = () => (
   </svg>
 );
 
-const PlusIcon = () => (
+// 섹션 '전체보기 >' 우측 chevron (SCR-ARCH-02).
+const ChevronRight = () => (
   <svg
-    width="16"
-    height="16"
+    width="14"
+    height="14"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2.2"
+    strokeWidth="2.4"
     strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
   >
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
+    <polyline points="9 6 15 12 9 18" />
   </svg>
 );
 
