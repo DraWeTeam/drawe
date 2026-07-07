@@ -316,7 +316,36 @@ const ChatPage = () => {
           "피드백을 반영하지 못했어요. 잠시 후 다시 시도해주세요.",
         );
       });
-    }
+      // ↓ 트래킹 추가
+      const previousFb = previousKind === "up" ? "like" : previousKind === "down" ? "dislike" : "none";
+      const currentFb = fb || "none";
+      
+      let actionType;
+      if (!previousKind && nextKind) actionType = "applied";
+      else if (previousKind && nextKind && previousKind !== nextKind) actionType = "changed";
+      else if (previousKind && !nextKind) actionType = "removed";
+      else actionType = "applied";  // fallback
+      
+      // 가이드 생성 시각 저장이 필요 — msg.createdAt 활용
+      const generatedAt = msg.createdAt ? new Date(msg.createdAt).getTime() : null;
+      const timeSinceGenerated = generatedAt 
+        ? Math.round((Date.now() - generatedAt) / 1000) 
+        : 0;
+      
+      track("guide_feedback", {
+        project_id: projectId,
+        guide_id: guideId,
+        action_type: actionType,
+        current_feedback: currentFb,
+        previous_feedback: previousFb,
+        guide_category: msg.guide?.next_steps?.track?.group 
+          || msg.guide?.primary_focus 
+          || "",
+        time_since_generated_sec: timeSinceGenerated,
+        time_since_previous_action_sec: 0,  // 이전 action 시각 추적 안 하면 0
+      });
+
+      }
   };
 
   const closeGuide = () => {
