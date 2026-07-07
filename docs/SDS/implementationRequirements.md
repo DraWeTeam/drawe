@@ -5,7 +5,7 @@
 |---|---|
 | Frontend | React, Vite |
 | Backend | Spring Boot 3.2, Java 17, Spring Data JPA, **QueryDSL**, Flyway, Resilience4j, Spring Security(OAuth2·JWT) |
-| AI 서비스 | FastAPI(Python), CLIP(ViT-L/14), mediapipe, Bedrock Claude VLM |
+| AI 서비스 | FastAPI(Python), CLIP(ViT-L/14), ViTPose(바디 포즈)·mediapipe(손), Bedrock Claude VLM(옵트인) |
 | 데이터 | MySQL 8, Redis/Valkey, **Pinecone**(채팅 추천), **Qdrant**(가이드) |
 | 인프라 | AWS EKS(EC2 Graviton arm64) · ArgoCD(GitOps) · Karpenter · IRSA · External Secrets, Cloudflare, ALB, GitHub Actions(CD), OTEL(관측) |
 

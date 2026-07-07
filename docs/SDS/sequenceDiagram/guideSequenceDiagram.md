@@ -13,7 +13,7 @@ sequenceDiagram
     participant Service as GuideService
     participant DB as GuideRepository / MySQL (guides)
     participant GClient as GuideClient
-    participant FastAPI as fastapi-guide (외부)<br/>OpenCLIP·mediapipe·Qdrant·VLM Bedrock Claude(관찰)·Grok(코칭)<br/>(소진 시 Bedrock Stability backfill)
+    participant FastAPI as fastapi-guide (외부)<br/>OpenCLIP·ViTPose·Qdrant·Grok(코칭)<br/>손 mediapipe·VLM(Bedrock Claude)=옵트인 · 소진 시 Bedrock Stability backfill
     participant Storage as DbImageStorage / ImageBlob (썸네일)
 
     Client->>Controller: POST /projects/{projectId}/guide<br/>multipart: file(필수), message·intent·track·medium(선택)<br/>Header: Idempotency-Key(선택)
@@ -40,7 +40,7 @@ sequenceDiagram
         Note over Service,FastAPI: 느린 LLM 코칭 호출은 DB 트랜잭션 밖에서 수행<br/>(DB 커넥션 장시간 점유 방지) · growth 키 = user_id = String.valueOf(user.getId())
         Service->>GClient: guideImage(bytes, originalFilename, contentType,<br/>message, user_id, intent, track, medium, request_id=reqId)
         GClient->>FastAPI: POST /guide (multipart, file + request_id, timeout 150s)
-        Note over FastAPI: 관찰 = mediapipe 포즈/손 키포인트 + VLM(Bedrock Claude) → 진단 → Qdrant 검색 → Grok 코칭<br/>request_id 로 부작용 at-most-once 디둡
+        Note over FastAPI: 관찰 = ViTPose 바디 키포인트(항상)+결정적 스코어러 → 진단 → Qdrant 검색 → Grok 코칭<br/>손 mediapipe·VLM은 옵트인(기본 off) · request_id 로 부작용 at-most-once 디둡
         FastAPI-->>GClient: GuideResponse JSON (snake_case)
         GClient-->>Service: GuideResponse resp<br/>(mode: coach | redirect | clarify | refused)
 
@@ -74,7 +74,7 @@ sequenceDiagram
 | 목표 | 사용자가 업로드한 그림 한 컷에 대해 fastapi-guide 의 비전·코칭 결과를 받아 가이드 카드(GuideResult)로 반환 | CORE — 이미지 기반 "한 끗 가이드". coach 결과는 히스토리로 복원 가능하게 영속 |
 | 요청·인증 | `POST /projects/{projectId}/guide` multipart(file 필수, message·intent·track·medium 선택, Idempotency-Key 헤더) → `guideService.guide(...)` | file 비어있으면 `INVALID_INPUT`. `loadProjectAuthorized` 로 프로젝트 접근 권한 검증(없음→`NOT_FOUND`, 소유자 불일치→`FORBIDDEN`) |
 | 멱등성 dedup | `reqId` = Idempotency-Key(있으면 trim) 없으면 `UUID.randomUUID()` → `findByRequestId(reqId)` 조회 | `existing.isPresent()` 면 저장된 `payload`·`createdAt`·`uploadUrl` 로 `buildResult` 재실행, 외부 재호출 없이 즉시 반환(재시도 dedup) |
-| fastapi-guide 위임 (트랜잭션 밖) | `guideClient.guideImage(bytes, filename, mime, message, user_id, intent, track, medium, requestId)` → `POST /guide` (timeout 150s) | 느린 LLM 코칭 호출은 **DB 트랜잭션 밖**에서 수행해 커넥션 장시간 점유 방지. **growth 키 = user_id = String.valueOf(user.getId())**. `request_id` 동봉으로 fastapi 측 부작용 at-most-once. 실패 시 `AI_SERVICE_ERROR`. 실제 파이프라인(관찰 = mediapipe 포즈/손 키포인트 + VLM Bedrock Claude → 진단·결정 → Qdrant 검색 → Grok 코칭)은 외부 fastapi-guide 가 수행 |
+| fastapi-guide 위임 (트랜잭션 밖) | `guideClient.guideImage(bytes, filename, mime, message, user_id, intent, track, medium, requestId)` → `POST /guide` (timeout 150s) | 느린 LLM 코칭 호출은 **DB 트랜잭션 밖**에서 수행해 커넥션 장시간 점유 방지. **growth 키 = user_id = String.valueOf(user.getId())**. `request_id` 동봉으로 fastapi 측 부작용 at-most-once. 실패 시 `AI_SERVICE_ERROR`. 실제 파이프라인(관찰 = ViTPose 바디 키포인트(항상)+결정적 스코어러; 손 mediapipe·VLM 옵트인 → 진단·결정 → Qdrant 검색 → Grok 코칭)은 외부 fastapi-guide 가 수행 |
 | coach 모드만 영속 | `"coach".equals(resp.mode())` 일 때만 `persistGuide` 로 Guide 저장(requestId·guideId·primaryFocus·degraded·payload) | redirect/clarify/refused 는 히스토리에 남기지 않음. `request_id` UNIQUE 경합(`DataIntegrityViolationException`)은 동시 중복 제출로 보고 무시(saved=null) |
 | 썸네일 선택 저장 | `storeUploadQuietly(user, bytes, mime)` → `DbImageStorage.store` → `ImageBlob` 참조 → Guide.upload 연결 | 코칭이 핵심 가치이므로 썸네일 저장 실패(검증/IO)는 치명적 아님 — null 반환 후 `upload_id` 만 비우고 가이드는 정상 반환. `uploadUrl` = `/images/{upload.id}` (없으면 null) |
 | 응답 | `buildResult(resp, createdAt, uploadUrl)` → `GuideResult{ guide, references, createdAt, uploadUrl }` → `ApiResponse.success` | `references` = 전체 블록의 `reference_ids` 를 등장 순서로 dedupe → 최대 3컷, 순번(1·2·3)+이미지 URL 보강 |

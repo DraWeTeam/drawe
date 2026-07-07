@@ -1,6 +1,6 @@
 <svg viewBox="0 0 1600 620" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif" role="img" aria-labelledby="ttl desc">
   <title id="ttl">한끗가이드 이미지 기반 가이드 파이프라인</title>
-  <desc id="desc">그림 업로드부터 OpenCLIP 임베딩, 관찰 신호 추출과 mediapipe 게이트, Qdrant 검색, Grok LLM 코칭, 가이드 결과까지의 비전 파이프라인. growth 이력을 반영해 개인화하고, 비전 파이프라인은 fastapi-guide가 담당한다.</desc>
+  <desc id="desc">그림 업로드부터 OpenCLIP 임베딩, 관찰 신호 추출(ViTPose 바디 키포인트; 손 mediapipe·VLM은 옵트인), Qdrant 검색, Grok LLM 코칭, 가이드 결과까지의 비전 파이프라인. growth 이력을 반영해 개인화하고, 비전 파이프라인은 fastapi-guide가 담당한다.</desc>
 
   <defs>
     <g id="ic-upload" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 15.5V5.5"/><path d="M8 9l4-4 4 4"/><path d="M5 14v3.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V14"/></g>
@@ -25,7 +25,7 @@
 
   <rect x="266" y="120" width="1014" height="262" rx="16" fill="#F0F8F6" stroke="#7BC8BC" stroke-width="1.5"/>
   <text x="286" y="146" font-size="13.5" font-weight="700" fill="#147567">fastapi-guide · 비전 파이프라인</text>
-  <text x="286" y="164" font-size="11" fill="#5BA89C">OpenCLIP · mediapipe · Qdrant · LLM</text>
+  <text x="286" y="164" font-size="11" fill="#5BA89C">OpenCLIP · ViTPose · Qdrant · Grok</text>
 
   <path d="M230 330 L282 330" fill="none" stroke="#1E9486" stroke-width="2.6" marker-end="url(#g-teal)"/>
   <path d="M490 330 L542 330" fill="none" stroke="#1E9486" stroke-width="2.6" marker-end="url(#g-teal)"/>
@@ -54,8 +54,8 @@
     <rect x="558" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#7FCFC2" stroke-width="1.6"/>
     <g transform="translate(572,294)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#DBF1EC"/><use href="#ic-observe" x="1.5" y="1.5"/></g>
     <text x="610" y="312" font-size="14" font-weight="700" fill="#2A2925">관찰 신호 추출</text>
-    <text x="610" y="331" font-size="9.5" fill="#9A948B">mediapipe 포즈·손 키포인트</text>
-    <text x="610" y="346" font-size="9.5" fill="#9A948B">+ VLM 관찰 · Bedrock Claude</text>
+    <text x="610" y="331" font-size="9.5" fill="#9A948B">ViTPose 바디 키포인트(항상)</text>
+    <text x="610" y="346" font-size="9.5" fill="#9A948B">손 mediapipe·VLM = 옵트인</text>
   </g>
   <g>
     <rect x="818" y="280" width="192" height="100" rx="13" fill="#FFFFFF" stroke="#C9B0EC" stroke-width="1.6"/>

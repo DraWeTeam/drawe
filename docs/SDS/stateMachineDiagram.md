@@ -129,7 +129,7 @@ stateDiagram-v2
     비저장 --> [*] : 안내만 반환(히스토리 미저장)
 ```
 - **멱등성**: `Idempotency-Key`로 재시도를 dedup(`findByRequestId`). 이미 처리된 요청은 저장본 재사용.
-- **coach 모드만 영속**: redirect/clarify/refused는 히스토리에 남기지 않는다. 실제 파이프라인(OpenCLIP 임베딩·mediapipe 키포인트·VLM(Bedrock Claude) 관찰·Qdrant 검색·Grok 코칭)은 외부 fastapi-guide가 수행하고, growth(=user_id) 진척이 갱신된다.
+- **coach 모드만 영속**: redirect/clarify/refused는 히스토리에 남기지 않는다. 실제 파이프라인(OpenCLIP 임베딩·**ViTPose 키포인트 관찰**·결정적 스코어러·Qdrant 검색·Grok 코칭; 손 mediapipe·VLM은 옵트인)은 외부 fastapi-guide가 수행하고, growth(=user_id) 진척이 갱신된다.
 
 ---
 

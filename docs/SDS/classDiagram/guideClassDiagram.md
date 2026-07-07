@@ -1,6 +1,6 @@
 ## ⭐ Guide Class Diagram
 
-이미지 기반 그림 진단/코칭(한 끗 가이드 = 코칭 에이전트 파이프라인) 도메인. 백엔드는 **오케스트레이션만** 담당하고, 실제 파이프라인(관찰: 포즈/손 키포인트 mediapipe + VLM Bedrock Claude → 진단 → 결정 → Qdrant 검색(taxonomy 정적축 + 무드 soft boost + exclude 재탐색) → 코칭 Grok → 피드백 루프)은 외부 `fastapi-guide` 서비스에서 수행한다.
+이미지 기반 그림 진단/코칭(한 끗 가이드 = 코칭 에이전트 파이프라인) 도메인. 백엔드는 **오케스트레이션만** 담당하고, 실제 파이프라인(관찰: **ViTPose 바디 키포인트**(항상)+결정적 스코어러 — 손 mediapipe·세부 VLM은 옵트인 가설(`measured=False`) → 진단 → 결정 → Qdrant 검색(taxonomy 정적축 + 무드 soft boost + exclude 재탐색) → 코칭 Grok → 피드백 루프)은 외부 `fastapi-guide` 서비스에서 수행한다.
 
 ```mermaid
 classDiagram

@@ -6,23 +6,25 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 | 축 | 정체 | 저장소 | 절 |
 |---|---|---|---|
 | **A. 한 끗 가이드** ⭐ | 코칭 에이전트 파이프라인(그림 관찰→코칭) | Qdrant | §5.1 |
-| **B. 레퍼런스 보드** | 순수 키워드 의미검색 | Pinecone | §5.2 |
-| **C. 채팅** | 의도 분류 → 레퍼런스 추천·AI 생성 | Pinecone·Bedrock | §5.3 |
+| **B. 레퍼런스 보드** | 순수 키워드 의미검색(의도 라우팅 없음) | Pinecone | §5.2 |
+| **C. 채팅** | 의도 분류 → 레퍼런스 추천(레거시 직접합성)·AI 생성 | Pinecone·Bedrock | §5.3 |
+
+> 검색 경로는 코드상 셋으로 분리된다: **가이드 코칭=Qdrant**(정적 축 질의), **보드·채팅 추천=Pinecone**(CLIP 의미검색), **전역 검색(SearchModal)=MySQL LIKE**(엔티티 텍스트, 벡터 아님). 혼동 금지.
 
 ## 5.1 축 A — 한 끗 가이드 (코칭 에이전트 파이프라인) ⭐ 정본·차별점
 
 단순 레퍼런스 검색을 넘어, 내가 그린 그림을 진단·코칭하는 것이 DraWe의 1번 차별점이다. 백엔드(`GuideService`)는 오케스트레이션(권한·멱등·영속)만 하고, 실제 관찰·코칭은 `fastapi-guide`(Qdrant·`drawe_guide` RDS)가 수행한다.
 
 ```
-업로드 → 관찰(포즈 키포인트 mediapipe + VLM Bedrock Claude)
-      → 진단 → 우선순위 결정(관찰 신호 기반 결정 로직)
+업로드 → 관찰(ViTPose 바디 키포인트 + 결정적 scene 분석)   [손 mediapipe·세부 VLM은 옵트인 가설]
+      → 진단(결정적 threshold 스코어러) → 우선순위 결정(관찰 신호 기반 결정 로직)
       → 검색(Qdrant taxonomy 정적 축 질의 + 무드 soft boost + exclude 재탐색)
       → 코칭(Grok) → 피드백 루프(🔄 reroll → 소진 시 AI 생성 backfill → QC 통과분 코퍼스 편입)
 ```
 
-- **역할 분리(설계 핵심)**: **VLM = 관찰**(무엇이 보이는지 신호화) · **결정 로직 = 우선순위 판단**(무엇을 먼저 고칠지) · **LLM(Grok) = 표현**(코칭 문장). 관찰·판단·표현을 분리해 환각과 비용을 통제한다 — 판단을 LLM에 맡기지 않는 것이 요점.
-- **관찰**: mediapipe 포즈/손 키포인트 게이트 + VLM(Bedrock Claude Haiku) 관찰 신호(taxonomy·what_to_observe). OpenCLIP ViT-L/14(768-dim) 임베딩으로 검색 벡터도 함께 뽑는다.
-- **진단·결정**: 관찰 신호를 근거로 약점을 진단하고, **결정 로직**이 우선 교정 축을 정한다(LLM 판단 아님).
+- **역할 분리(설계 핵심, ADR 0001)**: **측정 = 사실**(ViTPose 키포인트 · 결정적 scene/스코어러) · **VLM = 관찰(가설)**(옵트인 · 기본 off · `measured=False` — "측정한 척" 방지) · **결정 로직 = 우선순위 판단**(무엇을 먼저 고칠지) · **LLM(Grok) = 표현**(코칭 문장). 측정과 관찰(가설)을 분리해 환각을 통제하고, 판단을 LLM에 맡기지 않는 것이 요점.
+- **관찰**: **ViTPose**(`transformers` vitpose-base, COCO-17)가 바디 키포인트를 **항상** 추출하고 결정적 scene 분석이 신호를 만든다(이게 진단의 근거). 손 구조는 mediapipe(HAND_AUTO **옵트인**, 기본 off), 세부 관찰(pose/hand/face/subject/style)은 VLM(prod=Bedrock Claude Haiku 4.5 / dev=Gemini) **가설로 옵트인**(각 `*_VLM` 게이트 기본 off). OpenCLIP ViT-L/14(768-dim) 임베딩으로 검색 벡터도 함께 뽑는다.
+- **진단·결정**: 결정적 threshold 스코어러가 관찰 신호를 근거로 약점 축을 발화하고, **결정 로직**(`agent.decide`, 기본 결정적)이 우선 교정 축을 정한다(LLM 판단 아님 — `AGENT_LLM_SELECT` 옵트인 시에만 후보 순서 선택).
 - **검색**: 결정된 축으로 Qdrant 가이드 코퍼스에 **taxonomy 정적 축 질의** — 온보딩 무드가 있으면 **soft boost("결이 맞는 것 우선")**, 이미 보여준 참조는 **exclude 재탐색**으로 제외.
 - **코칭**: Grok(grok-4.3)이 한 끗 포인트·추천 연습을 표현(provider 추상화는 §5.3.5와 동일).
 - **피드백 루프**: 🔄 **reroll**(노출분 제외 재탐색, LLM 0콜) → 소진 시 **AI 생성 backfill**(Bedrock) → **QC 통과분만 코퍼스 편입**. 좋아요=반응 저장(정렬·유지용, **검색 랭킹 무반영**) / 싫어요=다음 검색 제외(+3회 누적 시 생성 유도 모달) / **취향 결**=온보딩 무드 persona 교집합 표시.
@@ -38,13 +40,13 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 
 ## 5.3 축 C — 채팅 파이프라인 (레퍼런스 추천 · AI 생성)
 
-채팅은 **의도 분류로 라우팅**되는 파이프라인이다(보드·가이드와 구분). COMPOSE(LLM) 응답 조립은 이 축 한정이다.
+**의도 분류는 매 요청 실행**되지만(RulePreRouter → Grok 폴백), 그 아래 **라우팅→COMPOSE 워크플로는 현재 미가동(dormant)** 이다 — `workflow.compose.live-intents` 기본값이 빈 집합(`liveIntents = EnumSet.noneOf`)이라, **현행 채팅 응답은 레거시 직접합성**이 만든다(§5.3.9). 아래 흐름 스펙은 그 워크플로의 **설계**이며(현행 아님), GENERATE(AI 이미지 생성)는 게이트 이전에 short-circuit되어 Bedrock으로 분기한다.
 
 ```
 메시지 → ① 의도 분류 → ② 키워드 추출 → ③ CLIP 임베딩 → ④ Pinecone 검색
-       → ⑤ MySQL 메타 + IDF re-rank → ⑥ COMPOSE(LLM) + 무결성 → 응답
+       → ⑤ MySQL 메타 + IDF re-rank → ⑥ COMPOSE(LLM) + 무결성 → 응답   (⑥ 워크플로는 dormant)
 ```
-- 검색이 필요한 의도(NEW_SEARCH)만 ②~⑤를 타고, KEEP/FOLLOWUP 등은 직전 레퍼런스를 재사용(⑥로 직행). GENERATE는 AI 이미지 생성(Bedrock)으로 분기한다.
+- 설계상 검색이 필요한 의도(NEW_SEARCH)만 ②~⑤를 타고, KEEP/FOLLOWUP 등은 직전 레퍼런스를 재사용(⑥로 직행). GENERATE는 AI 이미지 생성(Bedrock)으로 분기한다.
 
 ### 5.3.1 의도 분류 (Intent)
 - **Rule 우선 + LLM 분류**: 명확한 패턴은 RulePreRouter가 빠르게 처리, 모호하면 Grok이 분류.
@@ -114,3 +116,19 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 - **전환 스위치**: `workflow.compose.live-intents`(env `WORKFLOW_COMPOSE_LIVE_INTENTS`)에 나열된 의도만 워크플로(live)로 처리, 나머지는 legacy 직접 합성.
 - **부팅 검증**: live 의도는 **COMPOSE로 끝나는 것만 허용**(GENERATE 등 불가) — 위반 시 기동 실패.
 - **설계 근거**: 레거시→live 전면 전환의 위험을 낮추기 위해 **의도 단위로 점진 전환**, shadow 메트릭으로 검증 후 확대.
+- **현행 상태(코드 실측)**: 기본 배포는 `live-intents` **빈값 → 전 의도 레거시 직접합성**(워크플로 dormant). 워크플로 Executor(`GenerateImageExecutor` 등)는 **미연결 골격(DEAD 코드)** 으로, 게이트가 켜지지 않는 한 실행되지 않는다.
+
+## 5.4 설계 결정 하이라이트
+
+코드·ADR에 근거가 남은 주요 기술 결정. (caveat 있는 항목은 한계를 함께 표기 — 근거 없는 수치는 싣지 않는다.)
+
+| 결정 | 이유 | 근거 |
+|---|---|---|
+| **BlazePose(mediapipe) → ViTPose 포즈 교체** | mediapipe는 드로잉/선화 전신에 취약 — 골든 **7/12**(chibi 0/2) 검출 → ViTPose로 **12/12**. 라이선스도 `vitpose-base`=Apache-2.0 상업 클린(RTMPose/DWPose는 비상업 데이터 기각) | `ml/pose.py:1-16`; ADR 0003 |
+| **측정=사실 / 관찰=가설 분리** | 검출기가 0입력인 케이스는 임계 튜닝 불가 → VLM은 관찰자로만 두고 `measured=False`로 surface해 "측정한 척"을 막음. 환각 방지·설명 가능성의 핵심 | ADR 0001 (`fastapi/docs/adr/0001`) |
+| **abstain / over-fire 게이팅** | agree-or-abstain·2-run·positive-only로 confabulation 억제("약한 정답 > 확신 오답"). 관찰하지 못한 것은 말하지 않는다 | ADR 0003; `diagnose.py:722-736` |
+| **하이브리드 키워드 검색(보드)** | 순수 CLIP의 결-다른 혼입을 태그 IDF 소프트 부스트(cap 0.05)로 **순서만** 보정, raw CLIP 점수 보존(CLIP 지배 방지) | `SearchService.java:147-207`; `TagIdfIndex.java:17-26` |
+| **reroll 서버측 재추천(LLM 0콜)** | 저장 축 정적질의 복원 + 노출분 배제(무상태). exclude=None이면 검색 byte-identical(회귀 0) | `routes.py:675`(POST /reroll) |
+| **QC-게이트 코퍼스 인제스트(생성기 비종속)** | 생성 예제는 QC 5단계 통과분만 적재 → 생성기(Bedrock/Gemini/Bria) 교체해도 QC·적재 불변 | `pipeline/ai_qc.py`; `routes_ai_qc.py` |
+
+**Caveat 명시 항목**: Grok 프롬프트 캐시(history trim) — 캐시 적중률은 마이크로벤치로 conv-id 기여를 분리할 수 없어(단일 run 노이즈) **수치는 싣지 않는다**(`backend/docs/decisions/grok-prompt-cache-history-trim.md` 자기-caveat). 정확도 방법론(ADR 0002) — 골든셋이 개발셋이라 일반화는 낙관적일 수 있음(자인).

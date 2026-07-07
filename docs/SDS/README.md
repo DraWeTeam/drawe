@@ -30,13 +30,14 @@
 
 ## 3. 핵심 ① — 한 끗 가이드 (코칭 에이전트 파이프라인) ⭐
 
-단순 레퍼런스 검색을 넘어, **사용자가 그린 그림을 관찰→진단→코칭**한다 — 한 끗 가이드는 관찰(포즈 키포인트+VLM)→진단→결정→검색→코칭→피드백으로 흐르는 **코칭 에이전트 파이프라인**이다(우리 1번 차별점). 백엔드(`GuideService`)는 오케스트레이션만 하고, 실제 관찰·코칭은 `fastapi-guide` 서비스가 수행한다(별도 코퍼스 **Qdrant**·`drawe_guide` RDS).
+단순 레퍼런스 검색을 넘어, **사용자가 그린 그림을 관찰→진단→코칭**한다 — 한 끗 가이드는 관찰(ViTPose 키포인트+결정적 스코어러)→진단→결정→검색→코칭→피드백으로 흐르는 **코칭 에이전트 파이프라인**이다(우리 1번 차별점). 백엔드(`GuideService`)는 오케스트레이션만 하고, 실제 관찰·코칭은 `fastapi-guide` 서비스가 수행한다(별도 코퍼스 **Qdrant**·`drawe_guide` RDS).
 
 ![이미지 기반 가이드 파이프라인](./img/guide-pipeline.svg)
 
 - **검색 도구 → AI 코치**: 내가 그린 그림을 관찰→진단→코칭하는 코칭 에이전트 파이프라인.
 - **역할 분리**: **VLM=관찰 · 결정 로직=우선순위 판단 · LLM(Grok)=표현** — 판단을 LLM에 맡기지 않아 환각·비용을 통제.
-- **성장 중심 맞춤**: `growth`(user_id 단위 진척)로 약점·이력을 반영해 개인화. 비전 파이프라인(OpenCLIP 임베딩·mediapipe 키포인트·VLM Bedrock Claude 관찰·Qdrant 검색·Grok 코칭)은 `fastapi-guide`가 담당, `coach` 모드만 이력 저장.
+- **관찰 = 측정 + 가설 분리**: 바디 키포인트는 **ViTPose**(항상)·결정적 scene 분석으로 **측정**, 손(mediapipe)·세부 관찰(VLM Bedrock Claude/Gemini)은 **옵트인 가설**(기본 off, `measured=False`) — "측정한 척"을 막는 게 설계 핵심(ADR 0001).
+- **성장 중심 맞춤**: `growth`(user_id 단위 진척)로 약점·이력을 반영해 개인화. 비전 파이프라인(OpenCLIP 임베딩·**ViTPose 관찰**·결정적 스코어러 진단·Qdrant 검색·Grok 코칭)은 `fastapi-guide`가 담당, `coach` 모드만 이력 저장.
 
 ## 4. 핵심 ② — 레퍼런스 추천 · 생성 (채팅 파이프라인) ⭐
 
@@ -54,7 +55,7 @@
 |---|---|
 | Frontend | React, Vite |
 | Backend | Spring Boot 3.2, Java 17, JPA, QueryDSL, Flyway, Resilience4j |
-| AI 서비스 | FastAPI, CLIP (ViT-L/14), mediapipe, Bedrock Claude VLM |
+| AI 서비스 | FastAPI, CLIP (ViT-L/14), ViTPose(바디 포즈)·mediapipe(손), Bedrock Claude VLM(옵트인 관찰) |
 | 데이터 | MySQL 8, Redis · Valkey, Pinecone(채팅·보드 검색) · Qdrant(가이드 코퍼스) |
 | 인프라 | AWS EKS(EC2 Graviton arm64) · ArgoCD(GitOps) · Karpenter · IRSA · External Secrets, Cloudflare, ALB, GitHub Actions CD |
 

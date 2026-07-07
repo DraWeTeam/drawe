@@ -1,6 +1,6 @@
 <svg viewBox="0 0 1580 330" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif" role="img" aria-labelledby="ttl desc">
   <title id="ttl">Drawe 이미지 가이드 흐름</title>
-  <desc id="desc">사용자 그림 업로드 → OpenCLIP 임베딩 → 관찰 신호 추출(+mediapipe 게이트) → Qdrant 유사 레퍼런스 검색 → Grok LLM 코칭 생성 → 한 끗 포인트·추천 연습 출력으로 이어지는 이미지 가이드 파이프라인.</desc>
+  <desc id="desc">사용자 그림 업로드 → OpenCLIP 임베딩 → 관찰 신호 추출(ViTPose 바디 키포인트; 손 mediapipe·VLM은 옵트인) → Qdrant 유사 레퍼런스 검색 → Grok LLM 코칭 생성 → 한 끗 포인트·추천 연습 출력으로 이어지는 이미지 가이드 파이프라인.</desc>
 
   <defs>
     <g id="ic-upload" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 15.5V5.5"/><path d="M8 9l4-4 4 4"/><path d="M5 14v3.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V14"/></g>
@@ -42,8 +42,8 @@
     <rect x="552" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#7FCFC2" stroke-width="1.6"/>
     <g transform="translate(568,185)" color="#1E9486"><rect x="-2" y="-2" width="30" height="30" rx="8" fill="#DBF1EC"/><use href="#ic-observe" x="1.5" y="1.5"/></g>
     <text x="608" y="186" font-size="13.5" font-weight="700" fill="#2A2925">관찰 신호 추출</text>
-    <text x="608" y="205" font-size="9.5" fill="#9A948B">mediapipe 포즈·손 키포인트</text>
-    <text x="608" y="220" font-size="9.5" fill="#9A948B">+ VLM 관찰 · Bedrock Claude</text>
+    <text x="608" y="205" font-size="9.5" fill="#9A948B">ViTPose 바디 키포인트(항상)</text>
+    <text x="608" y="220" font-size="9.5" fill="#9A948B">손 mediapipe·VLM = 옵트인</text>
   </g>
   <g>
     <rect x="808" y="150" width="200" height="100" rx="13" fill="#FFFFFF" stroke="#C9B0EC" stroke-width="1.6"/>
