@@ -268,6 +268,7 @@
   right: 8px;
 }
 
+/* ⋮ 옵션 버튼은 상시 표시 — 아이패드/터치 기반이라 hover 로 띄우지 않는다. */
 .cardMenuBtn {
   width: 30px;
   height: 30px;
@@ -280,19 +281,7 @@
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.cardThumb:hover .cardMenuBtn,
-.cardMenuBtn:focus-visible {
   opacity: 1;
-}
-
-@media (hover: none) {
-  .cardMenuBtn {
-    opacity: 1;
-  }
 }
 
 /* 우하단 버튼이라 메뉴는 위로 연다(카드 밖으로 안 잘리게).

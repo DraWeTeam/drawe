@@ -257,8 +257,12 @@
   cursor: pointer;
 }
 
-.quadThumb {
+/* 썸네일 영역 래퍼 — ⋮ 옵션 버튼(absolute)의 기준. */
+.collectionThumbBox {
   position: relative;
+}
+
+.quadThumb {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
@@ -294,6 +298,83 @@
   background: #f6f2ee;
   border: 1px solid #efeae4;
   color: #c3bcb4;
+}
+
+/* 컬렉션 카드 ⋮ 옵션(수정/삭제) — 썸네일 우하단, 상시 표시(아이패드/터치 기반). */
+.collCardMenuWrap {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+}
+
+.collCardMenuBtn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #4a4846;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* 우하단 버튼이라 메뉴는 위로 연다. 레퍼런스 보드 옵션 메뉴와 스타일·애니메이션 통일. */
+.collCardMenuDropdown {
+  position: absolute;
+  bottom: 34px;
+  right: 0;
+  min-width: 150px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  animation: coll-card-menu-pop 0.15s ease;
+}
+
+@keyframes coll-card-menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.collCardMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #444;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.collCardMenuItem:hover {
+  background: #f5f5f5;
+}
+
+.collCardMenuDanger {
+  color: #d9463e;
+}
+
+.collCardMenuDanger:hover {
+  background: #fdeceb;
 }
 
 .collectionName {
