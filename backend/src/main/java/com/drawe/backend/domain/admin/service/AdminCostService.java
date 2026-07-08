@@ -1,17 +1,22 @@
 package com.drawe.backend.domain.admin.service;
 
+import com.drawe.backend.domain.admin.dto.CostModel.AwsCost;
+import com.drawe.backend.domain.admin.dto.CostModel.AwsCostSnapshot;
 import com.drawe.backend.domain.admin.dto.CostModel.DailyGen;
 import com.drawe.backend.domain.admin.dto.CostModel.Kpi;
 import com.drawe.backend.domain.admin.dto.CostModel.ProviderRow;
 import com.drawe.backend.domain.admin.dto.CostModel.View;
+import com.drawe.backend.domain.admin.repository.AdminAnalyticsRepository;
 import com.drawe.backend.domain.admin.repository.AdminCostRepository;
 import com.drawe.backend.domain.admin.repository.AdminCostRepository.AiImageRow;
 import com.drawe.backend.domain.admin.repository.AdminCostRepository.ProviderProj;
 import com.drawe.backend.domain.admin.repository.AdminCostRepository.TokenKpiRow;
 import com.drawe.backend.global.config.CostPricingProperties;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -30,6 +35,8 @@ public class AdminCostService {
 
   private final AdminCostRepository repo;
   private final CostPricingProperties pricing;
+  private final AwsCostService awsCostService;
+  private final AdminAnalyticsRepository analyticsRepo;
 
   @Transactional(readOnly = true)
   public View build(int windowHours) {
@@ -69,7 +76,37 @@ public class AdminCostService {
             .toList();
 
     return new View(
-        windowHours, TS.format(Instant.now()), kpi, providers, daily, pricing.hasAnyPricing());
+        windowHours,
+        TS.format(Instant.now()),
+        kpi,
+        providers,
+        daily,
+        pricing.hasAnyPricing(),
+        buildAwsCost());
+  }
+
+  /**
+   * AWS Cost Explorer 당월 스냅샷 + 사용자당 비용. 사용자당 = 당월 총액 ÷ 당월 활성 사용자(월 시작 기준으로
+   * countActiveUsers 재사용 — 비용도 월 단위라 기간을 맞춘다). 활성 0·조회 실패면 per-user 는 null("—").
+   */
+  private AwsCost buildAwsCost() {
+    AwsCostSnapshot snap = awsCostService.getMonthlySnapshot();
+    Instant monthStart = LocalDate.now(KST).withDayOfMonth(1).atStartOfDay(KST).toInstant();
+    long activeUsers = analyticsRepo.countActiveUsers(monthStart);
+
+    BigDecimal perUser = null;
+    if (snap.available() && snap.totalUsd() != null && activeUsers > 0) {
+      perUser = snap.totalUsd().divide(BigDecimal.valueOf(activeUsers), 6, RoundingMode.HALF_UP);
+    }
+    return new AwsCost(
+        snap.available(),
+        snap.statusText(),
+        snap.monthLabel(),
+        snap.totalUsd(),
+        perUser,
+        activeUsers,
+        snap.services(),
+        snap.aiSubtotalUsd());
   }
 
   private ProviderRow toProviderRow(ProviderProj p) {
