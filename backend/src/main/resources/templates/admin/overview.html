@@ -5,6 +5,7 @@
 <header th:replace="~{admin/fragments :: topbar('overview')}"></header>
 
 <main class="wrap" id="admin-content">
+  <div th:replace="~{admin/fragments :: pageIdentity('오늘 우리 서비스에 이상한 일이 있었는가?', 'monitor')}"></div>
   <div class="pagehead">
     <div>
       <h1>Overview</h1>
@@ -21,11 +22,8 @@
   </div>
 
   <section class="grid">
-    <div class="card">
-      <div class="label">활성 사용자</div>
-      <div class="value mono" th:text="${kpi.activeUsers()}">0</div>
-      <div class="foot">고유 user_id</div>
-    </div>
+    <!-- WP0: 활성 사용자 카드를 kpiCard 프래그먼트로 감싸 렌더 검증(데이터=기존 kpi.activeUsers()) -->
+    <div th:replace="~{admin/fragments :: kpiCard('ns', '활성 사용자', ${kpi.activeUsers()}, '사용자 단위', '봇·내부 트래픽 미제외, 표본 작음 — 추세로만', 'yellow', 'none')}"></div>
     <div class="card">
       <div class="label">채팅 수</div>
       <div class="value mono" th:text="${kpi.chatSuccess()}">0</div>
@@ -52,6 +50,9 @@
     </table>
     <div class="empty" th:if="${kpi.eventDistribution().isEmpty()}">이 구간에 이벤트가 없어요.</div>
   </section>
+
+  <!-- WP0: 긴급도 범례 렌더 검증 -->
+  <div th:replace="~{admin/fragments :: urgencyLegend()}"></div>
 
   <script th:inline="javascript">
     (function () {

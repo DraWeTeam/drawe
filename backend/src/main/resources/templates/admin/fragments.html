@@ -124,6 +124,59 @@
     .chart-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
     /* htmx 전환 중 살짝 흐려지는 피드백 (선택) */
     #admin-content.htmx-swapping { opacity: .55; transition: opacity .12s ease; }
+
+    /* ---------- WP0 공통 프레임 컴포넌트 (표현 전용·데이터 무관, 기존 토큰만) ---------- */
+    /* (a) pageIdentity — 이 페이지가 답하는 질문 + 타입 배지 */
+    .page-identity { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .page-identity .pi-q { color: var(--muted); font-size: 13.5px; }
+    .pi-badge { font-size: 11.5px; font-weight: 700; padding: 3px 11px; border-radius: 999px; white-space: nowrap; }
+    .pi-badge.pi-monitor { color: var(--muted); background: var(--line-soft); }
+    .pi-badge.pi-action { color: var(--accent); background: var(--accent-soft); }
+    .pi-badge.pi-candidate { color: var(--warn); background: var(--warn-soft); }
+
+    /* (b) categoryBadge — .tag pill 위에 얹는 카테고리 라벨 */
+    .cat-badge { font-size: 11px; font-weight: 700; }
+
+    /* (c) reliabilityBadge — 신뢰도 pill */
+    .rel-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: var(--line-soft); color: var(--muted); }
+    .rel-badge.rel-green  { color: var(--accent); background: var(--accent-soft); }
+    .rel-badge.rel-yellow { color: var(--warn);   background: var(--warn-soft); }
+    .rel-badge.rel-red    { color: var(--danger); background: var(--danger-soft); }
+    .rel-badge.rel-none   { color: var(--line-strong); background: var(--line-soft); }
+    .rel-badge.rel-warn   { color: var(--warn);   background: var(--warn-soft); }
+
+    /* (d) kpiCard — .card 확장 지표 카드 */
+    .kpi-card .kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .kpi-card .kpi-caveat { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .kpi-card.kpi-danger { background: var(--danger-soft); border-color: var(--danger); }
+    .kpi-card .kpi-warn { margin-top: 10px; font-size: 11.5px; font-weight: 700; color: var(--danger); }
+
+    /* (e) gatePanel — 약신호 게이트 배너 (.panel 확장 + 좌측 색 바) */
+    .gate-panel { border-left: 6px solid var(--line-strong); }
+    .gate-panel.gate-green  { border-left-color: var(--accent-bright); background: var(--accent-soft); }
+    .gate-panel.gate-yellow { border-left-color: var(--warn);   background: var(--warn-soft); }
+    .gate-panel.gate-red    { border-left-color: var(--danger); background: var(--danger-soft); }
+    .gate-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .gate-verdict { font-size: 18px; font-weight: 800; white-space: nowrap; }
+    .gate-body { flex: 1; min-width: 220px; }
+    .gate-cov { font-size: 13px; color: var(--ink); }
+    .gate-reason { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .gate-warn { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--danger); }
+    .gate-panel.gate-yellow .gate-warn { color: var(--warn); }
+
+    /* (f) authorityPanel — 권한 경계 2열 */
+    .auth-h { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+    .auth-h.auth-do   { color: var(--accent); }
+    .auth-h.auth-dont { color: var(--muted); }
+    .auth-list { margin: 0; padding-left: 18px; }
+    .auth-list li { font-size: 13.5px; margin-bottom: 5px; }
+
+    /* (g) queueHeader — 큐 섹션 헤더 */
+    .queue-header h2 { font-size: 16px; font-weight: 700; margin: 0 0 2px; }
+    .queue-header .qh-sub { font-size: 12.5px; color: var(--muted); }
+
+    /* (h) urgencyLegend — 긴급도 범례 */
+    .urgency-legend { font-size: 12px; color: var(--muted); margin-top: 8px; }
   </style>
 
   <!-- 차트 + 부분 갱신: 둘 다 기존에 쓰는 jsDelivr에서 로드 (백엔드 변경 0) -->
@@ -221,14 +274,111 @@
   <nav class="nav">
     <a href="/admin/overview" th:classappend="${active == 'overview'} ? 'active'">Overview</a>
     <a href="/admin/flow" th:classappend="${active == 'flow'} ? 'active'">흐름</a>
-    <a href="/admin/funnel" th:classappend="${active == 'funnel'} ? 'active'">Funnel</a>
     <a href="/admin/search-quality" th:classappend="${active == 'search'} ? 'active'">검색 품질</a>
     <a href="/admin/cost" th:classappend="${active == 'cost'} ? 'active'">비용</a>
+    <a href="/admin/tag-engagement" th:classappend="${active == 'tag'} ? 'active'">태그 관심도</a>
+    <!-- TODO(WP7): Funnel(이미지 단위 전환율)을 태그 관심도의 드릴다운 하위 화면으로 편입.
+         태그 클릭 → 해당 태그 이미지들의 Funnel 표시. 기능 제거가 아니라 진입 경로 재배치. -->
+    <a href="/admin/funnel" th:classappend="${active == 'funnel'} ? 'active'">Funnel</a>
+    <!-- // 사용자 피드백 어드민 탭: Phase 2 -->
   </nav>
   <form class="logout" th:action="@{/admin/logout}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <button type="submit">로그아웃</button>
   </form>
 </header>
+
+<!-- ============================================================
+     WP0 공통 재사용 프래그먼트 (표현 전용)
+     - 데이터는 파라미터로 주입. 내부에서 쿼리/서비스 호출 없음.
+     - 각 탭이 th:replace / th:insert 로 재사용.
+     ============================================================ -->
+
+<!-- (a) 페이지 정체성: 답하는 질문 + 타입 배지 -->
+<div th:fragment="pageIdentity(question, type)" class="page-identity">
+  <span class="pi-q" th:text="${question}">이 페이지가 답하는 질문</span>
+  <span th:switch="${type}">
+    <span th:case="'monitor'"   class="pi-badge pi-monitor">모니터링</span>
+    <span th:case="'action'"    class="pi-badge pi-action">실행 큐 작업</span>
+    <span th:case="'candidate'" class="pi-badge pi-candidate">후보 큐 작업</span>
+    <span th:case="*"           class="pi-badge pi-monitor" th:text="${type}">-</span>
+  </span>
+</div>
+
+<!-- (b) 카테고리 pill -->
+<span th:fragment="categoryBadge(cat)" class="tag cat-badge"
+      th:with="m=${ {'ns':'🎯 North Star','ko':'🎯 Key Outcome','guardrail':'🛡️ Guardrail','queue':'⭐ 큐','diag':'🔍 Diagnostic'} }"
+      th:text="${m.containsKey(cat)} ? ${m.get(cat)} : ${cat}">🎯 North Star</span>
+
+<!-- (c) 신뢰도 배지 -->
+<span th:fragment="reliabilityBadge(level)" class="rel-badge" th:classappend="${'rel-' + level}"
+      th:with="m=${ {'green':'🟢 신뢰','yellow':'🟡 방향만','red':'🔴 신뢰 불가','none':'⬜ 측정 안 됨','warn':'⚠️ 교차검증 필요'} }"
+      th:text="${m.containsKey(level)} ? ${m.get(level)} : ${level}">🟢 신뢰</span>
+
+<!-- (d) 지표 카드 (.card 확장). tone 은 마지막 옵션(good/bad/muted/none) -->
+<div th:fragment="kpiCard(cat, label, value, unit, caveat, reliability, tone)"
+     class="card kpi-card" th:classappend="${reliability == 'red'} ? 'kpi-danger'">
+  <div class="kpi-top">
+    <span th:replace="~{admin/fragments :: categoryBadge(${cat})}"></span>
+    <span th:replace="~{admin/fragments :: reliabilityBadge(${reliability})}"></span>
+  </div>
+  <div class="label" th:text="${label}">라벨</div>
+  <div class="value mono"
+       th:classappend="${(tone == 'good' or tone == 'bad' or tone == 'muted')} ? ${tone} : ''"
+       th:text="${value}">0</div>
+  <div class="foot" th:if="${unit != null and !#strings.isEmpty(unit)}" th:text="${unit}">집계 단위</div>
+  <div class="foot kpi-caveat" th:if="${caveat != null and !#strings.isEmpty(caveat)}" th:text="${caveat}">이 지표가 못 보는 것</div>
+  <div class="kpi-warn" th:if="${reliability == 'red'}">의사결정 사용 주의</div>
+</div>
+
+<!-- (e) 신호 신뢰도 게이트 배너 (.panel 확장) -->
+<section th:fragment="gatePanel(level, coverageText, reasonText)" class="panel gate-panel"
+         th:classappend="${'gate-' + level}">
+  <div class="gate-row">
+    <span class="gate-verdict" th:switch="${level}">
+      <span th:case="'green'">🟢 신뢰</span>
+      <span th:case="'yellow'">🟡 방향만</span>
+      <span th:case="'red'">🔴 신뢰 불가</span>
+      <span th:case="*">⬜ 측정 안 됨</span>
+    </span>
+    <div class="gate-body">
+      <div class="gate-cov" th:if="${coverageText != null and !#strings.isEmpty(coverageText)}">
+        <b>Data Coverage</b> · <span th:text="${coverageText}">-</span>
+      </div>
+      <div class="gate-reason" th:if="${reasonText != null and !#strings.isEmpty(reasonText)}" th:text="${reasonText}">판정 근거</div>
+      <div class="gate-warn" th:if="${level == 'yellow' or level == 'red'}">순위 단정 금지 · 상대 비교만</div>
+    </div>
+  </div>
+</section>
+
+<!-- (f) 권한 경계 (정적 안내, 2열) -->
+<section th:fragment="authorityPanel(decidesList, notDecidesList)" class="panel">
+  <h2>🧭 권한 경계</h2>
+  <div class="cols">
+    <div>
+      <div class="auth-h auth-do">결정하는 것</div>
+      <ul class="auth-list">
+        <li th:each="d : ${decidesList}" th:text="${d}">-</li>
+      </ul>
+    </div>
+    <div>
+      <div class="auth-h auth-dont">결정하지 않는 것</div>
+      <ul class="auth-list">
+        <li th:each="d : ${notDecidesList}" th:text="${d}">-</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- (g) 큐 섹션 헤더 -->
+<div th:fragment="queueHeader(kind)" class="queue-header" th:switch="${kind}">
+  <div th:case="'exec'">      <h2>⭐ 실행 큐</h2>      <span class="qh-sub">지금 처리할 작업 목록</span></div>
+  <div th:case="'candidate'"> <h2>⭐ 추천 후보 큐</h2> <span class="qh-sub">사람이 검토·채택할 후보</span></div>
+  <div th:case="'triage'">    <h2>⭐ 분류 작업 큐</h2> <span class="qh-sub">사람이 직접 분류할 항목</span></div>
+</div>
+
+<!-- (h) 긴급도 범례 (정적) -->
+<div th:fragment="urgencyLegend()" class="urgency-legend">🔴 즉시 · 🟡 이번 주 · 🟢 백로그 / 신뢰성 확인</div>
+
 </body>
 </html>
