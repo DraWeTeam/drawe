@@ -27,6 +27,9 @@ configMapGenerator:
       - FASTAPI_GUIDE_PUBLIC_URL=https://api.drawe.xyz
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=prod,service.namespace=drawe
       - WORKFLOW_COMPOSE_LIVE_INTENTS=NEW_SEARCH,KEEP,SKIP,COMPOSITION,LIGHTING,COLOR,TECHNIQUE,FOLLOWUP,COMPARE,OUT_OF_DOMAIN,SELF_CRITIQUE
+      # 피드백 메일 발송 (SMTP_USERNAME/PASSWORD=ExternalSecret←SSM, host/port=app 기본 smtp.gmail.com:587)
+      - FEEDBACK_MAIL_ENABLED=true
+      - FEEDBACK_MAIL_TO=drawe3648@gmail.com
 
 patches:
   - target:
