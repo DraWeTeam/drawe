@@ -1,7 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(15, 15, 15, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,92 +9,395 @@
 }
 
 .modal {
-  background: #fff;
-  border-radius: 12px;
-  padding: 28px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  width: 92vw;
+  max-width: 820px;
+  max-height: 92vh;
+  overflow: hidden; /* 둥근 모서리 클립 — 실제 스크롤은 .body 에서 */
+  background: #fefeff;
+  border-radius: 32px;
+  box-shadow: 0 5px 25px rgba(15, 15, 15, 0.1);
+}
+
+/* ── header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 40px 40px 24px;
 }
 
 .title {
-  margin: 0 0 20px 0;
-  font-size: 22px;
+  margin: 0;
+  font-size: 24px;
   font-weight: 700;
+  line-height: 32px;
+  color: #0f0f0f;
 }
 
-.label {
-  display: block;
-  margin-bottom: 14px;
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #888685;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.closeBtn:hover {
+  background: #f6f6f6;
+}
+
+/* ── body ── */
+.form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* 자식(.body) 스크롤 허용 */
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px 40px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto; /* 헤더·푸터 고정, 바디만 스크롤 */
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldTitle {
+  margin: 0;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 20px;
+  color: #4a4846;
 }
 
-.required {
-  color: #ff8534;
+/* ── 표지 dropzone (빈 상태) ── */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  height: 162px;
+  padding: 0 16px;
+  background: #fffbf5;
+  border: 1px dashed #ff8534;
+  border-radius: 12px;
+  text-align: center;
 }
 
-.input,
-.textarea {
-  display: block;
-  width: 100%;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border: 1px solid #d9d9d9;
+.dropzoneOver {
+  background: #fff1e6;
+}
+
+.dropzoneText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: #24221f;
+}
+
+.fileBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 46px;
+  padding: 0 20px;
+  border: none;
   border-radius: 8px;
-  font-size: 14px;
+  background: #ff8534;
+  color: #fefeff;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.fileBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── 표지 (첨부 후) ── */
+.coverFilled {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #edebea;
+  border-radius: 12px;
+}
+
+/* 썸네일 — 이미지 + 우상단 글래스 X */
+.coverThumb {
+  position: relative;
+  width: 167px;
+  height: 130px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #f6f6f6;
+  overflow: hidden;
+}
+
+.coverThumbImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverRemove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
   box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  background: rgba(254, 254, 255, 0.2);
+  border: 1px solid #edebea;
+  backdrop-filter: blur(2px);
+  border-radius: 8px;
+  color: #4a4846;
+  cursor: pointer;
+}
+
+.coverRemove:hover {
+  background: rgba(254, 254, 255, 0.5);
+}
+
+.coverRemove svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Frame 257 — 파일명/크기 + 재선택 버튼 */
+.coverMeta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 8px 0;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Frame 258 — 이름 + 크기 */
+.coverMetaText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.coverName {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  color: #24221f;
+  word-break: break-all;
+}
+
+.coverSize {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: #888685;
+}
+
+/* 재선택 버튼 (brand_round_lg_button) */
+.reselectBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 24px 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: #ff8534;
+  color: #fefeff;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.reselectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── 프로젝트 이름 input ── */
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 46px;
+  padding: 12px 16px;
+  border: 1px solid #edebea;
+  border-radius: 12px;
   font-family: inherit;
+  font-size: 14px;
+  color: #24221f;
 }
 
+.input::placeholder {
+  color: #888685;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #ff8534;
+}
+
+/* 키워드 칩은 KeywordChips 컴포넌트(생성 모달과 공용) + KeywordChips.module.css 사용 */
+
+/* ── 설명 textarea ── */
 .textarea {
-  resize: vertical;
-  min-height: 80px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 162px;
+  padding: 12px 16px;
+  border: 1px solid #edebea;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #24221f;
+  resize: none;
 }
 
-.input:focus,
+.textarea::placeholder {
+  color: #888685;
+}
+
 .textarea:focus {
   outline: none;
   border-color: #ff8534;
 }
 
 .error {
+  margin: 0;
   color: #d83a3a;
-  font-size: 13px;
-  margin: 8px 0 0 0;
+  font-size: 14px;
 }
 
-.actions {
+/* ── footer ── */
+.footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 12px;
+  padding: 32px 40px 40px;
 }
 
 .cancelBtn,
 .submitBtn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
+  flex: 1;
+  height: 46px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  border: none;
 }
 
 .cancelBtn {
-  background: #f1f1f1;
-  color: #333;
+  background: #f6f6f6;
+  color: #4a4846;
 }
 
 .submitBtn {
   background: #ff8534;
-  color: #fff;
+  color: #fefeff;
 }
 
-.submitBtn:disabled,
-.cancelBtn:disabled {
+.cancelBtn:disabled,
+.submitBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ── 오류 toast (SCR-PROJ-04 — 업로드 검증 실패 안내, 3초 자동 사라짐) ── */
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: fit-content;
+  min-width: 320px;
+  max-width: 92vw;
+  min-height: 56px;
+  padding: 4px 4px 4px 16px;
+  background: #dd3a2e;
+  box-shadow: 0 5px 25px rgba(15, 15, 15, 0.1);
+  border-radius: 12px;
+}
+
+.toastContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.toastIcon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: #fefeff;
+}
+
+.toastLabel {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  color: #fefeff;
+}
+
+.toastClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fefeff;
+  cursor: pointer;
+}
+
+.toastClose svg {
+  width: 24px;
+  height: 24px;
 }
