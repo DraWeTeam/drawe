@@ -22,7 +22,7 @@
 - `application.properties`는 **전부 `${ENV}` placeholder** (배포 안전).
 - 비밀 아닌 값(환경변수) + **SSM Parameter Store**(비밀).
 - 로컬은 gitignore 프로필(`application-oauth/llm.properties`)이 placeholder를 덮음.
-- **Live 전환**: 프로퍼티 `workflow.compose.live-intents`(기본 비어 있음=전부 레거시). Spring relaxed-binding 환경변수 형태는 하이픈을 제거한 `WORKFLOW_COMPOSE_LIVEINTENTS`.
+- **Live 전환**: 프로퍼티 `workflow.compose.live-intents`(기본 비어 있음=전부 레거시). 환경변수는 **`WORKFLOW_COMPOSE_LIVE_INTENTS`** — `application.properties`가 `${WORKFLOW_COMPOSE_LIVE_INTENTS:}`로 명시 참조한다.
 
 ## 10.4 복원력 (Resilience4j)
 - 외부 호출(embed·vector)에 **서킷브레이커 + 리트라이**. 검색 실패가 호출자 트랜잭션을 오염시키지 않도록 `REQUIRES_NEW`로 격리.

@@ -81,7 +81,12 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | ImageGenerationService | `class` | public | Bedrock(guide) 로 이미지를 생성하고 결과 PNG 바이트를 `ImageStorage`(DB) 에 영구 저장한 뒤 `Image` 엔티티를 만들어 반환한다. guide 서비스가 PNG 바이트를 직반환하므로 다운로드 단계는 없다. |
-| **Attributes** | guideClient | `GuideClient` | private | guide 서비스 `POST /generate-image`(Bedrock) 호출. <br> imageStorage | `ImageStorage` | private | 다운로드한 바이트를 DB blob 으로 영구 저장. <br> imageRepository | `ImageRepository` | private | `Image` 엔티티 영속화. <br> promptTranslator | `PromptTranslator` | private | 한국어 프롬프트 → 영문 변환. <br> eventPublisher | `ApplicationEventPublisher` | private | `AiImageCreatedEvent` 발행. <br> analyticsEventService | `AnalyticsEventService` | private | 생성 성공 시 `IMAGE_GENERATED` 이벤트 track(일별 호출 수 집계, REQUIRES_NEW·fail-safe). |
+| **Attributes** | guideClient | `GuideClient` | private | guide 서비스 `POST /generate-image`(Bedrock) 호출 |
+| **Attributes** | imageStorage | `ImageStorage` | private | 반환 바이트를 DB blob 으로 영구 저장 |
+| **Attributes** | imageRepository | `ImageRepository` | private | `Image` 엔티티 영속화 |
+| **Attributes** | promptTranslator | `PromptTranslator` | private | 한국어 프롬프트 → 영문 변환 |
+| **Attributes** | eventPublisher | `ApplicationEventPublisher` | private | `AiImageCreatedEvent` 발행 |
+| **Attributes** | analyticsEventService | `AnalyticsEventService` | private | 생성 성공 시 `IMAGE_GENERATED` track(일별 호출 수, REQUIRES_NEW·fail-safe) |
 | **Operations** | generate | `Image` | public | `@Transactional`. 체인: `PromptTranslator`(Grok) 로 KO→EN 변환 → `GuideClient.generateImage(en)` → Bedrock PNG 바이트 직반환 → `ImageStorage.store` 영구 저장 → `Image` 생성 후 `ImageRepository` 영속화(`sourceId="ai_<id>"`) → `AnalyticsEventService.track(IMAGE_GENERATED)` → commit 후 비동기 CLIP 인덱싱을 위해 `AiImageCreatedEvent` 발행. 빈 프롬프트는 `INVALID_INPUT`, 빈 바이트는 `AI_SERVICE_ERROR`. |
 
 ## PromptTranslator 클래스 정보
