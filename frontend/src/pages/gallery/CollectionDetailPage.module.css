@@ -197,39 +197,22 @@
   display: block;
 }
 
-/* 카드 밑 메타 — source 배지(AI/사진/일러스트) */
-.cardMeta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 2px;
-}
-
-.sourceBadge {
-  font-size: 12px;
-  color: #7a746e;
-  background: #f0ece7;
-  border-radius: 8px;
-  padding: 2px 8px;
-}
-
-/* 카드 밑 대표 키워드 3개(SCR-ARCH-05) */
+/* 카드 밑 사용자 태그 칩 (정보 수정에서 편집) */
 .cardTags {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  overflow: hidden;
 }
 
 .cardTag {
   font-size: 12px;
-  color: #7a746e;
+  color: #6b6560;
   background: #f0ece7;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 2px 8px;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   max-width: 100%;
 }
 
@@ -664,13 +647,24 @@
   margin: 12px 0 0;
 }
 
-/* ── 정보 수정(컬렉션 이동) 모달 — 대상 컬렉션 선택 목록 ── */
+/* ── 정보 수정 모달 — 태그 편집 + 대상 컬렉션 선택 목록 ── */
+.modalLabel {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b6560;
+}
+
+.modalLabel:first-of-type {
+  margin-top: 4px;
+}
+
 .moveList {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 14px 0 4px;
-  max-height: 280px;
+  margin: 8px 0 4px;
+  max-height: 220px;
   overflow-y: auto;
 }
 

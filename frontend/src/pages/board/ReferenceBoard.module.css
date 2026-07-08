@@ -396,6 +396,95 @@
   color: #ff8534;
 }
 
+/* ===== 아카이브 서브메뉴(플라이아웃) ===== */
+.archiveWrap {
+  position: relative;
+}
+
+.archiveTrigger {
+  width: 100%;
+}
+
+.subMenu {
+  position: absolute;
+  top: -4px;
+  left: calc(100% + 6px);
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 168px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 40;
+  animation: pop-in 0.15s ease;
+}
+
+/* 화면 오른쪽 끝에서 잘리면 왼쪽으로 펼치도록 하는 폴백은 JS 없이도
+   대부분의 카드가 좌측 패널이라 오른쪽 공간이 충분. 필요 시 추후 개선. */
+
+.subName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subState {
+  padding: 10px;
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+}
+
+.addItem {
+  color: #ff8534;
+  font-weight: 600;
+}
+
+.addItem svg {
+  color: #ff8534;
+}
+
+.newRow {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.newInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #e6e0d9;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+
+.newInput:focus {
+  border-color: #ff8534;
+}
+
+.newSave {
+  flex-shrink: 0;
+  background: #ff8534;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newSave:disabled {
+  background: #efe7df;
+  color: #c3bcb4;
+  cursor: default;
+}
+
 /* ===== 로딩 / 빈 상태 ===== */
 .stateBox {
   flex: 1;

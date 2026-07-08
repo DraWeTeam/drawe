@@ -1,13 +1,23 @@
 import { useEffect, useState } from "react";
 import { getCollections } from "./api";
+import TagChipEditor from "./TagChipEditor";
 import styles from "./CollectionDetailPage.module.css";
 
-// SCR-ARCH-05 카드 ⋮ '정보 수정'(아카이브 위치 변경) — 레퍼런스를 다른 컬렉션으로 이동.
-//   내 컬렉션 목록을 불러와 현재 컬렉션을 제외하고 대상 하나를 고른다. 저장 시 상위가 move API 호출.
-const MoveReferenceModal = ({ currentCollectionId, busy, onCancel, onMove }) => {
+// SCR-ARCH-05 카드 ⋮ '정보 수정' — 이 레퍼런스의 사용자 태그 편집 + (선택) 다른 컬렉션으로 이동.
+//   태그는 이미지 단위 사용자 태그(컬렉션 자동분류 태그와 별개). 저장 시 상위가 updateReferenceInfo 호출.
+//   currentTags: 이 레퍼런스에 이미 달린 사용자 태그(초기값).
+const MoveReferenceModal = ({
+  currentCollectionId,
+  currentTags = [],
+  busy,
+  onCancel,
+  onSave,
+}) => {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(null); // 이동 대상 컬렉션 id(없으면 이동 안 함)
+  const [tags, setTags] = useState(() => [...currentTags]);
+  const [tagDraft, setTagDraft] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -31,7 +41,11 @@ const MoveReferenceModal = ({ currentCollectionId, busy, onCancel, onMove }) => 
     (c) => String(c.id) !== String(currentCollectionId),
   );
 
-  const canMove = selected != null && !busy;
+  // 저장 — 태그는 항상 전달, 이동은 선택(대상 고른 경우만).
+  const handleSave = () => {
+    if (busy) return;
+    onSave({ targetCollectionId: selected, userTags: tags });
+  };
 
   return (
     <div
@@ -41,11 +55,20 @@ const MoveReferenceModal = ({ currentCollectionId, busy, onCancel, onMove }) => 
       aria-modal="true"
     >
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h3 className={styles.modalTitle}>다른 컬렉션으로 이동</h3>
-        <p className={styles.modalText}>
-          이 레퍼런스를 옮길 컬렉션을 선택해주세요.
-        </p>
+        <h3 className={styles.modalTitle}>레퍼런스 정보 수정</h3>
 
+        {/* 태그 편집 — 이 레퍼런스에 직접 태그 추가/수정 */}
+        <p className={styles.modalLabel}>태그</p>
+        <TagChipEditor
+          tags={tags}
+          draft={tagDraft}
+          onChange={setTags}
+          onDraftChange={setTagDraft}
+          placeholder="태그 추가 (Enter)"
+        />
+
+        {/* 컬렉션 이동(선택) */}
+        <p className={styles.modalLabel}>다른 컬렉션으로 이동 (선택)</p>
         {loading ? (
           <div className={styles.moveEmpty}>불러오는 중…</div>
         ) : targets.length === 0 ? (
@@ -59,7 +82,10 @@ const MoveReferenceModal = ({ currentCollectionId, busy, onCancel, onMove }) => 
                 className={`${styles.moveItem} ${
                   selected === c.id ? styles.moveItemActive : ""
                 }`}
-                onClick={() => setSelected(c.id)}
+                // 다시 누르면 이동 취소(선택 해제).
+                onClick={() =>
+                  setSelected((cur) => (cur === c.id ? null : c.id))
+                }
               >
                 <span className={styles.moveItemName}>{c.name}</span>
                 <span className={styles.moveItemCount}>{c.count ?? 0}개</span>
@@ -80,10 +106,10 @@ const MoveReferenceModal = ({ currentCollectionId, busy, onCancel, onMove }) => 
           <button
             type="button"
             className={styles.modalSave}
-            onClick={() => canMove && onMove(selected)}
-            disabled={!canMove}
+            onClick={handleSave}
+            disabled={busy}
           >
-            이동하기
+            {selected != null ? "저장 후 이동" : "저장하기"}
           </button>
         </div>
       </div>

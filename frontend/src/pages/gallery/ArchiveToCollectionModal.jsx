@@ -1,24 +1,27 @@
 import { useEffect, useState } from "react";
 import {
   getCollections,
-  getReferenceSuggestion,
   createCollection,
   addReferenceToCollection,
+  removeReferenceFromCollection,
+  deleteCollection,
 } from "./api";
 import { notifyArchiveChanged } from "./archiveEvents";
+import { useToast } from "../../components/ToastContext";
+import TagChipEditor from "./TagChipEditor";
 import styles from "./ArchiveToCollectionModal.module.css";
 
 // 레퍼런스를 컬렉션에 저장하는 공용 모달(SCR-ARCH-05 아카이브 저장).
 //   레퍼런스 보드/상세 등 어디서든 imageId 하나를 받아 컬렉션 선택 → 신규 collections 에 저장한다.
-//   CLIP 추천(레벨3)을 조회해 추천 컬렉션을 맨 위로 올리고 '추천' 배지를 붙인다. 추천 축 컬렉션이
-//   아직 없으면 새 컬렉션 이름을 축 라벨로 프리필한다.
-const ArchiveToCollectionModal = ({ imageId, onClose, onSaved }) => {
+const ArchiveToCollectionModal = ({ imageId, onClose, onSaved, onUndone }) => {
+  const { showToast } = useToast();
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [suggestion, setSuggestion] = useState(null);
   const [savedTo, setSavedTo] = useState(() => new Set());
   const [creatingNew, setCreatingNew] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newTags, setNewTags] = useState([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -32,28 +35,29 @@ const ArchiveToCollectionModal = ({ imageId, onClose, onSaved }) => {
       } finally {
         if (alive) setLoading(false);
       }
-      // 추천은 실패해도 무시(추천 없이 정상 동작).
-      try {
-        const s = await getReferenceSuggestion(imageId);
-        if (alive) {
-          setSuggestion(s ?? { axisId: null });
-          if (s?.axisLabel && !s?.collectionId) setNewName(s.axisLabel);
-        }
-      } catch {
-        if (alive) setSuggestion({ axisId: null });
-      }
     })();
     return () => {
       alive = false;
     };
   }, [imageId]);
 
-  const ordered = (() => {
-    const sid = suggestion?.collectionId;
-    if (sid == null) return collections;
-    const hit = collections.find((c) => c.id === sid);
-    return hit ? [hit, ...collections.filter((c) => c.id !== sid)] : collections;
-  })();
+  // 저장 성공 시 상단 중앙 토스트 + '실행 취소'.
+  //   undo: 기존 컬렉션이면 그 레퍼런스만 제거, 방금 만든 컬렉션이면 컬렉션째 삭제.
+  const showSavedToast = (undo) => {
+    showToast({
+      message: "아카이브에 저장되었습니다.",
+      actionLabel: "실행 취소",
+      onAction: async () => {
+        try {
+          await undo();
+          notifyArchiveChanged();
+          onUndone?.(Number(imageId));
+        } catch {
+          /* 무시 — 취소 실패는 조용히 */
+        }
+      },
+    });
+  };
 
   const saveTo = async (collectionId) => {
     try {
@@ -61,6 +65,9 @@ const ArchiveToCollectionModal = ({ imageId, onClose, onSaved }) => {
       setSavedTo((prev) => new Set(prev).add(collectionId));
       notifyArchiveChanged();
       onSaved?.(collectionId);
+      showSavedToast(() =>
+        removeReferenceFromCollection(collectionId, Number(imageId)),
+      );
     } catch (err) {
       setError(
         err.response?.data?.error?.message || "아카이브에 저장하지 못했어요.",
@@ -75,10 +82,13 @@ const ArchiveToCollectionModal = ({ imageId, onClose, onSaved }) => {
       const data = await createCollection({
         name,
         imageIds: [Number(imageId)],
+        tags: newTags,
       });
       notifyArchiveChanged();
       onSaved?.(data?.collectionId, { created: true });
       onClose();
+      const newId = data?.collectionId;
+      if (newId != null) showSavedToast(() => deleteCollection(newId));
     } catch (err) {
       setError(
         err.response?.data?.error?.message || "컬렉션을 만들지 못했어요.",
@@ -110,15 +120,12 @@ const ArchiveToCollectionModal = ({ imageId, onClose, onSaved }) => {
           <div className={styles.state}>불러오는 중…</div>
         ) : (
           <div className={styles.list}>
-            {ordered.length === 0 && (
+            {collections.length === 0 && (
               <div className={styles.state}>
                 아직 컬렉션이 없어요. 아래에서 새로 만들어보세요.
               </div>
             )}
-            {ordered.map((c) => {
-              const recommended =
-                suggestion?.collectionId != null &&
-                c.id === suggestion.collectionId;
+            {collections.map((c) => {
               const saved = savedTo.has(c.id);
               return (
                 <button
@@ -131,13 +138,7 @@ const ArchiveToCollectionModal = ({ imageId, onClose, onSaved }) => {
                   <span className={styles.itemName}>{c.name}</span>
                   <span className={styles.itemRight}>
                     <span className={styles.itemCount}>{c.count ?? 0}개</span>
-                    {saved ? (
-                      <span className={styles.savedMark}>저장됨</span>
-                    ) : (
-                      recommended && (
-                        <span className={styles.recoMark}>추천</span>
-                      )
-                    )}
+                    {saved && <span className={styles.savedMark}>저장됨</span>}
                   </span>
                 </button>
               );
@@ -145,31 +146,34 @@ const ArchiveToCollectionModal = ({ imageId, onClose, onSaved }) => {
           </div>
         )}
 
-        {suggestion?.axisLabel && !suggestion?.collectionId && !creatingNew && (
-          <p className={styles.recoHint}>
-            추천: <b>{suggestion.axisLabel}</b> 컬렉션으로 저장하기
-          </p>
-        )}
-
         {creatingNew ? (
-          <div className={styles.newRow}>
-            <input
-              className={styles.newInput}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createAndSave()}
-              placeholder="새 컬렉션 이름"
-              autoFocus
-              maxLength={100}
+          <div className={styles.newBox}>
+            <div className={styles.newRow}>
+              <input
+                className={styles.newInput}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createAndSave()}
+                placeholder="새 컬렉션 이름"
+                autoFocus
+                maxLength={100}
+              />
+              <button
+                type="button"
+                className={styles.newSave}
+                onClick={createAndSave}
+                disabled={!newName.trim()}
+              >
+                만들고 저장
+              </button>
+            </div>
+            <TagChipEditor
+              tags={newTags}
+              draft={tagDraft}
+              onChange={setNewTags}
+              onDraftChange={setTagDraft}
+              placeholder="태그 추가 (선택)"
             />
-            <button
-              type="button"
-              className={styles.newSave}
-              onClick={createAndSave}
-              disabled={!newName.trim()}
-            >
-              만들고 저장
-            </button>
           </div>
         ) : (
           <button

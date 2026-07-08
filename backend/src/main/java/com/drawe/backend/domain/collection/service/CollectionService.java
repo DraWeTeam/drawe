@@ -4,6 +4,7 @@ import com.drawe.backend.domain.Collection;
 import com.drawe.backend.domain.CollectionReference;
 import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.collection.dto.ArchiveTargetsResponse;
 import com.drawe.backend.domain.collection.dto.CollectionCreateRequest;
 import com.drawe.backend.domain.collection.dto.CollectionDetailResponse;
 import com.drawe.backend.domain.collection.dto.CollectionDetailResponse.ReferenceItem;
@@ -11,7 +12,6 @@ import com.drawe.backend.domain.collection.dto.CollectionSummaryResponse;
 import com.drawe.backend.domain.collection.dto.CollectionSummaryResponse.CollectionCard;
 import com.drawe.backend.domain.collection.dto.CollectionUpdateRequest;
 import com.drawe.backend.domain.collection.dto.ReferenceDetailResponse;
-import com.drawe.backend.domain.collection.dto.ReferenceSuggestionResponse;
 import com.drawe.backend.domain.collection.repository.CollectionReferenceRepository;
 import com.drawe.backend.domain.collection.repository.CollectionRepository;
 import com.drawe.backend.domain.ImageDraweTag;
@@ -24,9 +24,11 @@ import com.drawe.backend.domain.project.repository.ProjectReferenceRepository;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,7 +51,6 @@ public class CollectionService {
   private final ImageRepository imageRepository;
   private final ImageDraweTagRepository imageDraweTagRepository;
   private final ImageFeedbackService imageFeedbackService;
-  private final CollectionAutoClassifyService autoClassifyService;
   private final ImageUrlSigner imageUrlSigner;
   private final ProjectReferenceRepository projectReferenceRepository;
 
@@ -84,9 +85,7 @@ public class CollectionService {
           new CollectionCard(
               c.getId(),
               c.getName(),
-              c.getAxis(),
               c.getTags() == null ? List.of() : c.getTags(),
-              Boolean.TRUE.equals(c.getIsSystem()),
               countByColl.getOrDefault(c.getId(), 0),
               thumbsByColl.getOrDefault(c.getId(), List.of())));
     }
@@ -120,17 +119,43 @@ public class CollectionService {
                         cr.getImage().getSource().name(),
                         Boolean.TRUE.equals(cr.getPinned()),
                         cr.getAddedAt(),
-                        deriveKeywords(cr.getImage(), tagByImage.get(cr.getImage().getId()))))
+                        deriveKeywords(cr.getImage(), tagByImage.get(cr.getImage().getId())),
+                        cr.getUserTags() == null ? List.of() : cr.getUserTags()))
             .toList();
 
     return new CollectionDetailResponse(
         collection.getId(),
         collection.getName(),
         collection.getDescription(),
-        collection.getAxis(),
         collection.getTags() == null ? List.of() : collection.getTags(),
-        Boolean.TRUE.equals(collection.getIsSystem()),
         refs);
+  }
+
+  /**
+   * 카드 ⋮ '아카이브' 서브메뉴 — 유저의 모든 컬렉션(최신순)과 이 이미지가 이미 담겼는지 여부. 담긴 컬렉션은 프론트에서 체크·비활성화한다.
+   */
+  @Transactional(readOnly = true)
+  public ArchiveTargetsResponse getArchiveTargets(User user, Long imageId) {
+    List<Collection> collections = collectionRepository.findByUserOrderByCreatedAtDesc(user);
+    Set<Long> containedIds =
+        new HashSet<>(collectionReferenceRepository.findCollectionIdsByUserAndImage(user, imageId));
+
+    Map<Long, Integer> countByColl = new LinkedHashMap<>();
+    for (Object[] row : collectionReferenceRepository.countByUserGroupedByCollection(user)) {
+      countByColl.put((Long) row[0], ((Long) row[1]).intValue());
+    }
+
+    List<ArchiveTargetsResponse.Target> targets =
+        collections.stream()
+            .map(
+                c ->
+                    new ArchiveTargetsResponse.Target(
+                        c.getId(),
+                        c.getName(),
+                        countByColl.getOrDefault(c.getId(), 0),
+                        containedIds.contains(c.getId())))
+            .toList();
+    return new ArchiveTargetsResponse(targets);
   }
 
   /**
@@ -164,31 +189,6 @@ public class CollectionService {
         sourceLabel,
         image.getRawTags() == null ? List.of() : image.getRawTags(),
         myReaction);
-  }
-
-  /**
-   * 레퍼런스 저장 추천(레벨3, 저장 안 함) — CLIP 으로 이미지를 분류해 추천 축을 반환. 그 축 컬렉션이 이미 있으면 collectionId 도 함께 준다(프리셀렉트용).
-   * 추천 불가(임베딩 실패·저신뢰·못 여는 url)면 빈 추천.
-   */
-  @Transactional(readOnly = true)
-  public ReferenceSuggestionResponse suggestForImage(User user, Long imageId) {
-    Image image =
-        imageRepository
-            .findById(imageId)
-            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
-
-    return autoClassifyService
-        .suggestAxis(image.getUrl())
-        .map(
-            axis -> {
-              Long existing =
-                  collectionRepository
-                      .findByUserAndAxis(user, axis.id())
-                      .map(Collection::getId)
-                      .orElse(null);
-              return new ReferenceSuggestionResponse(axis.id(), axis.label(), existing);
-            })
-        .orElseGet(ReferenceSuggestionResponse::none);
   }
 
   /**
@@ -267,15 +267,14 @@ public class CollectionService {
   }
 
   /**
-   * 새 컬렉션 생성 — SCR-ARCH-05 '아카이브 추가(+)' 또는 SCR-ARCH-02 '직접 추가하기'. imageIds 가 있으면 함께 담는다(멱등). axis=null,
-   * is_system=false 인 사용자 컬렉션. 생성된 컬렉션 id 반환.
+   * 새 컬렉션 생성 — SCR-ARCH-05 '아카이브 추가(+)' 또는 SCR-ARCH-02 '직접 추가하기'. imageIds 가 있으면 함께 담는다(멱등).
+   * 생성된 컬렉션 id 반환.
    */
   @Transactional
   public Long createCollection(User user, CollectionCreateRequest req) {
     Collection collection = new Collection();
     collection.setUser(user);
     collection.setName(req.name());
-    collection.setIsSystem(false);
     if (req.tags() != null && !req.tags().isEmpty()) {
       collection.setTags(new ArrayList<>(req.tags()));
     }
@@ -316,33 +315,46 @@ public class CollectionService {
   }
 
   /**
-   * 정보 수정(SCR-ARCH-05 카드 ⋮) — 레퍼런스를 다른 컬렉션으로 이동(아카이브 위치 변경). 원본/대상 모두 소유자 검증. 대상에 이미 있으면 멱등(원본에서만
-   * 제거). 같은 컬렉션이면 무시.
+   * 정보 수정(SCR-ARCH-05 카드 ⋮) — 레퍼런스의 사용자 태그를 수정하고(선택), 다른 컬렉션으로 이동(선택). 원본/대상 모두 소유자 검증.
+   *
+   * <p>{@code userTags} 가 null 이 아니면 이 레퍼런스의 사용자 태그를 통째로 교체한다. {@code targetCollectionId} 가 있고 현재
+   * 컬렉션과 다르면 이동한다(대상에 이미 있으면 원본에서만 제거하는 멱등). 이동 시 편집한 태그·고정 상태를 승계한다.
    */
   @Transactional
-  public void moveReference(User user, Long collectionId, Long imageId, Long targetCollectionId) {
-    if (targetCollectionId == null || targetCollectionId.equals(collectionId)) {
-      return; // 대상 미지정/동일 컬렉션이면 변화 없음.
-    }
+  public void moveReference(
+      User user,
+      Long collectionId,
+      Long imageId,
+      Long targetCollectionId,
+      List<String> userTags) {
     Collection source = loadAuthorized(user, collectionId);
-    Collection target = loadAuthorized(user, targetCollectionId);
     Image image =
         imageRepository
             .findById(imageId)
             .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
-
     CollectionReference ref =
         collectionReferenceRepository
             .findByCollectionAndImage(source, image)
             .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
-    boolean pinned = Boolean.TRUE.equals(ref.getPinned());
 
-    // 대상에 없으면 옮기고(고정 상태 승계), 있으면 원본 것만 제거(멱등).
+    // 태그 수정(선택) — null 이면 미변경, 배열이면 통째 교체.
+    if (userTags != null) {
+      ref.setUserTags(sanitizeTags(userTags));
+    }
+
+    // 이동(선택) — 대상 미지정/동일 컬렉션이면 태그만 저장하고 끝.
+    if (targetCollectionId == null || targetCollectionId.equals(collectionId)) {
+      return; // dirty checking 으로 태그 UPDATE.
+    }
+    Collection target = loadAuthorized(user, targetCollectionId);
+
+    // 대상에 없으면 옮기고(고정·태그 승계), 있으면 원본 것만 제거(멱등).
     if (!collectionReferenceRepository.existsByCollectionAndImage(target, image)) {
       CollectionReference moved = new CollectionReference();
       moved.setCollection(target);
       moved.setImage(image);
-      moved.setPinned(pinned);
+      moved.setPinned(Boolean.TRUE.equals(ref.getPinned()));
+      moved.setUserTags(new ArrayList<>(ref.getUserTags() == null ? List.of() : ref.getUserTags()));
       collectionReferenceRepository.save(moved);
     }
     collectionReferenceRepository.delete(ref);
@@ -352,6 +364,19 @@ public class CollectionService {
         imageId,
         collectionId,
         targetCollectionId);
+  }
+
+  /** 사용자 태그 정리 — 공백 제거·빈값 제외·중복 제거. */
+  private List<String> sanitizeTags(List<String> tags) {
+    List<String> out = new ArrayList<>();
+    for (String t : tags) {
+      if (t == null) continue;
+      String s = t.strip();
+      if (!s.isEmpty() && !out.contains(s)) {
+        out.add(s);
+      }
+    }
+    return out;
   }
 
   /** 고정하기 토글(SCR-ARCH-05 카드 ⋮). pinned 반전. */

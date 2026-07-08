@@ -4,9 +4,16 @@ import Tooltip from "../../components/Tooltip";
 import TutorialCoachmark from "../chat/TutorialCoachmark";
 import { unsplashSized } from "../chat/imageUtils";
 import { addPin, getPins, removePin } from "../projects/api";
-import { getReferenceArchive } from "../gallery/api";
+import {
+  getReferenceArchive,
+  getArchiveTargets,
+  addReferenceToCollection,
+  removeReferenceFromCollection,
+  createCollection,
+  deleteCollection,
+} from "../gallery/api";
 import { notifyArchiveChanged } from "../gallery/archiveEvents";
-import ArchiveToCollectionModal from "../gallery/ArchiveToCollectionModal";
+import { useToast } from "../../components/ToastContext";
 import { track } from "../../analytics";
 import {
   ackGenerationSuggestion,
@@ -62,6 +69,7 @@ const ReferenceBoard = ({
   initialResults = null,
 }) => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // 초기 상태 우선순위: 캐시(상세 갔다 온 재진입) > 시드(생성 직후 프리페치) > 빈 상태.
   //   검색창(query)엔 키워드를 안 채운다 — 다 이어붙으면 어색하므로 비워두고 결과만.
@@ -114,8 +122,6 @@ const ReferenceBoard = ({
 
   const [pinnedRefs, setPinnedRefs] = useState([]);
   const [archivedIds, setArchivedIds] = useState(() => new Set());
-  // 아카이브 저장 → 컬렉션 선택 모달 대상 imageId (null=닫힘).
-  const [archiveModalImageId, setArchiveModalImageId] = useState(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [showReactionTut, setShowReactionTut] = useState(false);
 
@@ -364,19 +370,89 @@ const ReferenceBoard = ({
     }
   };
 
-  // 아카이브 저장 = 컬렉션 선택 모달 열기(신규 collections 로 저장). 옛 project_references 직접 저장 대신.
-  const handleArchive = (imageId) => {
-    setArchiveModalImageId(imageId);
-  };
-
-  // 모달에서 실제 저장 완료 시 — 담긴 상태 반영 + 이벤트/트래킹.
-  const handleArchived = (imageId) => {
+  const markArchived = useCallback((imageId) => {
     setArchivedIds((prev) => new Set(prev).add(imageId));
-    track("reference_archived", {
-      project_id: projectId,
-      reference_id: imageId,
+  }, []);
+
+  const unmarkArchived = useCallback((imageId) => {
+    setArchivedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(imageId);
+      return next;
     });
-  };
+  }, []);
+
+  // 저장 성공 시 상단 중앙 토스트 + '실행 취소'.
+  const showSavedToast = useCallback(
+    (undo) => {
+      showToast({
+        message: "아카이브에 저장되었습니다.",
+        actionLabel: "실행 취소",
+        onAction: async () => {
+          try {
+            await undo();
+            notifyArchiveChanged();
+          } catch {
+            /* 취소 실패는 조용히 */
+          }
+        },
+      });
+    },
+    [showToast],
+  );
+
+  // 카드 ⋮ '아카이브' 서브메뉴 → 기존 컬렉션에 담기(멱등). 실행 취소 시 그 레퍼런스만 제거.
+  const handleArchiveToCollection = useCallback(
+    async (collectionId, imageId) => {
+      try {
+        await addReferenceToCollection(collectionId, imageId);
+        markArchived(imageId);
+        notifyArchiveChanged();
+        track("reference_archived", {
+          project_id: projectId,
+          reference_id: imageId,
+        });
+        showSavedToast(async () => {
+          await removeReferenceFromCollection(collectionId, imageId);
+          unmarkArchived(imageId);
+        });
+      } catch (err) {
+        setError(
+          err.response?.data?.error?.message || "아카이브에 저장하지 못했어요.",
+        );
+      }
+    },
+    [projectId, markArchived, unmarkArchived, showSavedToast],
+  );
+
+  // 카드 ⋮ '아카이브' 서브메뉴 → '+ 아카이브 추가'(새 컬렉션 생성 후 담기). 실행 취소 시 그 컬렉션째 삭제.
+  const handleCreateAndArchive = useCallback(
+    async (name, imageId) => {
+      try {
+        const data = await createCollection({
+          name,
+          imageIds: [imageId],
+          tags: [],
+        });
+        markArchived(imageId);
+        notifyArchiveChanged();
+        track("reference_archived", {
+          project_id: projectId,
+          reference_id: imageId,
+        });
+        const newId = data?.collectionId;
+        showSavedToast(async () => {
+          if (newId != null) await deleteCollection(newId);
+          unmarkArchived(imageId);
+        });
+      } catch (err) {
+        setError(
+          err.response?.data?.error?.message || "컬렉션을 만들지 못했어요.",
+        );
+      }
+    },
+    [projectId, markArchived, unmarkArchived, showSavedToast],
+  );
 
   const handleCardClick = (image) => {
     track("reference_board_reference_viewed", {
@@ -496,7 +572,8 @@ const ReferenceBoard = ({
               onLike={() => handleLike(it.image.id)}
               onDislike={() => handleDislike(it.image.id)}
               onPinToggle={() => handlePinToggle(it.image.id)}
-              onArchive={() => handleArchive(it.image.id)}
+              onArchiveToCollection={handleArchiveToCollection}
+              onCreateAndArchive={handleCreateAndArchive}
               menuBtnRef={it.isFirst ? firstMenuRef : undefined}
             />
           ))}
@@ -628,15 +705,6 @@ const ReferenceBoard = ({
           onGenerate={handleGenerateFromModal}
         />
       )}
-
-      {/* 아카이브 저장 → 컬렉션 선택 모달(신규 collections) */}
-      {archiveModalImageId != null && (
-        <ArchiveToCollectionModal
-          imageId={archiveModalImageId}
-          onClose={() => setArchiveModalImageId(null)}
-          onSaved={() => handleArchived(archiveModalImageId)}
-        />
-      )}
     </div>
   );
 };
@@ -652,23 +720,40 @@ const BoardCard = ({
   onLike,
   onDislike,
   onPinToggle,
-  onArchive,
+  onArchiveToCollection,
+  onCreateAndArchive,
   menuBtnRef,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const menuRef = useRef(null);
 
+  // 아카이브 서브메뉴(플라이아웃) — 열림 여부 + 컬렉션 목록 + 새 컬렉션 입력.
+  const [archiveSubOpen, setArchiveSubOpen] = useState(false);
+  const [targets, setTargets] = useState(null); // null=미로드, []=없음
+  const [targetsLoading, setTargetsLoading] = useState(false);
+  const [savedIds, setSavedIds] = useState(() => new Set()); // 이번 세션에 방금 담은 컬렉션 id
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [newName, setNewName] = useState("");
+
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
+        closeMenu();
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuOpen]);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setArchiveSubOpen(false);
+    setCreatingNew(false);
+    setNewName("");
+  };
 
   const isAi = image.source === "AI";
   const label =
@@ -678,9 +763,42 @@ const BoardCard = ({
 
   const runAndClose = (fn) => (e) => {
     e.stopPropagation();
-    setMenuOpen(false);
+    closeMenu();
     fn();
   };
+
+  // 아카이브 서브메뉴 열기 — 최초 1회 컬렉션 목록 로드.
+  const openArchiveSub = async () => {
+    const willOpen = !archiveSubOpen;
+    setArchiveSubOpen(willOpen);
+    setCreatingNew(false);
+    if (!willOpen || targets != null) return;
+    setTargetsLoading(true);
+    try {
+      const data = await getArchiveTargets(image.id);
+      setTargets(data?.collections ?? []);
+    } catch {
+      setTargets([]);
+    } finally {
+      setTargetsLoading(false);
+    }
+  };
+
+  // 서브메뉴에서 기존 컬렉션 선택 → 저장(부모가 토스트/상태 처리). 담은 표시만 로컬 반영.
+  const pickCollection = (collectionId) => {
+    setSavedIds((prev) => new Set(prev).add(collectionId));
+    onArchiveToCollection(collectionId, image.id);
+    closeMenu();
+  };
+
+  const submitNewCollection = () => {
+    const name = newName.trim();
+    if (!name) return;
+    onCreateAndArchive(name, image.id);
+    closeMenu();
+  };
+
+  const isContained = (t) => t.contained || savedIds.has(t.id);
 
   return (
     <div
@@ -781,17 +899,101 @@ const BoardCard = ({
                 <ThumbDownIcon />
                 <span>별로예요</span>
               </button>
-              <button
-                type="button"
-                className={`${styles.menuItem} ${
-                  isArchived ? styles.menuItemActive : ""
-                }`}
-                onClick={runAndClose(onArchive)}
-                disabled={isArchived}
+              {/* 아카이브 — hover/클릭 시 오른쪽에 컬렉션 서브메뉴(플라이아웃) */}
+              <div
+                className={styles.archiveWrap}
+                onMouseEnter={() => {
+                  if (!archiveSubOpen) openArchiveSub();
+                }}
               >
-                <ArchiveIcon />
-                <span>{isArchived ? "아카이브됨" : "아카이브"}</span>
-              </button>
+                <button
+                  type="button"
+                  className={`${styles.menuItem} ${styles.archiveTrigger} ${
+                    archiveSubOpen || isArchived ? styles.menuItemActive : ""
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openArchiveSub();
+                  }}
+                  aria-haspopup="true"
+                  aria-expanded={archiveSubOpen}
+                >
+                  <ArchiveIcon />
+                  <span>아카이브</span>
+                  <ChevronRightIcon />
+                </button>
+
+                {archiveSubOpen && (
+                  <div
+                    className={styles.subMenu}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {targetsLoading ? (
+                      <div className={styles.subState}>불러오는 중…</div>
+                    ) : (
+                      <>
+                        {(targets ?? []).map((t) => {
+                          const contained = isContained(t);
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className={`${styles.menuItem} ${
+                                contained ? styles.menuItemActive : ""
+                              }`}
+                              onClick={() =>
+                                !contained && pickCollection(t.id)
+                              }
+                              disabled={contained}
+                            >
+                              <ArchiveIcon />
+                              <span className={styles.subName}>{t.name}</span>
+                              {contained && <CheckIcon />}
+                            </button>
+                          );
+                        })}
+
+                        {creatingNew ? (
+                          <div
+                            className={styles.newRow}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              className={styles.newInput}
+                              value={newName}
+                              onChange={(e) => setNewName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") submitNewCollection();
+                                if (e.key === "Escape") setCreatingNew(false);
+                              }}
+                              placeholder="새 컬렉션 이름"
+                              autoFocus
+                              maxLength={100}
+                            />
+                            <button
+                              type="button"
+                              className={styles.newSave}
+                              onClick={submitNewCollection}
+                              disabled={!newName.trim()}
+                            >
+                              추가
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className={`${styles.menuItem} ${styles.addItem}`}
+                            onClick={() => setCreatingNew(true)}
+                          >
+                            <PlusMenuIcon />
+                            <span>아카이브 추가</span>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -928,6 +1130,54 @@ const ArchiveIcon = () => (
     <polyline points="21 8 21 21 3 21 3 8" />
     <rect x="1" y="3" width="22" height="5" />
     <line x1="10" y1="12" x2="14" y2="12" />
+  </svg>
+);
+
+const ChevronRightIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ marginLeft: "auto" }}
+  >
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ marginLeft: "auto" }}
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const PlusMenuIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 

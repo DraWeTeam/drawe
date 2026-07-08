@@ -8,14 +8,14 @@ export const getReferenceArchive = async () => {
 };
 
 // 레퍼런스 컬렉션 목록(SCR-ARCH-02) — 명명된 컬렉션 카드.
-// 응답: { collections: [{ id, name, axis, tags:[], isSystem, count, thumbnails:[url] }] }
+// 응답: { collections: [{ id, name, tags:[], count, thumbnails:[url] }] }
 export const getCollections = async () => {
   const res = await api.get("/collections");
   return res.data.data;
 };
 
 // 컬렉션 상세(SCR-ARCH-04) — 헤더 + 레퍼런스 그리드.
-// 응답: { id, name, description, axis, tags:[], isSystem,
+// 응답: { id, name, description, tags:[],
 //         references: [{ imageId, url, source, pinned, addedAt, keywords:[] }] }
 export const getCollection = async (collectionId) => {
   const res = await api.get(`/collections/${collectionId}`);
@@ -26,13 +26,6 @@ export const getCollection = async (collectionId) => {
 // 응답: { imageId, url, source, name, sourceUrl, keywords:[], myReaction: "LIKE"|"DISLIKE"|null }
 export const getReferenceDetail = async (imageId) => {
   const res = await api.get(`/collections/reference/${imageId}`);
-  return res.data.data;
-};
-
-// 레퍼런스 저장 추천(레벨3 CLIP 자동분류) — 저장 안 함, 추천 축/컬렉션만.
-// 응답: { axisId, axisLabel, collectionId }  (추천 없으면 전부 null)
-export const getReferenceSuggestion = async (imageId) => {
-  const res = await api.get(`/collections/reference/${imageId}/suggestion`);
   return res.data.data;
 };
 
@@ -71,6 +64,13 @@ export const createCollection = async ({ name, imageIds, tags }) => {
   return res.data.data;
 };
 
+// 카드 ⋮ '아카이브' 서브메뉴 — 내 컬렉션 목록 + 이 이미지가 이미 담긴 여부(체크 표시용).
+// 응답: { collections: [{ id, name, count, contained }] }
+export const getArchiveTargets = async (imageId) => {
+  const res = await api.get(`/collections/reference/${imageId}/targets`);
+  return res.data.data;
+};
+
 // 레퍼런스 저장(SCR-ARCH-05 아카이브) — 이미지를 컬렉션에 담기(멱등).
 export const addReferenceToCollection = async (collectionId, imageId) => {
   const res = await api.post(`/collections/${collectionId}/references`, {
@@ -87,11 +87,16 @@ export const removeReferenceFromCollection = async (collectionId, imageId) => {
   return res.data.data;
 };
 
-// 정보 수정(카드 ⋮) — 레퍼런스를 다른 컬렉션으로 이동(아카이브 위치 변경).
-export const moveReference = async (collectionId, imageId, targetCollectionId) => {
+// 정보 수정(카드 ⋮) — 레퍼런스의 사용자 태그 수정 및 다른 컬렉션으로 이동(둘 다 선택).
+//   targetCollectionId=null 이면 태그만 저장, userTags=null 이면 태그 미변경.
+export const updateReferenceInfo = async (
+  collectionId,
+  imageId,
+  { targetCollectionId = null, userTags = null } = {},
+) => {
   const res = await api.patch(
     `/collections/${collectionId}/references/${imageId}/move`,
-    { targetCollectionId },
+    { targetCollectionId, userTags },
   );
   return res.data.data;
 };

@@ -5,11 +5,10 @@ import {
   updateCollection,
   deleteCollection,
   togglePin,
-  moveReference,
+  updateReferenceInfo,
   removeReferenceFromCollection,
 } from "./api";
 import { downloadImage } from "./download";
-import { koreanTags } from "./tagLabels";
 import AuthedImage from "../chat/AuthedImage";
 import CollectionEditModal from "./CollectionEditModal";
 import MoveReferenceModal from "./MoveReferenceModal";
@@ -24,14 +23,6 @@ const FILTERS = [
   { key: "UNSPLASH", label: "사진" },
   { key: "GUIDE_REF", label: "일러스트" },
 ];
-
-// Image.source → 카드 밑 배지 라벨(필터 어휘와 동일).
-const SOURCE_LABEL = {
-  AI: "AI",
-  UNSPLASH: "사진",
-  GUIDE_REF: "일러스트",
-};
-const sourceLabel = (source) => SOURCE_LABEL[source] ?? "기타";
 
 // 정렬 옵션(SCR-ARCH-05 '최근 ▾'). 고정 우선은 항상 유지하고 그 안에서 정렬.
 const SORTS = [
@@ -190,20 +181,31 @@ const CollectionDetailPage = () => {
     }
   };
 
-  // 정보 수정(컬렉션 이동) — 대상 컬렉션으로 옮기고 현재 목록에서 제거.
-  const handleMove = async (targetCollectionId) => {
+  // 정보 수정 — 사용자 태그 저장 + (선택) 다른 컬렉션으로 이동.
+  //   이동하면 현재 목록에서 제거, 이동 안 하면 해당 레퍼런스의 태그만 갱신.
+  const handleSaveInfo = async ({ targetCollectionId, userTags }) => {
     if (moveImageId == null) return;
     setMoving(true);
     try {
-      await moveReference(collectionId, moveImageId, targetCollectionId);
+      await updateReferenceInfo(collectionId, moveImageId, {
+        targetCollectionId,
+        userTags,
+      });
+      const moved =
+        targetCollectionId != null &&
+        String(targetCollectionId) !== String(collectionId);
       setCollection((prev) => ({
         ...prev,
-        references: prev.references.filter((r) => r.imageId !== moveImageId),
+        references: moved
+          ? prev.references.filter((r) => r.imageId !== moveImageId)
+          : prev.references.map((r) =>
+              r.imageId === moveImageId ? { ...r, userTags } : r,
+            ),
       }));
       setMoveImageId(null);
     } catch (err) {
       setErrorMessage(
-        err.response?.data?.error?.message || "레퍼런스를 이동하지 못했어요.",
+        err.response?.data?.error?.message || "레퍼런스 정보를 수정하지 못했어요.",
       );
     } finally {
       setMoving(false);
@@ -456,24 +458,15 @@ const CollectionDetailPage = () => {
                       )}
                     </div>
                   </div>
-                  <div className={styles.cardMeta}>
-                    {(() => {
-                      const koTags = koreanTags(ref.keywords, 3);
-                      return koTags.length > 0 ? (
-                        <div className={styles.cardTags}>
-                          {koTags.map((k) => (
-                            <span key={k} className={styles.cardTag}>
-                              {k}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className={styles.sourceBadge}>
-                          {sourceLabel(ref.source)}
+                  {ref.userTags?.length > 0 && (
+                    <div className={styles.cardTags}>
+                      {ref.userTags.map((t) => (
+                        <span key={t} className={styles.cardTag}>
+                          {t}
                         </span>
-                      );
-                    })()}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -481,13 +474,16 @@ const CollectionDetailPage = () => {
         </>
       )}
 
-      {/* 정보 수정(컬렉션 이동) 모달 (SCR-ARCH-05 카드 ⋮) */}
+      {/* 정보 수정(태그 편집 + 컬렉션 이동) 모달 (SCR-ARCH-05 카드 ⋮) */}
       {moveImageId != null && (
         <MoveReferenceModal
           currentCollectionId={collectionId}
+          currentTags={
+            refs.find((r) => r.imageId === moveImageId)?.userTags ?? []
+          }
           busy={moving}
           onCancel={() => setMoveImageId(null)}
-          onMove={handleMove}
+          onSave={handleSaveInfo}
         />
       )}
 

@@ -19,6 +19,19 @@ public interface CollectionReferenceRepository
 
   long countByCollection(Collection collection);
 
+  /** 이 유저의 컬렉션 중 주어진 이미지를 담고 있는 컬렉션 id 목록(아카이브 서브메뉴 체크 표시용). */
+  @Query(
+      "SELECT cr.collection.id FROM CollectionReference cr "
+          + "WHERE cr.collection.user = :user AND cr.image.id = :imageId")
+  List<Long> findCollectionIdsByUserAndImage(
+      @Param("user") User user, @Param("imageId") Long imageId);
+
+  /** 유저의 컬렉션별 레퍼런스 개수 — [collectionId, count]. 아카이브 서브메뉴의 '개수' 표시용(N+1 방지). */
+  @Query(
+      "SELECT cr.collection.id, COUNT(cr) FROM CollectionReference cr "
+          + "WHERE cr.collection.user = :user GROUP BY cr.collection.id")
+  List<Object[]> countByUserGroupedByCollection(@Param("user") User user);
+
   /** 컬렉션 상세(SCR-ARCH-05) — 한 컬렉션의 레퍼런스를 image 와 함께 로드. 고정(pinned) 우선, 그다음 최신순. */
   @Query(
       "SELECT cr FROM CollectionReference cr "
