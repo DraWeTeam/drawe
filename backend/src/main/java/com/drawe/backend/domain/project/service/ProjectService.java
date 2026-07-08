@@ -37,10 +37,31 @@ public class ProjectService {
   private final ProjectKeywordService projectKeywordService;
   private final com.drawe.backend.domain.guide.repository.GuideRepository guideRepository;
   private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
+  private final com.drawe.backend.domain.image.repository.ImageBlobRepository imageBlobRepository;
 
   /** 브라우저 노출용 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대·null 은 원본. */
   private String signed(String url) {
     return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
+  }
+
+  // 표지는 업로드 경로(/images/{blobId})만 허용. 임의 URL·서명 URL 은 거부.
+  private static final java.util.regex.Pattern COVER_IMAGE_URL =
+      java.util.regex.Pattern.compile("^/images/(\\d+)$");
+
+  /** 표지 소유권 검증(IDOR 방지) — 업로드 경로 형식 + 현재 사용자 소유 이미지여야 한다. */
+  private void assertCoverImageOwned(User user, String coverUrl) {
+    java.util.regex.Matcher m = COVER_IMAGE_URL.matcher(coverUrl);
+    if (!m.matches()) {
+      throw new CustomException(ErrorCode.INVALID_INPUT);
+    }
+    Long blobId = Long.valueOf(m.group(1));
+    var blob =
+        imageBlobRepository
+            .findById(blobId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    if (blob.getUser() == null || !blob.getUser().getId().equals(user.getId())) {
+      throw new CustomException(ErrorCode.FORBIDDEN);
+    }
   }
 
   @Transactional
@@ -123,6 +144,9 @@ public class ProjectService {
     //   파일명·용량은 표지와 한 묶음 — 교체 시 함께 저장, 제거 시 함께 비움.
     if (request.coverImageUrl() != null) {
       boolean removing = request.coverImageUrl().isBlank();
+      if (!removing) {
+        assertCoverImageOwned(user, request.coverImageUrl());
+      }
       project.setCoverImageUrl(removing ? null : request.coverImageUrl());
       project.setCoverImageName(
           removing || request.coverImageName() == null || request.coverImageName().isBlank()
