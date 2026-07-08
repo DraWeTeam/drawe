@@ -37,6 +37,7 @@ import Tooltip from "../../components/Tooltip";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 import { track } from "../../analytics";
+import FeedbackPrompt from "./feedback/FeedbackPrompt";
 
 const sessionKey = (projectId) => `chat_session_${projectId}`;
 const MAX_INPUT_HEIGHT = 160;
@@ -1493,6 +1494,8 @@ const ChatPage = () => {
                     응답을 작성 중...
                   </div>
                 )}
+                {/* 15턴 도달 시 채팅 흐름 하단에 인라인 피드백 카드(+모달) 노출 */}
+                <FeedbackPrompt messages={messages} sessionId={sessionId} />
               </div>
             </div>
 

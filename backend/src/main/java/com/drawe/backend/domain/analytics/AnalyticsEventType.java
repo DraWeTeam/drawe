@@ -65,4 +65,22 @@ public final class AnalyticsEventType {
 
   /** 룰 미스 → Grok 풀 분류로 폴백. payload: message_length. */
   public static final String INTENT_RULE_MISS = "intent_rule_miss";
+
+  // ── 사용자 피드백 (채팅 N턴 후 자유서술) ─────────────
+  /**
+   * N턴 도달로 피드백 인라인 카드 노출. 프론트가 발송. payload: turn_count.
+   *
+   * <p>깔때기 시작점 — TRIGGERED 대비 OPENED/SUBMITTED 전환율로 카드 노출 지점(N)의 적정성을 본다.
+   */
+  public static final String FEEDBACK_MODAL_TRIGGERED = "feedback_modal_triggered";
+
+  /** 인라인 카드 클릭으로 모달 오픈. 프론트가 발송. payload: turn_count. */
+  public static final String FEEDBACK_MODAL_OPENED = "feedback_modal_opened";
+
+  /**
+   * 피드백 제출 완료. POST /feedback 커밋 시 백엔드가 발송. payload: turn_count, body_length.
+   *
+   * <p>원문(body)은 PII라 로그·payload 엔 길이만 남기고, 전문은 user_feedback 테이블에만 저장한다.
+   */
+  public static final String FEEDBACK_SUBMITTED = "feedback_submitted";
 }
