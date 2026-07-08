@@ -1,10 +1,11 @@
 # 12. References
 
 ## 모델 · 라이브러리
-- **CLIP** — Radford et al., *Learning Transferable Visual Models From Natural Language Supervision* (OpenAI). 이미지·텍스트 공통 임베딩.
+- **CLIP** (라이브: OpenCLIP ViT-L/14, 768-dim) — Radford et al., *Learning Transferable Visual Models From Natural Language Supervision* (OpenAI). 이미지·텍스트 공통 임베딩.
 - **Komoran** — 한국어 형태소 분석기.
-- **mediapipe** — 포즈 추정(가이드 비전).
-- **Gemini / Grok / Claude** — LLM provider.
+- **ViTPose** (`transformers` vitpose-base, COCO-17) — 바디 포즈 키포인트(가이드 관찰, 항상).
+- **mediapipe** — 손 키포인트(옵트인, HAND_AUTO).
+- **Grok / Claude** — LLM provider(prod: 코칭=Grok, PAID compose=Claude). **Gemini** — dev/local VLM·생성 백엔드(`VLM_BACKEND=aistudio`).
 - **Bedrock Stability** — 이미지 생성 API.
 
 ## 인프라 · 프레임워크

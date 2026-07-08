@@ -17,12 +17,16 @@ public record ProjectDetailResponse(
     String description,
     String status,
     String drawingUrl,
+    String coverImageUrl,
+    String coverImageName,
+    Long coverImageSize,
     Boolean suggestionsShown,
     List<BoardItem> board,
     Instant createdAt,
     Instant updatedAt) {
 
-  public static ProjectDetailResponse from(Project p, List<BoardItem> board) {
+  /** coverImageUrl 은 브라우저 노출용으로 이미 서명된 값을 받는다(서비스에서 sign). */
+  public static ProjectDetailResponse from(Project p, String coverImageUrl, List<BoardItem> board) {
     return new ProjectDetailResponse(
         p.getId(),
         p.getName(),
@@ -34,6 +38,9 @@ public record ProjectDetailResponse(
         p.getDescription(),
         p.getStatus().name().toLowerCase(),
         p.getDrawingUrl(),
+        coverImageUrl,
+        p.getCoverImageName(),
+        p.getCoverImageSize(),
         p.getSuggestionsShown(),
         board,
         p.getCreatedAt(),

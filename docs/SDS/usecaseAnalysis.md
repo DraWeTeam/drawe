@@ -5,8 +5,8 @@
 |---|---|
 | **사용자(User)** | 그림을 그리려는 일반 사용자. 로그인·프로젝트·채팅·가이드·갤러리 이용. |
 | **관리자(Admin)** | 대시보드로 사용량·비용·검색 품질 모니터링. |
-| **AI 파이프라인(System)** | 의도 분류·검색·합성·비전 진단을 수행하는 내부 액터. |
-| **외부 서비스** | LLM(Gemini·Grok·Claude), Pinecone, Qdrant, Bedrock(Stability), Google OAuth, SMTP, fastapi(embed·guide). |
+| **AI 파이프라인(System)** | 의도 분류·검색·합성·비전 진단을 수행하는 내부 액터. 가이드는 코칭 에이전트 파이프라인(관찰→진단→결정→검색→코칭→피드백)이며, 의도 분류는 채팅 경로 한정. |
+| **외부 서비스** | LLM(코칭=Grok · VLM 관찰(옵트인)=prod Bedrock Claude Haiku 4.5 / dev Gemini `VLM_BACKEND=aistudio` · 이미지=Bedrock Stability), Pinecone, Qdrant, Bedrock(Stability), Google OAuth, SMTP, fastapi(embed·guide). 관찰 1차는 ViTPose(fastapi-guide). |
 
 ## 3.2 유스케이스 목록
 

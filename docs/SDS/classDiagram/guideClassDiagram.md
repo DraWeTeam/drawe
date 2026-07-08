@@ -1,6 +1,6 @@
 ## ⭐ Guide Class Diagram
 
-이미지 기반 그림 진단/코칭(한 끗 가이드) 도메인. 백엔드는 **오케스트레이션만** 담당하고, 실제 비전/코칭 파이프라인(OpenCLIP ViT-L/14 → observation 신호 + mediapipe 손 게이트 → Qdrant 레퍼런스 검색 → LLM 코칭)은 외부 `fastapi-guide` 서비스에서 수행한다.
+이미지 기반 그림 진단/코칭(한 끗 가이드 = 코칭 에이전트 파이프라인) 도메인. 백엔드는 **오케스트레이션만** 담당하고, 실제 파이프라인(관찰: **ViTPose 바디 키포인트**(항상)+결정적 스코어러 — 손 mediapipe·세부 VLM은 옵트인 가설(`measured=False`) → 진단 → 결정 → Qdrant 검색(taxonomy 정적축 + 무드 soft boost + exclude 재탐색) → 코칭 Grok → 피드백 루프)은 외부 `fastapi-guide` 서비스에서 수행한다.
 
 ```mermaid
 classDiagram
@@ -41,7 +41,7 @@ classDiagram
         -persistGuide(reqId: String, resp: GuideResponse, user: User, project: Project, bytes: byte[], mime: String): Guide
         -storeUploadQuietly(user: User, bytes: byte[], mime: String): ImageBlob
         -allReferenceIds(resp: GuideResponse): Set~String~
-        -buildResult(resp: GuideResponse, createdAt: Instant, uploadUrl: String): GuideResult
+        -buildResult(resp: GuideResponse, createdAt: Instant, uploadUrl: String, requestText: String): GuideResult
         -uploadUrl(g: Guide): String
         -resolveReferences(resp: GuideResponse): List~ResolvedReference~
         -referenceUrl(refId: String): String
@@ -52,8 +52,11 @@ classDiagram
         <<Client>>
         -webClient: WebClient
         +GuideClient(guideUrl: String)
-        +guideImage(imageBytes: byte[], filename: String, mimeType: String, message: String, userId: String, intent: String, track: String, medium: String, requestId: String): GuideResponse
+        +guideImage(imageBytes: byte[], filename: String, mimeType: String, message: String, userId: String, intent: String, track: String, medium: String, requestId: String, projectId: String, mood: String): GuideResponse
         +adopt(guideId: String, referenceId: String, event: String): void
+        +reroll(subProblem: String, exclude: List~String~): RerollResponse
+        +generateImage(prompt: String): byte[]
+        +fetchReferenceBytes(refId: String): byte[]
         +fetchAsset(path: String): ResponseEntity~byte[]~
     }
 
@@ -99,6 +102,7 @@ classDiagram
         +references: List~ResolvedReference~
         +createdAt: Instant
         +uploadUrl: String
+        +requestText: String
     }
 
     class GuideResponse {
@@ -164,7 +168,7 @@ classDiagram
 | **Operations** | list | `ApiResponse<List<GuideResult>>` | public | 가이드 이력 조회 (GET /projects/{id}/guide). 채팅 재진입 시 가이드 카드 복원용 — 프로젝트의 가이드 히스토리(오래된→최신) |
 | **Operations** | guide | `ApiResponse<GuideResult>` | public | 그림 업로드→가이드 (POST /projects/{id}/guide, multipart). file 업로드 후 외부 비전/코칭 파이프라인 결과 반환 |
 | **Operations** | guideFeedback | `ApiResponse<Void>` | public | 가이드 피드백 (POST /projects/{id}/guide/{guideId}/feedback). body `{"feedback":"like"\|"dislike"\|null}`, null은 토글 해제 |
-| **Operations** | referenceFeedback | `ApiResponse<Void>` | public | 추천 레퍼런스 피드백 (POST .../{guideId}/references/feedback). body `{"event":"liked"\|"disliked"}` — 본 레퍼런스(최대 3컷)에 묶음 기록 |
+| **Operations** | referenceFeedback | `ApiResponse<Void>` | public | 추천 레퍼런스 피드백 (POST .../{guideId}/references/feedback). body `{"event":"liked"\|"disliked"}` — 본 레퍼런스(최대 3컷)에 묶음 기록. 피드백 루프에는 adopt(liked/disliked)→adoption_log 외에 **#52 reroll**(🔄 노출분 제외 재탐색, LLM 0콜)과 **#54 취향 결**(온보딩 무드 persona 교집합 시 "결이 맞는 것 우선" 표시, soft boost)도 포함 |
 
 <br>
 
@@ -194,7 +198,7 @@ classDiagram
 | **Attributes** | guidePublicUrl | String | private | 레퍼런스 이미지 브라우저 도달용 base(`/image/{ref_id}`) |
 | **Operations** | guide | GuideResult | public | 업로드→가이드 핵심 흐름: 권한 확인 → 멱등 키 결정/dedup → bytes 추출 → (TX 밖) `guideClient.guideImage` 호출 → coach면 `persistGuide` → 결과 빌드 |
 | **Operations** | list | `List<GuideResult>` | public | 프로젝트 내 내 가이드 히스토리(DESC 조회 후 오래된→최신으로 뒤집음). 저장 payload로 레퍼런스 URL 재보강. `@Transactional(readOnly=true)` |
-| **Operations** | adoptReferences | void | public | 레퍼런스 묶음 피드백(liked/disliked) → 페이로드 ref 풀 화이트리스트 필터(없으면 top-3 폴백) 후 guide `/adopt`로 best-effort 적재. `@Transactional(readOnly=true)` |
+| **Operations** | adoptReferences | void | public | 레퍼런스 묶음 피드백(liked/disliked) → 페이로드 ref 풀 화이트리스트 필터(없으면 top-3 폴백) 후 guide `/adopt`로 best-effort 적재(→adoption_log). 이 피드백 루프에는 **#52 reroll**(노출분 제외 재탐색, LLM 0콜)과 **#54 취향 결**("결이 맞는 것 우선", 무드 soft boost)도 함께 동작. `@Transactional(readOnly=true)` |
 | **Operations** | setGuideFeedback | void | public | 가이드 전체 피드백 업서트(like/dislike) / null·빈값이면 토글 해제(삭제). (user_id, guide_id) UNIQUE로 사용자별 1행. `@Transactional` |
 | **Operations** | persistGuide | Guide | private | coach 가이드 영속. request_id UNIQUE 경합(동시 중복 제출) 시 DataIntegrityViolation 삼키고 null 반환 |
 | **Operations** | storeUploadQuietly | ImageBlob | private | 업로드 원본을 image_blobs에 저장(히스토리 썸네일용). 실패는 non-fatal — null 반환 |
@@ -213,8 +217,11 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | GuideClient | `<<Client>>` | public | 이미지 가이딩 전용 FastAPI 클라이언트. embed와 별도 ECS 서비스(`fastapi-guide.drawe-{env}.local:8000`, `${fastapi.guide.url}`). `/guide` 계약: multipart/form-data, file field="file". request_id(멱등 키) 동봉 → 네트워크 재시도에도 부작용 at-most-once. 타임아웃 150s, 연결 establishment 실패만 재시도(4xx/5xx·읽기 타임아웃은 미재시도) |
 | **Attributes** | webClient | WebClient | private | `${fastapi.guide.url}` baseUrl WebClient |
-| **Operations** | guideImage | GuideResponse | public | `POST /guide` 멀티파트(file + message/user_id/intent/track/medium/request_id). 외부 비전/코칭 파이프라인 호출, GuideResponse 역직렬화 |
+| **Operations** | guideImage | GuideResponse | public | `POST /guide` 멀티파트(file + message/user_id/intent/track/medium/request_id + **project_id**(growth 프로젝트 스코프 키) + **mood**(온보딩 무드 취향, 빈값이면 미전송)). 외부 비전/코칭 파이프라인 호출, GuideResponse 역직렬화 |
 | **Operations** | adopt | void | public | `POST /adopt`(guide_id/reference_id/event) → adoption_log 적재. 실패는 삼키고 로그만(best-effort, 5s 타임아웃) |
+| **Operations** | reroll | RerollResponse | public | `POST /reroll`(sub_problem + exclude 노출분) → 새 컷(+badge 메타) 재추천. LLM 0콜(참조 벡터검색만, 20s 타임아웃). 실패는 예외로 올려 호출자(GuideService)가 매핑(#52) |
+| **Operations** | generateImage | `byte[]` | public | `POST /generate-image`(활성 provider=bedrock) → concept 프롬프트로 PNG 바이트. Bria 대체(2026-07 bedrock 전환). 502·타임아웃(120s)은 예외로 올림 |
+| **Operations** | fetchReferenceBytes | `byte[]` | public | 코퍼스 레퍼런스 원본 bytes 를 아카이브 인제스트용으로 fetch. 안전판: 신뢰 S3 호스트(`*.amazonaws.com`) 302만 추적, image/* + 크기 상한(16MB) 검증, 실패·타임아웃은 예외(고아 저장 방지). refId 경로주입(`/`·`..`) 차단 |
 | **Operations** | fetchAsset | `ResponseEntity<byte[]>` | public | 자산 프록시. 내부 guide path로 GET, 302(presigned S3)는 그대로 반환(no-store), 2xx 본문은 Content-Type과 전달. 실패는 502 매핑. 경로탈출(`..`) 차단 |
 
 <br>

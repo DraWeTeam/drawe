@@ -45,11 +45,19 @@
   color: inherit;
   margin-left: 14px;
   overflow: hidden;
+  height: 65px;
 }
 
 .logoIcon {
   width: 32px;
   height: 32px;
+}
+
+/* 전체 로고(아이콘+워드마크) */
+.logoFull {
+  height: 65px;
+  width: auto;
+  display: block;
 }
 
 .logoText {

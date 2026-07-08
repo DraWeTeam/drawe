@@ -19,9 +19,9 @@
 |---|---|---|
 | `users` | id, email, … | OAuth 사용자 |
 | `refresh_tokens` | token, user_id | JWT 갱신 |
-| `projects` | id, user_id, name, subject, technique, mood, status, **pinned_image_ids(JSON)**, created_at, updated_at | 그림 작업 단위 |
+| `projects` | id, user_id, name, subject, technique, mood, status, **pinned_image_ids(JSON)**, **keywords**(V15), **last_reference_query**(V17), created_at, updated_at | 그림 작업 단위 |
 | `project_references` | id, project_id, image_id, added_at | 프로젝트별 레퍼런스 |
-| `images` | id, source(UNSPLASH/AI), source_id, url, embedding_id, raw_tags(JSON), prompt, **ai_description**, created_by_user_id, indexed_at, created_at | 레퍼런스/AI 이미지 메타 |
+| `images` | id, source(UNSPLASH/AI/**GUIDE_REF**), source_id, url, embedding_id, raw_tags(JSON), prompt, **ai_description**, created_by_user_id, indexed_at, created_at | 레퍼런스/AI 이미지 메타 |
 | `image_blobs` | id, data(MEDIUMBLOB), mime_type, size_bytes, user_id | 업로드 원본(DB 저장 추상화) |
 | `image_drawe_tags` | image_id, technique, subject, mood, utility(JSON), free_tags(JSON), tagged_by | GPT 태깅 결과 |
 | `image_feedback` | id, user_id, image_id, feedback(LIKE/DISLIKE) | (user_id, image_id) UNIQUE |
@@ -32,6 +32,7 @@
 | `prompt_translation_logs` | user_id, ko, en | KO→EN 생성 프롬프트 변환 로그 |
 | `user_pref_tags` | user_id, tag | 온보딩 취향 태그 |
 | `analytics_events` | type, user_id, payload, trace_id | 분석 이벤트 |
+| `reference_generations` | id, project_id, user_id, prompt, image_id, url, created_at | 보드 레퍼런스 생성 이력(프롬프트→생성이미지 복원, V18) |
 
 ## 9.3 Pinecone 스키마
 - **Vector**: CLIP 768차원 (id = 이미지 source_id).
