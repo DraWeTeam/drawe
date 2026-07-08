@@ -68,8 +68,7 @@ const CollectionDetailPage = () => {
       } catch (err) {
         if (alive)
           setErrorMessage(
-            err.response?.data?.error?.message ||
-              "컬렉션을 불러오지 못했어요.",
+            err.response?.data?.error?.message || "컬렉션을 불러오지 못했어요.",
           );
       } finally {
         if (alive) setLoading(false);
@@ -205,7 +204,8 @@ const CollectionDetailPage = () => {
       setMoveImageId(null);
     } catch (err) {
       setErrorMessage(
-        err.response?.data?.error?.message || "레퍼런스 정보를 수정하지 못했어요.",
+        err.response?.data?.error?.message ||
+          "레퍼런스 정보를 수정하지 못했어요.",
       );
     } finally {
       setMoving(false);
@@ -234,8 +234,7 @@ const CollectionDetailPage = () => {
     // addedAt 은 백엔드가 이미 (고정 우선, 최신순)으로 내려주므로 recent 는 원순서 유지.
     const withIndex = base.map((r, i) => ({ r, i }));
     withIndex.sort((a, b) => {
-      const pinDiff =
-        (b.r.pinned ? 1 : 0) - (a.r.pinned ? 1 : 0);
+      const pinDiff = (b.r.pinned ? 1 : 0) - (a.r.pinned ? 1 : 0);
       if (pinDiff !== 0) return pinDiff;
       const ta = a.r.addedAt ? Date.parse(a.r.addedAt) : -a.i;
       const tb = b.r.addedAt ? Date.parse(b.r.addedAt) : -b.i;
@@ -348,13 +347,6 @@ const CollectionDetailPage = () => {
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                className={styles.newProjectBtn}
-                onClick={() => navigate("/projects")}
-              >
-                <PlusIcon /> 새 프로젝트
-              </button>
             </div>
           </div>
 
@@ -566,23 +558,6 @@ const ChevronDown = () => (
     <polyline points="6 9 12 15 18 9" />
   </svg>
 );
-
-const PlusIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.4"
-    strokeLinecap="round"
-    aria-hidden="true"
-  >
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
-
 
 const MoreIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

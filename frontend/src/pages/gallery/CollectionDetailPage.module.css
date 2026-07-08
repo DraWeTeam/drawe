@@ -126,25 +126,6 @@
 }
 
 /* + 새 프로젝트 버튼 */
-.newProjectBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #f5945b;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 9px 15px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.newProjectBtn:hover {
-  background: #ec8547;
-}
-
 .filterChip {
   border: 1px solid #e6e0d9;
   background: #fff;
