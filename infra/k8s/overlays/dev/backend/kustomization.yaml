@@ -27,6 +27,9 @@ configMapGenerator:
       - APP_OAUTH2_REDIRECT_URI=https://develop.drawe.pages.dev/oauth/callback   # ← FILL
       - FASTAPI_GUIDE_PUBLIC_URL=https://api-dev.drawe.xyz
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=dev,service.namespace=drawe
+      # 피드백 메일 — 배관만 준비, 스위치 off. 켤 땐 ENABLED=true 로만 변경
+      - FEEDBACK_MAIL_ENABLED=false
+      - FEEDBACK_MAIL_TO=drawe3648@gmail.com
 
 # SecurityGroupPolicy 의 SG id 를 실제값으로 (pods-db + 클러스터 SG)
 patches:
