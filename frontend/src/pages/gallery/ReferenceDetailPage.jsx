@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   getReferenceDetail,
-  getReferenceSuggestion,
   saveImageFeedback,
   removeImageFeedback,
   getCollections,
@@ -10,7 +9,7 @@ import {
   addReferenceToCollection,
 } from "./api";
 import { downloadImage } from "./download";
-import { koreanTags } from "./tagLabels";
+import TagChipEditor from "./TagChipEditor";
 import AuthedImage from "../chat/AuthedImage";
 import styles from "./ReferenceDetailPage.module.css";
 
@@ -38,8 +37,8 @@ const ReferenceDetailPage = () => {
   const [savedTo, setSavedTo] = useState(() => new Set()); // 방금 담은 컬렉션 id
   const [creatingNew, setCreatingNew] = useState(false);
   const [newName, setNewName] = useState("");
-  // CLIP 추천(레벨3): { axisId, axisLabel, collectionId } | null
-  const [suggestion, setSuggestion] = useState(null);
+  const [newTags, setNewTags] = useState([]);
+  const [tagDraft, setTagDraft] = useState("");
   const archiveRef = useRef(null);
 
   useEffect(() => {
@@ -110,7 +109,7 @@ const ReferenceDetailPage = () => {
     }
   };
 
-  // 아카이브 버튼 — 메뉴 열면서 컬렉션 목록 로드 + CLIP 추천 조회(추천만, 저장 안 함).
+  // 아카이브 버튼 — 메뉴 열면서 컬렉션 목록 로드.
   const openArchive = async () => {
     const willOpen = !archiveOpen;
     setArchiveOpen(willOpen);
@@ -127,29 +126,7 @@ const ReferenceDetailPage = () => {
         setCollLoading(false);
       }
     }
-    // 추천은 한 번만 조회. 실패해도 메뉴는 정상 동작(추천 없음).
-    if (suggestion == null) {
-      try {
-        const s = await getReferenceSuggestion(imageId);
-        setSuggestion(s ?? { axisId: null });
-        // 추천 축 컬렉션이 아직 없으면 '새 컬렉션' 이름을 축 라벨로 프리필(사용자 수정 가능).
-        if (s?.axisLabel && !s?.collectionId) {
-          setNewName(s.axisLabel);
-        }
-      } catch {
-        setSuggestion({ axisId: null });
-      }
-    }
   };
-
-  // 추천 컬렉션을 맨 위로 올린 목록(추천 배지용).
-  const orderedCollections = (() => {
-    const sid = suggestion?.collectionId;
-    if (sid == null) return collections;
-    const hit = collections.find((c) => c.id === sid);
-    if (!hit) return collections;
-    return [hit, ...collections.filter((c) => c.id !== sid)];
-  })();
 
   // 기존 컬렉션에 담기.
   const saveToCollection = async (collectionId) => {
@@ -171,9 +148,12 @@ const ReferenceDetailPage = () => {
       const data = await createCollection({
         name,
         imageIds: [Number(imageId)],
+        tags: newTags,
       });
       const id = data?.collectionId;
       setNewName("");
+      setNewTags([]);
+      setTagDraft("");
       setCreatingNew(false);
       setArchiveOpen(false);
       if (id) navigate(`/archive/collections/${id}`);
@@ -240,58 +220,52 @@ const ReferenceDetailPage = () => {
                   <div className={styles.archiveMenuState}>불러오는 중…</div>
                 ) : (
                   <div className={styles.archiveMenuList}>
-                    {orderedCollections.map((c) => {
-                      const recommended =
-                        suggestion?.collectionId != null &&
-                        c.id === suggestion.collectionId;
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          className={styles.archiveMenuItem}
-                          onClick={() => saveToCollection(c.id)}
-                          disabled={savedTo.has(c.id)}
-                        >
-                          <span className={styles.archiveMenuName}>
-                            {c.name}
-                          </span>
-                          {savedTo.has(c.id) ? (
-                            <span className={styles.savedMark}>저장됨</span>
-                          ) : (
-                            recommended && (
-                              <span className={styles.recoMark}>추천</span>
-                            )
-                          )}
-                        </button>
-                      );
-                    })}
+                    {collections.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={styles.archiveMenuItem}
+                        onClick={() => saveToCollection(c.id)}
+                        disabled={savedTo.has(c.id)}
+                      >
+                        <span className={styles.archiveMenuName}>{c.name}</span>
+                        {savedTo.has(c.id) && (
+                          <span className={styles.savedMark}>저장됨</span>
+                        )}
+                      </button>
+                    ))}
                   </div>
                 )}
-                {/* 추천 축이 있는데 컬렉션이 아직 없으면 안내(이름 프리필됨) */}
-                {suggestion?.axisLabel && !suggestion?.collectionId && (
-                  <p className={styles.recoHint}>
-                    추천: <b>{suggestion.axisLabel}</b> 컬렉션 새로 만들기
-                  </p>
-                )}
                 {creatingNew ? (
-                  <div className={styles.newCollRow}>
-                    <input
-                      className={styles.newCollInput}
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && createAndSave()}
-                      placeholder="새 컬렉션 이름"
-                      autoFocus
-                      maxLength={100}
+                  <div className={styles.newCollBox}>
+                    <div className={styles.newCollRow}>
+                      <input
+                        className={styles.newCollInput}
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && createAndSave()
+                        }
+                        placeholder="새 컬렉션 이름"
+                        autoFocus
+                        maxLength={100}
+                      />
+                      <button
+                        type="button"
+                        className={styles.newCollSave}
+                        onClick={createAndSave}
+                        disabled={!newName.trim()}
+                      >
+                        생성
+                      </button>
+                    </div>
+                    <TagChipEditor
+                      tags={newTags}
+                      draft={tagDraft}
+                      onChange={setNewTags}
+                      onDraftChange={setTagDraft}
+                      placeholder="태그 추가 (선택)"
                     />
-                    <button
-                      type="button"
-                      className={styles.newCollSave}
-                      onClick={createAndSave}
-                      disabled={!newName.trim()}
-                    >
-                      생성
-                    </button>
                   </div>
                 ) : (
                   <button
@@ -335,22 +309,6 @@ const ReferenceDetailPage = () => {
           ) : (
             <span className={styles.sourceLabel}>{ref.sourceUrl}</span>
           )}
-
-          {(() => {
-            // 상세 전체화면은 대표 키워드를 넉넉히(최대 12개) 한국어로 노출.
-            const koKeywords = koreanTags(ref.keywords, 12);
-            return (
-              koKeywords.length > 0 && (
-                <div className={styles.keywordRow}>
-                  {koKeywords.map((k) => (
-                    <span key={k} className={styles.keyword}>
-                      {k}
-                    </span>
-                  ))}
-                </div>
-              )
-            );
-          })()}
 
           {/* 관심 반응: 마음에 들어요 / 별로예요 */}
           <div className={styles.reactionRow}>

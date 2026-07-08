@@ -177,27 +177,6 @@
   font-weight: 600;
 }
 
-/* CLIP 추천 배지(레벨3) */
-.recoMark {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  background: #f5945b;
-  border-radius: 6px;
-  padding: 2px 7px;
-}
-
-.recoHint {
-  margin: 6px 6px 2px;
-  font-size: 12px;
-  color: #8a8580;
-}
-
-.recoHint b {
-  color: #ec8547;
-}
-
 .newCollBtn {
   display: flex;
   align-items: center;
@@ -219,12 +198,18 @@
   color: #2e2c2a;
 }
 
-.newCollRow {
+.newCollBox {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid #f0ece7;
+}
+
+.newCollRow {
+  display: flex;
+  gap: 6px;
 }
 
 .newCollInput {
@@ -323,22 +308,6 @@
   font-size: 14px;
   color: #8a8580;
   width: fit-content;
-}
-
-.keywordRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.keyword {
-  font-size: 13px;
-  color: #7a746e;
-  background: #f0ece7;
-  border: 1px solid #eae4dd;
-  border-radius: 16px;
-  padding: 6px 14px;
 }
 
 /* 관심 반응 */

@@ -75,8 +75,6 @@ export const ingestReference = async (projectId, reference) => {
     region: reference.region ?? null,
     personas: reference.personas ?? null,
     category: reference.category ?? null,
-    // 가이드 §4 축(sub_problem) — 아카이브 컬렉션 자동 분류에 쓰인다(레벨2). GuideModal 이 reference.axis 로 붙여준다.
-    axis: reference.axis ?? null,
   });
   return res.data.data;
 };

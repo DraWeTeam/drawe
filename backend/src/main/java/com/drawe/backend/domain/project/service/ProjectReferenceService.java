@@ -4,7 +4,6 @@ import com.drawe.backend.domain.Image;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.ProjectReference;
 import com.drawe.backend.domain.User;
-import com.drawe.backend.domain.collection.service.CollectionAutoClassifyService;
 import com.drawe.backend.domain.enums.ImageSource;
 import com.drawe.backend.domain.image.repository.ImageRepository;
 import com.drawe.backend.domain.image.service.ImageStorage;
@@ -37,7 +36,6 @@ public class ProjectReferenceService {
   private final GuideClient guideClient;
   private final ImageStorage imageStorage;
   private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
-  private final CollectionAutoClassifyService collectionAutoClassifyService;
 
   /** 브라우저 노출용 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대(시드)·null 은 원본. */
   private String signed(String url) {
@@ -98,10 +96,6 @@ public class ProjectReferenceService {
           image.getId(),
           refId);
     }
-
-    // 레벨2 자동 분류 — 가이드 축(sub_problem)을 알면 그 축 컬렉션에, 모르면 미분류에 담는다.
-    //   기존 project_references 적재(위)는 그대로 두고 아카이브 컬렉션에 '추가로' 배치한다(멱등). 검색/보드 무영향.
-    collectionAutoClassifyService.classifyByAxis(user, image, req.axis());
 
     return Map.of("imageId", image.getId(), "url", signed(image.getUrl()));
   }

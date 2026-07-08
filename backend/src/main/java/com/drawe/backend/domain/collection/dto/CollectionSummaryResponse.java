@@ -12,9 +12,7 @@ public record CollectionSummaryResponse(List<CollectionCard> collections) {
   public record CollectionCard(
       Long id,
       String name,
-      String axis,
       List<String> tags,
-      boolean isSystem,
       int count,
       List<String> thumbnails) {}
 }

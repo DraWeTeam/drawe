@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { uploadImage } from "../chat/api";
 import { createCollection } from "./api";
+import TagChipEditor from "./TagChipEditor";
 import styles from "./CollectionDetailPage.module.css";
 
 // SCR-ARCH-02 '직접 추가하기' — 새 컬렉션을 만든다.
@@ -32,21 +33,6 @@ const DirectAddModal = ({ onCancel, onCreated }) => {
 
   const removeFile = (idx) =>
     setFiles((prev) => prev.filter((_, i) => i !== idx));
-
-  const addTag = () => {
-    const t = tagDraft.trim();
-    if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
-    setTagDraft("");
-  };
-
-  const onTagKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag();
-    } else if (e.key === "Backspace" && !tagDraft && tags.length) {
-      setTags((prev) => prev.slice(0, -1));
-    }
-  };
 
   // 이미지 없이도 이름만 있으면 생성 가능.
   const canSubmit = name.trim() && !busy;
@@ -150,38 +136,12 @@ const DirectAddModal = ({ onCancel, onCreated }) => {
         <p className={styles.fieldHint}>
           컬렉션을 설명하는 태그를 직접 입력하세요. (Enter로 추가)
         </p>
-        <div className={styles.tagEditor}>
-          {tags.map((tag) => (
-            <span key={tag} className={styles.tagChip}>
-              {tag}
-              <button
-                type="button"
-                className={styles.tagRemove}
-                onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
-                aria-label={`${tag} 태그 삭제`}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-          <input
-            className={styles.tagInput}
-            value={tagDraft}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onKeyDown={onTagKeyDown}
-            onBlur={addTag}
-            placeholder="태그 입력 후 Enter"
-          />
-          <button
-            type="button"
-            className={styles.tagAddBtn}
-            onClick={addTag}
-            disabled={!tagDraft.trim()}
-            aria-label="태그 추가"
-          >
-            추가
-          </button>
-        </div>
+        <TagChipEditor
+          tags={tags}
+          draft={tagDraft}
+          onChange={setTags}
+          onDraftChange={setTagDraft}
+        />
 
         {error && <p className={styles.modalError}>{error}</p>}
 

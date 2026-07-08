@@ -553,16 +553,6 @@ const Coach = ({
   const refMetaById = Object.fromEntries(
     (references || []).filter((r) => r?.refId).map((r) => [r.refId, r]),
   );
-  // ③ ref → 소속 블록의 축(sub_problem). references(shown_refs)는 블록 reference_ids 합집합이라 안정적.
-  const axisByRefId = (() => {
-    const m = {};
-    for (const b of blocks) {
-      for (const rid of b.reference_ids || []) {
-        if (rid && !(rid in m)) m[rid] = b.sub_problem || guide.primary_focus;
-      }
-    }
-    return m;
-  })();
   const displayedRefs =
     refPool.length === 0
       ? []
@@ -577,7 +567,6 @@ const Coach = ({
             region: m.region,
             personas: m.personas,
             category: m.category,
-            axis: axisByRefId[refId] || guide.primary_focus,
           };
         });
   const canRefresh = refPool.length > 3;
