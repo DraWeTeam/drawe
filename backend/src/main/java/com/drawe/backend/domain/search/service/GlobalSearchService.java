@@ -100,7 +100,10 @@ public class GlobalSearchService {
     return projectRepository
         .searchCompleted(user, ProjectStatus.COMPLETED, like, PageRequest.of(0, cap))
         .stream()
-        .map(p -> new CompletedHit(p.getId(), p.getName(), signed(p.getDrawingUrl()), p.getUpdatedAt()))
+        .map(
+            p ->
+                new CompletedHit(
+                    p.getId(), p.getName(), signed(p.getDrawingUrl()), p.getUpdatedAt()))
         .toList();
   }
 }

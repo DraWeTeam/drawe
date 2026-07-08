@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Template from "./template/Template";
 import Login from "./pages/login/Login";
 import Signup from "./pages/login/Signup";
@@ -10,6 +10,7 @@ import ReferencePage from "./pages/chat/ReferencePage";
 import ProjectList from "./pages/projects/ProjectList";
 import ChatPage from "./pages/chat/ChatPage";
 import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
+import LandingPage from "./pages/landing/LandingPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
 import ReferenceListPage from "./pages/gallery/ReferenceListPage";
 import CollectionDetailPage from "./pages/gallery/CollectionDetailPage";
@@ -27,6 +28,12 @@ import { track } from "./analytics";
 import { ConsentProvider, ConsentGate } from "./auth/ConsentContext";
 import { ToastProvider } from "./components/ToastContext";
 
+// 루트 진입: 비로그인은 랜딩페이지, 로그인 사용자는 앱 홈으로
+function RootRoute() {
+  const token = localStorage.getItem("accessToken");
+  return token ? <ProjectList /> : <Navigate to="/landing" replace />;
+}
+
 function App() {
   useEffect(() => {
     track("test_ping", { hello: "world" });
@@ -43,7 +50,8 @@ function App() {
               <Route path="/terms" element={<TermsAgreement consentMode />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/oauth/callback" element={<OAuthCallback />} />
-              <Route path="/" element={<ProjectList />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/" element={<RootRoute />} />
               <Route
                 path="/projects/:projectId/reference/:referenceId"
                 element={<ReferencePage />}

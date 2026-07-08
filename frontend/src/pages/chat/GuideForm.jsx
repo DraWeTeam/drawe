@@ -5,7 +5,8 @@ import { track as analyticsTrack } from "../../analytics";
 import { useParams } from "react-router-dom";
 
 // "어떤 점이 마음에 걸리나요?" 빠른 선택 칩 — 클릭 시 message 에 채움(편집 가능).
-const CONCERNS = [
+// eslint-disable-next-line react-refresh/only-export-components -- 칩 상수 공유(ChatPage inputMode 판정용)
+export const CONCERNS = [
   "손이 어색해요",
   "얼굴이 어색해요",
   "입체감이 없어요",
@@ -54,6 +55,7 @@ const InfoIcon = () => (
 
 const GuideForm = ({ onSubmit, onClose, submitting }) => {
   const { projectId } = useParams();
+
   const inputRef = useRef(null);
   const previewRef = useRef(null);
   const [file, setFile] = useState(null);
@@ -68,6 +70,7 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
   const imageUploadedAt = useRef(null);
   const chipSelectedAt = useRef({}); // { [chipContent]: timestamp }
+  const statusSelectedOnce = useRef(false);
 
   useEffect(
     () => () => {
@@ -133,6 +136,10 @@ const GuideForm = ({ onSubmit, onClose, submitting }) => {
 
   // eslint-disable-next-line no-unused-vars -- GA4 핸들러: UI 연결 예정(develop)
   const handleIntentSelect = (newIntent) => {
+    if (submitting) return;
+    // 같은 값 다시 클릭이면 무시
+    if (intent === newIntent && statusSelectedOnce.current) return;
+
     setIntent(newIntent);
     const imageStatus = newIntent === "practice" ? "in_progress" : "completed";
 

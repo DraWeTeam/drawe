@@ -1,0 +1,115 @@
+<svg viewBox="0 0 2040 520" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">Drawe 협업 프로세스 (Jira → PR → CI/리뷰 → 머지 → CD → ArgoCD → EKS)</title>
+  <desc id="desc">Jira SCRUM 이슈를 이슈 단위 브랜치로 열어 PR 템플릿으로 올리면, 경로 필터 CI(backend·fastapi·frontend)와 CodeRabbit 리뷰를 거쳐 사용자가 머지하고, CD가 이미지 빌드 후 overlay 태그를 bump(develop→dev / main→prod)하면 ArgoCD auto-sync가 EKS로 롤아웃하는 가로형 협업 파이프라인.</desc>
+
+  <defs>
+    <g id="c-issue" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M4.5 6.5h15v4a2 2 0 0 0 0 3v4h-15v-4a2 2 0 0 0 0-3z"/><path d="M9 8v9" stroke-dasharray="1.5 2"/></g>
+    <g id="c-branch" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><circle cx="6" cy="6" r="2.1"/><circle cx="6" cy="18" r="2.1"/><circle cx="17" cy="9" r="2.1"/><path d="M6 8.1v7.8M6 12h5c2 0 3-.8 3-2.7"/></g>
+    <g id="c-pr" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><circle cx="6" cy="6" r="2.1"/><circle cx="6" cy="18" r="2.1"/><circle cx="18" cy="18" r="2.1"/><path d="M6 8.1v7.8M18 15.9V11a3 3 0 0 0-3-3h-3l2-2m-2 2l2 2"/></g>
+    <g id="c-ci" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="12" r="8.2"/><path d="M8.3 12l2.6 2.6 4.8-5"/></g>
+    <g id="c-merge" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><circle cx="6" cy="6" r="2.1"/><circle cx="6" cy="18" r="2.1"/><circle cx="18" cy="12" r="2.1"/><path d="M6 8.1v7.8M6 9c0 4 2.5 3 9.9 3"/></g>
+    <g id="c-cd" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3.5c3.4 1.6 5 4.6 5 8.5 0 2.4-1 4.4-2.2 5.6H9.2C8 16.4 7 14.4 7 12c0-3.9 1.6-6.9 5-8.5z"/><circle cx="12" cy="10.5" r="1.7"/><path d="M9.2 17.6l-2 3M14.8 17.6l2 3"/></g>
+    <g id="c-sync" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><path d="M18.5 8.5A7.5 7.5 0 0 0 5.6 6.7"/><path d="M5.5 15.5A7.5 7.5 0 0 0 18.4 17.3"/><path d="M5.6 3.6v3.3h3.3M18.4 20.4v-3.3h-3.3"/></g>
+    <g id="c-cube" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3.5l7.5 4.3v8.4L12 20.5l-7.5-4.3V7.8z"/><path d="M12 3.5v8.5l7.5-4.2M12 12l-7.5-4.2M12 12v8.5"/></g>
+    <marker id="a-grey" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#9A948B"/></marker>
+  </defs>
+
+  <rect x="8" y="8" width="2024" height="504" rx="22" fill="#FBFAF7" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <text x="44" y="52" font-size="26" font-weight="800" fill="#23221F">Drawe<tspan fill="#9A948B" font-weight="600"> · 협업 프로세스</tspan></text>
+  <text x="46" y="78" font-size="13.5" fill="#8C867C">Jira SCRUM → 이슈 브랜치 → PR(템플릿) → CI + CodeRabbit → 사용자 머지 → CD(overlay bump) → ArgoCD → EKS 롤아웃</text>
+  <line x1="44" y1="96" x2="1996" y2="96" stroke="#ECE7DF" stroke-width="1.5"/>
+
+  <!-- connectors -->
+  <g fill="none" stroke="#9A948B" stroke-width="2.6">
+    <path d="M240 262 L282 262" marker-end="url(#a-grey)"/>
+    <path d="M486 262 L528 262" marker-end="url(#a-grey)"/>
+    <path d="M732 262 L774 262" marker-end="url(#a-grey)"/>
+    <path d="M978 262 L1020 262" marker-end="url(#a-grey)"/>
+    <path d="M1224 262 L1266 262" marker-end="url(#a-grey)"/>
+    <path d="M1470 262 L1512 262" marker-end="url(#a-grey)"/>
+    <path d="M1716 262 L1758 262" marker-end="url(#a-grey)"/>
+  </g>
+
+  <!-- 1. Jira 이슈 -->
+  <g>
+    <rect x="40" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#D8D2C8" stroke-width="1.7"/>
+    <g transform="translate(56,208)" color="#6B6B66"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#F0EEE9"/><use href="#c-issue" x="2" y="2"/></g>
+    <text x="100" y="222" font-size="16.5" font-weight="700" fill="#2A2925">Jira 이슈</text>
+    <text x="100" y="244" font-size="11.5" fill="#8C867C">SCRUM 스프린트</text>
+    <text x="60" y="286" font-size="11" fill="#9A948B">GitHub 이슈 연동 ·</text>
+    <text x="60" y="304" font-size="11" fill="#9A948B">이슈 = 작업 단위</text>
+  </g>
+  <!-- 2. 이슈 브랜치 -->
+  <g>
+    <rect x="286" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#9DBAEC" stroke-width="1.8"/>
+    <g transform="translate(302,208)" color="#3B6FD4"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#E5EDFB"/><use href="#c-branch" x="2" y="2"/></g>
+    <text x="346" y="222" font-size="16.5" font-weight="700" fill="#2A2925">이슈 브랜치</text>
+    <text x="346" y="244" font-size="11.5" fill="#8C867C">이슈 단위</text>
+    <text x="306" y="286" font-size="11" fill="#9A948B">feature/* · fix/*</text>
+    <text x="306" y="304" font-size="11" fill="#9A948B">· docs/* (develop 분기)</text>
+  </g>
+  <!-- 3. PR -->
+  <g>
+    <rect x="532" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#9DBAEC" stroke-width="1.8"/>
+    <g transform="translate(548,208)" color="#3B6FD4"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#E5EDFB"/><use href="#c-pr" x="2" y="2"/></g>
+    <text x="592" y="222" font-size="16.5" font-weight="700" fill="#2A2925">Pull Request</text>
+    <text x="592" y="244" font-size="11.5" fill="#8C867C">템플릿 기반</text>
+    <text x="552" y="286" font-size="11" fill="#9A948B">PULL_REQUEST_</text>
+    <text x="552" y="304" font-size="11" fill="#9A948B">TEMPLATE.md</text>
+  </g>
+  <!-- 4. CI + CodeRabbit -->
+  <g>
+    <rect x="778" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#5BC0B2" stroke-width="1.8"/>
+    <g transform="translate(794,208)" color="#1E9486"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#D8F0EB"/><use href="#c-ci" x="2" y="2"/></g>
+    <text x="838" y="222" font-size="16.5" font-weight="700" fill="#2A2925">CI + 리뷰</text>
+    <text x="838" y="244" font-size="11.5" fill="#8C867C">경로 필터</text>
+    <text x="798" y="284" font-size="11" fill="#9A948B">backend·fastapi·frontend-ci</text>
+    <text x="798" y="302" font-size="11" fill="#9A948B">+ CodeRabbit (.coderabbit)</text>
+  </g>
+  <!-- 5. 사용자 머지 -->
+  <g>
+    <rect x="1024" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#8FCBA0" stroke-width="1.8"/>
+    <g transform="translate(1040,208)" color="#3E9C6B"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#E4F3E9"/><use href="#c-merge" x="2" y="2"/></g>
+    <text x="1084" y="222" font-size="16.5" font-weight="700" fill="#2A2925">사용자 머지</text>
+    <text x="1084" y="244" font-size="11.5" fill="#8C867C">최종 승인</text>
+    <text x="1044" y="286" font-size="11" fill="#9A948B">main = Required</text>
+    <text x="1044" y="304" font-size="11" fill="#9A948B">reviewers 통과 후</text>
+  </g>
+  <!-- 6. CD -->
+  <g>
+    <rect x="1270" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#DCC081" stroke-width="1.8"/>
+    <g transform="translate(1286,208)" color="#B57E33"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#F6EAD0"/><use href="#c-cd" x="2" y="2"/></g>
+    <text x="1330" y="222" font-size="16.5" font-weight="700" fill="#2A2925">CD · bump</text>
+    <text x="1330" y="244" font-size="11.5" fill="#8C867C">빌드 → ECR</text>
+    <text x="1290" y="284" font-size="11" fill="#9A948B">backend/fastapi(-guide)-cd</text>
+    <text x="1290" y="302" font-size="11" fill="#9A948B">overlay newTag bump</text>
+  </g>
+  <!-- 7. ArgoCD -->
+  <g>
+    <rect x="1516" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#C9B0EC" stroke-width="1.8"/>
+    <g transform="translate(1532,208)" color="#7E51C8"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#EEE4FA"/><use href="#c-sync" x="2" y="2"/></g>
+    <text x="1576" y="222" font-size="16.5" font-weight="700" fill="#2A2925">ArgoCD</text>
+    <text x="1576" y="244" font-size="11.5" fill="#8C867C">GitOps auto-sync</text>
+    <text x="1520" y="286" font-size="11" fill="#9A948B">prune + selfHeal ·</text>
+    <text x="1520" y="304" font-size="11" fill="#9A948B">git = 배포 상태</text>
+  </g>
+  <!-- 8. EKS 롤아웃 -->
+  <g>
+    <rect x="1762" y="188" width="200" height="150" rx="14" fill="#FFFFFF" stroke="#8FCBA0" stroke-width="1.8"/>
+    <g transform="translate(1778,208)" color="#3E9C6B"><rect x="-3" y="-3" width="34" height="34" rx="9" fill="#E4F3E9"/><use href="#c-cube" x="2" y="2"/></g>
+    <text x="1822" y="222" font-size="16.5" font-weight="700" fill="#2A2925">EKS 롤아웃</text>
+    <text x="1822" y="244" font-size="11.5" fill="#8C867C">무중단 롤링</text>
+    <text x="1766" y="286" font-size="11" fill="#9A948B">Karpenter · Graviton</text>
+    <text x="1766" y="304" font-size="11" fill="#9A948B">PDB + readiness</text>
+  </g>
+
+  <!-- env split note -->
+  <g transform="translate(44,364)">
+    <rect x="0" y="0" width="1918" height="126" rx="14" fill="#FFFFFF" stroke="#ECE7DF"/>
+    <text x="22" y="32" font-size="14.5" font-weight="700" fill="#2A2925">브랜치 → 환경 (CD 분기)</text>
+    <circle cx="28" cy="60" r="6" fill="#3E9C6B"/><text x="44" y="64" font-size="12" fill="#4A463F"><tspan font-weight="700" fill="#2E7D50">develop</tspan> → <tspan font-weight="700">dev</tspan> — 머지 시 dev overlay 이미지 태그 bump → ArgoCD(dev) 롤아웃. 배포 확인은 dev.</text>
+    <circle cx="28" cy="86" r="6" fill="#B57E33"/><text x="44" y="90" font-size="12" fill="#4A463F"><tspan font-weight="700" fill="#8B6A2E">main</tspan> → <tspan font-weight="700">prod</tspan> — Required reviewers 통과 후 머지 → prod overlay bump → ArgoCD(prod) 롤아웃. 릴리스 PR(develop→main)로 반영.</text>
+    <circle cx="28" cy="112" r="6" fill="#9A948B"/><text x="44" y="116" font-size="12" fill="#4A463F"><tspan font-weight="700" fill="#6B6B66">CI ≠ 배포</tspan> — CI는 이미지 빌드·overlay 커밋까지. 실제 클러스터 적용은 ArgoCD가 git 상태로 수렴(kubectl 직접 apply 없음). 워크플로 8종 · 경로 필터.</text>
+  </g>
+</svg>

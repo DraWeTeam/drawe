@@ -125,7 +125,7 @@ flowchart LR
 | --- | --- | --- |
 | `backend-cd` | `backend/**` | JAR → Docker(ARM64) → ECR → overlay bump → ArgoCD 롤아웃 |
 | `fastapi-cd` | `fastapi/**` (embed) | 빌드 → ECR → overlay bump → ArgoCD |
-| `fastapi-guide-cd` | `fastapi/guide/**` · `Dockerfile.guide` | guide 이미지 빌드 → ECR → ArgoCD |
+| `fastapi-guide-cd` | `fastapi/guide/**` · `fastapi/assets/**` · `Dockerfile.guide` · `requirements.guide.txt` | guide 이미지 빌드 → ECR → ArgoCD |
 | `qdrant-keepalive` | cron(3일) | Qdrant Cloud 무료 클러스터 keep-alive |
 
 > `develop` → dev 동기화, `main` → prod 배포(Required reviewers 통과 후 ArgoCD sync).

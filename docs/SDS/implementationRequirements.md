@@ -5,15 +5,15 @@
 |---|---|
 | Frontend | React, Vite |
 | Backend | Spring Boot 3.2, Java 17, Spring Data JPA, **QueryDSL**, Flyway, Resilience4j, Spring Security(OAuth2·JWT) |
-| AI 서비스 | FastAPI(Python), CLIP(ViT-L/14), mediapipe, Gemini VLM |
+| AI 서비스 | FastAPI(Python), CLIP(ViT-L/14), ViTPose(바디 포즈)·mediapipe(손), Bedrock Claude VLM(옵트인) |
 | 데이터 | MySQL 8, Redis/Valkey, **Pinecone**(채팅 추천), **Qdrant**(가이드) |
 | 인프라 | AWS EKS(EC2 Graviton arm64) · ArgoCD(GitOps) · Karpenter · IRSA · External Secrets, Cloudflare, ALB, GitHub Actions(CD), OTEL(관측) |
 
 ## 10.2 외부 연동
 | 연동 | 용도 | 격리/비고 |
 |---|---|---|
-| Gemini / Grok / Claude | COMPOSE·키워드·의도 분류 | provider 추상화, 교체 가능 |
-| Bria | AI 이미지 생성 | 검색 결과 없을 때 |
+| Grok / Claude (Gemini=dev 폴백) | 키워드 추출 폴백(1차=Komoran, Grok=사전 미스율 초과 시 폴백) · COMPOSE·의도 워크플로는 **dormant**(설계만, 런타임=레거시 직접 합성) | provider 추상화, prod=Grok / PAID=Claude |
+| Bedrock(Stability) | AI 이미지 생성 | 검색 결과 없을 때 |
 | Pinecone / Qdrant | 벡터 검색 (채팅 추천 / 가이드) | Resilience4j 서킷브레이커 |
 | fastapi-embed / guide | CLIP·비전 | 클러스터 내부 호출 |
 | Google OAuth / GA4 / SMTP / S3 | 인증·분석·메일·스토리지 | |
@@ -22,7 +22,7 @@
 - `application.properties`는 **전부 `${ENV}` placeholder** (배포 안전).
 - 비밀 아닌 값(환경변수) + **SSM Parameter Store**(비밀).
 - 로컬은 gitignore 프로필(`application-oauth/llm.properties`)이 placeholder를 덮음.
-- **Live 전환**: 환경변수 `WORKFLOW_COMPOSE_LIVE_INTENTS`.
+- **Live 전환**: 프로퍼티 `workflow.compose.live-intents`(기본 비어 있음=전부 레거시). 환경변수는 **`WORKFLOW_COMPOSE_LIVE_INTENTS`** — `application.properties`가 `${WORKFLOW_COMPOSE_LIVE_INTENTS:}`로 명시 참조한다.
 
 ## 10.4 복원력 (Resilience4j)
 - 외부 호출(embed·vector)에 **서킷브레이커 + 리트라이**. 검색 실패가 호출자 트랜잭션을 오염시키지 않도록 `REQUIRES_NEW`로 격리.
@@ -31,7 +31,7 @@
 ## 10.5 보안
 - **JWT**(access/refresh) + **Google OAuth2**. OAuth state는 **Spring Session(Valkey)** 공유 세션(멀티 replica 대응).
 - 비밀값은 git에 두지 않음 — **SSM Parameter Store → External Secrets → K8s Secret**(키리스). 추적 파일엔 placeholder만.
-- **IRSA**: 정적 액세스키 없이 SA 단위 최소권한(backend→S3 bria · guide→S3 artref 개별 스코프).
+- **IRSA**: 정적 액세스키 없이 SA 단위 최소권한(backend→S3 bria(구 bria, 현 Bedrock) · guide→S3 artref 개별 스코프).
 - 인프라 보안: **HTTPS**(ACM·ssl-redirect 443), **RDS** private·암호화(`publicly_accessible=false`), **S3** Block Public Access, **SSH(22) 차단**(SSM Session Manager).
 - 과거 커밋 노출분(jwt·pinecone)은 **키 재발급**으로 대응.
 

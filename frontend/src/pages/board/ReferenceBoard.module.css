@@ -529,6 +529,31 @@
   background: #ff7a25;
 }
 
+/* 더보기 (클라 페이징) — 검색결과 아래 중앙 */
+.moreRow {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 20px;
+}
+
+.moreBtn {
+  padding: 9px 24px;
+  border: 1px solid #e0ded9;
+  border-radius: 999px;
+  background: #fff;
+  color: #6f6b66;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.moreBtn:hover {
+  border-color: #ff8534;
+  color: #ff8534;
+}
+
 /* 스크롤바 */
 .content::-webkit-scrollbar {
   width: 6px;

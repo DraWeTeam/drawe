@@ -58,6 +58,11 @@ public class Project {
   @Column(name = "keywords", columnDefinition = "JSON")
   private List<String> keywords = new ArrayList<>();
 
+  // SCRUM-113: 레퍼런스 보드 마지막 검색어 — 재진입 시 서버 기반으로 자동 복원(검색창은 비우고 결과만 재조회).
+  @Size(max = 500)
+  @Column(name = "last_reference_query", length = 500)
+  private String lastReferenceQuery;
+
   @NotNull
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false)
@@ -70,6 +75,19 @@ public class Project {
   @Size(max = 500)
   @Column(name = "drawing_url", length = 500)
   private String drawingUrl;
+
+  // SCRUM-120: 사용자가 올리는 프로젝트 표지(카드 썸네일). drawingUrl(완성 그림)과 별개.
+  @Size(max = 500)
+  @Column(name = "cover_image_url", length = 500)
+  private String coverImageUrl;
+
+  // 표지 원본 파일명·용량(bytes) — 수정 모달 재진입 시 이름/크기 복원용.
+  @Size(max = 255)
+  @Column(name = "cover_image_name", length = 255)
+  private String coverImageName;
+
+  @Column(name = "cover_image_size")
+  private Long coverImageSize;
 
   @Column(name = "detail_answers")
   @JdbcTypeCode(SqlTypes.JSON)

@@ -36,6 +36,44 @@ public class ProjectService {
   private final SearchLogRepository searchLogRepository;
   private final ProjectKeywordService projectKeywordService;
   private final com.drawe.backend.domain.guide.repository.GuideRepository guideRepository;
+  private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
+  private final com.drawe.backend.domain.image.repository.ImageBlobRepository imageBlobRepository;
+
+  /** 브라우저 노출용 서명 — s3:{key}→presigned, /images/{id}→HMAC, 절대·null 은 원본. */
+  private String signed(String url) {
+    return (url != null && imageUrlSigner != null) ? imageUrlSigner.sign(url) : url;
+  }
+
+  // 표지는 업로드 경로(/images/{blobId})만 허용. 임의 URL·서명 URL 은 거부.
+  //   자릿수 1~18 로 제한 — Long 오버플로(NumberFormatException→500) 방지, 초과는 INVALID_INPUT(400).
+  private static final java.util.regex.Pattern COVER_IMAGE_URL =
+      java.util.regex.Pattern.compile("^/images/(\\d{1,18})$");
+
+  /**
+   * 표지 소유권 검증(IDOR 방지). 업로드 응답 형식만 허용한다.
+   *
+   * <ul>
+   *   <li>S3 저장({@code s3:{key}}, s3 프로파일): 키가 랜덤 UUID라 열거·추측 불가 → 형식만 확인(소유권 레코드 없음).
+   *   <li>DB 저장({@code /images/{blobId}}): 순차 id라 열거 가능 → ImageBlob 소유자 검증 필수.
+   * </ul>
+   */
+  private void assertCoverImageOwned(User user, String coverUrl) {
+    if (coverUrl.startsWith(com.drawe.backend.domain.image.service.S3ImageStorage.S3_URL_PREFIX)) {
+      return;
+    }
+    java.util.regex.Matcher m = COVER_IMAGE_URL.matcher(coverUrl);
+    if (!m.matches()) {
+      throw new CustomException(ErrorCode.INVALID_INPUT);
+    }
+    Long blobId = Long.valueOf(m.group(1));
+    var blob =
+        imageBlobRepository
+            .findById(blobId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    if (blob.getUser() == null || !blob.getUser().getId().equals(user.getId())) {
+      throw new CustomException(ErrorCode.FORBIDDEN);
+    }
+  }
 
   @Transactional
   public ProjectDetailResponse create(User user, CreateProjectRequest request) {
@@ -53,7 +91,8 @@ public class ProjectService {
     project.setDescription(request.description());
     project.setStatus(ProjectStatus.IN_PROGRESS);
     Project saved = projectRepository.save(project);
-    return ProjectDetailResponse.from(saved, Collections.emptyList());
+    return ProjectDetailResponse.from(
+        saved, signed(saved.getCoverImageUrl()), Collections.emptyList());
   }
 
   @Transactional(readOnly = true)
@@ -66,7 +105,12 @@ public class ProjectService {
 
     List<ProjectListItem> items =
         projects.stream()
-            .map(p -> ProjectListItem.of(p, projectReferenceRepository.countByProject(p)))
+            .map(
+                p ->
+                    ProjectListItem.of(
+                        p,
+                        projectReferenceRepository.countByProject(p),
+                        signed(p.getCoverImageUrl())))
             .toList();
 
     boolean hasMore = (long) offset + items.size() < total;
@@ -76,7 +120,8 @@ public class ProjectService {
   @Transactional(readOnly = true)
   public ProjectDetailResponse getDetail(User user, Long projectId) {
     Project project = loadAuthorized(user, projectId);
-    return ProjectDetailResponse.from(project, Collections.emptyList());
+    return ProjectDetailResponse.from(
+        project, signed(project.getCoverImageUrl()), Collections.emptyList());
   }
 
   @Transactional
@@ -94,6 +139,9 @@ public class ProjectService {
     if (request.mood() != null) {
       project.setMood(request.mood());
     }
+    if (request.keywords() != null) {
+      project.setKeywords(request.keywords());
+    }
     if (request.description() != null) {
       project.setDescription(request.description());
     }
@@ -102,6 +150,20 @@ public class ProjectService {
     }
     if (request.drawingUrl() != null) {
       project.setDrawingUrl(request.drawingUrl());
+    }
+    // 표지: 빈 문자열이면 제거(모달 X 버튼), 값이 있으면 교체. null 은 변경 없음.
+    //   파일명·용량은 표지와 한 묶음 — 교체 시 함께 저장, 제거 시 함께 비움.
+    if (request.coverImageUrl() != null) {
+      boolean removing = request.coverImageUrl().isBlank();
+      if (!removing) {
+        assertCoverImageOwned(user, request.coverImageUrl());
+      }
+      project.setCoverImageUrl(removing ? null : request.coverImageUrl());
+      project.setCoverImageName(
+          removing || request.coverImageName() == null || request.coverImageName().isBlank()
+              ? null
+              : request.coverImageName());
+      project.setCoverImageSize(removing ? null : request.coverImageSize());
     }
     if (request.detailAnswers() != null) {
       project.setDetailAnswers(request.detailAnswers());

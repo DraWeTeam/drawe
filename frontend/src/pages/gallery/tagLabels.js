@@ -4,7 +4,6 @@
 //   AI 이미지 태그(ImageDraweTag subject/technique/mood)는 이미 한국어라 매핑에 없으면 원문을 그대로 쓴다.
 //   즉 매핑 규칙: (1) 매핑에 있으면 한글, (2) 한글이 이미 섞인 값이면 원문 유지, (3) 그 외 영어는 숨김.
 
-// eslint-disable-next-line
 const TAG_KO = {
   // 자연·풍경
   nature: "자연",

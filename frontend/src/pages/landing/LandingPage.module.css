@@ -1,0 +1,804 @@
+.page {
+  width: 100%;
+  max-width: 1666px; /* 디자인 페이지 폭 */
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #fff;
+  color: #24221f;
+  font-family:
+    "Wanted Sans Variable",
+    "Pretendard",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  overflow-x: hidden;
+  padding-top: 97px; /* fixed 헤더 높이만큼 콘텐츠 내림 */
+}
+
+/* ===== 헤더 (sticky) ===== */
+.nav {
+  position: fixed; /* 스크롤해도 상단 고정 (page overflow가 sticky를 깨서 fixed 사용) */
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 40px;
+  height: 97px;
+  box-sizing: border-box;
+  background: #fefeff;
+  max-width: 1666px;
+  margin: 0 auto;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brandLogo {
+  height: 65px;
+  width: auto;
+  display: block;
+}
+
+.navCta {
+  border: none;
+  background: #ff8534;
+  color: #fefeff;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 0 24px;
+  height: 46px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.navCta:hover {
+  background: #ff7a25;
+}
+
+/* ===== 프레임 컨테이너 ===== */
+.frames {
+  /* 콘텐츠 프레임(1570)은 페이지(1666) 안에서 좌우 48px씩 */
+  width: min(1570px, calc(100% - 96px));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding-top: 12px;
+  container-type: inline-size;
+}
+
+/* 프레임 공통 타이틀(heading1) */
+.frameTitle {
+  margin: 0;
+  font-size: 3.0573cqw;
+  line-height: 3.949cqw;
+  font-weight: 700;
+  color: #24221f;
+}
+
+/* ===== 스크롤 진입 효과 ===== */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.revealVisible {
+  opacity: 1;
+  transform: none;
+}
+
+/* 그리드 내부 카드 스태거 — 섹션이 나타난 뒤 순차 등장 */
+.painCard,
+.valueCard,
+.featRowWide,
+.featCardRef,
+.featCardGrowth {
+  transition:
+    opacity 0.6s ease,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease;
+}
+.reveal .painCard,
+.reveal .valueCard,
+.reveal .featRowWide,
+.reveal .featCardRef,
+.reveal .featCardGrowth {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.revealVisible .painCard,
+.revealVisible .valueCard,
+.revealVisible .featRowWide,
+.revealVisible .featCardRef,
+.revealVisible .featCardGrowth {
+  opacity: 1;
+  transform: none;
+}
+.revealVisible .painCard:nth-child(2),
+.revealVisible .valueCard:nth-child(2),
+.revealVisible .featCardGrowth {
+  transition-delay: 0.1s;
+}
+.revealVisible .painCard:nth-child(3),
+.revealVisible .valueCard:nth-child(3) {
+  transition-delay: 0.2s;
+}
+.revealVisible .featRow2 {
+  /* 넓은 카드 다음 등장 */
+  transition-delay: 0.08s;
+}
+
+/* 카드 호버 리프트(은은하게) */
+.painCard:hover,
+.valueCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(15, 15, 15, 0.07);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal .painCard,
+  .reveal .valueCard,
+  .reveal .featRowWide,
+  .reveal .featCardRef,
+  .reveal .featCardGrowth {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ===== 공용 버튼 ===== */
+.pillBtn,
+.ctaBtn {
+  border: none;
+  background: #fefeff;
+  color: #ff8534;
+  font-size: 1.0191cqw;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 0 1.5287cqw;
+  height: 2.9299cqw;
+  border-radius: 63.6306cqw;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.pillBtn:hover,
+.ctaBtn:hover {
+  transform: translateY(-1px);
+}
+
+/* ===== Frame 1. 히어로 ===== */
+.hero {
+  position: relative;
+  border-radius: 4.0764cqw;
+  background: linear-gradient(
+    180deg,
+    #ff8534 30.09%,
+    rgba(255, 255, 255, 0.6) 100%
+  );
+  overflow: hidden;
+  aspect-ratio: 1570 / 900;
+  container-type: inline-size; /* 내부 요소를 cqw로 폭에 비례 스케일(배경과 함께) */
+}
+
+/* cqw = 히어로 폭의 1%. 디자인 1570 기준 px → (px/1570*100)cqw 로 환산 */
+.heroText {
+  position: absolute;
+  left: 4.586cqw; /* 72 */
+  top: 5.096cqw; /* 80 */
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.529cqw; /* 24 */
+  width: 43.63cqw; /* 685 */
+}
+
+.heroTitle {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.529cqw; /* 24 */
+  font-size: 4.586cqw; /* 72 */
+  line-height: 3.949cqw; /* 62 */
+  font-weight: 700;
+  color: #fefeff;
+  white-space: nowrap; /* 각 줄 한 줄 고정 */
+}
+
+.heroTitleSub {
+  color: #ffdba9;
+}
+
+.heroDesc {
+  margin: 0;
+  font-size: 1.274cqw; /* 20 */
+  line-height: 1.783cqw; /* 28 */
+  color: #fffbf5;
+}
+
+/* 히어로 버튼도 폭에 비례 스케일(공용 pillBtn 오버라이드) */
+.hero .pillBtn {
+  font-size: 1.019cqw; /* 16 */
+  height: 2.93cqw; /* 46 */
+  padding: 0 1.529cqw; /* 24 */
+}
+
+/* 히어로 스크린샷 — width:100%(비율 유지), top 89/900, 회전 3.48°.
+   overflow:hidden 으로 우하단 오버플로 클립. */
+.heroShot {
+  position: absolute;
+  left: 0;
+  top: 9.9%; /* 89/900 */
+  width: 100%;
+  height: auto;
+  z-index: 1;
+}
+
+/* ===== Frame 2. 페인포인트 ===== */
+.painFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3.0573cqw;
+  padding: 6.3694cqw 4.586cqw;
+  background: #fefeff;
+  border-radius: 4.0764cqw;
+}
+
+.painRow {
+  display: flex;
+  gap: 1.0191cqw;
+  width: 100%;
+}
+
+.painCard {
+  flex: 1 1 0;
+  min-width: 0;
+  background: #f9f9f9;
+  border-radius: 1.2739cqw;
+  padding: 3.0573cqw 3.5669cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6369cqw;
+}
+
+.painTitle {
+  margin: 0;
+  font-size: 1.2739cqw;
+  line-height: 1.7834cqw;
+  font-weight: 700;
+  color: #4a4846;
+  white-space: nowrap; /* 한 줄 고정 */
+}
+
+.painDesc {
+  margin: 0;
+  font-size: 1.0191cqw;
+  line-height: 1.4013cqw;
+  font-weight: 500;
+  color: #888685;
+  white-space: pre-line;
+}
+
+/* ===== Frame 3. 기능 ===== */
+.featFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5478cqw;
+  padding: 3.8217cqw 4.586cqw;
+  background: #fefeff;
+  border-radius: 4.0764cqw;
+}
+
+.featCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.0191cqw;
+  width: 100%;
+}
+
+.featTitle {
+  margin: 0;
+  font-size: 1.5287cqw;
+  line-height: 2.0382cqw;
+  font-weight: 700;
+  color: #ff8534;
+}
+
+.featText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6369cqw;
+}
+
+.featDesc {
+  margin: 0;
+  font-size: 1.0191cqw;
+  line-height: 1.4013cqw;
+  font-weight: 500;
+  color: #4a4846;
+}
+
+/* 한 끗 가이드 (넓은 카드) */
+.featRowWide {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; /* 한 끗 가이드 텍스트 좌상단 */
+  height: 38.2166cqw; /* 600px (Figma) */
+  box-sizing: border-box;
+  gap: 4.0764cqw;
+  padding: 4.0764cqw 3.5669cqw 0; /* 하단 패딩 제거 → 이미지 바닥까지 */
+  background: #fffbf5;
+  border-radius: 1.2739cqw;
+  overflow: hidden;
+}
+
+.featRowWide .featText {
+  flex: 0 0 19.1083cqw;
+}
+
+.featWideShot {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end; /* 오른쪽 56px 마진에 맞춰 우측 정렬 */
+  align-items: flex-end;
+  align-self: stretch;
+  overflow: hidden;
+}
+
+.featWideShot img {
+  width: 100%;
+  max-width: 48cqw; /* 가로형(2940x2144) — 영역 꽉 채우면 과대, 디자인(735) 근처로 캡 */
+  height: auto;
+  display: block;
+}
+
+/* 하단 두 카드 */
+.featRow2 {
+  display: flex;
+  gap: 1.0191cqw;
+}
+
+.featCardRef,
+.featCardGrowth {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 3.0573cqw 3.5669cqw 0; /* 하단 패딩 제거 → 이미지/차트가 바닥까지 */
+  border-radius: 1.2739cqw;
+  overflow: hidden;
+}
+
+.featCardRef {
+  gap: 2.1019cqw;
+  background: #fff1dc;
+}
+
+.featCardGrowth {
+  gap: 1.0191cqw;
+  background: #fffbf5;
+}
+
+.featRefShot {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+}
+
+/* 성장 차트 (Frame 412) */
+.chartCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.0191cqw;
+  padding: 1.5287cqw 1.0191cqw 1.0191cqw;
+  border-radius: 0.7643cqw;
+}
+
+.chartHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2548cqw;
+}
+
+.chartTitle {
+  margin: 0;
+  font-size: 1.2739cqw;
+  line-height: 1.7834cqw;
+  font-weight: 700;
+  color: #24221f;
+}
+
+.chartAxis {
+  margin: 0;
+  font-size: 0.7643cqw;
+  line-height: 1.2739cqw;
+  font-weight: 500;
+  color: #888685;
+}
+
+.chartBody {
+  display: flex;
+  gap: 0.5096cqw;
+  height: 9.172cqw;
+}
+
+.chartY {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  width: 0.5096cqw;
+  font-size: 0.7643cqw;
+  line-height: 1.2739cqw;
+  color: #888685;
+}
+
+.chartPlot {
+  flex: 1;
+  border-left: 1px solid #d8d7d5;
+  border-bottom: 1px solid #d8d7d5;
+  padding: 0.7643cqw 0 0.7643cqw 0.7643cqw;
+  box-sizing: border-box;
+}
+
+.chartSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chartX {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 1.0191cqw;
+  font-size: 0.7643cqw;
+  line-height: 1.2739cqw;
+  color: #888685;
+}
+
+/* ===== Frame 4. 아카이브 ===== */
+.archiveFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3.0573cqw;
+  padding: 6.3694cqw 4.586cqw 0;
+  background: #fefeff;
+  border-radius: 4.0764cqw;
+  overflow: hidden;
+}
+
+.archiveHead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7643cqw;
+  text-align: center;
+}
+
+.archiveSub {
+  margin: 0;
+  font-size: 1.2739cqw;
+  line-height: 1.7834cqw;
+  font-weight: 700;
+  color: #4a4846;
+}
+
+.archiveShotWrap {
+  position: relative;
+  width: 100%;
+  max-width: 73.5032cqw;
+}
+
+.archiveShot {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Frame 465 — "준비 중" 반투명 배너(이미지 1154×668 기준: top 338, height 90) */
+.archivePending {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50.6%; /* 338/668 */
+  height: 13.5%; /* 90/668 */
+  background: rgba(254, 254, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2739cqw;
+  line-height: 1.7834cqw;
+  font-weight: 700;
+  color: #888685;
+}
+
+/* ===== Frame 5. 철학 ===== */
+.philoFrame {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4.0764cqw;
+  padding: 10.1911cqw 4.586cqw;
+  background: #fefeff;
+  border-radius: 4.0764cqw;
+}
+
+.philoLeft {
+  flex: 0 0 auto; /* 타이틀 한 줄 폭에 맞춰(가운데 auto 공간 활용) */
+  display: flex;
+  flex-direction: column;
+  gap: 3.0573cqw;
+}
+
+.philoTitle {
+  margin: 0;
+  font-size: 3.0573cqw;
+  line-height: 3.949cqw;
+  font-weight: 700;
+  color: #24221f;
+  white-space: nowrap; /* 한 줄 고정 */
+}
+
+.philoAccent {
+  color: #ff8534;
+}
+
+.philoDesc {
+  margin: 0;
+  font-size: 1.0191cqw;
+  line-height: 1.4013cqw;
+  font-weight: 500;
+  color: #4a4846;
+}
+
+.philoRight {
+  flex: 0 0 44.9045cqw;
+  max-width: 44.9045cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.0191cqw;
+}
+
+.valueGrid {
+  display: flex;
+  gap: 1.0191cqw;
+}
+
+.valueCard {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 12.8662cqw;
+  background: #fffbf5;
+  border-radius: 1.0191cqw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 1.0191cqw;
+}
+
+.valueIcon {
+  display: flex;
+  width: 2.0382cqw;
+  height: 2.0382cqw;
+  color: #ff8534;
+}
+
+.valueIcon svg {
+  width: 2.0382cqw;
+  height: 2.0382cqw;
+}
+
+.valueText {
+  margin: 0;
+  font-size: 1.1465cqw;
+  line-height: 1.5287cqw;
+  font-weight: 700;
+  color: #24221f;
+  white-space: pre-line;
+}
+
+.valueNote {
+  margin: 0;
+  font-size: 0.8917cqw;
+  line-height: 1.4013cqw;
+  font-weight: 600;
+  color: #4a4846;
+  text-align: center;
+}
+
+/* ===== Frame 6. CTA ===== */
+.ctaFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.0382cqw;
+  padding: 6.3694cqw 4.586cqw 5.4777cqw;
+  background: #ff8534;
+  border-radius: 4.0764cqw;
+  text-align: center;
+}
+
+.ctaText {
+  margin: 0;
+  font-size: 3.0573cqw;
+  line-height: 3.949cqw;
+  font-weight: 700;
+  color: #fefeff;
+}
+
+/* ===== 푸터 (Frame 467) ===== */
+.footer {
+  margin-top: 40px;
+  background: #4a4846;
+  color: #d8d7d5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 54px max(40px, calc((100% - 1426px) / 2));
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.footerBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footerLogo {
+  height: 65px;
+  width: auto;
+  display: block;
+}
+
+.footerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footerLinks {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 500;
+  color: #d8d7d5;
+}
+
+.footerContact {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  color: #d8d7d5;
+}
+
+/* ===== 반응형 ===== */
+@media (max-width: 1000px) {
+  /* 히어로는 cqw로 폭에 비례 스케일되므로 별도 override 없음(겹침 방지) */
+  .frameTitle {
+    font-size: 30px;
+    line-height: 1.3;
+  }
+  .painFrame,
+  .featFrame,
+  .archiveFrame,
+  .philoFrame {
+    padding: 56px 28px;
+    border-radius: 36px;
+  }
+  .ctaFrame {
+    padding: 56px 28px;
+    border-radius: 36px;
+  }
+  .painRow,
+  .featRowWide,
+  .featRow2,
+  .philoFrame,
+  .valueGrid {
+    flex-direction: column;
+  }
+  .philoLeft,
+  .philoRight {
+    flex-basis: auto;
+    max-width: none;
+  }
+  .featRowWide .featText {
+    flex-basis: auto;
+  }
+  .ctaText {
+    font-size: 30px;
+    line-height: 1.3;
+  }
+  .footerInfo {
+    align-items: flex-start;
+  }
+
+  /* 작은 화면: cqw 대신 고정 px로 리셋(가독성) */
+  .painCard,
+  .featCardRef,
+  .featCardGrowth,
+  .featRowWide {
+    padding: 32px 28px;
+    gap: 16px;
+    border-radius: 20px;
+  }
+  .featRowWide {
+    height: auto; /* 세로 스택 시 고정 높이 해제 */
+  }
+  .painTitle,
+  .chartTitle,
+  .archiveSub {
+    font-size: 18px;
+    line-height: 1.4;
+    white-space: normal;
+  }
+  .archivePending {
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  .painDesc,
+  .featDesc,
+  .philoDesc,
+  .valueText {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .featTitle {
+    font-size: 20px;
+    line-height: 1.3;
+  }
+  .valueText {
+    font-size: 16px;
+  }
+  .valueNote {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .chartAxis,
+  .chartX,
+  .chartY {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .philoTitle {
+    font-size: 30px;
+    line-height: 1.3;
+  }
+  .valueCard {
+    min-height: 150px;
+    gap: 12px;
+    border-radius: 14px;
+  }
+  .valueGrid {
+    gap: 12px;
+  }
+  .chartBody {
+    height: 120px;
+  }
+  .chartY {
+    width: 10px;
+  }
+}

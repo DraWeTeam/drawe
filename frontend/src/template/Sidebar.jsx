@@ -5,10 +5,12 @@ import { getReferenceArchive, getCompletedGallery } from "../pages/gallery/api";
 import { ARCHIVE_CHANGED_EVENT } from "../pages/gallery/archiveEvents";
 import Tooltip from "../components/Tooltip";
 import SearchModal from "./SearchModal";
+import PlanPage from "../pages/settings/PlanPage";
 import styles from "./Sidebar.module.css";
-import logo from "../assets/drawe_logo.png";
+import primaryLogo from "../assets/primary_logo.png";
 
 const HIDDEN_PATHS = [
+  "/landing",
   "/login",
   "/signup",
   "/signup/terms",
@@ -27,6 +29,7 @@ const Sidebar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [referenceCount, setReferenceCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
+  const [planOpen, setPlanOpen] = useState(false); // 요금제 보기 모달(Figma 201:15482)
   const userMenuRef = useRef(null);
 
   const hidden = HIDDEN_PATHS.includes(location.pathname);
@@ -68,7 +71,8 @@ const Sidebar = () => {
         0,
       );
       setReferenceCount(refCount);
-      setGalleryCount(galData?.totalElements ?? 0);
+      // /gallery/completed 응답 필드는 total(=totalElements 아님) — 완성작 카운트 뱃지 미표시 버그 수정.
+      setGalleryCount(galData?.total ?? 0);
     } catch {
       // 카운트는 부가 정보 — 실패해도 무시
     }
@@ -131,10 +135,7 @@ const Sidebar = () => {
         <div className={styles.top}>
           {!collapsed && (
             <Link to="/projects" className={styles.logo}>
-              <img className={styles.logoIcon} src={logo} />
-              <span className={styles.logoText}>
-                <span className={styles.logoHighlight}>Dra</span>We
-              </span>
+              <img className={styles.logoFull} src={primaryLogo} alt="DraWe" />
             </Link>
           )}
           <Tooltip
@@ -318,7 +319,7 @@ const Sidebar = () => {
                 className={styles.userMenuItem}
                 onClick={() => {
                   setUserMenuOpen(false);
-                  navigate("/plan");
+                  setPlanOpen(true);
                 }}
               >
                 <BillingIcon />
@@ -383,6 +384,7 @@ const Sidebar = () => {
         </div>
       </aside>
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+      {planOpen && <PlanPage onClose={() => setPlanOpen(false)} />}
     </>
   );
 };

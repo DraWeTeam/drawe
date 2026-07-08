@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { deleteProject, getProject, getProjects, updateProject } from "./api";
 import ProjectFormModal from "./ProjectFormModal";
 import ProjectCreateModal from "./ProjectCreateModal";
+import AuthedImage from "../chat/AuthedImage";
 import ConfirmModal from "./ConfirmModal";
 import Tooltip from "../../components/Tooltip";
 import styles from "./ProjectList.module.css";
@@ -294,7 +295,15 @@ const ProjectList = () => {
                 <span className={styles.statusBadge}>
                   {STATUS_LABEL[p.status] ?? p.status}
                 </span>
-                <FolderIcon />
+                {p.coverImageUrl ? (
+                  <AuthedImage
+                    className={styles.thumbImg}
+                    src={p.coverImageUrl}
+                    alt=""
+                  />
+                ) : (
+                  <FolderIcon />
+                )}
               </div>
 
               {/* 이름 섹션 */}

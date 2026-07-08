@@ -250,6 +250,24 @@
   border-radius: 9.6px;
 }
 
+/* 가이드 생성 대기 인라인 스피너 — GuideModal .spinner 패턴 재사용(색·spin 동일, 인라인용 16px) */
+.inlineSpinner {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  align-self: center;
+  border-radius: 50%;
+  border: 2px solid #f3e6d8;
+  border-top-color: #ee6f2d;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* 메시지 단위 wrapper — 이미지와 텍스트를 묶는 컨테이너 */
 .userMessage {
   align-self: flex-end;

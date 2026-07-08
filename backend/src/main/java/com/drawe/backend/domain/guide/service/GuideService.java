@@ -5,22 +5,28 @@ import com.drawe.backend.domain.GuideFeedback;
 import com.drawe.backend.domain.ImageBlob;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.User;
+import com.drawe.backend.domain.UserPrefTag;
+import com.drawe.backend.domain.enums.Axis;
 import com.drawe.backend.domain.enums.FeedbackType;
 import com.drawe.backend.domain.guide.dto.GuideResult;
+import com.drawe.backend.domain.guide.dto.RerollResult;
 import com.drawe.backend.domain.guide.dto.ResolvedReference;
 import com.drawe.backend.domain.guide.repository.GuideFeedbackRepository;
 import com.drawe.backend.domain.guide.repository.GuideRepository;
 import com.drawe.backend.domain.image.repository.ImageBlobRepository;
 import com.drawe.backend.domain.image.service.DbImageStorage;
 import com.drawe.backend.domain.image.service.ImageStorage;
+import com.drawe.backend.domain.onboarding.UserPrefTagRepository;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.client.GuideClient;
 import com.drawe.backend.global.client.dto.GuideResponse;
+import com.drawe.backend.global.client.dto.RerollResponse;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +56,8 @@ public class GuideService {
   // s3 프로파일에선 ImageStorage 의 @Primary 가 S3ImageStorage(id=null)라, 구체 타입으로 DB 구현을 주입.
   private final DbImageStorage imageStorage;
   private final ImageBlobRepository imageBlobRepository;
+  // 온보딩 무드 취향 → 가이드 추천 soft boost(fastapi mood_map). 읽기 전용.
+  private final UserPrefTagRepository userPrefTagRepository;
 
   /** 레퍼런스 이미지의 '브라우저 도달용' base(/image/{ref_id}). prod 도달성은 P5 인프라에서 확정. */
   @Value("${fastapi.guide.public-url}")
@@ -95,6 +103,9 @@ public class GuideService {
       throw new CustomException(ErrorCode.INVALID_INPUT);
     }
 
+    // 온보딩 무드 취향(선택) — 있으면 추천 soft boost 로만 흐른다. 없으면 null → fastapi 랭킹 현행 동일.
+    String moodPref = resolveMoodPref(user);
+
     // 느린 외부 호출(LLM 코칭) — 트랜잭션 밖에서 수행(DB 커넥션 장시간 점유 방지).
     GuideResponse resp;
     try {
@@ -109,7 +120,8 @@ public class GuideService {
               track,
               medium,
               reqId,
-              String.valueOf(projectId)); // growth 프로젝트 스코프 키
+              String.valueOf(projectId), // growth 프로젝트 스코프 키
+              moodPref);
     } catch (RuntimeException e) {
       log.error("guide 호출 실패: project={}, error={}", projectId, e.getMessage());
       throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
@@ -240,6 +252,64 @@ public class GuideService {
   }
 
   /**
+   * 레퍼런스 재추천("다시 추천" 🔄). 저장된 가이드의 축(subProblem)으로 fastapi /reroll 호출 — 정적 질의 복원 + 이미 노출된 ref
+   * 배제(LLM 미경유). 무상태: exclude 는 프론트가 세션 누적해 매 요청 전달.
+   *
+   * <p>보안: subProblem 은 이 가이드 블록에 실제 존재하는 축만 허용(임의 축 주입 차단). 프로젝트·소유자 검증.
+   */
+  @Transactional(readOnly = true)
+  public RerollResult rerollReferences(
+      User user, Long projectId, String guideId, String subProblem, List<String> exclude) {
+    loadProjectAuthorized(user, projectId); // 프로젝트 접근 권한
+    Guide g =
+        guideRepository
+            .findByGuideId(guideId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    if (!g.getUser().getId().equals(user.getId())) {
+      throw new CustomException(ErrorCode.FORBIDDEN);
+    }
+    // 저장 sub_problem 검증 — 이 가이드가 실제로 다룬 축만 재추천(임의 축 재해석 차단).
+    if (subProblem == null || !blockSubProblems(g.getPayload()).contains(subProblem)) {
+      throw new CustomException(ErrorCode.INVALID_INPUT);
+    }
+    RerollResponse rr = guideClient.reroll(subProblem, exclude);
+    if (rr.pending() != null) {
+      return RerollResult.pending(subProblem, rr.pending().message());
+    }
+    if (rr.exhausted() || rr.hits() == null || rr.hits().isEmpty()) {
+      return RerollResult.exhausted(subProblem);
+    }
+    List<ResolvedReference> refs = new ArrayList<>();
+    int ordinal = 1;
+    for (RerollResponse.Hit h : rr.hits()) {
+      GuideResponse.ReferenceMeta m = h.meta();
+      refs.add(
+          new ResolvedReference(
+              ordinal++,
+              h.refId(),
+              referenceUrl(h.refId()), // 브라우저 도달 URL은 서버가 재보강(fastapi internal url 미사용)
+              m != null ? m.sourceType() : null,
+              m != null ? m.region() : null,
+              m != null ? m.personas() : null,
+              m != null ? m.category() : null));
+    }
+    return RerollResult.ok(subProblem, refs);
+  }
+
+  /** 가이드 페이로드 블록들의 sub_problem 집합 — 재추천 축 화이트리스트(임의 축 차단). */
+  private Set<String> blockSubProblems(GuideResponse resp) {
+    Set<String> out = new LinkedHashSet<>();
+    if (resp.blocks() != null) {
+      for (GuideResponse.GuideBlock b : resp.blocks()) {
+        if (b.subProblem() != null && !b.subProblem().isBlank()) {
+          out.add(b.subProblem());
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
    * 가이드 전체 피드백(👍 like / 👎 dislike / 해제 null) — adoption_log 와 분리된 guide_feedback 에 적재. 사용자별
    * 1행(있으면 갱신, 없으면 생성), null/빈 값이면 토글 해제(행 삭제). ImageFeedbackService 와 동일 패턴.
    */
@@ -351,5 +421,29 @@ public class GuideService {
       throw new CustomException(ErrorCode.FORBIDDEN);
     }
     return project;
+  }
+
+  /**
+   * 온보딩 무드 취향(user_pref_tags AXIS_MOOD) → weight 내림차순 상위 3개 값을 콤마로 이어 반환.
+   *
+   * <p>없으면 {@code null} → guideImage 가 mood 파트를 안 실어 fastapi 랭킹이 현행과 완전 동일(비파괴). fastapi 가
+   * schema/mood_map.yaml 로 persona 공간에 매핑해 soft boost 로만 쓴다. 읽기 전용.
+   */
+  private String resolveMoodPref(User user) {
+    List<UserPrefTag> tags = userPrefTagRepository.findByUserAndAxis(user, Axis.AXIS_MOOD);
+    if (tags == null || tags.isEmpty()) {
+      return null;
+    }
+    List<String> values = new ArrayList<>();
+    tags.stream()
+        .sorted(Comparator.comparingInt(UserPrefTag::getWeight).reversed())
+        .limit(3)
+        .forEach(
+            t -> {
+              if (t.getValue() != null && !t.getValue().isBlank()) {
+                values.add(t.getValue());
+              }
+            });
+    return values.isEmpty() ? null : String.join(",", values);
   }
 }

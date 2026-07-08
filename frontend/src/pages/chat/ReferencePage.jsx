@@ -21,7 +21,6 @@ const ReferencePage = () => {
   const [feedbackLoading, setFeedbackLoading] = useState(true); // 추가
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   // 아카이브 저장 → 컬렉션 선택 모달 열림 여부.
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
@@ -234,12 +233,8 @@ const ReferencePage = () => {
               <DownloadIcon />
             </button>
           </Tooltip>
-          <button
-            className={styles.saveBtn}
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "저장 중…" : "저장"}
+          <button className={styles.saveBtn} onClick={handleSave}>
+            저장
           </button>
         </div>
       </div>

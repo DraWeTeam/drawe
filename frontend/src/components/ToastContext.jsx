@@ -7,6 +7,7 @@ import styles from "./Toast.module.css";
 const ToastContext = createContext(null);
 
 // 어디서든(Provider 밖 포함) 안전하게 쓰도록 훅은 항상 함수를 반환한다.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useToast = () => {
   const ctx = useContext(ToastContext);
   return ctx ?? { showToast: () => {}, dismissToast: () => {} };
