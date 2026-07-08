@@ -320,6 +320,8 @@ classDiagram
         -nickname: String
         -picture: String
         -termsAgreed: boolean
+        -plan: String
+        -social: boolean
     }
 
     AuthController ..> AuthService : uses
@@ -820,3 +822,5 @@ classDiagram
 | **Attributes** | nickname | String | private | 닉네임 |
 | **Attributes** | picture | String | private | 프로필 이미지 URL |
 | **Attributes** | termsAgreed | boolean | private | 약관 동의 완료 여부 (termsAgreeAt != null) |
+| **Attributes** | plan | String | private | 요금제 코드 (free / paid) |
+| **Attributes** | social | boolean | private | 소셜 로그인 계정 여부 (password == null) — "비밀번호 변경" UI 표시 분기 |
