@@ -25,6 +25,7 @@ import PolicyPage from "./pages/settings/PolicyPage";
 import { useEffect } from "react";
 import { track } from "./analytics";
 import { ConsentProvider, ConsentGate } from "./auth/ConsentContext";
+import { ToastProvider } from "./components/ToastContext";
 
 function App() {
   useEffect(() => {
@@ -33,8 +34,9 @@ function App() {
   return (
     <BrowserRouter>
       <ConsentProvider>
-        <Template>
-          <ConsentGate>
+        <ToastProvider>
+          <Template>
+            <ConsentGate>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup/terms" element={<TermsAgreement />} />
@@ -82,8 +84,9 @@ function App() {
                 element={<OnboardingCompletePage />}
               /> */}
             </Routes>
-          </ConsentGate>
-        </Template>
+            </ConsentGate>
+          </Template>
+        </ToastProvider>
       </ConsentProvider>
     </BrowserRouter>
   );

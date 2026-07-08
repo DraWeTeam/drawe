@@ -1,0 +1,97 @@
+/* 화면 상단 중앙 토스트 뷰포트 */
+.viewport {
+  position: fixed;
+  top: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 2000;
+  pointer-events: none;
+  padding: 0 16px;
+}
+
+.toast {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 92vw;
+  background: #2e2c2a;
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 12px 12px 18px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+  font-size: 14px;
+  animation: toastIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.toast.leaving {
+  animation: toastOut 0.2s ease forwards;
+}
+
+.message {
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #f5a675;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.action:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.close {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #b7b2ac;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.close:hover {
+  color: #fff;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@media (max-width: 520px) {
+  .message {
+    white-space: normal;
+  }
+}
