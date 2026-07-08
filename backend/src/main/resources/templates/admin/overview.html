@@ -23,19 +23,19 @@
 
   <!-- 핵심: North Star(헤드라인) + Guardrail(채팅 성공률, 임계 위반 시 빨강 강조) -->
   <section class="grid">
-    <div th:replace="~{admin/fragments :: kpiCard('ns', '활성 사용자', ${kpi.activeUsers()}, '사용자 단위', '봇·내부 트래픽 미제외, 표본 작음 — 추세로만', 'yellow', 'none')}"></div>
-    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '채팅 성공률', ${kpi.successRateText()}, '채팅 턴 단위', '시스템 실패 여부만 측정 — 답변 품질은 못 봄', 'green', ${kpi.successRate() != null and kpi.successRate() < 95.0 ? 'bad' : 'none'})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('ns', '활성 사용자', ${kpi.activeUsers()}, '', '아직 사용자가 적어 정확하진 않아요 — 흐름만 참고', 'yellow', 'none')}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '채팅 성공률', ${kpi.successRateText()}, '', '응답이 떴는지만 봐요 (내용이 좋은지는 아님)', 'green', ${kpi.successRate() != null and kpi.successRate() < 95.0 ? 'bad' : 'none'})}"></div>
   </section>
 
   <!-- Diagnostic: 평소엔 안 봐도 되는 진단 지표 (접기 가능) -->
   <details class="diag" open style="margin-bottom: 18px;">
     <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
-      🔍 Diagnostic <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 되는 진단 지표</span>
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
     </summary>
 
     <section class="grid">
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '에러율', ${kpi.errorRateText()}, '채팅 턴 단위', '실패 규모만 — 원인·예외 종류는 observability(Loki) 담당', 'green', 'none')}"></div>
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '검색 차단율', ${kpi.searchBlockRateText()}, '검색 시도 단위', '차단 비율만 — 차단 사유별 분해는 미제공', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '에러율', ${kpi.errorRateText()}, '', '채팅 중 오류가 난 비율', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '검색 차단율', ${kpi.searchBlockRateText()}, '', '결과를 제대로 못 준 검색 비율', 'green', 'none')}"></div>
     </section>
 
     <section class="panel">

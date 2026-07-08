@@ -10,7 +10,7 @@
     <div>
       <h1>이용 흐름</h1>
       <div class="meta">
-        세션 단위 단계 도달 · 최근 <span th:text="${hours}">168</span>시간 · 기준 <span th:text="${v.generatedAtText()}">-</span>
+        단계별 사용자 흐름 · 최근 <span th:text="${hours}">168</span>시간 · 기준 <span th:text="${v.generatedAtText()}">-</span>
       </div>
     </div>
     <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
@@ -22,14 +22,14 @@
 
   <!-- 핵심: KO 응답 성공 도달율(헤드라인) + Guardrail 에러 발생 세션 -->
   <section class="grid">
-    <div th:replace="~{admin/fragments :: kpiCard('ko', '응답 성공 도달율', ${v.succeededReachText()}, '세션 단위', '세션이 응답까지 도달한 비율 — 답변 품질·만족도는 못 봄', 'green', ${v.succeededReach() != null and v.succeededReach() < 80.0 ? 'bad' : 'none'})}"></div>
-    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '에러 발생 세션', ${v.erroredSessions()}, '세션 단위', '세션 단위 집계 — Overview 에러율(턴 단위)과 분모가 달라 중복 아님', 'green', ${v.erroredSessions() > 0 ? 'bad' : 'none'})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('ko', '응답 성공 도달율', ${v.succeededReachText()}, '', '채팅이 응답까지 간 비율 (내용 만족도는 아님)', 'green', ${v.succeededReach() != null and v.succeededReach() < 80.0 ? 'bad' : 'none'})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '에러 발생 세션', ${v.erroredSessions()}, '', '에러가 난 대화가 몇 건인지', 'green', ${v.erroredSessions() > 0 ? 'bad' : 'none'})}"></div>
   </section>
 
   <!-- Diagnostic: 평소엔 안 봐도 되는 진단 지표 (접기 가능) -->
   <details class="diag" open style="margin-bottom: 18px;">
     <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
-      🔍 Diagnostic <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 되는 진단 지표</span>
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
     </summary>
 
     <section class="panel">
@@ -50,16 +50,16 @@
           </div>
         </div>
         <div class="meta" style="margin-top:4px; line-height:1.6;">
-          막대·%는 <b>전체 세션</b> 대비 도달률이에요. 엄밀한 순차 경로가 아니라 "그 단계 이벤트를 한 번이라도 일으킨 세션" 기준이라,
-          윈도우 경계를 걸친 세션 때문에 시작·성공 모수가 달라 단계가 살짝 역전돼(도달률 100% 근처) 보일 수 있어요. 도달률로 보세요.
+          각 단계까지 도달한 비율이에요. 사용자가 어디서 많이 빠지는지 보세요.
+          수치가 100% 근처로 겹쳐 보일 수 있으니 도달률로 보세요.
         </div>
       </div>
     </section>
 
     <section class="grid">
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '검색 차단 세션', ${v.blockedSessions()}, '세션 단위', '검색이 무관 결과로 차단된 세션 수 — 차단 사유별 분해는 미제공', 'green', 'none')}"></div>
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '온보딩 완료', ${v.onboardedSessions()}, '세션 단위', '완료 이벤트 기준 — 중도 이탈 단계별 분해는 미제공', ${v.totalSessions() &lt; 30 ? 'yellow' : 'green'}, 'none')}"></div>
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '전체 세션', ${v.totalSessions()}, '세션 단위', '고유 session_id 수 — 도달율의 분모', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '검색 차단 세션', ${v.blockedSessions()}, '', '결과가 부실해 검색이 막힌 경우', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '온보딩 완료', ${v.onboardedSessions()}, '', '온보딩을 끝낸 사용자 수', ${v.totalSessions() &lt; 30 ? 'yellow' : 'green'}, 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '전체 세션', ${v.totalSessions()}, '', '얼마나 이용했는지 (비율의 기준)', 'green', 'none')}"></div>
     </section>
   </details>
 </main>

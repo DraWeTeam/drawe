@@ -12,7 +12,7 @@
       <h1>Search Quality</h1>
       <div class="meta">
         최근 <span th:text="${hours}">168</span>시간 · 기준 <span th:text="${kpi.generatedAtText()}">-</span>
-        · 원문(original_message)은 표시하지 않음 — 키워드 집계만
+        · 검색어만 집계해요 (원문은 저장·표시 안 함)
       </div>
     </div>
     <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
@@ -24,18 +24,18 @@
 
   <!-- 핵심: KO 검색 성공률(헤드라인) + Guardrail 루프 검색 -->
   <section class="grid">
-    <div th:replace="~{admin/fragments :: kpiCard('ko', '검색 성공률', ${kpi.successRateText()}, '검색 시도 단위', '결과 유무·점수만 측정 — 의도·콘텐츠 타입 일치는 못 봄', 'green', ${kpi.successRate() != null and kpi.successRate() < 0.80 ? 'bad' : 'none'})}"></div>
-    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '루프 검색', ${fr.loopSessions()}, '세션 단위', '반복 검색에도 성공 못 한 세션 — 개별 검색 품질과는 다른 세션 단위 신호', 'green', ${fr.loopSessions() > 0 ? 'bad' : 'none'})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('ko', '검색 성공률', ${kpi.successRateText()}, '', '결과가 나왔는지만 봐요 (원하던 게 맞는지는 아님)', 'green', ${kpi.successRate() != null and kpi.successRate() < 0.80 ? 'bad' : 'none'})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '루프 검색', ${fr.loopSessions()}, '', '여러 번 검색해도 못 찾은 사용자 — 많으면 검색 품질 점검 신호', 'green', ${fr.loopSessions() > 0 ? 'bad' : 'none'})}"></div>
   </section>
 
-  <!-- ⭐ 실행 큐: 시드 보강 백로그 + 검색 수요 TOP -->
+  <!-- ⭐ 실행 큐: 결과가 약했던 검색어 + 검색 수요 TOP -->
   <div th:replace="~{admin/fragments :: queueHeader('exec')}"></div>
-  <div class="meta" style="margin:-6px 0 14px;">매일/주 1회 정리 — 상위가 곧 데이터셋 보강·콘텐츠 우선순위. 두 표에 함께 뜨는 키워드는 <b style="color:var(--danger);">고수요+약함</b>(최우선).</div>
+  <div class="meta" style="margin:-6px 0 14px;">위에서부터 처리하면 돼요. <b style="color:var(--danger);">고수요+약함</b> 표시가 가장 먼저예요.</div>
 
-  <!-- 시드 보강 백로그 (페이지네이션 + 검색) -->
+  <!-- 결과가 약했던 검색어 (페이지네이션 + 검색) -->
   <section class="panel">
-    <h2>시드 보강 백로그 <span class="tag">result_count=0 또는 점수&lt;0.2</span></h2>
-    <div class="meta" style="margin:-4px 0 12px;">결과가 부족했던 검색을 키워드별 빈도순으로 — 상위가 곧 데이터셋 보강 우선순위예요.</div>
+    <h2>결과가 약했던 검색어 <span class="tag">결과 부족</span></h2>
+    <div class="meta" style="margin:-4px 0 12px;">결과가 부족했던 검색이에요. 위에서부터 채우면 좋아요.</div>
 
     <!-- 검색 + 총건수 (백로그 섹션) -->
     <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
@@ -217,59 +217,56 @@
   <!-- 🔍 Diagnostic: 검색 마찰 + 검색어 어절 TOP (평소엔 안 봐도 됨) -->
   <details class="diag" open style="margin-bottom: 18px;">
     <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
-      🔍 Diagnostic <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 되는 진단 지표</span>
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
     </summary>
 
     <div class="meta" style="margin:0 0 12px; line-height:1.6;">
-      검색 마찰(세션 기준, analytics_events) — "검색이 <b>쉽게 끝났나</b>". 이탈은 클릭 이벤트가 없어 "검색·차단이 세션의 마지막 이벤트"로 근사(베타 표본 작으면 대부분 0).
-      <b>재검색률이 높은데 검색 성공률이 초록불</b>이면 결과는 나오지만 타입이 안 맞는 신호일 수 있어요.
+      여러 번 검색하는데 성공률이 높으면, 결과는 나오지만 원하던 게 아닐 수 있어요.
     </div>
     <section class="grid">
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '검색 수', ${kpi.totalSearches()}, '검색 시도 단위', '성공률의 분모 — 표본 크기', 'green', 'none')}"></div>
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '재검색률', ${fr.researchRate() != null ? #numbers.formatPercent(fr.researchRate(),1,1) : '—'}, '세션 단위', '검색 2회+ 세션 비율 — 한 번에 못 찾은 정도', 'green', 'none')}"></div>
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '차단 후 이탈률', ${fr.abandonRate() != null ? #numbers.formatPercent(fr.abandonRate(),1,1) : '—'}, '세션 단위', '차단이 세션 마지막 이벤트인 비율(근사) — 클릭 계측 없음', 'green', 'none')}"></div>
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '평균 점수', ${kpi.avgScore() != null ? #numbers.formatDecimal(kpi.avgScore(),1,3) : '—'}, '검색 시도 단위', 'CLIP avg_score — 관련성 자체 판정은 아님', 'green', 'none')}"></div>
-      <div th:replace="~{admin/fragments :: kpiCard('diag', '평균 결과 수', ${kpi.avgResultCount() != null ? #numbers.formatDecimal(kpi.avgResultCount(),1,1) : '—'}, '검색 시도 단위', '검색당 반환 결과 수 — 품질(점수)과는 별개', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '검색 수', ${kpi.totalSearches()}, '', '이 기간에 검색한 횟수', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '재검색률', ${fr.researchRate() != null ? #numbers.formatPercent(fr.researchRate(),1,1) : '—'}, '', '한 번에 못 찾아 다시 검색한 비율', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '차단 후 이탈률', ${fr.abandonRate() != null ? #numbers.formatPercent(fr.abandonRate(),1,1) : '—'}, '', '결과가 막힌 뒤 그냥 나간 비율', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '평균 점수', ${kpi.avgScore() != null ? #numbers.formatDecimal(kpi.avgScore(),1,3) : '—'}, '', '검색 결과가 얼마나 잘 맞았는지 (점수)', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '평균 결과 수', ${kpi.avgResultCount() != null ? #numbers.formatDecimal(kpi.avgResultCount(),1,1) : '—'}, '', '검색 한 번에 나온 결과 개수', 'green', 'none')}"></div>
     </section>
 
-    <!-- 검색어 어절 TOP (규칙 기반 근사) -->
+    <!-- 검색 단어 순위 — 결과 약한 단어 우선 -->
     <section class="panel">
       <h2>
         <span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span>
-        검색어 어절 TOP
+        검색 단어 순위
         <span style="margin-left:auto;" th:replace="~{admin/fragments :: reliabilityBadge('warn')}"></span>
       </h2>
-      <div class="meta" style="margin:-4px 0 14px;">extracted_keywords를 어절로 쪼갠 빈도. 형태소 분석 아님 — 공백·불용어·조사 규칙 기반 근사.</div>
-      <div class="cols">
-        <div>
-          <div style="font-weight:700; font-size:13.5px; margin-bottom:8px;">전체 검색 기준</div>
-          <table th:if="${!view.wordTopAll().isEmpty()}">
-            <thead><tr><th class="num" style="width:40px;">#</th><th>어절</th><th class="num">빈도</th></tr></thead>
-            <tbody>
-              <tr th:each="w, i : ${view.wordTopAll()}">
-                <td class="num meta" th:text="${i.count}">1</td>
-                <td th:text="${w.word()}">man</td>
-                <td class="num" th:text="${w.count()}">0</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="empty" th:if="${view.wordTopAll().isEmpty()}">이 기간에 검색어가 없어요.</div>
-        </div>
-        <div>
-          <div style="font-weight:700; font-size:13.5px; margin-bottom:8px;">저품질 검색 기준 <span class="tag">result=0 또는 점수&lt;0.2</span></div>
-          <table th:if="${!view.wordTopLowQuality().isEmpty()}">
-            <thead><tr><th class="num" style="width:40px;">#</th><th>어절</th><th class="num">빈도</th></tr></thead>
-            <tbody>
-              <tr th:each="w, i : ${view.wordTopLowQuality()}">
-                <td class="num meta" th:text="${i.count}">1</td>
-                <td th:text="${w.word()}">bright</td>
-                <td class="num" th:text="${w.count()}">0</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="empty" th:if="${view.wordTopLowQuality().isEmpty()}">이 기간에 저품질 검색이 없어요 👍</div>
-        </div>
-      </div>
+
+      <!-- 행동으로 이어지는 것: 결과 약한 단어 -->
+      <div style="font-weight:700; font-size:14px; margin:2px 0 4px;">자주 찾는데 결과가 약한 단어</div>
+      <div class="meta" style="margin:0 0 10px;">이 단어 관련 레퍼런스를 늘리면 검색 만족도가 올라가요 (콘텐츠 확보 후보).</div>
+      <table th:if="${!view.wordTopLowQuality().isEmpty()}">
+        <thead><tr><th class="num" style="width:40px;">#</th><th>단어</th><th class="num">검색 수</th></tr></thead>
+        <tbody>
+          <tr th:each="w, i : ${view.wordTopLowQuality()}">
+            <td class="num meta" th:text="${i.count}">1</td>
+            <td th:text="${w.word()}">bright</td>
+            <td class="num" th:text="${w.count()}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${view.wordTopLowQuality().isEmpty()}">결과가 약한 검색이 없어요 👍</div>
+
+      <!-- 참고: 많이 검색되는 단어 -->
+      <div style="font-weight:700; font-size:14px; margin:20px 0 8px;">많이 검색되는 단어 <span class="meta" style="font-weight:500;">(참고)</span></div>
+      <table th:if="${!view.wordTopAll().isEmpty()}">
+        <thead><tr><th class="num" style="width:40px;">#</th><th>단어</th><th class="num">검색 수</th></tr></thead>
+        <tbody>
+          <tr th:each="w, i : ${view.wordTopAll()}">
+            <td class="num meta" th:text="${i.count}">1</td>
+            <td th:text="${w.word()}">man</td>
+            <td class="num" th:text="${w.count()}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${view.wordTopAll().isEmpty()}">검색어가 없어요.</div>
     </section>
   </details>
 
