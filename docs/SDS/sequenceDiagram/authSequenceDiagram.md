@@ -188,6 +188,11 @@ sequenceDiagram
         AuthController-->>Client: 401 UNAUTHORIZED<br/>"인증이 필요합니다. 로그인 후 다시 시도해주세요."
     end
 
+    alt 탈퇴한 계정 (user.isWithdrawn() == true)
+        AuthService-->>AuthController: throw CustomException(ErrorCode.ACCOUNT_WITHDRAWN)
+        AuthController-->>Client: 4xx ApiResponse(error: ACCOUNT_WITHDRAWN)
+    end
+
     AuthService->>PasswordEncoder: matches(request.getPassword(), user.getPassword())
 
     alt 비밀번호 불일치 (matches == false)
@@ -231,7 +236,7 @@ sequenceDiagram
 | --- | --- | --- |
 | 목표 | 이메일/비밀번호로 사용자를 인증하고 Access/Refresh 토큰과 프로필을 발급한다. | OAuth가 아닌 일반(자체) 로그인. 성공 시 무상태(JWT) 인증 자격 발급. |
 | 요청 수신 | `POST /auth/login`을 `AuthController.login(@Valid LoginRequest)`이 받아 `AuthService.login(request)`로 위임한다. | `LoginRequest.email`은 `@NotBlank @Email`, `password`는 `@NotBlank`로 컨트롤러 진입 전 Bean Validation 수행. |
-| 사용자 조회 | `UserRepository.findByEmail(email)`으로 사용자를 조회한다. | 결과가 `Optional.empty`이면 `CustomException(ErrorCode.UNAUTHORIZED)` → 401. (존재 여부 노출 방지를 위해 동일 에러 사용) |
+| 사용자 조회 | `UserRepository.findByEmail(email)`으로 사용자를 조회한다. | 결과가 `Optional.empty`이면 `CustomException(ErrorCode.UNAUTHORIZED)` → 401. (존재 여부 노출 방지를 위해 동일 에러 사용) 조회된 사용자가 `isWithdrawn()`이면 `ACCOUNT_WITHDRAWN`으로 차단(비밀번호 검증 전). |
 | 비밀번호 검증 | `PasswordEncoder.matches(rawPassword, user.getPassword())`로 검증한다. | 불일치 시 `ErrorCode.UNAUTHORIZED` → 401. OAuth 전용 사용자는 `password=null`이라 `matches`가 false → 동일하게 401(자체 로그인 차단). |
 | 토큰 발급·저장 | `issueTokens(user)`에서 `JwtProvider.createAccessToken / createRefreshToken` 발급 후 `RefreshTokenService.save(user, refreshToken, refreshExpiry)`로 저장한다. | Access 토큰(claim `type=access`, userId/email/nickname 포함)과 Refresh 토큰(claim `type=refresh`)을 발급하고, Refresh 토큰은 만료시각과 함께 `refresh_token` 테이블에 INSERT. |
 | 응답 | `AuthResponse{userId, accessToken, refreshToken, email, nickname, provider}`를 `ApiResponse.success(...)`로 감싸 `200 OK` 반환. | 이후 보호된 요청은 `JwtAuthenticationFilter`가 `Authorization: Bearer {accessToken}`를 검증(`validateToken` → `getUserIdFromToken` → `findById`)하여 `SecurityContext`에 인증을 설정. |

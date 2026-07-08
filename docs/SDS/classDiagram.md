@@ -12,14 +12,15 @@
 | 2 | llm/intent | ⭐ [의도 분류 · 키워드 추출](./classDiagram/intentClassDiagram.md) | Rule+Grok 2단 분류 |
 | 3 | llm/core | [세션 · LLM Provider · 출력 무결성](./classDiagram/sessionProviderOutputClassDiagram.md) | 단기메모리·provider·[N] 무결성 |
 | 4 | search | [검색](./classDiagram/searchClassDiagram.md) | CLIP·Pinecone·IDF re-rank |
-| 5 | image/llm | [AI 이미지 생성 (GENERATE · legacy)](./classDiagram/generateImageClassDiagram.md) | Bria 생성(legacy) |
-| 6 | guide | ⭐ [이미지 기반 가이드](./classDiagram/guideClassDiagram.md) | 그림 진단·코칭 |
+| 5 | image/llm | [AI 이미지 생성 (GENERATE · legacy)](./classDiagram/generateImageClassDiagram.md) | Bedrock 생성 |
+| 6 | guide | ⭐ [한 끗 가이드(코칭 에이전트 파이프라인)](./classDiagram/guideClassDiagram.md) | 그림 진단·코칭 |
 | 7 | auth | [인증](./classDiagram/authClassDiagram.md) | 회원가입·로그인·OAuth·토큰 |
 | 8 | project | [프로젝트 · 핀](./classDiagram/projectClassDiagram.md) | CRUD·QueryDSL·핀 |
 | 9 | image | [이미지 · 피드백 · 저장](./classDiagram/imageClassDiagram.md) | 업로드·서빙·피드백·저장 추상화 |
 | 10 | gallery | [갤러리 · 레퍼런스 아카이브](./classDiagram/galleryClassDiagram.md) | 완성작·아카이브(읽기 전용) |
+| 11 | reference | ⭐ [레퍼런스 보드 (검색·생성·피드백)](./classDiagram/referenceBoardClassDiagram.md) | 현행 레퍼런스 1차 surface — 키워드 검색·Bedrock 생성·좋아요/싫어요 |
 
-> 핵심 추천 흐름은 1–5번이 함께 구성한다: **의도 분류(2) → 키워드·검색(4) → 세션·provider·무결성(3) → 합성(1)**. 결과가 없으면 생성(5)을 제안한다.
+> **핵심·차별점은 한 끗 가이드(코칭 에이전트, 6번)** — 그림 관찰→진단→코칭. 채팅 추천 흐름은 1–5번이 함께 구성한다: **의도 분류(2) → 키워드·검색(4) → 세션·provider·무결성(3) → 합성(1)**, 결과가 없으면 생성(5)을 제안한다.
 
 ## 6.1 도메인 엔티티 모델 (통합)
 도메인을 가로지르는 영속 엔티티의 관계. 각 도메인의 상세 클래스는 위 문서를 참고한다.

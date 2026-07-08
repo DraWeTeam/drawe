@@ -1,6 +1,6 @@
 # 2. System Architecture
 
-> **ROUND 2 기준 — EKS(Kubernetes) · GitOps 아키텍처.** dev 환경 ECS→EKS 마이그레이션 완료(검증됨), prod 동일 패턴 적용. 리전 `ap-northeast-2`, EKS `drawe-dev`(K8s 1.33, arm64).
+> **ROUND 2 기준 — EKS(Kubernetes) · GitOps 아키텍처.** dev 환경 ECS→EKS 마이그레이션 완료(검증됨), prod 동일 패턴 적용. 리전 `ap-northeast-2`, EKS `drawe-dev`(K8s 1.35, arm64).
 
 ![DraWe System Architecture](./img/systemArchitecture-eks.png)
 
@@ -22,7 +22,7 @@
 | | S3 `bria`(백엔드 이미지) / S3 `artref`(가이드 레퍼런스) | Block Public Access, IRSA로 개별 접근 |
 | | SSM Parameter Store | 시크릿 단일 출처 |
 | **Platform (GitOps)** | ArgoCD · External Secrets(ESO) · AWS LB Controller · Karpenter | `eks/dev/3-platform`(Terraform)에서 설치 |
-| **External** | **Pinecone**(채팅 추천 벡터) · **Qdrant Cloud**(가이드 벡터) · LLM(Grok·Claude·Gemini) · Bria · Google OAuth | 외부 HTTPS, Resilience4j로 격리 |
+| **External** | **Pinecone**(채팅 추천 벡터) · **Qdrant Cloud**(가이드 벡터) · LLM(Grok 코칭·Claude; Gemini=dev/local VLM·생성 백엔드 env `VLM_BACKEND`, prod=Bedrock Claude 관찰/Stability 생성) · Bedrock(Stability) · Google OAuth | 외부 HTTPS, Resilience4j로 격리 |
 
 ## 2.2 요청 흐름
 

@@ -27,7 +27,33 @@ classDiagram
 
     class UserController {
         <<Controller>>
+        -userService: UserService
+        -feedbackService: FeedbackService
         +me(user: PrincipalDetails): ApiResponse~MyProfileResponse~
+        +updateProfile(user: PrincipalDetails, request: UpdateNicknameRequest): ApiResponse~MyProfileResponse~
+        +changePassword(user: PrincipalDetails, request: ChangePasswordRequest): ApiResponse~Void~
+        +withdraw(user: PrincipalDetails): ApiResponse~Void~
+        +sendFeedback(user: PrincipalDetails, request: FeedbackRequest): ApiResponse~Void~
+    }
+
+    class UserService {
+        <<Service>>
+        -userRepository: UserRepository
+        -refreshTokenService: RefreshTokenService
+        -passwordEncoder: PasswordEncoder
+        +getProfile(userId: Long): MyProfileResponse
+        +updateNickname(userId: Long, request: UpdateNicknameRequest): MyProfileResponse
+        +changePassword(userId: Long, request: ChangePasswordRequest): void
+        +withdraw(userId: Long): void
+        -findActiveUser(userId: Long): User
+    }
+
+    class FeedbackService {
+        <<Service>>
+        -userRepository: UserRepository
+        -mailService: MailService
+        -inbox: String
+        +sendFeedback(userId: Long, request: FeedbackRequest): void
     }
 
     class AuthService {
@@ -126,7 +152,12 @@ classDiagram
         -plan: UserPlan
         -createdAt: Instant
         -termsAgreeAt: Instant
+        -deletedAt: Instant
         +updateProfile(nickname: String, picture: String): void
+        +updateNickname(nickname: String): void
+        +changePassword(encodedPassword: String): void
+        +withdraw(): void
+        +isWithdrawn(): boolean
         +updateOAuthInfo(provider: String, providerId: String): void
         +agreeTerms(): void
     }
@@ -289,6 +320,8 @@ classDiagram
         -nickname: String
         -picture: String
         -termsAgreed: boolean
+        -plan: String
+        -social: boolean
     }
 
     AuthController ..> AuthService : uses
@@ -302,7 +335,14 @@ classDiagram
     AuthController ..> VerifyCodeRequest : receives
     AuthController ..> PrincipalDetails : uses
     UserController ..> PrincipalDetails : uses
-    UserController ..> MyProfileResponse : creates
+    UserController ..> UserService : uses
+    UserController ..> FeedbackService : uses
+    UserService ..> UserRepository : uses
+    UserService ..> RefreshTokenService : uses
+    UserService ..> User : uses
+    UserService ..> MyProfileResponse : creates
+    FeedbackService ..> UserRepository : uses
+    FeedbackService ..> MailService : uses
 
     AuthService ..> UserRepository : uses
     AuthService ..> RefreshTokenService : uses
@@ -376,8 +416,42 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
-| **class** | **UserController** | - | public | 로그인 사용자의 프로필 조회 엔드포인트를 제공하는 컨트롤러 |
-| **Operations** | me | `ApiResponse<MyProfileResponse>` | public | 현재 인증된 사용자의 프로필 조회 (GET /user/profile) |
+| **class** | **UserController** | - | public | 로그인 사용자의 프로필 조회/수정·비밀번호 변경·회원탈퇴·피드백 전송 엔드포인트를 제공하는 컨트롤러 (`@RequestMapping("/user")`, Lombok @RequiredArgsConstructor) |
+| **Attributes** | userService | UserService | private | 내 계정 프로필/비밀번호/탈퇴 처리 서비스 |
+| **Attributes** | feedbackService | FeedbackService | private | 사용자 피드백 메일 전송 서비스 |
+| **Operations** | me | `ApiResponse<MyProfileResponse>` | public | 현재 인증된 사용자의 프로필 조회 (GET /user/profile). `userService.getProfile` 위임 |
+| **Operations** | updateProfile | `ApiResponse<MyProfileResponse>` | public | 닉네임 변경 후 갱신된 프로필 반환 (PATCH /user/profile) |
+| **Operations** | changePassword | `ApiResponse<Void>` | public | 비밀번호 변경 (POST /user/password). 소셜 계정은 거부 |
+| **Operations** | withdraw | `ApiResponse<Void>` | public | 회원탈퇴 soft delete (DELETE /user) |
+| **Operations** | sendFeedback | `ApiResponse<Void>` | public | 사용자 피드백을 운영 이메일로 전달 (POST /user/feedback, DB 저장 없음) |
+
+<br>
+
+## UserService 클래스 정보
+
+| 구분 | Name | Type | Visibility | Description |
+| --- | --- | --- | --- | --- |
+| **class** | **UserService** | - | public | 내 계정 — 프로필 조회/수정, 비밀번호 변경, 회원탈퇴(soft delete)를 처리하는 서비스 (Lombok @RequiredArgsConstructor, 기본 @Transactional(readOnly=true)) |
+| **Attributes** | userRepository | UserRepository | private | 사용자 조회/닉네임 중복 확인 리포지토리 |
+| **Attributes** | refreshTokenService | RefreshTokenService | private | 탈퇴 시 모든 세션(리프레시 토큰) 무효화 |
+| **Attributes** | passwordEncoder | PasswordEncoder | private | 비밀번호 검증·인코딩 |
+| **Operations** | getProfile | MyProfileResponse | public | 활성 유저 프로필 조회 |
+| **Operations** | updateNickname | MyProfileResponse | public | 닉네임 중복 검증(본인 닉네임은 스킵) 후 변경, 갱신 프로필 반환 |
+| **Operations** | changePassword | void | public | 소셜 계정 거부, 현재 비밀번호 일치 검증 후 새 비밀번호로 변경 |
+| **Operations** | withdraw | void | public | soft delete(deletedAt 세팅) + 모든 리프레시 토큰 삭제 |
+| **Operations** | findActiveUser | User | private | userId로 조회, 없으면 USER_NOT_FOUND, 탈퇴 상태면 ACCOUNT_WITHDRAWN |
+
+<br>
+
+## FeedbackService 클래스 정보
+
+| 구분 | Name | Type | Visibility | Description |
+| --- | --- | --- | --- | --- |
+| **class** | **FeedbackService** | - | public | 사용자 피드백을 운영 이메일로 전달하는 서비스 (DB 저장 없이 메일만, Lombok @RequiredArgsConstructor) |
+| **Attributes** | userRepository | UserRepository | private | 발신자 식별(참고용) 조회 — 없으면 익명 처리 |
+| **Attributes** | mailService | MailService | private | 피드백 메일 발송 |
+| **Attributes** | inbox | String | private | 피드백 수신함 주소 (`app.feedback.inbox`, 미설정 시 SMTP 발신 계정) |
+| **Operations** | sendFeedback | void | public | 발신자/시각/메시지를 조립해 수신함으로 메일 발송 |
 
 <br>
 
@@ -508,7 +582,12 @@ classDiagram
 | **Attributes** | plan | UserPlan | private | 사용자 요금제 (기본 FREE) |
 | **Attributes** | createdAt | Instant | private | 생성 시각 (자동 기록) |
 | **Attributes** | termsAgreeAt | Instant | private | 약관 동의 시각 (미동의 시 null) |
+| **Attributes** | deletedAt | Instant | private | 회원탈퇴 시각 (null=활성). soft delete — 탈퇴해도 자식 데이터는 보존하고 로그인/조회에서만 제외 |
 | **Operations** | updateProfile | void | public | 닉네임/프로필 이미지 갱신 |
+| **Operations** | updateNickname | void | public | 닉네임만 변경 (프로필 사진 유지) |
+| **Operations** | changePassword | void | public | 비밀번호 변경 (이미 인코딩된 값을 받음) |
+| **Operations** | withdraw | void | public | 회원탈퇴(soft delete) — deletedAt 세팅 |
+| **Operations** | isWithdrawn | boolean | public | 탈퇴 여부 반환 (deletedAt != null) |
 | **Operations** | updateOAuthInfo | void | public | OAuth provider/providerId 갱신 |
 | **Operations** | agreeTerms | void | public | 최초 약관 동의 시각 기록 |
 
@@ -743,3 +822,5 @@ classDiagram
 | **Attributes** | nickname | String | private | 닉네임 |
 | **Attributes** | picture | String | private | 프로필 이미지 URL |
 | **Attributes** | termsAgreed | boolean | private | 약관 동의 완료 여부 (termsAgreeAt != null) |
+| **Attributes** | plan | String | private | 요금제 코드 (free / paid) |
+| **Attributes** | social | boolean | private | 소셜 로그인 계정 여부 (password == null) — "비밀번호 변경" UI 표시 분기 |

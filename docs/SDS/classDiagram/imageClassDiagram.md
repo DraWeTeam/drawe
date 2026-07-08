@@ -8,8 +8,11 @@ classDiagram
         <<Controller>>
         -imageUploadService: ImageUploadService
         -imageStorage: DbImageStorage
+        -imageDownloadService: ImageDownloadService
+        -imageUrlSigner: ImageUrlSigner
         +upload(principal: PrincipalDetails, file: MultipartFile): ApiResponse~ImageUploadResponse~
-        +view(principal: PrincipalDetails, id: Long, download: boolean): ResponseEntity~byte[]~
+        +view(principal: PrincipalDetails, id: Long, exp: Long, sig: String, download: boolean): ResponseEntity~byte[]~
+        +download(principal: PrincipalDetails, id: Long): ResponseEntity~byte[]~
     }
 
     class ImageFeedbackController {
@@ -94,13 +97,12 @@ classDiagram
     class ImageGenerationService {
         <<Service>>
         -DEFAULT_MIME: String
-        -briaClient: BriaClient
+        -guideClient: GuideClient
         -imageStorage: ImageStorage
         -imageRepository: ImageRepository
         -promptTranslator: PromptTranslator
         -eventPublisher: ApplicationEventPublisher
         -analyticsEventService: AnalyticsEventService
-        -downloader: RestClient
         +generate(user: User, prompt: String, project: Project): Image
     }
 
@@ -218,6 +220,8 @@ classDiagram
 
     ImageController ..> ImageUploadService : uses
     ImageController ..> DbImageStorage : uses
+    ImageController ..> ImageDownloadService : uses
+    ImageController ..> ImageUrlSigner : uses
     ImageController ..> ImageUploadResponse : creates
     ImageFeedbackController ..> ImageFeedbackService : uses
     ImageFeedbackController ..> FeedbackRequest : uses
@@ -273,8 +277,11 @@ classDiagram
 | **class** | ImageController | - | public | `/images` 이미지 업로드/서빙 REST 컨트롤러. 바이트 서빙(load)은 MySQL 전용이라 `DbImageStorage`를 직접 주입한다(s3 프로파일의 `@Primary` `S3ImageStorage.load`=throw 회피). |
 | **Attributes** | imageUploadService | ImageUploadService | private | 업로드 검증/저장 위임 서비스 |
 | **Attributes** | imageStorage | DbImageStorage | private | 바이트 서빙용 MySQL 스토리지(소유자 검증 포함) |
+| **Attributes** | imageDownloadService | ImageDownloadService | private | 출처 무관 다운로드(외부 URL 프록시 포함) 위임 서비스 |
+| **Attributes** | imageUrlSigner | ImageUrlSigner | private | 서명 URL(`?exp=&sig=`) 검증 — 헤더 없이 로드되는 `<img>` 인가 |
 | **Operations** | upload | `ApiResponse<ImageUploadResponse>` | public | 이미지 업로드 (POST /images/upload). 인증 사용자의 파일을 저장하고 `imageId`+`url` 반환 |
-| **Operations** | view | `ResponseEntity<byte[]>` | public | 이미지 서빙 (GET /images/{id}). 소유자 검증 후 바이트 반환. `download=true`면 `Content-Disposition: attachment`로 파일 다운로드 유도 |
+| **Operations** | view | `ResponseEntity<byte[]>` | public | 이미지 바이트 서빙 (GET /images/{id}). 서명 URL(`exp`/`sig`)이면 `imageUrlSigner.verify`로 인가, 없으면 JWT 인증+소유자 검증 폴백. `download=true`면 `Content-Disposition: attachment` |
+| **Operations** | download | `ResponseEntity<byte[]>` | public | 출처 무관 다운로드 (GET /images/{id}/download). 외부 URL은 서버 프록시, 저장 이미지는 바이트 직반환. 항상 `attachment` |
 
 <br>
 
@@ -395,15 +402,14 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
-| **class** | ImageGenerationService | - | public | Bria로 이미지를 생성하고 결과 바이트를 `ImageStorage`에 영구 저장한 뒤 `Image` 엔티티를 만들어 반환. 임시 Bria URL은 즉시 다운로드해 우리 저장소로 옮긴다. (Bria 전체 흐름은 별도 문서) |
-| **Attributes** | briaClient | BriaClient | private | Bria 이미지 생성 클라이언트 |
+| **class** | ImageGenerationService | - | public | Bedrock(guide)로 이미지를 생성하고 결과 PNG 바이트를 `ImageStorage`에 영구 저장한 뒤 `Image` 엔티티를 만들어 반환. guide 서비스가 PNG 바이트를 직반환하므로 다운로드 단계는 없다. (Bedrock(guide) 전체 흐름은 별도 문서) |
+| **Attributes** | guideClient | GuideClient | private | guide 서비스 이미지 생성 클라이언트(`POST /generate-image`) |
 | **Attributes** | imageStorage | ImageStorage | private | 생성 바이트 저장 |
 | **Attributes** | imageRepository | ImageRepository | private | Image 영속화 |
 | **Attributes** | promptTranslator | PromptTranslator | private | 한국어 → 영문 프롬프트 변환 |
 | **Attributes** | eventPublisher | ApplicationEventPublisher | private | `AiImageCreatedEvent` 발행 |
 | **Attributes** | analyticsEventService | AnalyticsEventService | private | IMAGE_GENERATED 집계 이벤트 |
-| **Attributes** | downloader | RestClient | private | Bria 임시 URL에서 바이트 다운로드 |
-| **Operations** | generate | Image | public | 프롬프트 번역 → Bria 생성 → 바이트 다운로드 → 저장 → Image 저장(`sourceId="ai_<id>"`) → commit 후 `AiImageCreatedEvent` 발행(AFTER_COMMIT 비동기 인덱싱 트리거). @Transactional |
+| **Operations** | generate | Image | public | 프롬프트 번역 → Bedrock(guide) 생성(PNG 바이트 직반환) → 저장 → Image 저장(`sourceId="ai_<id>"`) → commit 후 `AiImageCreatedEvent` 발행(AFTER_COMMIT 비동기 인덱싱 트리거). @Transactional |
 
 <br>
 
@@ -416,7 +422,7 @@ classDiagram
 | **Operations** | findByIsOnboardingTrue | `List<Image>` | public | 온보딩 시드 이미지 조회 |
 | **Operations** | findAllRawTagsJson | `List<String>` | public | 태그 IDF 색인용 — 모든 raw_tags JSON 텍스트 스캔(native) |
 | **Operations** | findAllPrompts | `List<String>` | public | 태그 IDF 색인용 — AI 영문 프롬프트 스캔(native) |
-| **Operations** | findCompletedGallery | `Page<Image>` | public | 완성작 갤러리 — (source=AI, createdBy=user) 최신순(createdAt DESC, id DESC) 페이징 |
+| **Operations** | findCompletedGallery | `Page<Image>` | public | ⚠️ **레거시·현재 미사용**(호출부 0) — 완성작 갤러리는 `projectRepository.findCompletedWithDrawing`(COMPLETED 프로젝트·내 그림)로 이관됨. 메서드는 코드에 잔존 |
 
 <br>
 

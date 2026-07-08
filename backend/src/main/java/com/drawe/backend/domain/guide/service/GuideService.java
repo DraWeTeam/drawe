@@ -9,6 +9,7 @@ import com.drawe.backend.domain.UserPrefTag;
 import com.drawe.backend.domain.enums.Axis;
 import com.drawe.backend.domain.enums.FeedbackType;
 import com.drawe.backend.domain.guide.dto.GuideResult;
+import com.drawe.backend.domain.guide.dto.RerollResult;
 import com.drawe.backend.domain.guide.dto.ResolvedReference;
 import com.drawe.backend.domain.guide.repository.GuideFeedbackRepository;
 import com.drawe.backend.domain.guide.repository.GuideRepository;
@@ -19,6 +20,7 @@ import com.drawe.backend.domain.onboarding.UserPrefTagRepository;
 import com.drawe.backend.domain.project.repository.ProjectRepository;
 import com.drawe.backend.global.client.GuideClient;
 import com.drawe.backend.global.client.dto.GuideResponse;
+import com.drawe.backend.global.client.dto.RerollResponse;
 import com.drawe.backend.global.error.CustomException;
 import com.drawe.backend.global.error.ErrorCode;
 import java.io.IOException;
@@ -243,6 +245,64 @@ public class GuideService {
               out.add(rid);
             }
           }
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * 레퍼런스 재추천("다시 추천" 🔄). 저장된 가이드의 축(subProblem)으로 fastapi /reroll 호출 — 정적 질의 복원 + 이미 노출된 ref
+   * 배제(LLM 미경유). 무상태: exclude 는 프론트가 세션 누적해 매 요청 전달.
+   *
+   * <p>보안: subProblem 은 이 가이드 블록에 실제 존재하는 축만 허용(임의 축 주입 차단). 프로젝트·소유자 검증.
+   */
+  @Transactional(readOnly = true)
+  public RerollResult rerollReferences(
+      User user, Long projectId, String guideId, String subProblem, List<String> exclude) {
+    loadProjectAuthorized(user, projectId); // 프로젝트 접근 권한
+    Guide g =
+        guideRepository
+            .findByGuideId(guideId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    if (!g.getUser().getId().equals(user.getId())) {
+      throw new CustomException(ErrorCode.FORBIDDEN);
+    }
+    // 저장 sub_problem 검증 — 이 가이드가 실제로 다룬 축만 재추천(임의 축 재해석 차단).
+    if (subProblem == null || !blockSubProblems(g.getPayload()).contains(subProblem)) {
+      throw new CustomException(ErrorCode.INVALID_INPUT);
+    }
+    RerollResponse rr = guideClient.reroll(subProblem, exclude);
+    if (rr.pending() != null) {
+      return RerollResult.pending(subProblem, rr.pending().message());
+    }
+    if (rr.exhausted() || rr.hits() == null || rr.hits().isEmpty()) {
+      return RerollResult.exhausted(subProblem);
+    }
+    List<ResolvedReference> refs = new ArrayList<>();
+    int ordinal = 1;
+    for (RerollResponse.Hit h : rr.hits()) {
+      GuideResponse.ReferenceMeta m = h.meta();
+      refs.add(
+          new ResolvedReference(
+              ordinal++,
+              h.refId(),
+              referenceUrl(h.refId()), // 브라우저 도달 URL은 서버가 재보강(fastapi internal url 미사용)
+              m != null ? m.sourceType() : null,
+              m != null ? m.region() : null,
+              m != null ? m.personas() : null,
+              m != null ? m.category() : null));
+    }
+    return RerollResult.ok(subProblem, refs);
+  }
+
+  /** 가이드 페이로드 블록들의 sub_problem 집합 — 재추천 축 화이트리스트(임의 축 차단). */
+  private Set<String> blockSubProblems(GuideResponse resp) {
+    Set<String> out = new LinkedHashSet<>();
+    if (resp.blocks() != null) {
+      for (GuideResponse.GuideBlock b : resp.blocks()) {
+        if (b.subProblem() != null && !b.subProblem().isBlank()) {
+          out.add(b.subProblem());
         }
       }
     }

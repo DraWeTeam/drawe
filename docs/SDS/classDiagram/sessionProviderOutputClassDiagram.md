@@ -100,6 +100,9 @@ classDiagram
         -imageBytes: byte[]
         -imageMimeType: String
         -responseSchemaName: String
+        -conversationId: String
+        +LlmCallContext(history, newPrompt, imageBytes, imageMimeType)
+        +LlmCallContext(history, newPrompt, imageBytes, imageMimeType, responseSchemaName)
     }
 
     class LlmCallResult {
@@ -270,12 +273,15 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
-| **class** | LlmCallContext | record | public | LLM 구현체에 넘길 호출 컨텍스트(히스토리 + 새 입력). `responseSchemaName` 이 있으면 구현체가 네이티브 스키마 모드를 요청(COMPOSE 전용). |
+| **class** | LlmCallContext | record | public | LLM 구현체에 넘길 호출 컨텍스트(히스토리 + 새 입력). `responseSchemaName` 이 있으면 구현체가 네이티브 스키마 모드를 요청(COMPOSE 전용). 4-arg/5-arg 편의 생성자로 기존 호출 지점(TRANSLATE·KeywordExtractor·레거시 chat, 5-arg 스키마 호출)을 그대로 지원한다. |
 | **Attributes** | history | `List<Turn>` | private | 직전 대화 턴들(role+content). |
 | **Attributes** | newPrompt | String | private | 이번 턴 새 user 프롬프트. |
 | **Attributes** | imageBytes | byte[] | private | 첨부 이미지 바이트(없으면 null). |
 | **Attributes** | imageMimeType | String | private | 이미지 MIME 타입. |
 | **Attributes** | responseSchemaName | String | private | Structured Output 스키마 이름(null 이면 평문). |
+| **Attributes** | conversationId | String | private | Grok 멀티턴 캐시 라우팅 키(`x-grok-conv-id` 헤더). 멀티턴이 의미있는 COMPOSE 경로만 채우고, 그 외(4-/5-arg 생성자)는 null → 헤더 미부착. |
+| **Operations** | LlmCallContext | (history, newPrompt, imageBytes, imageMimeType) | public | 4-arg 편의 생성자 — 평문 응답(스키마·conversationId 모두 null). |
+| **Operations** | LlmCallContext | (history, newPrompt, imageBytes, imageMimeType, responseSchemaName) | public | 5-arg 편의 생성자 — 스키마 지정, conversationId 는 null. |
 
 <br>
 

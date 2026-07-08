@@ -23,17 +23,24 @@ def search_text(
     medium=None,
     track=None,
     mood_profile=None,
+    exclude=None,
 ):
     """진단 관찰의 reference_query로 검색. commercial_ok + 선택 filters 는 hard,
     형태 persona(pose/anatomy/hand)면 ai_example 제외도 hard. source/persona/medium/track 은 soft boost.
     medium/track = 사용자 맥락(선택) — 같은 매체/스타일을 우선하되 없으면 폴백.
     mood_profile = 온보딩 무드 취향의 persona_lean(선택) — soft 가산만(hard 아님). None 이면 랭킹 불변.
+    exclude = 배제할 ref_id 목록(선택, 재추천용) — 후보(BROAD_K) 단계에서 post-filter 로 제거.
+      Qdrant ref_id 페이로드 인덱스가 없어 must_not 대신 후보 후처리로 배제(스코어링/랭킹 로직 불변).
+      None/빈 목록이면 루프가 그대로라 현행과 byte-identical.
     sub_problem 주면 (sub_problem, ref)별 채택/CTR 리랭크 + 콜드스타트 탐색 적용."""
     qvec = text_vec(query)
     must, must_not = build_filters(persona, filters)
     hits = vstore.query(qvec.tolist(), BROAD_K, must=must, must_not=must_not)
+    _excl = set(exclude or ())
     scored = []
     for h in hits:
+        if _excl and h.id in _excl:
+            continue  # 재추천: 이미 노출된 ref 배제(후보 post-filter, 랭킹 로직 무변)
         # 무드는 축 정합(boost) 위 soft 가산 — mood_profile None(미매핑/콜드스타트)이면 mood_boost=0 → 불변.
         s = (
             h.score

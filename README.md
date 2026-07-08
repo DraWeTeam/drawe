@@ -1,190 +1,163 @@
 # Drawe
 
-> **AI 기반 드로잉 창작 지원 서비스** — 그리고 그 서비스를 구성하는 네 개의 축(backend · fastapi · frontend · infra)을 담은 모노레포.
+> **그림 레퍼런스 검색 & AI 드로잉 피드백 — 취미 일러스트레이터의 연습 파트너.**
+> 그림에만 집중할 수 있도록, 막힘을 함께 풀어드립니다.
+> 차별점은 **한 끗 가이드** — 말이 아니라 내 그림 위에서, 근거와 함께 짚어주는 코칭.
 
----
+## 🎥 Demo
 
-## 🎯 배경 (왜 만들었나)
+| 한 끗 가이드 | 그림 위 개선 포인트 | 추천 이유·태그 | 성장 기록 |
+| --- | --- | --- | --- |
+| ![guide](docs/demo/guide.png) | ![overlay](docs/demo/overlay.png) | ![reason](docs/demo/reason.png) | ![growth](docs/demo/growth.png) |
 
-드로잉 학습자는 두 지점에서 창작 흐름이 끊깁니다.
+## 🎯 그림을 그리면서 이런 적 있으신가요?
 
-1. **레퍼런스 탐색** — 참고 자료를 찾고 정리하느라 그리던 맥락을 놓칩니다.
-2. **막힘** — 막상 그리다 막혔을 때 "무엇을 어떻게 고쳐야 하는지" 짚어주는 피드백을 받기 어렵습니다.
+- **"인체·포즈가 안 잡혀서 한참 헤맸어요."** — 원하는 자세는 머릿속에 있는데,
+  어디를 참고해서 어떻게 그려야 할지 모르겠어요.
+- **"원하는 분위기의 레퍼런스를 찾기 어려웠어요."** — 수십 장을 검색해도
+  내가 그리고 싶은 느낌은 찾기 힘들어요.
+- **"막혔을 때 누구에게 물어볼지 모르겠어요."** — 혼자 그리다 보면 어디가
+  문제인지조차 알기 어려워요. 강의는 일반론이고 커뮤니티 피드백은 느립니다.
 
-Drawe는 **레퍼런스 탐색을 CLIP 기반 검색과 LLM 추천으로 자동화**하고, 한발 더 나아가 사용자가 올린 그림에서
-**관찰 가능한 시각 신호**(지평선·시점·명암·무게중심 등)를 바탕으로 개선 포인트를 코칭(이미지 가이드)함으로써,
-창작 흐름을 유지하도록 돕는 서비스입니다.
+Drawe는 이 단절들을 하나의 여정으로 잇습니다. **한 끗 가이드**가 막힘을 풉니다 —
+올린 그림에서 *관찰 가능한 시각 신호*를 추출해, "지금 한 끗을 바꾸면 좋아지는
+지점"을 그림 위에서 근거와 함께 짚어줍니다. 레퍼런스 검색·추천·생성이 탐색을
+받쳐줍니다 — 나열이 아니라, 그 연습에 맞는 이유와 함께.
 
-> ⚠️ 이미지 가이드는 **그림의 "실력"을 점수로 평가하지 않습니다.** taxonomy 로 정의된 *관찰 가능한 신호*를 근거로
-> "이 축을 이렇게 보면 더 좋아진다"는 **코칭과 연습 과제**를 제시합니다.
+## ⭐ 핵심 특징
 
-## 💡 해결 방식
+- **내 그림 위에 ①② 개선 포인트** — 포즈 키포인트 좌표 기반 오버레이로, 말이
+  아니라 그림 위에서 짚어줍니다.
+- **도와'만' 드립니다** — 대신 그려주지 않습니다. 관찰하지 못한 것은 말하지
+  않고(환각 방지 게이트), 실력 점수 평가도 하지 않습니다. 창작의 주인은 언제나
+  사용자 — AI는 배움을 돕는 조력자입니다.
+- **설명 가능한 추천** — 추천 이유는 LLM의 사후 생성이 아니라 **실제 검색 선정
+  근거의 결정론적 조립**. 취향과 결이 맞는 참조에는 그 사실도 함께 표시합니다.
+  마음에 안 들면 🔄 — 같은 근거로, 이미 본 것만 제외하고 다시 탐색합니다.
+- **측정으로 결정하는 팀** — 모델 전환·기능 반영을 골든셋과 페어드 비교로 검증한
+  뒤 적용합니다.
+- **성장이 남는 서비스** — 반복 질문이 줄어드는 변화(예: '명암 대비' 요청
+  주 6회 → 1회)가 화면에 기록됩니다. 한 그림을 완성하는 도구가 아니라, 그림
+  실력의 성장 여정을 함께합니다.
 
-Drawe 는 자연어 요청을 **의도**에 따라 라우팅하고, 사용자의 텍스트를 **CLIP 임베딩**으로 벡터화해 **Pinecone** 벡터 검색 + **태그 IDF 재정렬**로 의미가 비슷한 레퍼런스를 찾아 추천합니다. 여기에 **LLM**(Grok · Claude · Gemini) 기반 추천·대화를 결합해, 프로젝트 단위로 레퍼런스를 모으고 태깅·피드백하며 발전시킬 수 있습니다.
+## 🛠 Tech Stack
 
-별도의 **이미지 가이드(한 끗 가이드)** 파이프라인은 그림에서 관찰 가능한 시각 신호를 추출하고, **OpenCLIP** 임베딩으로 **Qdrant** 참고 코퍼스에서 유사 레퍼런스를 찾아, LLM 코칭으로 **개선 포인트·연습 과제·참고 이미지·도식**을 함께 제시합니다.
+| 영역 | 기술 |
+| --- | --- |
+| Backend | Spring Boot · FastAPI |
+| AI | CLIP 임베딩 · VLM 관찰(AWS Bedrock Claude) · 이미지 생성(AWS Bedrock Stability) · LLM 코칭(Grok) · Vector Search(Qdrant—가이드 / Pinecone—보드 검색) |
+| Frontend | React(Vite) · Cloudflare Pages |
+| Infra | AWS EKS(Karpenter·Graviton) · Terraform · ArgoCD GitOps · OpenTelemetry |
 
-> 이 레포는 원래 `drawe-backend` · `drawe-fastapi` · `drawe-frontend` · `drawe-deploy` 네 개의 폴리레포였던 것을 하나로 합친 모노레포입니다.
+## 한 끗 가이드 — 차별점
 
----
-
-## 🔎 AI 레퍼런스 추천 — 어떻게 찾나
-
-> **입력**: "수채화풍 잔잔한 호수 풍경 그려줘" 같은 한국어 채팅 → **출력**: 의도에 맞는 레퍼런스 N컷 + 미술 조언
-
-단순 키워드 매칭이 아니라, 자연어 요청을 **의도**에 따라 라우팅하고 **CLIP 임베딩 + Pinecone 벡터 검색 + 태그 IDF 재정렬**로 의미가 비슷한 레퍼런스를 찾아 LLM이 설명까지 붙여 추천합니다.
-
-### 파이프라인
-
-![AI 레퍼런스 추천 파이프라인](docs/SDS/img/reference-search-pipeline.svg)
-
-> 검색이 필요한 의도(NEW_SEARCH)만 검색하고, 이어묻기(KEEP·FOLLOWUP)는 직전 레퍼런스를 재사용합니다. LLM은 태그가 아니라 **실제 이미지 내용 캡션(ai_description)** 에 근거해 설명해 할루시네이션을 줄입니다.
-
----
-
-## 🎨 이미지 가이드 — 무엇이 나오나
-
-> **입력**: 사용자가 올린 풍경 스케치 → **출력**: 한 끗 포인트 · 추천 연습 · 참고 이미지 · 도식이 담긴 가이드 카드
+그림 업로드 + "손가락 비율이 어색해요" 같은 요청 → 아래 구성의 가이드가 생성됩니다.
 
 ```text
-┌ 가이드 카드 (구성 예시) ─────────────────────────────────┐
-│ 한 끗 포인트   지평선을 화면 위/아래 1/3 지점에 두면        │
-│               공간 깊이가 더 안정적으로 읽힙니다           │
-│ 추천 연습     지평선 높이를 바꿔 같은 풍경을 3번 그려보기    │
-│ 도식         [horizon_thirds — 지평선 1/3 배치 도식]     │
-│ 참고 이미지    참고1   참고2   참고3                      │
-└────────────────────────────────────────────────────────┘
+┌ 한 끗 가이드 ──────────────────────────────────────────────┐
+│ 현재 그림 분석    사용자 질문 + 업로드 그림 + AI가 발견한 문제   │
+│ 한 끗 포인트      ★내 그림 위에 ①② 번호 마커로 개선 지점 표시   │
+│ 지금 바로 수정    당장 실행할 수 있는 체크리스트                │
+│ 추천 레퍼런스     참고 3컷 + ★추천 이유 + 태그 뱃지            │
+│                  "'손 구조' 연습을 위해 고른 3D 참조예요"      │
+│ 앞으로 해야 할 것  5단계 커리큘럼 프로그레스 바(현재/다음 단계)   │
+│ 성장 흐름         주별 가이드 요청 추이 — "주 6회 → 1회"        │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 파이프라인
+**동작 원리 — 코칭 에이전트** — 한 끗 가이드는 단일 프롬프트 호출이 아니라,
+[관찰(포즈 키포인트 + VLM) → 관찰 근거 진단 → 개선 우선순위 결정 → 그 연습에
+맞는 레퍼런스 검색 → 코칭 제시]를 수행하는 코칭 에이전트 파이프라인입니다. 역할은
+분리되어 있습니다 — VLM은 관찰하고, 어떤 지점을 짚을지는 관찰 신호 기반의
+결정 로직이 정하고, LLM은 표현합니다. 그래서 동일한 관찰 신호에는 추적 가능한
+동일 기준의 근거가 적용됩니다. 사용자의 반응도 루프에 들어옵니다: 추천이 안
+맞으면 🔄로 노출분을 제외하고 재탐색하고, 후보가 소진되면 생성으로 전환합니다.
+무드·스타일 취향은 진단을 바꾸지 않고, 같은 연습 목적의 후보 중 결이 맞는 것을
+우선하는 방식으로 추천을 개인화합니다. 커리큘럼(4그룹×5단계)에서의 위치를
+안내하고, 프로젝트 완료 후에는 완성작 갤러리에서 성장 과정을 확인할 수 있습니다.
 
-![이미지 가이드 파이프라인](docs/SDS/img/guide-flow.svg)
+```text
+[여정]  아이디어 → 레퍼런스로 무드 구체화 → 스케치 → 막히면 한 끗 가이드 → 연습 → 완료 → 성장 확인
+```
 
-> 챗 레퍼런스 검색(embed + **Pinecone**)과 가이드 코퍼스(**Qdrant**)는 **분리**되어 섞이지 않습니다.
+## 레퍼런스 탐색·생성
 
----
+- **보드 레퍼런스 검색** — 검색어에서 미술 용어 키워드를 추출(한→영, 사전+폴백)해
+  CLIP 의미 검색으로 원하는 레퍼런스를 탐색. 싫어요한 이미지는
+  다음 검색에서 제외되고, 싫어요가 쌓이면 원하는 레퍼런스 생성으로 안내합니다.
+- **가이드 추천 레퍼런스** — 진단이 정한 연습 목적으로 고르고, 온보딩 무드
+  취향을 랭킹에 반영(연습 목적 적합성이 항상 우선). 추천이 안 맞으면 🔄 재추천
+  (같은 근거, 노출분 제외 재탐색). 후보가 소진되면 AI 생성으로 전환하고, 품질
+  검수를 통과한 생성물은 코퍼스에 편입됩니다.
+- **레퍼런스 즉석 생성** — 원하는 자료가 없으면 프롬프트로 생성(AWS Bedrock).
+- **아카이브** — 추천 레퍼런스 담기 · 보드 저장 · 완성작 갤러리.
 
-## ✨ 핵심 기능
+## 품질과 성능 — 측정으로 결정한다
 
-- **AI 레퍼런스 추천** — 의도 라우팅 → CLIP 임베딩 + Pinecone 벡터 검색 → 태그 IDF re-rank → LLM 합성(ai_description 근거)
-- **이미지 가이드(한 끗 가이드)** — 관찰 신호 추출 → OpenCLIP + Qdrant 참고 검색 → LLM 코칭으로 개선 포인트·연습·참고 이미지·도식 제시
+- **골든셋 검증** — 관찰·진단은 손/인물/얼굴/엣지 골든셋으로 축별 정확도·환각
+  방지 게이트를 회귀 검증. 프롬프트를 건드리는 변경은 재평가를 짝으로.
+- **모델 전환도 측정으로** — 이미지 생성·VLM 관찰 모두 **AWS Bedrock 전환·운영
+  중**. VLM은 골든셋 35장·111콜을 동일 코드에서 백엔드만 바꿔 페어드 비교 —
+  정확도 동급 · 레이턴시 2.8× 개선 · 실패 0 확인 후 적용(운영 ~2초/콜, 롤백
+  env 한 줄).
+- **운영 지표** — 추천 채택률 · 저장률 · 피드백 · 레이턴시(OpenTelemetry)로
+  기술 성과와 사용자 가치를 연결.
 
-## 🗺 아키텍처
+## 구성
 
 ```mermaid
 flowchart TD
-  U([User]) -->|웹 UI 로드| CF[Cloudflare Pages<br/>frontend SPA · drawe.xyz]
-  U -->|API 호출 · axios| CFP[Cloudflare<br/>api.drawe.xyz]
-  CFP --> ALB[ALB Ingress<br/>group=drawe-prod]
-  ALB --> BE
+  U([User]) --> CF["Cloudflare Pages<br/>frontend · drawe.xyz"]
+  U --> API[api.drawe.xyz] --> BE
 
-  subgraph EKS["AWS EKS · drawe-prod (K8s 1.35) · Karpenter · Graviton ARM64"]
-    BE[Backend<br/>Spring Boot · ClusterIP]
-    FA[FastAPI · embed<br/>CLIP ViT-L/14 · ClusterIP]
-    GA[FastAPI · guide<br/>OpenCLIP · 이미지 가이드 · ClusterIP]
+  subgraph EKS["AWS EKS · Karpenter · Graviton ARM64 · ArgoCD GitOps"]
+    BE["backend<br/>Spring Boot"]
+    FA["fastapi · embed<br/>CLIP 임베딩"]
+    GA["fastapi · guide<br/>★한 끗 가이드 · 생성"]
   end
 
-  BE --> DB[(MySQL · RDS)]
-  BE --> RC[(Valkey / ElastiCache)]
-  BE -->|임베딩 요청| FA
-  BE -->|이미지 가이드 요청| GA
-  BE -->|벡터 검색| PC[(Pinecone)]
-  BE -->|LLM 라우팅| LLM[Grok · Claude · Gemini]
-  FA -->|768-dim 벡터| PC
-  GA -->|가이딩 ref 검색| QD[(Qdrant)]
-  GA --> GDB[(drawe_guide · RDS)]
-  GA --> S3[(S3 · 참고 이미지/에셋)]
+  BE --> DB[(MySQL)] & RC[(Valkey)]
+  BE --> FA & GA
+  BE --> PC[(Pinecone)]
+  BE --> LLM["LLM 라우팅 (챗 추천 대화)<br/>Grok · Claude · Gemini"]
+  GA --> GK["Grok — 코칭 문장"]
+  GA --> QD[(Qdrant)] & S3[(S3)]
+  GA --> BR["AWS Bedrock<br/>VLM 관찰(Claude) · 이미지 생성(Stability)"]
 ```
 
-> **배포 진화** — 초기엔 ECS(EC2)로 운영했고, ROUND2 에서 **EKS(Karpenter + HPA 2계층 오토스케일 · ArgoCD GitOps 무중단 배포 · LGTM+AMP 셀프호스트 관측)** 로 고도화했습니다. 자세한 전환 배경·구성은 [`infra/README.md`](infra/README.md) 참고.
+| 폴더 | 역할 | 배포 | 기술 상세 |
+| --- | --- | --- | --- |
+| **fastapi** | ★한 끗 가이드 파이프라인(관찰·진단·코칭·생성) + CLIP 임베딩 | AWS EKS | [↗](fastapi/README.md) |
+| **backend** | 핵심 API · 인증 · LLM 라우팅 · 추천 · 갤러리 집계 | AWS EKS | [↗](backend/README.md) |
+| **frontend** | 웹 UI — 작업 공간 · 가이드 상세 · 아카이브 · 완성작 | Cloudflare Pages | [↗](frontend/README.md) |
+| **infra** | Terraform IaC · ArgoCD GitOps · 관측성 · 런북 | — | [↗](infra/README.md) |
 
-| 서비스 | 역할 | 핵심 스택 | 배포 | 문서 |
-| --- | --- | --- | --- | --- |
-| **frontend** | 사용자 웹 UI (SPA) | React 19 · Vite 8 · React Router 7 · axios | Cloudflare Pages | [↗](frontend/README.md) |
-| **backend** | 핵심 API · 인증 · LLM 라우팅 · 도메인 로직 | Spring Boot 3.2.4 · Java 17 · JPA · MySQL · Valkey | AWS EKS (Graviton ARM64) | [↗](backend/README.md) |
-| **fastapi · embed** | CLIP 임베딩 서버 (텍스트/이미지 → 벡터) | FastAPI · PyTorch · transformers CLIP | AWS EKS (Graviton ARM64) | [↗](fastapi/README.md) |
-| **fastapi · guide** | 이미지 가이드 (관찰 신호 → 코칭·참고·도식) | FastAPI · OpenCLIP · Qdrant · MySQL(drawe_guide) · S3 · mediapipe | AWS EKS (Graviton ARM64) | [↗](fastapi/README.md) |
-| **infra** | IaC · 배포(GitOps) · 관측성 구성 | Terraform · EKS · Karpenter · ArgoCD · ALB · RDS · Cloudflare | — | [↗](infra/README.md) |
+> AI 파이프라인·품질 검증·모델 전환·EKS 운영의 깊은 내용은 **각 폴더 README**에.
+> 아키텍처 전반은 [`docs/SDS/`](docs/SDS/README.md).
 
-> 각 서비스의 스택·도메인·API 등 **상세는 위 표의 하위 README** 를 참고하세요. 루트 문서는 전체 그림과 공통 운영 흐름만 다룹니다.
-
----
-
-## 🚀 실행 방법
+## 실행 방법
 
 ```bash
-# 0. 클론
-git clone https://github.com/DraWeTeam/drawe.git
-cd drawe
-
-# 1. 백엔드 스택(MySQL · Valkey · backend · fastapi · guide) 기동
-cd infra
-docker compose -f docker-compose.local.yml up -d
-
-# 2. 프론트엔드 개발 서버
-cd ../frontend
-cp .env.example .env      # VITE_API_URL=http://localhost:8080
-npm install && npm run dev      # http://localhost:5173
+git clone https://github.com/DraWeTeam/drawe.git && cd drawe
+cd infra && docker compose -f docker-compose.local.yml up -d   # MySQL·Valkey·backend·fastapi·guide
+cd ../frontend && cp .env.example .env && npm install && npm run dev   # http://localhost:5173
 ```
 
-| 포트 | 서비스 |
+| 포트 | 3306 MySQL · 6379 Valkey · 8080 backend · 8000 embed · 8001 guide · 5173 frontend |
 | --- | --- |
-| 3306 | MySQL |
-| 6379 | Valkey |
-| 8080 | Backend (Spring Boot) |
-| 8000 | FastAPI · embed |
-| 8001 | FastAPI · guide (이미지 가이드) |
-| 5173 | Frontend (`npm run dev`) |
 
-> 환경변수(LLM·OAuth·Pinecone·Qdrant 키 등)는 각 서비스의 `.env.example` 을 참고해 채워주세요.
-> 레퍼런스/온보딩/가이드 시드 데이터가 필요하면 [`infra/README.md`](infra/README.md) 의 로컬 데이터 시드 및 스토어 백필 런북을 참고하세요.
+> 환경변수는 각 서비스 `.env.example` 참고. AI provider는 배포 env로 분기
+> (prod=Bedrock), 시드 데이터는 [`infra/README.md`](infra/README.md) 런북 참고.
 
----
+## 협업 프로세스
 
-## 📦 레포 구조
+Jira(SCRUM)↔GitHub 이슈 단위 브랜치·PR 리뷰·릴리스 PR. **Figma 와이어프레임+
+annotation을 단일 정본**으로 한 화면 개발([스펙 수집본](docs/figma-spec-compendium.md)
+· [실측 정합 규칙](docs/figma-parity-rules.md)). 진단(실측)→계획→구현→실렌더·
+클릭스루의 검증 게이트. 심사 피드백은 Action Item으로 전환해 기능으로 반영합니다
+(예: 재추천 🔄, 로딩·실패 UX, 취향 결 표시).
 
-```text
-drawe/
-├── .github/workflows/   # 모노레포 CI/CD (경로 필터 기반)
-├── backend/             # Spring Boot API 서버
-├── fastapi/             # CLIP 임베딩(embed) + 이미지 가이드(guide) 서버
-├── frontend/            # React + Vite SPA
-└── infra/               # Terraform (dev/prod) + 관측성 config + 로컬 compose + 런북
-```
+## 관련 문서
 
-> **모노레포 원칙** — `.git` 은 루트에 하나만 존재하고, 버전 관리 단위는 레포 전체(push 는 루트에서 한 번)입니다. **배포 단위는 워크플로의 경로 필터(`paths`)** 로 분리되므로, `frontend/` 만 바꾼 커밋은 backend/fastapi 배포를 발동시키지 않습니다.
-
----
-
-## ⚙️ 인프라 · 운영 하이라이트
-
-이 프로젝트의 핵심은 다음 넷입니다. (환경 비교·관측성·Terraform 실행법 등 **상세는 [`infra/README.md`](infra/README.md)**)
-
-- **EKS on Graviton(ARM64) · 2계층 오토스케일** — backend·fastapi(embed·guide)를 ARM64 컨테이너로 **EKS(drawe-prod, K8s 1.35)** 에서 운영. **Karpenter**(노드) + **HPA**(파드) 2계층으로 스케일하며, NodePool 은 **on-demand + spot 혼용** + 다중 인스턴스 패밀리(m6g/m7g/c6g/c7g/r6g)로 비용·가용성을 함께 확보. dev/prod 를 **별도 AWS 계정**으로 분리.
-- **ArgoCD GitOps 무중단 배포** — `main` 브랜치를 auto-sync(prune+selfHeal)하여 **롤링 업데이트**로 반영(PDB minAvailable 1 + readiness). 배포 주체는 ArgoCD, CI 는 이미지 빌드·overlay tag bump 까지.
-- **GitHub OIDC + IRSA** — AWS 자격증명을 저장하지 않고 OIDC 로 역할 assume(CI), 파드 권한은 **IRSA** 로 최소권한 부여.
-- **OpenTelemetry 관측성 (Alloy DaemonSet)** — Alloy 가 OTLP 를 수집해 환경별 destination(dev → Grafana Cloud / prod → **AMP + self-host LGTM**)으로 라우팅. 로그 **Loki(S3)** · 트레이스 **Tempo(S3)** · 메트릭 **AMP**, 외부 전송 전 **PII redaction** 적용.
-
-> **ECS → EKS 전환** — 초기 ECS(EC2 ASG + 서비스 오토스케일) 구성에서, 노드 스케일 반응성·인스턴스 동적 선택(비용)·GitOps 무중단·운영모델 통일을 위해 EKS 로 고도화했습니다.
-
-| 워크플로 | 트리거 경로 | 동작 |
-| --- | --- | --- |
-| `backend-cd` | `backend/**` | JAR → Docker(ARM64) → ECR → **overlay tag bump → ArgoCD 롤아웃**(롤링 무중단) |
-| `fastapi-cd` | `fastapi/**`(embed) | 이미지 빌드 → ECR → overlay tag bump → ArgoCD 동기화 |
-| `fastapi-guide-cd` | `fastapi/guide/**` · `fastapi/assets/**` · `Dockerfile.guide` | guide 이미지(ARM64) 빌드 → ECR → ArgoCD 동기화 |
-| `qdrant-keepalive` | (cron, 3일) | Qdrant Cloud 무료 클러스터 keep-alive 핑 |
-| `*-ci` | 각 서비스 | 빌드/검증 (PR 기준) |
-
-- **브랜치 → 환경**: `develop` → dev 동기화, `main` → prod 배포(Required reviewers 통과 후 ArgoCD sync)
-- **무중단**: ArgoCD 롤링 업데이트 + PodDisruptionBudget(minAvailable 1) + readiness probe
-- **프론트엔드**: 별도 GitHub Actions CD 없음 — **Cloudflare Pages 가 push 를 감지해 빌드/배포**(`frontend-ci` 는 검증만)
-
----
-
-## 📚 관련 문서
-
-- [`docs/SDS/`](docs/SDS/README.md) — **시스템 설계 문서(SDS)**: 아키텍처·AI 파이프라인·유스케이스·클래스/시퀀스/상태 다이어그램·데이터 설계
-- [`backend/README.md`](backend/README.md) — 스택·도메인·API·실행
-- [`fastapi/README.md`](fastapi/README.md) — 임베딩(embed)·이미지 가이드(guide) 엔드포인트·모델
-- [`frontend/README.md`](frontend/README.md) — 실행·빌드·배포
-- [`infra/README.md`](infra/README.md) — Terraform·환경·배포·관측성 상세 + 설계 의도
+- [`docs/SDS/`](docs/SDS/README.md) — 시스템 설계 문서 · [`docs/figma-spec-compendium.md`](docs/figma-spec-compendium.md) — Figma 스펙 수집본
+- [`backend/README.md`](backend/README.md) · [`fastapi/README.md`](fastapi/README.md) · [`frontend/README.md`](frontend/README.md) · [`infra/README.md`](infra/README.md)

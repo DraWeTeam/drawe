@@ -5,7 +5,7 @@ import GuideForm from "../chat/GuideForm";
 import BoardGuideChat from "./BoardGuideChat";
 import { requestGuide, uploadImage } from "../chat/api";
 import { resizeImage, validateImageFile } from "../chat/imageUtils";
-import { updateProject } from "../projects/api";
+import { getProject, updateProject } from "../projects/api";
 import {
   clearReaction,
   dislikeImage,
@@ -87,6 +87,7 @@ const GeneratePromptPanel = ({
   // 입력창 첨부 — 기존 이미지 업로드 재사용
   const [attachment, setAttachment] = useState(null); // { url, previewUrl }
   const [uploading, setUploading] = useState(false);
+  const [attachError, setAttachError] = useState(""); // 첨부 실패 인라인 안내
   const attachInputRef = useRef(null);
 
   // 첫 프로젝트 생성 시 노출되는 가이드 생성 튜토리얼(플래그는 해당 프로젝트 id).
@@ -187,7 +188,19 @@ const GeneratePromptPanel = ({
     try {
       await updateProject(projectId, { status: "COMPLETED" });
       track("project_completed", { project_id: projectId });
-      alert("완성작 갤러리에 담았어요!");
+      // 완성작 갤러리는 완성 그림(drawingUrl)이 있어야 노출된다. 재조회해 실제 담겼는지로 안내 분기.
+      let added = true;
+      try {
+        const detail = await getProject(projectId);
+        added = Boolean(detail?.drawingUrl);
+      } catch {
+        added = true; // 조회 실패 시 낙관 메시지로 폴백
+      }
+      alert(
+        added
+          ? "완성작 갤러리에 담았어요!"
+          : "완료했어요. 다만 이 프로젝트엔 완성 그림이 없어 갤러리에는 담기지 않았어요.\n그림을 업로드해 가이드를 만든 뒤 완료하면 갤러리에 담겨요.",
+      );
     } catch (e2) {
       alert(
         e2.response?.data?.error?.message ||
@@ -208,6 +221,7 @@ const GeneratePromptPanel = ({
       alert(err);
       return;
     }
+    setAttachError("");
     setUploading(true);
     try {
       const resized = await resizeImage(file);
@@ -218,7 +232,8 @@ const GeneratePromptPanel = ({
         return { url, previewUrl };
       });
     } catch (e2) {
-      alert(
+      // 인라인 에러로 통일(토스트 시스템 없음 — chatStyles.error 인라인 재사용).
+      setAttachError(
         e2.response?.data?.error?.message ||
           "이미지 업로드에 실패했어요. 다시 시도해주세요.",
       );
@@ -228,6 +243,7 @@ const GeneratePromptPanel = ({
   };
 
   const removeAttachment = () => {
+    setAttachError("");
     setAttachment((prev) => {
       if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
       return null;
@@ -271,11 +287,8 @@ const GeneratePromptPanel = ({
     };
   }, [projectId]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const prompt = input.trim();
-    if (mode !== "reference" || !prompt || genLoading) return;
-    setInput("");
+  // 레퍼런스 생성 실행부 — 최초 전송/재시도 공용(재시도는 저장된 prompt 로 동일 경로 replay).
+  const runGeneration = async (prompt) => {
     const n = ++genMsgId.current;
     const answerId = `a-${n}`;
     setGenMessages((prev) => [
@@ -302,14 +315,26 @@ const GeneratePromptPanel = ({
       const msg =
         err.response?.data?.error?.message ||
         "레퍼런스 생성에 실패했어요. 잠시 후 다시 시도해주세요.";
+      // 실패 메시지에 원본 prompt 를 실어 재시도 버튼이 동일 요청을 replay 하게 한다
+      //   (/chat 가이드 실패 재시도 패턴과 대칭).
       setGenMessages((prev) =>
         prev.map((m) =>
-          m.id === answerId ? { ...m, loading: false, error: msg } : m,
+          m.id === answerId
+            ? { ...m, loading: false, error: msg, retryPrompt: prompt }
+            : m,
         ),
       );
     } finally {
       setGenLoading(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const prompt = input.trim();
+    if (mode !== "reference" || !prompt || genLoading) return;
+    setInput("");
+    await runGeneration(prompt);
   };
 
   // 생성 이미지 다운로드 — 서명 url(절대)은 직접 fetch, 상대(/images)는 api(JWT). 실패 시 새 탭 폴백.
@@ -436,7 +461,20 @@ const GeneratePromptPanel = ({
               {m.error && (
                 <div className={chatStyles.assistantBubble}>
                   <img className={chatStyles.assistantLogo} src={logo} alt="" />
-                  <span>{m.error}</span>
+                  <div>
+                    {m.error}
+                    {m.retryPrompt && (
+                      <button
+                        type="button"
+                        className={chatStyles.followUpBtn}
+                        style={{ marginTop: 8 }}
+                        onClick={() => runGeneration(m.retryPrompt)}
+                        disabled={genLoading}
+                      >
+                        다시 시도
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               {m.image && (
@@ -555,6 +593,15 @@ const GeneratePromptPanel = ({
               </button>
             </div>
           </div>
+        )}
+
+        {attachError && (
+          <p
+            className={chatStyles.error}
+            style={{ margin: "0 0 6px", paddingLeft: 0 }}
+          >
+            {attachError}
+          </p>
         )}
 
         <div className={styles.inputRow}>

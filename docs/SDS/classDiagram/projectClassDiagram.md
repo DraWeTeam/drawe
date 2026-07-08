@@ -7,7 +7,8 @@ classDiagram
     class ProjectController {
         <<Controller>>
         -projectService: ProjectService
-        +ProjectController(projectService: ProjectService)
+        -projectKeywordService: ProjectKeywordService
+        +keywordExtraction(request: KeywordExtractionRequest): ApiResponse~KeywordExtractionResponse~
         +create(principal: PrincipalDetails, request: CreateProjectRequest): ApiResponse~ProjectDetailResponse~
         +list(principal: PrincipalDetails, q: String, status: String, sort: ProjectSort, limit: int, offset: int): ApiResponse~ProjectListResponse~
         +detail(principal: PrincipalDetails, projectId: Long): ApiResponse~ProjectDetailResponse~
@@ -31,7 +32,9 @@ classDiagram
         -chatSessionRepository: ChatSessionRepository
         -llmMessageRepository: LlmMessageRepository
         -searchLogRepository: SearchLogRepository
-        +ProjectService(projectRepository: ProjectRepository, projectReferenceRepository: ProjectReferenceRepository, chatSessionRepository: ChatSessionRepository, llmMessageRepository: LlmMessageRepository, searchLogRepository: SearchLogRepository)
+        -projectKeywordService: ProjectKeywordService
+        -guideRepository: GuideRepository
+        +ProjectService(projectRepository: ProjectRepository, projectReferenceRepository: ProjectReferenceRepository, chatSessionRepository: ChatSessionRepository, llmMessageRepository: LlmMessageRepository, searchLogRepository: SearchLogRepository, projectKeywordService: ProjectKeywordService, guideRepository: GuideRepository)
         +create(user: User, request: CreateProjectRequest): ProjectDetailResponse
         +getList(user: User, q: String, statusParam: String, sort: ProjectSort, limit: int, offset: int): ProjectListResponse
         +getDetail(user: User, projectId: Long): ProjectDetailResponse
@@ -95,6 +98,8 @@ classDiagram
         -description: String
         -technique: String
         -mood: String
+        -keywords: List~String~
+        -lastReferenceQuery: String
         -status: ProjectStatus
         -pinnedImageIds: List~Long~
         -drawingUrl: String
@@ -115,9 +120,7 @@ classDiagram
     class CreateProjectRequest {
         <<DTO>>
         +name: String
-        +subject: String
-        +technique: String
-        +mood: String
+        +keywords: List~String~
         +description: String
     }
 
@@ -129,6 +132,7 @@ classDiagram
         +mood: String
         +description: String
         +status: String
+        +drawingUrl: String
         +detailAnswers: Map~String, Object~
     }
 
@@ -220,6 +224,8 @@ classDiagram
     }
 
     ProjectController ..> ProjectService : uses
+    ProjectController ..> ProjectKeywordService : uses
+    ProjectService ..> ProjectKeywordService : uses
     PinController ..> PinService : uses
     ProjectService ..> ProjectRepository : uses
     ProjectService ..> ProjectReferenceRepository : uses
@@ -257,6 +263,8 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | ProjectController | Class | public | 프로젝트 CRUD REST 컨트롤러 (`@RequestMapping("/projects")`). 인증 사용자(`PrincipalDetails`) 기준으로 동작 |
 | **Attributes** | projectService | ProjectService | private | 프로젝트 비즈니스 로직 위임 대상 (생성자 주입) |
+| **Attributes** | projectKeywordService | ProjectKeywordService | private | 주제 문장 키워드 추출/분류 위임 대상 (생성자 주입) |
+| **Operations** | keywordExtraction | `ApiResponse<KeywordExtractionResponse>` | public | 1단계 — 주제 문장에서 프로젝트 이름 + 키워드 칩 추출 (POST /projects/keyword-extraction). `projectKeywordService.extract` 위임 |
 | **Operations** | create | `ApiResponse<ProjectDetailResponse>` | public | 프로젝트 생성 (POST /projects), 201 CREATED. `@Valid CreateProjectRequest` 검증 후 생성된 상세 반환 |
 | **Operations** | list | `ApiResponse<ProjectListResponse>` | public | 프로젝트 목록 조회 (GET /projects?q&status&sort&limit&offset). sort 기본 RECENT, limit 기본 20(@Min 1), offset 기본 0(@Min 0) |
 | **Operations** | detail | `ApiResponse<ProjectDetailResponse>` | public | 프로젝트 상세 조회 (GET /projects/{projectId}) |
@@ -287,7 +295,9 @@ classDiagram
 | **Attributes** | chatSessionRepository | ChatSessionRepository | private | 삭제 캐스케이드용 채팅 세션 조회/삭제 |
 | **Attributes** | llmMessageRepository | LlmMessageRepository | private | 삭제 캐스케이드용 LLM 메시지 삭제 |
 | **Attributes** | searchLogRepository | SearchLogRepository | private | 삭제 캐스케이드용 검색 로그 삭제 |
-| **Operations** | create | ProjectDetailResponse | public | 프로젝트 생성. status 기본 IN_PROGRESS, 빈 board 로 상세 반환 |
+| **Attributes** | projectKeywordService | ProjectKeywordService | private | 생성 시 keywords → subject/technique/mood 백그라운드 분류(`classify`) |
+| **Attributes** | guideRepository | GuideRepository | private | 가이드 연관 데이터 조회/정리 |
+| **Operations** | create | ProjectDetailResponse | public | 프로젝트 생성. keywords 저장 + `projectKeywordService.classify` 로 subject/technique/mood 채움, status 기본 IN_PROGRESS, 빈 board 로 상세 반환 |
 | **Operations** | getList | ProjectListResponse | public | `findPage`+`countPage` 로 목록 조회, 각 항목에 `countByProject` 레퍼런스 수 매핑, `offset+size<total` 로 hasMore 계산 |
 | **Operations** | getDetail | ProjectDetailResponse | public | 소유권 검증 후 상세 반환 (board 빈 목록) |
 | **Operations** | update | void | public | null 이 아닌 필드만 부분 수정. status 는 `parseStatusStrict` 로 변환, detailAnswers JSON 갱신 |
@@ -362,6 +372,8 @@ classDiagram
 | **Attributes** | description | String | private | 설명 (@Lob) |
 | **Attributes** | technique | String | private | 기법 (max 30) |
 | **Attributes** | mood | String | private | 분위기 (max 30) |
+| **Attributes** | keywords | `List<String>` | private | 생성 시 사용자 키워드 칩 (JSON 컬럼). subject/technique/mood 분류 원천 |
+| **Attributes** | lastReferenceQuery | String | private | 레퍼런스 보드 마지막 검색어 (max 500, SCRUM-113 재진입 시 자동 복원) |
 | **Attributes** | status | ProjectStatus | private | 상태 (EnumType.STRING, 기본 IN_PROGRESS) |
 | **Attributes** | pinnedImageIds | `List<Long>` | private | 핀된 이미지 ID 목록 (JSON 컬럼, 최대 3개) |
 | **Attributes** | drawingUrl | String | private | 그림 결과 URL (max 500) |
@@ -388,11 +400,9 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
-| **class** | CreateProjectRequest | DTO (record) | public | 프로젝트 생성 요청 |
+| **class** | CreateProjectRequest | DTO (record) | public | 프로젝트 생성 요청(SCRUM-115 2단계). subject/technique/mood 는 요청에 없고 서버가 keywords 에서 `projectKeywordService.classify()` 로 백그라운드 분류해 채운다 |
 | **Attributes** | name | String | public | 프로젝트명 (@NotBlank, max 100) |
-| **Attributes** | subject | String | public | 주제 (@NotBlank, max 100) |
-| **Attributes** | technique | String | public | 기법 (max 30) |
-| **Attributes** | mood | String | public | 분위기 (max 30) |
+| **Attributes** | keywords | `List<String>` | public | 주제 분석으로 나온(사용자 편집한) 키워드 칩 |
 | **Attributes** | description | String | public | 설명 |
 
 <br>
@@ -408,6 +418,7 @@ classDiagram
 | **Attributes** | mood | String | public | 분위기 (max 30) |
 | **Attributes** | description | String | public | 설명 |
 | **Attributes** | status | String | public | 상태 문자열 (parseStatusStrict 로 변환) |
+| **Attributes** | drawingUrl | String | public | 완성 그림 결과 URL (max 500) |
 | **Attributes** | detailAnswers | `Map<String, Object>` | public | 세부 질문 답변 |
 
 <br>

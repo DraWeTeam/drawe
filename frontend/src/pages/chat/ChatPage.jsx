@@ -121,15 +121,26 @@ const ChatPage = () => {
 
   // 한 끗 가이드: 폼 제출 → (1) 첨부 이미지·로딩을 채팅에 반영 → requestGuide
   //  → (2) 결과를 '가이드 카드' 메시지로 채팅에 삽입. 모달은 카드 클릭 시 열림(와이어프레임 의도).
-  const handleGuideSubmit = async ({ file, previewUrl, message, intent }) => {
-    lastGuideArgs.current = { file, previewUrl, message, intent, track };
+  const handleGuideSubmit = async ({
+    file,
+    previewUrl,
+    message,
+    intent,
+    track: styleTrack, // 별칭
+  }) => {
+    lastGuideArgs.current = {
+      file,
+      previewUrl,
+      message,
+      intent,
+      track: styleTrack,
+    };
     setGuideFormOpen(false);
     const gid = `g_${Date.now()}`;
     const guideStartTime = Date.now();
     setGuideLoading(true);
     setMessages((prev) => [
       ...prev,
-      // 첨부 이미지(+있으면 메시지)를 사용자 버블로 채팅에 반영
       ...(previewUrl || message
         ? [
             {
@@ -141,13 +152,15 @@ const ChatPage = () => {
         : []),
       { role: "assistant", type: "guideLoading", _gid: gid },
     ]);
+
     try {
       const result = await requestGuide(projectId, file, {
         message,
         intent,
-        track,
+        track: styleTrack, // ← styleTrack (analytics.track 아님)
       });
       console.log("=== requestGuide 응답 ===", result);
+
       setMessages((prev) =>
         prev.map((m) =>
           m._gid === gid
@@ -160,52 +173,76 @@ const ChatPage = () => {
                 guideTitle: axisLabel(result?.guide?.primary_focus) || "한 끗",
                 guidePreview: result?.uploadUrl || previewUrl || null,
                 guideFeedback: null,
-                requestText: message, // ① 상세 §2 사용자 버블용
+                requestText: message,
               }
             : m,
         ),
       );
+
+      // ↓↓↓ 트래킹 시작 ↓↓↓
       if (result?.guide) {
         const g = result.guide;
-        const inputMode = (() => {
-          if (file && (message || CONCERNS.includes(message)))
-            return "text_image";
-          if (file) return "image_only";
-          if (message)
-            return CONCERNS.includes(message) ? "chip_selected" : "text_only";
-          return "text_only";
-        })();
 
+        // input_mode 계산 (CONCERNS는 여기 없으니까 단순 로직)
+        let inputMode;
+        if (file && message) inputMode = "text_image";
+        else if (file) inputMode = "image_only";
+        else if (message) inputMode = "text_only";
+        else inputMode = "image_only";
+
+        // svg 관련 (실제 응답 구조 기반)
+        const firstBlock = g.blocks?.[0];
+        const firstAsset = firstBlock?.guide_asset;
+        const hasSvg =
+          g.blocks?.some((b) => b.guide_asset?.type === "svg") || false;
+
+        // image_id는 uploadUrl에서 추출 ("/images/29" → "29")
+        const imageIdMatch = result.uploadUrl?.match(/\/images\/(\d+)/);
+        const imageId = imageIdMatch ? imageIdMatch[1] : "";
+
+        // 1. guide_generated
         track("guide_generated", {
           project_id: projectId,
-          guide_id: g.guide_id || g.id || "",
-          guide_category: g.category || g.primary_focus || "",
-          guide_sub_category: g.sub_category || "",
-          guide_title: g.title || axisLabel(g.primary_focus) || "",
-          guide_keywords: Array.isArray(g.keywords)
-            ? g.keywords.join(",")
-            : g.keywords || "",
+          guide_id: g.guide_id || "",
+          guide_category: g.next_steps?.track?.group || g.primary_focus || "",
+          guide_sub_category: firstBlock?.sub_problem || "",
+          guide_title:
+            g.chat_feedback?.slice(0, 100) || axisLabel(g.primary_focus) || "",
+          guide_keywords: g.next_steps?.focus || g.primary_focus || "",
           input_mode: inputMode,
           has_image_uploaded: !!file,
-          has_svg: !!(g.svg_id || g.svg_url),
-          svg_id: g.svg_id || "",
-          task_count: Array.isArray(g.tasks) ? g.tasks.length : 0,
+          has_svg: hasSvg,
+          svg_id: firstAsset?.ref_id || "",
+          task_count: g.blocks?.length || 0,
           reference_count: result.references?.length || 0,
           generation_time_sec: Math.round((Date.now() - guideStartTime) / 1000),
-          llm_model_used: g.llm_model_used || g.model || "",
+          llm_model_used: "", // 백엔드가 응답에 안 넣어줌
         });
 
-        // ↓ 추가 — guide_stage_context (같이 발화)
+        // 2. guide_stage_context
         track("guide_stage_context", {
           project_id: projectId,
-          guide_id: g.guide_id || g.id || "",
-          detected_stage:
-            result.detectedStage || lastDetectedStage.current || "",
+          guide_id: g.guide_id || "",
+          detected_stage: lastDetectedStage.current || "",
           user_declared_status:
             intent === "practice" ? "in_progress" : "completed",
-          guide_category: g.category || g.primary_focus || "",
+          guide_category: g.next_steps?.track?.group || g.primary_focus || "",
         });
+
+        // 3. drawing_progress_detected (파일 있을 때만)
+        if (file) {
+          track("drawing_progress_detected", {
+            project_id: projectId,
+            detected_stage: lastDetectedStage.current || "",
+            previous_stage: lastDetectedStage.current || "",
+            stage_changed: false,
+            confidence_score: firstBlock?.confidence ?? null,
+            image_id: imageId,
+            guide_id: g.guide_id || "",
+          });
+        }
       }
+      // ↑↑↑ 트래킹 끝 ↑↑↑
     } catch (err) {
       const msg =
         err.response?.data?.error?.message ||
@@ -261,6 +298,7 @@ const ChatPage = () => {
   //   up→like, down→dislike, 같은 버튼 재클릭(해제)→null(행 삭제). 전송 실패는 조용히 무시(best-effort).
   const setGuideCardFeedback = (gidVal, kind) => {
     const msg = messages.find((m) => m._gid === gidVal && m.type === "guide");
+    const prevKind = msg?.guideFeedback ?? null; // 실패 시 롤백용
     const nextKind = msg && msg.guideFeedback === kind ? null : kind; // 토글
     setMessages((prev) =>
       prev.map((m) =>
@@ -273,7 +311,50 @@ const ChatPage = () => {
     if (guideId) {
       const fb =
         nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
-      sendGuideFeedback(projectId, guideId, fb).catch(() => {});
+      // 정직화: 전송 실패 시 토글 롤백 + 인라인 안내(성공 문구는 실배선 없어 추가하지 않음).
+      sendGuideFeedback(projectId, guideId, fb).catch(() => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._gid === gidVal && m.type === "guide"
+              ? { ...m, guideFeedback: prevKind }
+              : m,
+          ),
+        );
+        setErrorMessage(
+          "피드백을 반영하지 못했어요. 잠시 후 다시 시도해주세요.",
+        );
+      });
+      // ↓ 트래킹 추가
+      const previousFb =
+        prevKind === "up" ? "like" : prevKind === "down" ? "dislike" : "none";
+      const currentFb = fb || "none";
+
+      let actionType;
+      if (!prevKind && nextKind) actionType = "applied";
+      else if (prevKind && nextKind && prevKind !== nextKind)
+        actionType = "changed";
+      else if (prevKind && !nextKind) actionType = "removed";
+      else actionType = "applied"; // fallback
+
+      // 가이드 생성 시각 저장이 필요 — msg.createdAt 활용
+      const generatedAt = msg.createdAt
+        ? new Date(msg.createdAt).getTime()
+        : null;
+      const timeSinceGenerated = generatedAt
+        ? Math.round((Date.now() - generatedAt) / 1000)
+        : 0;
+
+      track("guide_feedback", {
+        project_id: projectId,
+        guide_id: guideId,
+        action_type: actionType,
+        current_feedback: currentFb,
+        previous_feedback: previousFb,
+        guide_category:
+          msg.guide?.next_steps?.track?.group || msg.guide?.primary_focus || "",
+        time_since_generated_sec: timeSinceGenerated,
+        time_since_previous_action_sec: 0, // 이전 action 시각 추적 안 하면 0
+      });
     }
   };
 
@@ -769,7 +850,20 @@ const ChatPage = () => {
       await updateProject(projectId, { status: "COMPLETED" });
       setProject((prev) => (prev ? { ...prev, status: "completed" } : prev));
       track("project_completed", { project_id: projectId });
-      alert("완성작 갤러리에 담았어요!");
+      // 완성작 갤러리는 완성 그림(drawingUrl)이 있어야 노출된다. 백엔드가 최근 가이드
+      //   업로드에서 대표 이미지를 자동 지정하므로, 재조회해 실제 담겼는지로 안내를 분기.
+      let added = true;
+      try {
+        const detail = await getProject(projectId);
+        added = Boolean(detail?.drawingUrl);
+      } catch {
+        added = true; // 조회 실패 시 낙관 메시지로 폴백
+      }
+      alert(
+        added
+          ? "완성작 갤러리에 담았어요!"
+          : "완료했어요. 다만 이 프로젝트엔 완성 그림이 없어 갤러리에는 담기지 않았어요.\n그림을 업로드해 가이드를 만든 뒤 완료하면 갤러리에 담겨요.",
+      );
     } catch (e2) {
       const message =
         e2.response?.data?.error?.message ||
@@ -982,7 +1076,8 @@ const ChatPage = () => {
       });
       alert("아카이브에 저장했어요!");
     } catch (err) {
-      alert(
+      // 인라인 에러로 통일(앱에 토스트 시스템 없음 — 기존 errorMessage 인라인 재사용).
+      setErrorMessage(
         err.response?.data?.error?.message ||
           "저장에 실패했어요. 다시 시도해주세요.",
       );
@@ -1173,6 +1268,10 @@ const ChatPage = () => {
                               src={logo}
                               alt=""
                             />
+                            <span
+                              className={styles.inlineSpinner}
+                              aria-hidden="true"
+                            />
                             한 끗 가이드를 만들고 있어요…
                           </div>
                         </div>
@@ -1262,12 +1361,37 @@ const ChatPage = () => {
                               type="button"
                               className={styles.guideActBtn}
                               aria-label="PDF 다운로드"
-                              onClick={() =>
+                              onClick={() => {
+                                const generatedAt = m.createdAt
+                                  ? new Date(m.createdAt).getTime()
+                                  : null;
+                                const previousFeedback =
+                                  m.guideFeedback === "up"
+                                    ? "like"
+                                    : m.guideFeedback === "down"
+                                      ? "dislike"
+                                      : "none";
+
+                                track("guide_saved", {
+                                  project_id: projectId,
+                                  guide_id: m.guide?.guide_id || "",
+                                  guide_category:
+                                    m.guide?.next_steps?.track?.group ||
+                                    m.guide?.primary_focus ||
+                                    "",
+                                  previous_feedback: previousFeedback,
+                                  time_since_generated_sec: generatedAt
+                                    ? Math.round(
+                                        (Date.now() - generatedAt) / 1000,
+                                      )
+                                    : 0,
+                                  save_entry_point: "guide_view",
+                                });
                                 downloadGuidePdf(
                                   { guide: m.guide, references: m.references },
                                   m.guidePreview,
-                                )
-                              }
+                                );
+                              }}
                             >
                               <DownloadIcon />
                             </button>

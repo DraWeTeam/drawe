@@ -6,7 +6,7 @@
 
 ## 8.1 전체 시스템 상태 머신 ⭐
 
-비로그인 → 인증 → 홈 → 프로젝트 작업(채팅 추천 · 이미지 생성 · 핀 · 가이드) → 갤러리 → 로그아웃으로 이어지는 전체 흐름. 각 기능은 독립된 서브 상태로 구성되며 사용자 행위(입력·클릭·업로드)에 따라 전이된다.
+비로그인 → 인증 → 홈 → 프로젝트 작업(가이드 코칭 · 채팅 추천 · 이미지 생성 · 핀) → 갤러리 → 로그아웃으로 이어지는 전체 흐름. 각 기능은 독립된 서브 상태로 구성되며 사용자 행위(입력·클릭·업로드)에 따라 전이된다.
 
 ```mermaid
 stateDiagram-v2
@@ -48,8 +48,8 @@ stateDiagram-v2
 - **(1) 비로그인** — 초기 상태. 회원가입은 이메일 인증(코드 5분·검증 30분 TTL)을 선행하고 가입 완료 후 로그인 화면으로 복귀(§8.6).
 - **(2) 인증 전이** — 이메일 로그인 또는 Google OAuth 성공 시 JWT(access·refresh) 발급과 함께 `인증세션`으로 진입. 로그아웃 또는 refresh 만료 시 비로그인으로 복귀.
 - **(3) 홈 / 프로젝트 목록** — 홈은 네비게이션 허브. 프로젝트 목록은 동일 상태에서 정렬·검색·상태필터로 결과만 갱신(QueryDSL)하고, 생성/선택 시 `프로젝트작업`으로 진입.
-- **(4) 프로젝트 작업(핵심)** — 채팅 추천이 작업 허브다. 멀티턴 대화로 레퍼런스를 받고(검색·재사용·조언·비교), 검색 0건이면 AI 이미지 생성으로 분기, 마음에 드는 레퍼런스는 핀(최대 3), 그림을 올리면 이미지 기반 가이드로 분기한다.
-- **(5) 갤러리** — 완성작(AI 생성) 갤러리와 프로젝트별 레퍼런스 아카이브를 조회(읽기 전용).
+- **(4) 프로젝트 작업(핵심)** — 채팅 추천이 작업 허브다. 멀티턴 대화로 레퍼런스를 받고(검색·재사용·조언·비교), 검색 0건이면 AI 이미지 생성으로 분기, 마음에 드는 레퍼런스는 핀(최대 3), 그림을 올리면 한 끗 가이드(코칭 에이전트 파이프라인)로 분기한다.
+- **(5) 갤러리** — 완성작(COMPLETED 프로젝트·내 그림 drawingUrl) 갤러리와 프로젝트별 레퍼런스 아카이브를 조회(읽기 전용).
 
 > 굵은 흐름의 상세 상태는 아래 도메인별 머신(8.2–8.7)에서 다룬다.
 
@@ -129,7 +129,7 @@ stateDiagram-v2
     비저장 --> [*] : 안내만 반환(히스토리 미저장)
 ```
 - **멱등성**: `Idempotency-Key`로 재시도를 dedup(`findByRequestId`). 이미 처리된 요청은 저장본 재사용.
-- **coach 모드만 영속**: redirect/clarify/refused는 히스토리에 남기지 않는다. 실제 비전·코칭(OpenCLIP·mediapipe·Qdrant·LLM)은 외부 fastapi-guide가 수행하고, growth(=user_id) 진척이 갱신된다.
+- **coach 모드만 영속**: redirect/clarify/refused는 히스토리에 남기지 않는다. 실제 파이프라인(OpenCLIP 임베딩·**ViTPose 키포인트 관찰**·결정적 스코어러·Qdrant 검색·Grok 코칭; 손 mediapipe·VLM은 옵트인)은 외부 fastapi-guide가 수행하고, growth(=user_id) 진척이 갱신된다.
 
 ---
 
@@ -161,8 +161,8 @@ stateDiagram-v2
 stateDiagram-v2
     state 이미지피드백 {
         [*] --> 없음
-        없음 --> LIKE : 좋아요
-        없음 --> DISLIKE : 싫어요
+        없음 --> LIKE : 좋아요(반응 저장 · 정렬/유지용 · 검색 랭킹 무반영)
+        없음 --> DISLIKE : 싫어요(다음 검색에서 제외 · 3회 누적 시 생성 유도 모달)
         LIKE --> DISLIKE : 변경(upsert)
         DISLIKE --> LIKE : 변경(upsert)
         LIKE --> 없음 : 해제(delete)
@@ -170,11 +170,12 @@ stateDiagram-v2
     }
 
     state AI이미지인덱싱 {
-        [*] --> 생성됨 : Bria 생성 + 영속(sourceId=ai_id)
+        [*] --> 생성됨 : Bedrock 생성 + 영속(sourceId=ai_id)
         생성됨 --> 인덱싱중 : AiImageCreatedEvent (AFTER_COMMIT · @Async)
         인덱싱중 --> 색인완료 : CLIP 임베딩 → Pinecone upsert → 태그 시드(indexedAt)
         인덱싱중 --> 미색인 : 실패(로그만, 트랜잭션 격리 REQUIRES_NEW)
     }
 ```
-- **피드백**: `(user_id, image_id)` UNIQUE 1행 — 같은 이미지에 LIKE/DISLIKE는 upsert로 토글, 해제는 삭제.
+- **피드백**: `ImageFeedback` `(user_id, image_id)` UNIQUE 1행 — 같은 이미지에 LIKE/DISLIKE는 upsert로 토글, 해제는 삭제(순수 반응 영속).
+- **⚠️ 도메인 경계**: 위 상태도의 "다음 검색 제외 · 3회 누적 생성 모달"·"랭킹 무반영" 효과는 **generic `ImageFeedback`가 아니라 레퍼런스 보드 도메인**(`ReferenceBoardSession.dislikeCount` → `incrementDislike()` 3회 시 `suggestGeneration`, ack로 리셋)에서 적용된다. `ImageFeedback` 자체는 DB 토글 영속만 하고 검색 랭킹에 개입하지 않는다.
 - **AI 이미지 인덱싱**: 생성·영속 커밋 후 비동기로 임베딩·색인. 실패해도 본 트랜잭션과 분리(REQUIRES_NEW)되어 생성 자체에는 영향이 없다.

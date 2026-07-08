@@ -1,6 +1,7 @@
 package com.drawe.backend.global.client;
 
 import com.drawe.backend.global.client.dto.GuideResponse;
+import com.drawe.backend.global.client.dto.RerollResponse;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -154,6 +155,41 @@ public class GuideClient {
     } catch (Exception e) {
       log.warn(
           "guide /adopt 실패(무시): ref={}, event={}, error={}", referenceId, event, e.getMessage());
+    }
+  }
+
+  /**
+   * 레퍼런스 재추천 — 축(sub_problem) + 이미 노출된 ref 배제목록을 guide 서비스 {@code POST /reroll} 로 보내 새 컷(+badge
+   * 메타)을 받는다. LLM 미경유(참조 벡터검색만). adopt 와 달리 사용자 요청 즉답이라 실패는 예외로 올려 호출자(GuideService)가 매핑 → 프론트가 정직
+   * 토스트 + 기존 표시 유지(silent 대체 금지).
+   */
+  public RerollResponse reroll(String subProblem, java.util.List<String> exclude) {
+    try {
+      MultipartBodyBuilder b = new MultipartBodyBuilder();
+      b.part("sub_problem", subProblem);
+      b.part("exclude", exclude == null ? "" : String.join(",", exclude));
+      RerollResponse resp =
+          webClient
+              .post()
+              .uri("/reroll")
+              .contentType(MediaType.MULTIPART_FORM_DATA)
+              .body(BodyInserters.fromMultipartData(b.build()))
+              .retrieve()
+              .bodyToMono(RerollResponse.class)
+              .timeout(Duration.ofSeconds(20))
+              .block();
+      if (resp == null) {
+        throw new IllegalStateException("FastAPI reroll 응답이 비었습니다.");
+      }
+      return resp;
+    } catch (Exception e) {
+      Throwable cause = org.springframework.core.NestedExceptionUtils.getMostSpecificCause(e);
+      log.error(
+          "FastAPI reroll 호출 실패: sub_problem={}, cause={}: {}",
+          subProblem,
+          cause.getClass().getSimpleName(),
+          cause.getMessage());
+      throw new RuntimeException("재추천 생성 실패: " + e.getMessage(), e);
     }
   }
 
