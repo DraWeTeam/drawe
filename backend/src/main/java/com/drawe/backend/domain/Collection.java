@@ -14,7 +14,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 /**
- * 아카이브 레퍼런스 컬렉션 — 명명된 레퍼런스 그룹(SCR-ARCH-01~06). 기존 {@link ProjectReference}(프로젝트 종속 flat)와 별개인 독립 계층.
+ * 아카이브 레퍼런스 컬렉션 — 명명된 레퍼런스 그룹(SCR-ARCH-01~06). 기존 {@link ProjectReference}(프로젝트 종속 flat)와 별개인 독립
+ * 계층.
  *
  * <p>사용자가 직접 만들고 이름/설명/태그를 관리하는 수동 컬렉션. {@code tags} 는 카드 태그칩(수정 모달에서 편집).
  */

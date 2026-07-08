@@ -3,6 +3,7 @@ package com.drawe.backend.domain.collection.service;
 import com.drawe.backend.domain.Collection;
 import com.drawe.backend.domain.CollectionReference;
 import com.drawe.backend.domain.Image;
+import com.drawe.backend.domain.ImageDraweTag;
 import com.drawe.backend.domain.User;
 import com.drawe.backend.domain.collection.dto.ArchiveTargetsResponse;
 import com.drawe.backend.domain.collection.dto.CollectionCreateRequest;
@@ -14,7 +15,6 @@ import com.drawe.backend.domain.collection.dto.CollectionUpdateRequest;
 import com.drawe.backend.domain.collection.dto.ReferenceDetailResponse;
 import com.drawe.backend.domain.collection.repository.CollectionReferenceRepository;
 import com.drawe.backend.domain.collection.repository.CollectionRepository;
-import com.drawe.backend.domain.ImageDraweTag;
 import com.drawe.backend.domain.feedback.dto.FeedbackResponse;
 import com.drawe.backend.domain.feedback.service.ImageFeedbackService;
 import com.drawe.backend.domain.image.repository.ImageDraweTagRepository;
@@ -54,14 +54,12 @@ public class CollectionService {
   private final ImageUrlSigner imageUrlSigner;
   private final ProjectReferenceRepository projectReferenceRepository;
 
-  /**
-   * 카드 밑 대표 태그 후보 개수 — 프론트가 한국어 매핑 후 앞 3개를 노출한다(SCR-ARCH-05). 매핑에서 빠지는 태그를 감안해 넉넉히 보낸다.
-   */
+  /** 카드 밑 대표 태그 후보 개수 — 프론트가 한국어 매핑 후 앞 3개를 노출한다(SCR-ARCH-05). 매핑에서 빠지는 태그를 감안해 넉넉히 보낸다. */
   private static final int CARD_KEYWORDS = 8;
 
   /**
-   * 아카이브 목록(SCR-ARCH-02) — 유저의 모든 컬렉션을 카드로. 컬렉션 자체는 최신순, 각 카드의 썸네일은 컬렉션 내 (고정 우선, 최신순) 앞 4개.
-   * 레퍼런스를 한 번에 로드해 컬렉션별로 그룹핑(N+1 방지). 레퍼런스 0개인 컬렉션도 빈 카드로 노출한다(막 만든 컬렉션 등).
+   * 아카이브 목록(SCR-ARCH-02) — 유저의 모든 컬렉션을 카드로. 컬렉션 자체는 최신순, 각 카드의 썸네일은 컬렉션 내 (고정 우선, 최신순) 앞 4개. 레퍼런스를
+   * 한 번에 로드해 컬렉션별로 그룹핑(N+1 방지). 레퍼런스 0개인 컬렉션도 빈 카드로 노출한다(막 만든 컬렉션 등).
    */
   @Transactional(readOnly = true)
   public CollectionSummaryResponse getCollections(User user) {
@@ -131,9 +129,7 @@ public class CollectionService {
         refs);
   }
 
-  /**
-   * 카드 ⋮ '아카이브' 서브메뉴 — 유저의 모든 컬렉션(최신순)과 이 이미지가 이미 담겼는지 여부. 담긴 컬렉션은 프론트에서 체크·비활성화한다.
-   */
+  /** 카드 ⋮ '아카이브' 서브메뉴 — 유저의 모든 컬렉션(최신순)과 이 이미지가 이미 담겼는지 여부. 담긴 컬렉션은 프론트에서 체크·비활성화한다. */
   @Transactional(readOnly = true)
   public ArchiveTargetsResponse getArchiveTargets(User user, Long imageId) {
     List<Collection> collections = collectionRepository.findByUserOrderByCreatedAtDesc(user);
@@ -159,8 +155,8 @@ public class CollectionService {
   }
 
   /**
-   * 레퍼런스 상세(SCR-ARCH-05 전체화면) — 원본 이미지 + 이름 + 출처 + 키워드 + 내 반응. 이미지 단위 조회라 컬렉션 소속을 요구하지 않는다(보드에서도 진입).
-   * 키워드는 {@code rawTags}(인제스트 GUIDE_REF 에만 존재), 이름은 캡션/프롬프트에서 유도.
+   * 레퍼런스 상세(SCR-ARCH-05 전체화면) — 원본 이미지 + 이름 + 출처 + 키워드 + 내 반응. 이미지 단위 조회라 컬렉션 소속을 요구하지 않는다(보드에서도
+   * 진입). 키워드는 {@code rawTags}(인제스트 GUIDE_REF 에만 존재), 이름은 캡션/프롬프트에서 유도.
    */
   @Transactional(readOnly = true)
   public ReferenceDetailResponse getReferenceDetail(User user, Long imageId) {
@@ -173,9 +169,7 @@ public class CollectionService {
     String myReaction = feedback.type() == null ? null : feedback.type().name();
 
     ImageDraweTag tag =
-        imageDraweTagRepository.findByImageIdIn(List.of(imageId)).stream()
-            .findFirst()
-            .orElse(null);
+        imageDraweTagRepository.findByImageIdIn(List.of(imageId)).stream().findFirst().orElse(null);
 
     // 출처 표기(SCR-ARCH-05) — 이 이미지가 온 프로젝트명(공개 자료라 소유자 무관). 없으면 DraWe 도메인 폴백.
     List<String> projectNames = projectReferenceRepository.findProjectNamesByImage(imageId);
@@ -192,8 +186,8 @@ public class CollectionService {
   }
 
   /**
-   * 카드 밑 대표 키워드(SCR-ARCH-05) — 최대 3개. rawTags(UNSPLASH 인제스트)가 있으면 앞 3개, 없으면(AI 등)
-   * ImageDraweTag 의 subject/technique/mood 를 쓴다. 둘 다 없으면 빈 리스트(프론트가 source 배지로 폴백).
+   * 카드 밑 대표 키워드(SCR-ARCH-05) — 최대 3개. rawTags(UNSPLASH 인제스트)가 있으면 앞 3개, 없으면(AI 등) ImageDraweTag 의
+   * subject/technique/mood 를 쓴다. 둘 다 없으면 빈 리스트(프론트가 source 배지로 폴백).
    */
   private List<String> deriveKeywords(Image image, ImageDraweTag tag) {
     List<String> raw = image.getRawTags();
@@ -267,8 +261,8 @@ public class CollectionService {
   }
 
   /**
-   * 새 컬렉션 생성 — SCR-ARCH-05 '아카이브 추가(+)' 또는 SCR-ARCH-02 '직접 추가하기'. imageIds 가 있으면 함께 담는다(멱등).
-   * 생성된 컬렉션 id 반환.
+   * 새 컬렉션 생성 — SCR-ARCH-05 '아카이브 추가(+)' 또는 SCR-ARCH-02 '직접 추가하기'. imageIds 가 있으면 함께 담는다(멱등). 생성된
+   * 컬렉션 id 반환.
    */
   @Transactional
   public Long createCollection(User user, CollectionCreateRequest req) {
@@ -295,10 +289,7 @@ public class CollectionService {
     Collection collection = loadAuthorized(user, collectionId);
     attachImage(collection, imageId);
     log.info(
-        "레퍼런스 컬렉션 저장: userId={}, collectionId={}, imageId={}",
-        user.getId(),
-        collectionId,
-        imageId);
+        "레퍼런스 컬렉션 저장: userId={}, collectionId={}, imageId={}", user.getId(), collectionId, imageId);
   }
 
   /** 아카이브 취소(SCR-ARCH-05 카드 ⋮) — 컬렉션에서 레퍼런스 제거. 없으면 조용히 무시. */
@@ -322,11 +313,7 @@ public class CollectionService {
    */
   @Transactional
   public void moveReference(
-      User user,
-      Long collectionId,
-      Long imageId,
-      Long targetCollectionId,
-      List<String> userTags) {
+      User user, Long collectionId, Long imageId, Long targetCollectionId, List<String> userTags) {
     Collection source = loadAuthorized(user, collectionId);
     Image image =
         imageRepository

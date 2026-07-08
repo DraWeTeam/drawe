@@ -9,8 +9,7 @@ import java.util.List;
  * imageIds·tags 는 선택(빈 컬렉션·태그 없이도 허용). 저장 흐름에서 만든 사용자 컬렉션이므로 axis=null·is_system=false.
  */
 public record CollectionCreateRequest(
-    @NotBlank(message = "컬렉션 이름은 필수입니다")
-        @Size(max = 100, message = "컬렉션 이름은 100자 이하여야 합니다")
+    @NotBlank(message = "컬렉션 이름은 필수입니다") @Size(max = 100, message = "컬렉션 이름은 100자 이하여야 합니다")
         String name,
     List<Long> imageIds,
     List<String> tags) {}

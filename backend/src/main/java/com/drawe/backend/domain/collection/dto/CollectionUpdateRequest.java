@@ -9,8 +9,7 @@ import java.util.List;
  * description=null 은 설명 비움, tags=null 은 태그 비움으로 처리하지 않도록 서비스에서 null 은 "미변경"으로 다룬다).
  */
 public record CollectionUpdateRequest(
-    @NotBlank(message = "컬렉션 이름은 필수입니다")
-        @Size(max = 100, message = "컬렉션 이름은 100자 이하여야 합니다")
+    @NotBlank(message = "컬렉션 이름은 필수입니다") @Size(max = 100, message = "컬렉션 이름은 100자 이하여야 합니다")
         String name,
     @Size(max = 255, message = "설명은 255자 이하여야 합니다") String description,
     List<String> tags) {}

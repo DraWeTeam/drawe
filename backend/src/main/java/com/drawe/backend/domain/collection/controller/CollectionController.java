@@ -51,8 +51,7 @@ public class CollectionController {
       description = "레퍼런스 한 장의 원본 이미지·이름·출처 링크·키워드·내 반응을 반환합니다(SCR-ARCH-05).")
   public ApiResponse<ReferenceDetailResponse> referenceDetail(
       @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long imageId) {
-    return ApiResponse.success(
-        collectionService.getReferenceDetail(principal.getUser(), imageId));
+    return ApiResponse.success(collectionService.getReferenceDetail(principal.getUser(), imageId));
   }
 
   /** 카드 ⋮ '아카이브' 서브메뉴 — 내 컬렉션 목록 + 이 이미지가 이미 담겼는지 여부. */
@@ -62,18 +61,15 @@ public class CollectionController {
       description = "이미지를 저장할 수 있는 내 컬렉션 목록과 이미 담긴 여부(체크 표시용)를 반환합니다.")
   public ApiResponse<ArchiveTargetsResponse> archiveTargets(
       @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long imageId) {
-    return ApiResponse.success(
-        collectionService.getArchiveTargets(principal.getUser(), imageId));
+    return ApiResponse.success(collectionService.getArchiveTargets(principal.getUser(), imageId));
   }
 
   /** 컬렉션 상세(SCR-ARCH-04) — 헤더 + 레퍼런스 그리드(고정 우선, 최신순). */
   @GetMapping("/{collectionId}")
   @Operation(summary = "컬렉션 상세", description = "컬렉션 하나의 정보와 담긴 레퍼런스 목록을 반환합니다.")
   public ApiResponse<CollectionDetailResponse> detail(
-      @AuthenticationPrincipal PrincipalDetails principal,
-      @PathVariable Long collectionId) {
-    return ApiResponse.success(
-        collectionService.getCollection(principal.getUser(), collectionId));
+      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long collectionId) {
+    return ApiResponse.success(collectionService.getCollection(principal.getUser(), collectionId));
   }
 
   /** 컬렉션 수정(SCR-ARCH-06) — 이름/설명/태그. */
@@ -91,8 +87,7 @@ public class CollectionController {
   @DeleteMapping("/{collectionId}")
   @Operation(summary = "컬렉션 삭제", description = "컬렉션과 담긴 모든 레퍼런스를 삭제합니다.")
   public ApiResponse<Map<String, Boolean>> delete(
-      @AuthenticationPrincipal PrincipalDetails principal,
-      @PathVariable Long collectionId) {
+      @AuthenticationPrincipal PrincipalDetails principal, @PathVariable Long collectionId) {
     collectionService.deleteCollection(principal.getUser(), collectionId);
     return ApiResponse.success(Map.of("success", true));
   }
@@ -135,8 +130,7 @@ public class CollectionController {
   @PatchMapping("/{collectionId}/references/{imageId}/move")
   @Operation(
       summary = "레퍼런스 정보 수정",
-      description =
-          "레퍼런스의 사용자 태그를 수정하고(선택) 다른 컬렉션으로 옮깁니다(선택). 대상에 이미 있으면 원본에서만 제거합니다(멱등).")
+      description = "레퍼런스의 사용자 태그를 수정하고(선택) 다른 컬렉션으로 옮깁니다(선택). 대상에 이미 있으면 원본에서만 제거합니다(멱등).")
   public ApiResponse<Map<String, Boolean>> moveReference(
       @AuthenticationPrincipal PrincipalDetails principal,
       @PathVariable Long collectionId,

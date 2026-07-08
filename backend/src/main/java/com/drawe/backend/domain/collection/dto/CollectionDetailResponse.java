@@ -11,11 +11,7 @@ import java.util.List;
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record CollectionDetailResponse(
-    Long id,
-    String name,
-    String description,
-    List<String> tags,
-    List<ReferenceItem> references) {
+    Long id, String name, String description, List<String> tags, List<ReferenceItem> references) {
 
   public record ReferenceItem(
       Long imageId,
