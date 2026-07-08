@@ -45,8 +45,9 @@ public class ProjectService {
   }
 
   // 표지는 업로드 경로(/images/{blobId})만 허용. 임의 URL·서명 URL 은 거부.
+  //   자릿수 1~18 로 제한 — Long 오버플로(NumberFormatException→500) 방지, 초과는 INVALID_INPUT(400).
   private static final java.util.regex.Pattern COVER_IMAGE_URL =
-      java.util.regex.Pattern.compile("^/images/(\\d+)$");
+      java.util.regex.Pattern.compile("^/images/(\\d{1,18})$");
 
   /** 표지 소유권 검증(IDOR 방지) — 업로드 경로 형식 + 현재 사용자 소유 이미지여야 한다. */
   private void assertCoverImageOwned(User user, String coverUrl) {
