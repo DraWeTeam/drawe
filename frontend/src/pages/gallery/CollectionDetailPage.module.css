@@ -314,20 +314,34 @@
   }
 }
 
-/* 우하단 버튼이라 메뉴는 위로 연다(카드 밖으로 안 잘리게) */
+/* 우하단 버튼이라 메뉴는 위로 연다(카드 밖으로 안 잘리게).
+   레퍼런스 보드(프로젝트→레퍼런스) 옵션 메뉴와 스타일·애니메이션 통일. */
 .cardMenuDropdown {
   position: absolute;
   bottom: 34px;
   right: 0;
-  min-width: 130px;
+  min-width: 150px;
   background: #fff;
-  border: 1px solid #efeae4;
+  border: 1px solid #e8e8e8;
   border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   padding: 4px;
   z-index: 20;
   display: flex;
   flex-direction: column;
+  animation: card-menu-pop 0.15s ease;
+}
+
+/* 위로 여는 메뉴라 아래(+4px)에서 올라오며 페이드 — 보드의 pop-in 과 방향만 반전 */
+@keyframes card-menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── 헤더 ⋮ 메뉴 (컬렉션 수정/삭제) ── */
@@ -359,13 +373,26 @@
   right: 0;
   min-width: 150px;
   background: #fff;
-  border: 1px solid #efeae4;
+  border: 1px solid #e8e8e8;
   border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   padding: 4px;
   z-index: 30;
   display: flex;
   flex-direction: column;
+  animation: menu-pop 0.15s ease;
+}
+
+/* 아래로 여는 메뉴 — 보드 pop-in 과 동일(위 -4px 에서 내려오며 페이드) */
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .menuItem {
@@ -376,15 +403,16 @@
   text-align: left;
   background: none;
   border: none;
-  padding: 9px 10px;
-  border-radius: 7px;
-  font-size: 14px;
-  color: #2e2c2a;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #444;
+  font-family: inherit;
   cursor: pointer;
 }
 
 .menuItem:hover {
-  background: #f6f2ee;
+  background: #f5f5f5;
 }
 
 .menuDanger {
