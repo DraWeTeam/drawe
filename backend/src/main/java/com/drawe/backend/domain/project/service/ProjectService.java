@@ -49,8 +49,18 @@ public class ProjectService {
   private static final java.util.regex.Pattern COVER_IMAGE_URL =
       java.util.regex.Pattern.compile("^/images/(\\d{1,18})$");
 
-  /** 표지 소유권 검증(IDOR 방지) — 업로드 경로 형식 + 현재 사용자 소유 이미지여야 한다. */
+  /**
+   * 표지 소유권 검증(IDOR 방지). 업로드 응답 형식만 허용한다.
+   *
+   * <ul>
+   *   <li>S3 저장({@code s3:{key}}, s3 프로파일): 키가 랜덤 UUID라 열거·추측 불가 → 형식만 확인(소유권 레코드 없음).
+   *   <li>DB 저장({@code /images/{blobId}}): 순차 id라 열거 가능 → ImageBlob 소유자 검증 필수.
+   * </ul>
+   */
   private void assertCoverImageOwned(User user, String coverUrl) {
+    if (coverUrl.startsWith(com.drawe.backend.domain.image.service.S3ImageStorage.S3_URL_PREFIX)) {
+      return;
+    }
     java.util.regex.Matcher m = COVER_IMAGE_URL.matcher(coverUrl);
     if (!m.matches()) {
       throw new CustomException(ErrorCode.INVALID_INPUT);
