@@ -1,0 +1,34 @@
+/* 채팅 흐름 안 카드 슬롯 — 앞선 메시지와 간격 확보 */
+.cardSlot {
+  width: 100%;
+  margin-top: var(--space-200);
+}
+
+/* 제출 성공 감사 토스트 — 하단 중앙, 자동 소멸 */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  z-index: 1100;
+  padding: 12px 20px;
+  border-radius: var(--radius-999);
+  background: var(--text-secondary);
+  color: var(--text-inverse);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  box-shadow: var(--shadow-200);
+  animation: feedback-toast-in 0.2s ease;
+}
+
+@keyframes feedback-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
