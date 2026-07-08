@@ -244,8 +244,10 @@ const ChatPage = () => {
       }
       // ↑↑↑ 트래킹 끝 ↑↑↑
     } catch (err) {
+      console.error("requestGuide failed", err);
       const msg =
         err.response?.data?.error?.message ||
+        err.message ||
         "가이드를 만들지 못했어요. 잠시 후 다시 시도해주세요.";
       setMessages((prev) =>
         prev.map((m) =>
