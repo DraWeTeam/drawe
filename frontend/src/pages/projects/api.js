@@ -39,6 +39,18 @@ export const updateProject = async (projectId, payload) => {
   return res.data.data;
 };
 
+// 이미지 업로드(프로젝트 표지 등) — multipart. 응답 { id, url }.
+//   url 은 미서명 상대경로(/images/{id}) — 저장 payload(coverImageUrl)로 그대로 넘긴다.
+//   형식(JPEG/PNG/WEBP/GIF)·용량 검증은 백엔드가 수행하고, 위반 시 4xx 로 응답한다.
+export const uploadImage = async (file) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await api.post("/images/upload", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data.data;
+};
+
 export const deleteProject = async (projectId) => {
   const res = await api.delete(`/projects/${projectId}`);
   return res.data.data;
