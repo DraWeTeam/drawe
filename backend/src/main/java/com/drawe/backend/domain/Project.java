@@ -76,6 +76,19 @@ public class Project {
   @Column(name = "drawing_url", length = 500)
   private String drawingUrl;
 
+  // SCRUM-120: 사용자가 올리는 프로젝트 표지(카드 썸네일). drawingUrl(완성 그림)과 별개.
+  @Size(max = 500)
+  @Column(name = "cover_image_url", length = 500)
+  private String coverImageUrl;
+
+  // 표지 원본 파일명·용량(bytes) — 수정 모달 재진입 시 이름/크기 복원용.
+  @Size(max = 255)
+  @Column(name = "cover_image_name", length = 255)
+  private String coverImageName;
+
+  @Column(name = "cover_image_size")
+  private Long coverImageSize;
+
   @Column(name = "detail_answers")
   @JdbcTypeCode(SqlTypes.JSON)
   private Map<String, Object> detailAnswers;
