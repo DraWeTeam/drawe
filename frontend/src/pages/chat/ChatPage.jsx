@@ -326,18 +326,14 @@ const ChatPage = () => {
       });
       // ↓ 트래킹 추가
       const previousFb =
-        previousKind === "up"
-          ? "like"
-          : previousKind === "down"
-            ? "dislike"
-            : "none";
+        prevKind === "up" ? "like" : prevKind === "down" ? "dislike" : "none";
       const currentFb = fb || "none";
 
       let actionType;
-      if (!previousKind && nextKind) actionType = "applied";
-      else if (previousKind && nextKind && previousKind !== nextKind)
+      if (!prevKind && nextKind) actionType = "applied";
+      else if (prevKind && nextKind && prevKind !== nextKind)
         actionType = "changed";
-      else if (previousKind && !nextKind) actionType = "removed";
+      else if (prevKind && !nextKind) actionType = "removed";
       else actionType = "applied"; // fallback
 
       // 가이드 생성 시각 저장이 필요 — msg.createdAt 활용
