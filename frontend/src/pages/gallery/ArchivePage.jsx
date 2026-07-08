@@ -93,8 +93,12 @@ const ArchivePage = () => {
         </header>
         <div className={styles.emptyState}>
           <ArchiveBoxIcon />
-          <p className={styles.emptyTitle}>아직 아카이브에 저장된 자료가 없어요.</p>
-          <p className={styles.emptyDesc}>마음에 드는 레퍼런스를 아카이브 해보세요!</p>
+          <p className={styles.emptyTitle}>
+            아직 아카이브에 저장된 자료가 없어요.
+          </p>
+          <p className={styles.emptyDesc}>
+            마음에 드는 레퍼런스를 아카이브 해보세요!
+          </p>
         </div>
       </div>
     );

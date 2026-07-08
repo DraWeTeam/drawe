@@ -1,4 +1,10 @@
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from "react";
 import styles from "./Toast.module.css";
 
 // 전역 토스트 — 화면 상단 중앙에 잠깐 떴다 사라지는 알림.

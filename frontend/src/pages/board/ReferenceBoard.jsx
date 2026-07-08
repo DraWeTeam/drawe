@@ -1074,9 +1074,7 @@ const BoardCard = ({
                               className={`${styles.menuItem} ${
                                 contained ? styles.menuItemActive : ""
                               }`}
-                              onClick={() =>
-                                !contained && pickCollection(t.id)
-                              }
+                              onClick={() => !contained && pickCollection(t.id)}
                               disabled={contained}
                             >
                               <ArchiveIcon />

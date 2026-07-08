@@ -1123,8 +1123,8 @@ const ChatPage = () => {
         <div key={idx} className={styles.assistantMessage}>
           <div className={styles.assistantBubble}>
             <img className={styles.assistantLogo} src={logo} alt="" />
-            <span className={styles.inlineSpinner} aria-hidden="true" />
-            한 끗 가이드를 만들고 있어요…
+            <span className={styles.inlineSpinner} aria-hidden="true" />한 끗
+            가이드를 만들고 있어요…
           </div>
         </div>
       );
@@ -1705,9 +1705,7 @@ const ChatPage = () => {
         />
       )}
 
-      {feedbackOpen && (
-        <FeedbackModal onClose={() => setFeedbackOpen(false)} />
-      )}
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
     </div>
   );
 };
