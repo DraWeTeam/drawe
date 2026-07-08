@@ -1,6 +1,6 @@
 # 2. System Architecture
 
-> **ROUND 2 기준 — EKS(Kubernetes) · GitOps 아키텍처.** dev 환경 ECS→EKS 마이그레이션 완료(검증됨), prod 동일 패턴 적용. 리전 `ap-northeast-2`, EKS `drawe-dev`(K8s 1.33, arm64).
+> **ROUND 2 기준 — EKS(Kubernetes) · GitOps 아키텍처.** dev 환경 ECS→EKS 마이그레이션 완료(검증됨), prod 동일 패턴 적용. 리전 `ap-northeast-2`, EKS `drawe-dev`(K8s 1.35, arm64).
 
 ![DraWe System Architecture](./img/systemArchitecture-eks.png)
 

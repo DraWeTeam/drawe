@@ -2,6 +2,8 @@
 
 AI 이미지 생성은 신규 워크플로(WorkflowService) 로 옮기지 않고 레거시 직접 합성 경로에 남아 있다. 라이브 게이트(`workflowComposeProperties.isLive`) 는 COMPOSE 로 종착하는 의도만 허용하는데, 생성은 Bedrock(guide) 호출·엔티티 영속화로 끝나 이 계약을 만족하지 못하고, 워크플로 executor 들은 아직 스켈레톤이며, `ImageGenerationService` 가 `Image` 엔티티에 강하게 의존하기 때문이다. 그래서 `ChatLlmService.chat()` 은 명시적 `GENERATE_NOW` 결정을 라이브 게이트 **이전**에 short-circuit 해 곧장 `handleGenerateNow(...)` → 레거시 합성으로 흘린다. 트리거는 둘이다. ① 사용자가 명시적으로 "그려줘/만들어줘" 라고 한 경우 `GENERATE_NOW` 로 즉시 생성, ② 검색은 했으나 레퍼런스가 비었을 때(`NEW_SEARCH && references.isEmpty()`) 는 생성을 **제안(offerGenerate)** 만 하고, 사용자가 수락(버튼)하면 `generateImage(...)` 로 생성한다.
 
+> **생성 진입점은 둘**: 채팅(`ChatLlmService`) 외에 **보드 AI 생성(`ReferenceBoardService.generateReference`)** 도 같은 `ImageGenerationService.generate(user, prompt, project)` 를 호출하는 live 콜러다. 보드 경로는 생성 후 `ReferenceGeneration` 이력(SCRUM-118)까지 남기고 `{imageId, 서명 url}` 을 돌려 프론트가 즉시 미리보기·담기(addReference)한다.
+
 ```mermaid
 classDiagram
     direction LR
@@ -21,6 +23,7 @@ classDiagram
         -ImageRepository imageRepository
         -PromptTranslator promptTranslator
         -ApplicationEventPublisher eventPublisher
+        -AnalyticsEventService analyticsEventService
         +ImageGenerationService(...)
         +generate(User user, String prompt, Project project) Image
     }
@@ -36,7 +39,7 @@ classDiagram
 
     class GuideClient {
         <<Component>>
-        -RestClient restClient
+        -WebClient webClient
         +GuideClient(...)
         +generateImage(String prompt) byte[]
     }
@@ -51,7 +54,14 @@ classDiagram
         +prompt() String
     }
 
-    ChatLlmService ..> ImageGenerationService : 생성 위임
+    class ReferenceBoardService {
+        <<Service>>
+        -ImageGenerationService imageGenerationService
+        +generateReference(User user, Long projectId, String prompt) Map~String, Object~
+    }
+
+    ChatLlmService ..> ImageGenerationService : 생성 위임(GENERATE_NOW)
+    ReferenceBoardService ..> ImageGenerationService : 생성 위임(보드 AI 생성)
     ChatLlmService ..> GeneratedImage : creates
     ImageGenerationService ..> PromptTranslator : KO→EN
     ImageGenerationService ..> GuideClient : 생성
@@ -71,7 +81,7 @@ classDiagram
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
 | **class** | ImageGenerationService | `class` | public | Bedrock(guide) 로 이미지를 생성하고 결과 PNG 바이트를 `ImageStorage`(DB) 에 영구 저장한 뒤 `Image` 엔티티를 만들어 반환한다. guide 서비스가 PNG 바이트를 직반환하므로 다운로드 단계는 없다. |
-| **Attributes** | guideClient | `GuideClient` | private | guide 서비스 `POST /generate-image`(Bedrock) 호출. <br> imageStorage | `ImageStorage` | private | 다운로드한 바이트를 DB blob 으로 영구 저장. <br> imageRepository | `ImageRepository` | private | `Image` 엔티티 영속화. <br> promptTranslator | `PromptTranslator` | private | 한국어 프롬프트 → 영문 변환. <br> eventPublisher | `ApplicationEventPublisher` | private | `AiImageCreatedEvent` 발행. |
+| **Attributes** | guideClient | `GuideClient` | private | guide 서비스 `POST /generate-image`(Bedrock) 호출. <br> imageStorage | `ImageStorage` | private | 다운로드한 바이트를 DB blob 으로 영구 저장. <br> imageRepository | `ImageRepository` | private | `Image` 엔티티 영속화. <br> promptTranslator | `PromptTranslator` | private | 한국어 프롬프트 → 영문 변환. <br> eventPublisher | `ApplicationEventPublisher` | private | `AiImageCreatedEvent` 발행. <br> analyticsEventService | `AnalyticsEventService` | private | 생성 성공 시 `IMAGE_GENERATED` 이벤트 track(일별 호출 수 집계, REQUIRES_NEW·fail-safe). |
 | **Operations** | generate | `Image` | public | `@Transactional`. 체인: `PromptTranslator`(Grok) 로 KO→EN 변환 → `GuideClient.generateImage(en)` → Bedrock PNG 바이트 직반환 → `ImageStorage.store` 영구 저장 → `Image` 생성 후 `ImageRepository` 영속화(`sourceId="ai_<id>"`) → `AnalyticsEventService.track(IMAGE_GENERATED)` → commit 후 비동기 CLIP 인덱싱을 위해 `AiImageCreatedEvent` 발행. 빈 프롬프트는 `INVALID_INPUT`, 빈 바이트는 `AI_SERVICE_ERROR`. |
 
 ## PromptTranslator 클래스 정보
@@ -86,8 +96,8 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 | --- | --- | --- | --- | --- |
-| **class** | GuideClient | `class` | public | guide 서비스 이미지 생성 REST 클라이언트(`POST /generate-image`, 배포 backend=bedrock). Bedrock 이 생성한 PNG 바이트를 그대로 직반환한다(임시 URL·폴링 없음). |
-| **Attributes** | restClient | `RestClient` | private | guide 서비스로 `POST /generate-image` 호출(응답 = PNG 바이트). |
+| **class** | GuideClient | `class` | public | guide 서비스 이미지 생성 클라이언트(`POST /generate-image`, 배포 backend=bedrock). Bedrock 이 생성한 PNG 바이트를 그대로 직반환한다(임시 URL·폴링 없음). |
+| **Attributes** | webClient | `WebClient` | private | guide 서비스로 `POST /generate-image` 호출(응답 = PNG 바이트). 대용량 PNG 대비 인메모리 버퍼 16MB. |
 | **Operations** | generateImage | `byte[]` | public | 프롬프트로 guide `POST /generate-image` 요청. HTTP 오류·빈 응답 등은 `AI_SERVICE_ERROR`. Bedrock 이 생성한 PNG 바이트를 직반환. |
 
 ## GeneratedImage 클래스 정보

@@ -32,6 +32,9 @@ classDiagram
         +chat(user: User, projectId: Long, request: ChatRequest) ChatResponse
         -chatViaWorkflow(user: User, project: Project, session: ChatSession, request: ChatRequest, image: Resolved, history: List~Turn~, intent: IntentResult, pinnedIds: Set~Long~) ChatResponse
         -handleGenerateNow(user: User, project: Project, session: ChatSession, request: ChatRequest, decision: ExtractionResult) ChatResponse
+        -handlePinSimilar(user: User, session: ChatSession, request: ChatRequest, pinIndex: int, pinnedItems: List~PinItem~, pinnedIds: Set~Long~) ChatResponse
+        -handleReferenceSimilar(user: User, project: Project, session: ChatSession, request: ChatRequest, refIndex: int, pinnedIds: Set~Long~) ChatResponse
+        -runSimilarSearch(user: User, session: ChatSession, anchorImageId: Long, displayLabel: String, actionLabel: String, pinnedIds: Set~Long~) ChatResponse
         -handleSearchDecision(user: User, project: Project, sessionId: String, message: String, routed: RoutedIntent) List~ImageResult~
         -routeIntent(user: User, sessionId: String, message: String, history: List~Turn~) RoutedIntent
         -shadowWorkflow(user: User, project: Project, sessionId: String, message: String, routed: RoutedIntent, baselineResults: List~ImageResult~) void
@@ -261,6 +264,9 @@ classDiagram
 | **Operations** | chat | ChatResponse | public | **대화 진입점** — 세션 로드/생성 → 핀 맥락 주입 → `routeIntent` 의도분류 → GENERATE_NOW 단락 → OUT_OF_DOMAIN/SELF_CRITIQUE 게이트 → live 게이트 분기 → legacy 직접 합성·세션저장·응답조립. |
 | **Operations** | chatViaWorkflow | ChatResponse | private | **live 경로** — Redis 복원 → `StepContext.startForCompose` → `workflowService.run()` → `ComposedOutput` 추출 → 핀 제외·세션메시지 저장·단기메모리 반영·SEARCH/DECISION analytics 재현·ChatResponse 조립. |
 | **Operations** | handleGenerateNow | ChatResponse | private | **GENERATE_NOW 단락** — live 게이트보다 먼저 동작. 검색·LLM 답변을 모두 건너뛰고 추출 프롬프트로 즉시 Bedrock(guide) 생성, 고정 문구 + `generatedImage` 로 응답. |
+| **Operations** | handleReferenceSimilar | ChatResponse | private | **SCRUM-112 유사검색(레퍼런스, live 게이트 이전 실동작)** — action 이 `REFERENCE_SIMILAR` + `anchorIndex` 유효면 분기. Redis `previousReferences[N-1]` 을 앵커로 `runSimilarSearch` 위임. 부재·범위 밖은 안내 폴백. |
+| **Operations** | handlePinSimilar | ChatResponse | private | **SCRUM-112 유사검색(핀, live 게이트 이전 실동작)** — action 이 `PIN_SIMILAR` + `anchorIndex` 유효면 분기. 보드 DB `pinnedItems[N-1]` 을 앵커로 `runSimilarSearch` 위임. 부재·범위 밖은 안내 폴백. |
+| **Operations** | runSimilarSearch | ChatResponse | private | **유사검색 공통(레퍼런스·핀 공유)** — 앵커 이미지 벡터 확보(Pinecone fetch → embedImage 폴백) → `searchService.searchByVector` → 자기 자신·핀 제외 → 상한(6) 컷 → `ChatResponse` 조립. `actionLabel`(REFERENCE_SIMILAR/PIN_SIMILAR)로 분석·프론트 구분. |
 | **Operations** | handleSearchDecision | `List<ImageResult>` | private | **legacy 검색 결정** — action(NEW_SEARCH/KEEP/SKIP/FOLLOWUP/COMPARE)별 분기. NEW_SEARCH 면 검색+점수가드(avg<0.2 AND max<0.24 차단)·analytics·shadow 워크플로 실행. |
 | **Operations** | routeIntent | RoutedIntent | private | **의도분류** — 룰 프리라우터 먼저, 미스면 Grok 폴백. 룰 히트/미스 analytics·메트릭(latency) 집계. |
 | **Operations** | shadowWorkflow | void | private | legacy 검색 결과는 그대로 두고 Komoran 경로를 병렬 1회 실행해 ref id 겹침(match/partial/miss)만 비교·메트릭. 응답에 무영향, 예외 삼킴. |
@@ -404,6 +410,7 @@ classDiagram
 1. **진입** — `ProjectChatController.chat()` 이 `ChatLlmService.chat(user, projectId, request)` 호출. 세션을 로드/생성(`resolveOrCreateSession`)하고 핀 고정 이미지를 SYSTEM 맥락으로 주입한다.
 2. **의도 분류** — `routeIntent()` 가 `RulePreRouter.route()` 를 먼저 시도하고, 미스면 `KeywordExtractor.extract()`(Grok) 로 폴백해 `ExtractionResult`(action·keywords) 를 얻는다.
 3. **GENERATE_NOW 단락** — action 이 `GENERATE_NOW` 면 `handleGenerateNow()` 로 검색·LLM 답변을 모두 건너뛰고 즉시 Bedrock(guide) 생성, `ChatResponse.generatedImage` 에 담아 반환(live 게이트보다 우선).
+3-1. **SCRUM-112 유사검색 단락(실동작·live 게이트 이전)** — action 이 `PIN_SIMILAR`/`REFERENCE_SIMILAR` 이고 `decision.anchorIndex()` 가 non-null 이면 `handlePinSimilar()`/`handleReferenceSimilar()` 로 분기한다. 앵커(핀=DB `pinnedItems`, 레퍼런스=Redis `previousReferences`) 이미지 벡터로 `runSimilarSearch()`(Pinecone fetch→embedImage 폴백 → `searchByVector` → 자기 자신·핀 제외 → 상한 6)를 돌려 유사 레퍼런스를 반환한다. legacy 골격이 아니라 현행 실행 코드이며, GENERATE_NOW 뒤·게이트 앞에 둬 "비슷한 거 만들어줘"는 생성으로, "비슷한 거 보여줘"는 유사검색으로 간다.
 4. **게이트** — `RulePreRouter.isOutOfDomain()` + `isLive(OUT_OF_DOMAIN)`, 업로드+`isCritiqueRequest()` + `isLive(SELF_CRITIQUE)` 게이트를 차례로 검사해 해당하면 `chatViaWorkflow()` 로 보낸다.
 5. **live/legacy 분기** — `intentResultAdapter.adapt()` 로 `IntentResult` 를 만들고 `workflowComposeProperties.isLive(intent.code())` 가 true 면 **live 경로**, 아니면 **legacy 경로**.
 6. **(live) 워크플로 실행** — `chatViaWorkflow()` 가 `SessionService.getOrRestore()` 로 직전 레퍼런스를 복원하고 `StepContext.startForCompose()` 로 초기 컨텍스트를 만든 뒤 `WorkflowService.run(intent, initial)` 호출.

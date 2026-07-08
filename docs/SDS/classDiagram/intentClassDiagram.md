@@ -1,6 +1,6 @@
 ## ⭐ 의도 분류 · 키워드 추출 (Intent) Class Diagram
 
-사용자 채팅 메시지의 의도를 분류하고 검색 키워드를 추출하는 핵심 기능이다. `ChatLlmService.routeIntent` 가 **2단계(2-tier)** 로 동작한다. 1차로 결정론적 `RulePreRouter` 룰 매처가 명확한 기능 신호(인사·감사 → SKIP, 명시적 생성 동사 → GENERATE_NOW)를 LLM 콜 0으로 끝내고, 룰 미스면 2차로 `KeywordExtractor`(Grok·xAI 경량 LLM)가 6개 액션(NEW_SEARCH/KEEP/SKIP/GENERATE_NOW/FOLLOWUP/COMPARE)으로 분류한다. 두 결과는 `RoutedIntent`(decision + ruleDecided)로 감싸져 `IntentResultAdapter` 가 `IntentResult`(code + tier)로 정규화한다. NEW_SEARCH 의 실제 검색 키워드는 `KomoranKeywordExtractor` 가 추출하는데, Komoran 형태소 분석 → `ArtTermsDictionary` 한영 사전 매핑을 거치고 사전 미스율이 30% 를 초과하면 `GrokKeywordExtractorFallback`(Grok) 으로 폴백한다. 최종 `IntentResult.code` 는 `IntentRouting.ROUTING` 으로 `StepType` 시퀀스에 매핑되어 WorkflowService 가 실행한다.
+사용자 채팅 메시지의 의도를 분류하고 검색 키워드를 추출하는 핵심 기능이다. `ChatLlmService.routeIntent` 가 **2단계(2-tier)** 로 동작한다. 1차로 결정론적 `RulePreRouter` 룰 매처가 명확한 기능 신호(인사·감사 → SKIP, 명시적 생성 동사 → GENERATE_NOW)를 LLM 콜 0으로 끝내고, 룰 미스면 2차로 `KeywordExtractor`(Grok·xAI 경량 LLM)가 8개 액션(NEW_SEARCH/KEEP/SKIP/GENERATE_NOW/FOLLOWUP/COMPARE/REFERENCE_SIMILAR/PIN_SIMILAR)으로 분류한다. 두 결과는 `RoutedIntent`(decision + ruleDecided)로 감싸져 `IntentResultAdapter` 가 `IntentResult`(code + tier)로 정규화한다. NEW_SEARCH 의 실제 검색 키워드는 `KomoranKeywordExtractor` 가 추출하는데, Komoran 형태소 분석 → `ArtTermsDictionary` 한영 사전 매핑을 거치고 사전 미스율이 30% 를 초과하면 `GrokKeywordExtractorFallback`(Grok) 으로 폴백한다. 최종 `IntentResult.code` 는 `IntentRouting.ROUTING` 으로 `StepType` 시퀀스에 매핑되어 WorkflowService 가 실행한다.
 
 ```mermaid
 classDiagram
@@ -95,12 +95,15 @@ classDiagram
         +Action action
         +String keywords
         +IntentCode artIntent
+        +Integer anchorIndex
         +newSearch(keywords: String)$ ExtractionResult
         +keep()$ ExtractionResult
         +skip()$ ExtractionResult
         +followup()$ ExtractionResult
         +compare()$ ExtractionResult
         +generateNow(prompt: String)$ ExtractionResult
+        +referenceSimilar(anchorIndex: int)$ ExtractionResult
+        +pinSimilar(anchorIndex: int)$ ExtractionResult
     }
 
     class IntentResult {
@@ -175,8 +178,8 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
-| **class** | KeywordExtractor | `@Component` | public | 룰 미스 시 호출되는 2차 경량 LLM 분류기. Grok(xAI)에 SYSTEM_PROMPT + 대화 이력을 실어 6개 액션 중 하나로 분류. 실패 시 안전 기본값 SKIP. |
-| **Attributes** | SYSTEM_PROMPT | `String` | private | Grok 분류 지시 프롬프트(NEW_SEARCH/KEEP/SKIP/GENERATE_NOW/FOLLOWUP/COMPARE 규칙·예시). KEEP 시 미술 의도 라벨(COMPOSITION/LIGHTING/COLOR/TECHNIQUE) 동반 요구. |
+| **class** | KeywordExtractor | `@Component` | public | 룰 미스 시 호출되는 2차 경량 LLM 분류기. Grok(xAI)에 SYSTEM_PROMPT + 대화 이력을 실어 8개 액션 중 하나로 분류. 실패 시 안전 기본값 SKIP. |
+| **Attributes** | SYSTEM_PROMPT | `String` | private | Grok 분류 지시 프롬프트(NEW_SEARCH/KEEP/SKIP/GENERATE_NOW/FOLLOWUP/COMPARE/REFERENCE_SIMILAR/PIN_SIMILAR 규칙·예시). KEEP 시 미술 의도 라벨(COMPOSITION/LIGHTING/COLOR/TECHNIQUE) 동반 요구. |
 | **Attributes** | llmServices | `List<LlmService>` | private | provider 별 LLM 서비스 목록. GROK provider 를 선택해 분류 호출. |
 | **Operations** | extract | `ExtractionResult` | public | 메시지+이력을 Grok 에 보내 분류. 페르소나 SYSTEM 턴은 분류 오염 방지를 위해 제외. 응답 1줄을 파싱해 ExtractionResult 반환. |
 | **Operations** | parseResult | `ExtractionResult` | private | Grok 출력 1줄("NEW_SEARCH: ..."/"KEEP: COLOR"/"SKIP" 등)을 ExtractionResult 로 변환. |
@@ -188,11 +191,11 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
-| **class** | IntentResultAdapter | `@Component` | public | `ExtractionResult`(레거시 6 Action)를 contract `IntentResult`(code + tier)로 변환하는 순수 매핑 어댑터. LLM 콜 없음. WorkflowService 가 소비하는 타입을 만든다. |
+| **class** | IntentResultAdapter | `@Component` | public | `ExtractionResult`(8 Action)를 contract `IntentResult`(code + tier)로 변환하는 순수 매핑 어댑터. LLM 콜 없음. WorkflowService 가 소비하는 타입을 만든다. |
 | **Operations** | adapt | `IntentResult` | public | 분류 결과를 슬롯 정보와 합쳐 IntentResult 생성. ruleDecided=true → tier RULE, false → LLM_LIGHT. KEEP 은 artIntent 있으면 001~004, 없으면 006. |
 | **Operations** | adaptSelfCritique | `IntentResult` | public | 010 SELF_CRITIQUE 전용. 호출 측이 hasUploadedImage && isCritiqueRequest 로 확정 후 호출하므로 tier 는 항상 RULE. |
 | **Operations** | adaptOutOfDomain | `IntentResult` | public | 000 OUT_OF_DOMAIN 전용. isOutOfDomain 으로 확정 후 호출, tier RULE. |
-| **Operations** | toCode | `IntentCode` | private | 6 Action → IntentCode 매핑(NEW_SEARCH→005, KEEP→001~004/006, SKIP→007, GENERATE_NOW→008, FOLLOWUP→012, COMPARE→013). |
+| **Operations** | toCode | `IntentCode` | private | Action → IntentCode 매핑(NEW_SEARCH→005, KEEP→001~004/006, SKIP→007, GENERATE_NOW→008, FOLLOWUP→012, COMPARE→013). REFERENCE_SIMILAR/PIN_SIMILAR 는 `ChatLlmService` 가 adapt 이전에 short-circuit 처리하므로 여기 도달하지 않는다. |
 
 <br>
 
@@ -266,11 +269,12 @@ classDiagram
 
 | 구분 | Name | Type | Visibility | Description |
 |------|------|------|------------|-------------|
-| **class** | ExtractionResult | `record` | public | 검색/생성 의도 분류 결과(레거시 6 Action). 룰 또는 Grok 산출 모두 이 타입으로 표현. |
-| **Attributes** | action | `Action` | public | 기능 분기 enum: NEW_SEARCH / KEEP / SKIP / GENERATE_NOW / FOLLOWUP / COMPARE. |
+| **class** | ExtractionResult | `record` | public | 검색/생성 의도 분류 결과(8 Action). 룰 또는 Grok 산출 모두 이 타입으로 표현. |
+| **Attributes** | action | `Action` | public | 기능 분기 enum(8): NEW_SEARCH / KEEP / SKIP / GENERATE_NOW / FOLLOWUP / COMPARE / REFERENCE_SIMILAR / PIN_SIMILAR. |
 | **Attributes** | keywords | `String` | public | NEW_SEARCH 면 영문 검색 키워드, GENERATE_NOW 면 생성 프롬프트(또는 한국어 원문). 그 외 null. |
 | **Attributes** | artIntent | `IntentCode` | public | KEEP 일 때 미술 의도 세분류(001 구도/002 빛/003 색/004 기법). 미분류·KEEP 아니면 null. |
-| **Operations** | newSearch / keep / skip / followup / compare / generateNow | `ExtractionResult` | static | 각 Action 별 팩토리. keep(artIntent) 오버로드로 미술 의도 라벨 동반 가능. |
+| **Attributes** | anchorIndex | `Integer` | public | REFERENCE_SIMILAR/PIN_SIMILAR 일 때 앵커 번호 N(1-based). 그 외 null. (SCRUM-112) |
+| **Operations** | newSearch / keep / skip / followup / compare / generateNow / referenceSimilar / pinSimilar | `ExtractionResult` | static | 각 Action 별 팩토리. keep(artIntent) 오버로드로 미술 의도 라벨 동반 가능. referenceSimilar(N)/pinSimilar(N) 은 anchorIndex 를 채운다. |
 
 <br>
 
@@ -343,4 +347,7 @@ classDiagram
 4. **adapt: IntentResultAdapter** — `adapt(decision, ruleDecided, refs, hasImg)` 가 `ExtractionResult` 를 `IntentResult`(code + tier)로 정규화한다. ruleDecided 로 tier 를 RULE/LLM_LIGHT 로 판정. 별도 분기에서 000 은 `adaptOutOfDomain`, 010 은 `adaptSelfCritique` 로 직접 생성.
 5. **IntentResult 산출** — code(IntentCode) + referencedImages + hasUploadedImage + tier 를 담은 최종 분류 결과.
 6. **IntentRouting.ROUTING 매핑** — `WorkflowService` 가 `ROUTING.get(intent.code())` 로 `StepType` 시퀀스를 lookup 한다.
+
+> **주의(현행 상태·코드 실측)**: 아래 6~7번의 `WorkflowService` 라우팅→실행 경로는 `workflow.compose.live-intents` 기본값이 빈 집합이라 **미가동(dormant, 기본 off)** 이다(chatPipeline 다이어그램과 동일). 기본 배포에서는 의도 분류 결과가 legacy 직접 합성으로 흘러가며, 아래 StepType 실행 서술은 게이트가 켜졌을 때의 설계 경로다.
+
 7. **StepType 순차 실행** — 예: NEW_SEARCH(005) → `EXTRACT_KEYWORDS`(KomoranKeywordExtractor: Komoran 형태소 → ArtTermsDictionary 한영 매핑, 사전 미스율 > 30% 면 GrokKeywordExtractorFallback 폴백) → `SEARCH`(CLIP 임베딩 + Score Guard) → `COMPOSE`(페르소나 v2 + Structured Output). GENERATE(008)는 `TRANSLATE → GENERATE_IMAGE`, SELF_CRITIQUE(010)는 `CRITIQUE_UPLOAD → COMPOSE`, 그 외(KEEP·SKIP·FOLLOWUP·COMPARE·미술의도·OUT_OF_DOMAIN)는 `COMPOSE` 단독으로 종착한다.

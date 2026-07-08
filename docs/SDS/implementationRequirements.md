@@ -12,7 +12,7 @@
 ## 10.2 외부 연동
 | 연동 | 용도 | 격리/비고 |
 |---|---|---|
-| Grok / Claude (Gemini=dev 폴백) | COMPOSE·키워드·의도 분류 | provider 추상화, prod=Grok / PAID=Claude |
+| Grok / Claude (Gemini=dev 폴백) | 키워드 추출 폴백(1차=Komoran, Grok=사전 미스율 초과 시 폴백) · COMPOSE·의도 워크플로는 **dormant**(설계만, 런타임=레거시 직접 합성) | provider 추상화, prod=Grok / PAID=Claude |
 | Bedrock(Stability) | AI 이미지 생성 | 검색 결과 없을 때 |
 | Pinecone / Qdrant | 벡터 검색 (채팅 추천 / 가이드) | Resilience4j 서킷브레이커 |
 | fastapi-embed / guide | CLIP·비전 | 클러스터 내부 호출 |
@@ -22,7 +22,7 @@
 - `application.properties`는 **전부 `${ENV}` placeholder** (배포 안전).
 - 비밀 아닌 값(환경변수) + **SSM Parameter Store**(비밀).
 - 로컬은 gitignore 프로필(`application-oauth/llm.properties`)이 placeholder를 덮음.
-- **Live 전환**: 환경변수 `WORKFLOW_COMPOSE_LIVE_INTENTS`.
+- **Live 전환**: 프로퍼티 `workflow.compose.live-intents`(기본 비어 있음=전부 레거시). Spring relaxed-binding 환경변수 형태는 하이픈을 제거한 `WORKFLOW_COMPOSE_LIVEINTENTS`.
 
 ## 10.4 복원력 (Resilience4j)
 - 외부 호출(embed·vector)에 **서킷브레이커 + 리트라이**. 검색 실패가 호출자 트랜잭션을 오염시키지 않도록 `REQUIRES_NEW`로 격리.

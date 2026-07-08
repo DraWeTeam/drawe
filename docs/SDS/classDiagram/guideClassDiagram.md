@@ -41,7 +41,7 @@ classDiagram
         -persistGuide(reqId: String, resp: GuideResponse, user: User, project: Project, bytes: byte[], mime: String): Guide
         -storeUploadQuietly(user: User, bytes: byte[], mime: String): ImageBlob
         -allReferenceIds(resp: GuideResponse): Set~String~
-        -buildResult(resp: GuideResponse, createdAt: Instant, uploadUrl: String): GuideResult
+        -buildResult(resp: GuideResponse, createdAt: Instant, uploadUrl: String, requestText: String): GuideResult
         -uploadUrl(g: Guide): String
         -resolveReferences(resp: GuideResponse): List~ResolvedReference~
         -referenceUrl(refId: String): String
@@ -52,8 +52,11 @@ classDiagram
         <<Client>>
         -webClient: WebClient
         +GuideClient(guideUrl: String)
-        +guideImage(imageBytes: byte[], filename: String, mimeType: String, message: String, userId: String, intent: String, track: String, medium: String, requestId: String): GuideResponse
+        +guideImage(imageBytes: byte[], filename: String, mimeType: String, message: String, userId: String, intent: String, track: String, medium: String, requestId: String, projectId: String, mood: String): GuideResponse
         +adopt(guideId: String, referenceId: String, event: String): void
+        +reroll(subProblem: String, exclude: List~String~): RerollResponse
+        +generateImage(prompt: String): byte[]
+        +fetchReferenceBytes(refId: String): byte[]
         +fetchAsset(path: String): ResponseEntity~byte[]~
     }
 
@@ -99,6 +102,7 @@ classDiagram
         +references: List~ResolvedReference~
         +createdAt: Instant
         +uploadUrl: String
+        +requestText: String
     }
 
     class GuideResponse {
@@ -213,8 +217,11 @@ classDiagram
 | --- | --- | --- | --- | --- |
 | **class** | GuideClient | `<<Client>>` | public | 이미지 가이딩 전용 FastAPI 클라이언트. embed와 별도 ECS 서비스(`fastapi-guide.drawe-{env}.local:8000`, `${fastapi.guide.url}`). `/guide` 계약: multipart/form-data, file field="file". request_id(멱등 키) 동봉 → 네트워크 재시도에도 부작용 at-most-once. 타임아웃 150s, 연결 establishment 실패만 재시도(4xx/5xx·읽기 타임아웃은 미재시도) |
 | **Attributes** | webClient | WebClient | private | `${fastapi.guide.url}` baseUrl WebClient |
-| **Operations** | guideImage | GuideResponse | public | `POST /guide` 멀티파트(file + message/user_id/intent/track/medium/request_id). 외부 비전/코칭 파이프라인 호출, GuideResponse 역직렬화 |
+| **Operations** | guideImage | GuideResponse | public | `POST /guide` 멀티파트(file + message/user_id/intent/track/medium/request_id + **project_id**(growth 프로젝트 스코프 키) + **mood**(온보딩 무드 취향, 빈값이면 미전송)). 외부 비전/코칭 파이프라인 호출, GuideResponse 역직렬화 |
 | **Operations** | adopt | void | public | `POST /adopt`(guide_id/reference_id/event) → adoption_log 적재. 실패는 삼키고 로그만(best-effort, 5s 타임아웃) |
+| **Operations** | reroll | RerollResponse | public | `POST /reroll`(sub_problem + exclude 노출분) → 새 컷(+badge 메타) 재추천. LLM 0콜(참조 벡터검색만, 20s 타임아웃). 실패는 예외로 올려 호출자(GuideService)가 매핑(#52) |
+| **Operations** | generateImage | `byte[]` | public | `POST /generate-image`(활성 provider=bedrock) → concept 프롬프트로 PNG 바이트. Bria 대체(2026-07 bedrock 전환). 502·타임아웃(120s)은 예외로 올림 |
+| **Operations** | fetchReferenceBytes | `byte[]` | public | 코퍼스 레퍼런스 원본 bytes 를 아카이브 인제스트용으로 fetch. 안전판: 신뢰 S3 호스트(`*.amazonaws.com`) 302만 추적, image/* + 크기 상한(16MB) 검증, 실패·타임아웃은 예외(고아 저장 방지). refId 경로주입(`/`·`..`) 차단 |
 | **Operations** | fetchAsset | `ResponseEntity<byte[]>` | public | 자산 프록시. 내부 guide path로 GET, 302(presigned S3)는 그대로 반환(no-store), 2xx 본문은 Content-Type과 전달. 실패는 502 매핑. 경로탈출(`..`) 차단 |
 
 <br>

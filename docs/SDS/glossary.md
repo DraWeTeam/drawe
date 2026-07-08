@@ -18,7 +18,7 @@
 | **임베딩(Embedding)** | 텍스트/이미지를 벡터로 변환. fastapi-embed가 수행. |
 | **Pinecone** | 벡터 유사도 검색 DB(**채팅 추천**). 이미지 벡터 + 메타. |
 | **Qdrant** | 벡터 검색 DB(**가이드**). 레퍼런스 이미지 벡터 + 취향 payload(medium·track). |
-| **의도(Intent)** | 사용자 발화의 분류. `IntentCode`: NEW_SEARCH·KEEP·SKIP·COMPOSITION·LIGHTING·COLOR·TECHNIQUE·FOLLOWUP·COMPARE·OUT_OF_DOMAIN·SELF_CRITIQUE·GENERATE. |
+| **의도(Intent)** | 사용자 발화의 분류. `IntentCode`(13종): OUT_OF_DOMAIN·COMPOSITION·LIGHTING·COLOR·TECHNIQUE·NEW_SEARCH·KEEP·SKIP·GENERATE·SELF_CRITIQUE·LEARNING_PATH·FOLLOWUP·COMPARE. |
 | **키워드 추출** | 한국어 요청 → 검색용 영문 키워드. Komoran 형태소 + 미술 사전 + LLM 폴백. |
 | **Komoran** | 한국어 형태소 분석기. |
 | **미술 사용자 사전(ArtTerms)** | 미술 용어 KO→EN 매핑 사전(247개). 복합어 보존·도메인 정확도. |
@@ -40,7 +40,7 @@
 | **Karpenter** | 노드 오토스케일러 — 부하 시 빠른 프로비저닝, 유휴 시 consolidation. |
 | **IRSA** | IAM Roles for Service Accounts — 정적 키 없이 SA 단위 최소권한(OIDC). |
 | **External Secrets(ESO)** | SSM Parameter Store 시크릿을 K8s Secret으로 동기화(시크릿 git 미보관). |
-| **Flyway** | DB 스키마 마이그레이션(V1–V13). |
+| **Flyway** | DB 스키마 마이그레이션(V1–V18). |
 | **QueryDSL** | 타입 안전 동적 쿼리(프로젝트 정렬·검색). |
 | **Resilience4j** | 서킷브레이커·리트라이(외부 호출 복원력). |
 | **JWT / OAuth** | 토큰 기반 인증 / Google 소셜 로그인. |

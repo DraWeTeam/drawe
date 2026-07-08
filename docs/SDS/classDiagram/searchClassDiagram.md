@@ -48,6 +48,7 @@ classDiagram
         -webClient: WebClient
         +PineconeClient(pineconeHost: String, apiKey: String)
         +queryByVector(vector: List~Float~, topK: int): List~PineconeMatch~
+        +fetchVector(id: String): List~Float~
         +upsert(id: String, vector: List~Float~, metadata: Map~String, Object~): void
     }
 
@@ -189,6 +190,7 @@ classDiagram
 | **class** | PineconeClient | `<<Client>>` | public | Pinecone 벡터 DB HTTP 클라이언트(WebClient). `${pinecone.host}` baseUrl + Api-Key 헤더 + API 버전 2024-07. dense 유사도 검색과 AI 이미지 적재(upsert) 담당 |
 | **Attributes** | webClient | WebClient | private | Pinecone 호스트 baseUrl WebClient(헤더 사전 설정) |
 | **Operations** | queryByVector | `List<PineconeMatch>` | public | `POST /query` — 주어진 768차원 벡터와 가장 유사한 top-K 이미지 (id, score)를 유사도 순으로 반환. 응답 null이면 빈 리스트, 호출 실패는 RuntimeException("벡터 검색 실패") |
+| **Operations** | fetchVector | `List<Float>` | public | `GET /vectors/fetch?ids={id}` — 이미 색인된 벡터를 id로 재임베딩 없이 그대로 조회(SCRUM-112 "[N]번 유사" 검색). 없거나 실패 시 예외 대신 null(호출 측 embedImage 폴백 유도) |
 | **Operations** | upsert | void | public | `POST /vectors/upsert` — L2 정규화 768차원 CLIP 벡터 1건을 메타와 함께 적재(AI 이미지 인덱싱용, id=Image.sourceId) |
 
 <br>
