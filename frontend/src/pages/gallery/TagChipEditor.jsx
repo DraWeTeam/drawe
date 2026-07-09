@@ -3,7 +3,13 @@ import styles from "./TagChipEditor.module.css";
 // 컬렉션 태그 칩 편집기(공용) — 사용자가 태그를 직접 추가/삭제.
 //   Enter/쉼표로 추가, 칩 X 로 삭제, 빈 입력에서 Backspace 로 마지막 칩 삭제.
 //   상태(tags/draft)는 부모가 소유한다(제어 컴포넌트).
-const TagChipEditor = ({ tags, draft, onChange, onDraftChange, placeholder }) => {
+const TagChipEditor = ({
+  tags,
+  draft,
+  onChange,
+  onDraftChange,
+  placeholder,
+}) => {
   const addTag = () => {
     const t = draft.trim();
     if (t && !tags.includes(t)) onChange([...tags, t]);

@@ -62,7 +62,9 @@ const SettingsPage = ({ onClose }) => {
   const body =
     loading || errorMessage || !profile ? (
       <div className={styles.stateBox}>
-        {loading ? "불러오는 중…" : errorMessage || "프로필을 불러오지 못했어요."}
+        {loading
+          ? "불러오는 중…"
+          : errorMessage || "프로필을 불러오지 못했어요."}
       </div>
     ) : (
       <>

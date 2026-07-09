@@ -44,54 +44,60 @@ function App() {
         <ToastProvider>
           <Template>
             <ConsentGate>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup/terms" element={<TermsAgreement />} />
-              <Route path="/terms" element={<TermsAgreement consentMode />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/oauth/callback" element={<OAuthCallback />} />
-              <Route path="/landing" element={<LandingPage />} />
-              <Route path="/" element={<RootRoute />} />
-              <Route
-                path="/projects/:projectId/reference/:referenceId"
-                element={<ReferencePage />}
-              />
-              <Route path="/projects" element={<ProjectList />} />
-              <Route path="/archive" element={<ArchivePage />} />
-              <Route
-                path="/archive/references"
-                element={<ReferenceListPage />}
-              />
-              <Route
-                path="/archive/collections/:collectionId"
-                element={<CollectionDetailPage />}
-              />
-              <Route
-                path="/archive/reference/:imageId"
-                element={<ReferenceDetailPage />}
-              />
-              <Route path="/gallery" element={<CompletedGalleryPage />} />
-              <Route
-                path="/gallery/:projectId"
-                element={<CompletedDetailPage />}
-              />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/plan" element={<PlanPage />} />
-              <Route path="/policy" element={<PolicyPage />} />
-              <Route path="/projects/:projectId/chat" element={<ChatPage />} />
-              <Route
-                path="/projects/:projectId/board"
-                element={<ReferenceBoardPage />}
-              />
-              {/* 온보딩 비활성화:
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup/terms" element={<TermsAgreement />} />
+                <Route path="/terms" element={<TermsAgreement consentMode />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/landing" element={<LandingPage />} />
+                <Route path="/" element={<RootRoute />} />
+                <Route
+                  path="/projects/:projectId/reference/:referenceId"
+                  element={<ReferencePage />}
+                />
+                <Route path="/projects" element={<ProjectList />} />
+                <Route path="/archive" element={<ArchivePage />} />
+                <Route
+                  path="/archive/references"
+                  element={<ReferenceListPage />}
+                />
+                <Route
+                  path="/archive/collections/:collectionId"
+                  element={<CollectionDetailPage />}
+                />
+                <Route
+                  path="/archive/reference/:imageId"
+                  element={<ReferenceDetailPage />}
+                />
+                <Route path="/gallery" element={<CompletedGalleryPage />} />
+                <Route
+                  path="/gallery/:projectId"
+                  element={<CompletedDetailPage />}
+                />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/plan" element={<PlanPage />} />
+                <Route path="/policy" element={<PolicyPage />} />
+                <Route
+                  path="/projects/:projectId/chat"
+                  element={<ChatPage />}
+                />
+                <Route
+                  path="/projects/:projectId/board"
+                  element={<ReferenceBoardPage />}
+                />
+                {/* 온보딩 비활성화:
               <Route path="/onboarding" element={<OnboardingPage />} /> */}
-              <Route path="/signup/complete" element={<SignupCompletePage />} />
-              {/* 온보딩 비활성화:
+                <Route
+                  path="/signup/complete"
+                  element={<SignupCompletePage />}
+                />
+                {/* 온보딩 비활성화:
               <Route
                 path="/onboarding/complete"
                 element={<OnboardingCompletePage />}
               /> */}
-            </Routes>
+              </Routes>
             </ConsentGate>
           </Template>
         </ToastProvider>

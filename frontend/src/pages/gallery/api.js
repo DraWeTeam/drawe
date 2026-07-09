@@ -42,7 +42,10 @@ export const removeImageFeedback = async (imageId) => {
 };
 
 // 컬렉션 수정(SCR-ARCH-06) — 이름/설명/태그. tags 생략 시 미변경.
-export const updateCollection = async (collectionId, { name, description, tags }) => {
+export const updateCollection = async (
+  collectionId,
+  { name, description, tags },
+) => {
   const res = await api.patch(`/collections/${collectionId}`, {
     name,
     description,
