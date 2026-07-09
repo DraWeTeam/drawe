@@ -117,7 +117,7 @@ public class CollectionService {
                         cr.getImage().getSource().name(),
                         Boolean.TRUE.equals(cr.getPinned()),
                         cr.getAddedAt(),
-                        deriveKeywords(cr.getImage(), tagByImage.get(cr.getImage().getId())),
+                        detailKeywords(cr.getImage(), tagByImage.get(cr.getImage().getId())),
                         cr.getUserTags() == null ? List.of() : cr.getUserTags()))
             .toList();
 
@@ -181,32 +181,29 @@ public class CollectionService {
         image.getSource().name(),
         deriveName(image, tag),
         sourceLabel,
-        image.getRawTags() == null ? List.of() : image.getRawTags(),
-        myReaction);
+        detailKeywords(image, tag),
+        myReaction,
+        image.getPhotographerName(),
+        image.getPhotographerUsername());
   }
 
   /**
-   * 카드 밑 대표 키워드(SCR-ARCH-05) — 최대 3개. rawTags(UNSPLASH 인제스트)가 있으면 앞 3개, 없으면(AI 등) ImageDraweTag 의
-   * subject/technique/mood 를 쓴다. 둘 다 없으면 빈 리스트(프론트가 source 배지로 폴백).
+   * 상세 화면 태그(SCR-ARCH-05) — 프로젝트 레퍼런스 상세와 동일하게 AI 분류 3축 {@code [technique, subject, mood]} 을 쓴다. 3축이
+   * 하나도 없으면(태깅 안 된 이미지) rawTags 앞부분으로 폴백해 빈 칸을 피한다.
    */
-  private List<String> deriveKeywords(Image image, ImageDraweTag tag) {
+  private List<String> detailKeywords(Image image, ImageDraweTag tag) {
+    if (tag != null) {
+      List<String> out = new ArrayList<>();
+      addIfPresent(out, tag.getTechnique());
+      addIfPresent(out, tag.getSubject());
+      addIfPresent(out, tag.getMood());
+      if (!out.isEmpty()) {
+        return out;
+      }
+    }
     List<String> raw = image.getRawTags();
     if (raw != null && !raw.isEmpty()) {
       return raw.stream().filter(s -> s != null && !s.isBlank()).limit(CARD_KEYWORDS).toList();
-    }
-    if (tag != null) {
-      // subject 는 프로젝트 주제(예 "완전 맛있는 햄버거 그리기")라 카드 태그에서 제외한다.
-      // 그림의 성격을 나타내는 technique/mood/freeTags 만 대표 태그로 쓴다.
-      List<String> out = new ArrayList<>();
-      addIfPresent(out, tag.getTechnique());
-      addIfPresent(out, tag.getMood());
-      if (out.size() < CARD_KEYWORDS && tag.getFreeTags() != null) {
-        for (String f : tag.getFreeTags()) {
-          if (out.size() >= CARD_KEYWORDS) break;
-          addIfPresent(out, f);
-        }
-      }
-      return out.stream().limit(CARD_KEYWORDS).toList();
     }
     return List.of();
   }

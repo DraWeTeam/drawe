@@ -9,6 +9,7 @@ import {
   addReferenceToCollection,
 } from "./api";
 import { downloadImage } from "./download";
+import { unsplashSized } from "../chat/imageUtils";
 import TagChipEditor from "./TagChipEditor";
 import AuthedImage from "../chat/AuthedImage";
 import styles from "./ReferenceDetailPage.module.css";
@@ -20,6 +21,12 @@ import styles from "./ReferenceDetailPage.module.css";
 // sourceUrl 이 실제 URL(폴백 DraWe 도메인)인지, 프로젝트명 텍스트인지 구분.
 const isUrl = (s) =>
   typeof s === "string" && (s.startsWith("http://") || s.startsWith("https://"));
+
+// Unsplash 작가 프로필 링크(프로젝트 레퍼런스 상세와 동일 utm).
+const unsplashProfile = (username) =>
+  username
+    ? `https://unsplash.com/@${username}?utm_source=drawe&utm_medium=referral`
+    : null;
 
 const ReferenceDetailPage = () => {
   const { imageId } = useParams();
@@ -179,6 +186,9 @@ const ReferenceDetailPage = () => {
     );
   }
 
+  const isUnsplash = ref.source === "UNSPLASH";
+  const profileLink = unsplashProfile(ref.photographerUsername);
+
   return (
     <div className={styles.page}>
       {/* 헤더: 뒤로 + 이름 + 다운로드 + 아카이브 */}
@@ -287,17 +297,37 @@ const ReferenceDetailPage = () => {
       {/* 본문: 좌 원본 이미지 + 우 정보 */}
       <div className={styles.body}>
         <div className={styles.imageBox}>
+          {/* Unsplash 원본은 파라미터 없는 3~5MB 원본이라 상세에서 그대로 로드하면
+              디코드 지연/실패로 빈 카드가 된다(레퍼런스 보드와 동일 이슈). imgix 리사이즈로
+              상세용 큰 폭(1200)만 붙여 로드한다. 내부 /images 경로는 unsplashSized 가 그대로 통과. */}
           <AuthedImage
-            src={ref.url}
+            src={unsplashSized(ref.url, 1200)}
             alt={ref.name}
             className={styles.image}
           />
         </div>
 
         <div className={styles.info}>
-          <h2 className={styles.refName}>{ref.name}</h2>
-          {/* 출처: 이미지가 담긴 프로젝트명(있으면) 또는 DraWe 도메인(폴백). URL 이면 링크, 아니면 텍스트. */}
-          {isUrl(ref.sourceUrl) ? (
+          {/* 이름: Unsplash 는 작가명(예 "Toa Heftiba"), 없으면 유도명. 프로젝트 레퍼런스 상세와 통일. */}
+          <h2 className={styles.refName}>
+            {isUnsplash ? ref.photographerName || ref.name : ref.name}
+          </h2>
+
+          {/* 출처: Unsplash 면 "Unsplash · @username"(작가 프로필 링크), 아니면 프로젝트명/도메인. */}
+          {isUnsplash ? (
+            profileLink ? (
+              <a
+                className={styles.sourceLink}
+                href={profileLink}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Unsplash · @{ref.photographerUsername}
+              </a>
+            ) : (
+              <span className={styles.sourceLabel}>Unsplash</span>
+            )
+          ) : isUrl(ref.sourceUrl) ? (
             <a
               className={styles.sourceLink}
               href={ref.sourceUrl}
@@ -308,6 +338,18 @@ const ReferenceDetailPage = () => {
             </a>
           ) : (
             <span className={styles.sourceLabel}>{ref.sourceUrl}</span>
+          )}
+
+          {/* 태그 칩 — 프로젝트 레퍼런스 상세와 동일하게 AI 분류 3축(technique/subject/mood).
+              백엔드가 이미 그 3개만 내려준다. */}
+          {ref.keywords?.length > 0 && (
+            <div className={styles.tags}>
+              {ref.keywords.map((kw) => (
+                <span key={kw} className={styles.tag}>
+                  {kw}
+                </span>
+              ))}
+            </div>
           )}
 
           {/* 관심 반응: 마음에 들어요 / 별로예요 */}

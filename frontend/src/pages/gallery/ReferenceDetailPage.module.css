@@ -310,6 +310,25 @@
   width: fit-content;
 }
 
+/* 키워드 칩(프로젝트 레퍼런스 상세와 동일한 아웃라인 pill) */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 16px;
+  border: 1px solid #e6e0d9;
+  border-radius: 999px;
+  font-size: 14px;
+  color: #4a4846;
+  background: #fff;
+  white-space: nowrap;
+}
+
 /* 관심 반응 */
 .reactionRow {
   display: flex;

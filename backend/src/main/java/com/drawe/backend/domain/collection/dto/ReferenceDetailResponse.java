@@ -18,4 +18,6 @@ public record ReferenceDetailResponse(
     String name,
     String sourceUrl,
     List<String> keywords,
-    String myReaction) {}
+    String myReaction,
+    String photographerName,
+    String photographerUsername) {}
