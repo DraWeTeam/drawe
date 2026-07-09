@@ -14,7 +14,8 @@ const SUPPORT_EMAIL = "drawe3648@gmail.com";
 const APP_VERSION = "1.0.0";
 const FEEDBACK_MAX = 2000;
 
-const SettingsPage = () => {
+// onClose 가 있으면 모달(사이드바 '환경설정' 플로팅 팝업), 없으면 기존 전체화면 페이지(/settings 라우트 호환).
+const SettingsPage = ({ onClose }) => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,47 +59,71 @@ const SettingsPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.stateBox}>불러오는 중…</div>
+  const body =
+    loading || errorMessage || !profile ? (
+      <div className={styles.stateBox}>
+        {loading ? "불러오는 중…" : errorMessage || "프로필을 불러오지 못했어요."}
       </div>
-    );
-  }
+    ) : (
+      <>
+        <ProfileSection
+          profile={profile}
+          onUpdated={(next) => setProfile(next)}
+        />
 
-  if (errorMessage || !profile) {
+        <AccountSection
+          social={profile.social}
+          onLogout={() => {
+            onClose?.();
+            handleLogout();
+          }}
+          onWithdrawn={() => {
+            clearTokens();
+            navigate("/login");
+          }}
+        />
+
+        <FeedbackSection />
+
+        <AboutSection onNavigate={onClose} />
+      </>
+    );
+
+  // ── 모달 컨텍스트(사이드바 '환경설정') — 중앙 플로팅 팝업 + 딤 배경 + X 닫기 ──
+  if (onClose) {
     return (
-      <div className={styles.page}>
-        <div className={styles.stateBox}>
-          {errorMessage || "프로필을 불러오지 못했어요."}
+      <div className={styles.overlay} onClick={onClose}>
+        <div
+          className={styles.settingsModal}
+          role="dialog"
+          aria-modal="true"
+          aria-label="환경설정"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <header className={styles.modalHeader}>
+            <h2 className={styles.modalHeaderTitle}>환경설정</h2>
+            <button
+              type="button"
+              className={styles.closeBtn}
+              onClick={onClose}
+              aria-label="닫기"
+            >
+              ×
+            </button>
+          </header>
+          {body}
         </div>
       </div>
     );
   }
 
+  // ── 페이지 컨텍스트(/settings 라우트, 하위호환) ──
   return (
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>환경설정</h1>
       </header>
-
-      <ProfileSection
-        profile={profile}
-        onUpdated={(next) => setProfile(next)}
-      />
-
-      <AccountSection
-        social={profile.social}
-        onLogout={handleLogout}
-        onWithdrawn={() => {
-          clearTokens();
-          navigate("/login");
-        }}
-      />
-
-      <FeedbackSection />
-
-      <AboutSection />
+      {body}
     </div>
   );
 };
@@ -453,14 +478,14 @@ const FeedbackSection = () => {
 };
 
 /* ── 정보 / 약관 ─────────────────────────────────── */
-const AboutSection = () => {
+const AboutSection = ({ onNavigate }) => {
   return (
     <section className={styles.card}>
       <h2 className={styles.cardTitle}>정보</h2>
 
       <div className={styles.linkRow}>
         <span className={styles.linkLabel}>이용약관 및 개인정보처리방침</span>
-        <Link to="/policy" className={styles.linkAction}>
+        <Link to="/policy" className={styles.linkAction} onClick={onNavigate}>
           보기
         </Link>
       </div>
