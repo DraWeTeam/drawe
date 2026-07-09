@@ -26,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from guide.cache import img_hash, vlm_get, vlm_set
 from guide._trace import trace
+from guide._metrics import measure_vlm
 
 # 이미지-only·결정적인 VLM 결과(주제 분류·손 관찰)를 sha256(이미지)로 캐시(cache.vlm_*: L1 in-process
 # + L2 Redis). 같은 그림을 다른 질문으로 재요청해도 VLM 0회. 최종 가이드 결과는 message/user/growth 에도
@@ -254,6 +255,16 @@ def _redact(msg, key):
 
 
 def _call(b64, mime, key, model=_MODEL, timeout=90, retries=2, prompt=None):
+    """VLM 단일 요청. 모든 백엔드(bedrock/gemini/vertex)·모든 관찰(hand/face/pose/subject/style)의
+    유일한 전송 초크포인트 → 여기서 지연을 잰다(재시도 백오프 포함한 end-to-end). 계측은 관측만이고
+    _call_impl 의 반환/예외는 그대로 전파(계측 실패가 가이드를 깨지 않음)."""
+    with measure_vlm(model):
+        return _call_impl(
+            b64, mime, key, model=model, timeout=timeout, retries=retries, prompt=prompt
+        )
+
+
+def _call_impl(b64, mime, key, model=_MODEL, timeout=90, retries=2, prompt=None):
     """Gemini 호출(aistudio 키 또는 vertex ADC). 429 면 백오프 후 제한 재시도. 에러의 키는 마스킹.
     prompt 미지정이면 손 관찰 프롬프트(_PROMPT). production: 429 가 끝까지면 예외 → 호출부가 삼켜 None(폴백).
     """
