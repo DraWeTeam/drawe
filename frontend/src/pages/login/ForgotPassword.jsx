@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import AuthHeader from "./AuthHeader";
@@ -46,6 +46,17 @@ const ForgotPassword = () => {
     }, 1000);
     return () => clearInterval(id);
   }, [secondsLeft, resendLeft]);
+
+  // 타이머 자연 만료(양수→0) 안내. 5회 초과(attemptsLeft===0)는 handleVerify 가 이미 메시지를 세팅하므로 제외.
+  const prevSeconds = useRef(0);
+  useEffect(() => {
+    const prev = prevSeconds.current;
+    prevSeconds.current = secondsLeft;
+    if (prev > 0 && secondsLeft === 0 && attemptsLeft > 0) {
+      setError("인증번호가 만료됐어요. 재발송해주세요.");
+      setCode("");
+    }
+  }, [secondsLeft, attemptsLeft]);
 
   const handleSend = async () => {
     setError("");
