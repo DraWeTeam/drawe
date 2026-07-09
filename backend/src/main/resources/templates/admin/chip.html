@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · 칩 분석')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('chip')}"></header>
+
+<main class="wrap" id="admin-content" th:with="v=${view}">
+  <div th:replace="~{admin/fragments :: pageIdentity('AI가 추천한 칩 중 무엇이 실제로 쓰이는가?', 'monitor')}"></div>
+  <div class="pagehead">
+    <div>
+      <h1>칩 분석</h1>
+      <div class="meta">AI 추천 키워드 칩이 실제 프로젝트에 반영되는 비율 · 최근 <span th:text="${hours}">2160</span>시간 · 기준 <span th:text="${v.generatedAtText()}">-</span></div>
+    </div>
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
+      <a th:href="@{/admin/chip(hours=168)}"  th:classappend="${hours == 168}  ? 'active'">7d</a>
+      <a th:href="@{/admin/chip(hours=720)}"  th:classappend="${hours == 720}  ? 'active'">30d</a>
+      <a th:href="@{/admin/chip(hours=2160)}" th:classappend="${hours == 2160} ? 'active'">90d</a>
+    </div>
+  </div>
+
+  <!-- 계측 최근 시작 안내 -->
+  <div th:if="${v.lowData()}"
+       style="margin:2px 0 16px; font-size:13px; background:var(--warn-soft); color:var(--warn);
+              padding:9px 13px; border-radius:8px;">
+    <span th:replace="~{admin/fragments :: reliabilityBadge('warn')}"></span>
+    데이터 수집 중 — 칩 노출 계측이 최근 시작돼 노출 표본이 얇아요. 전환율은 방향으로만 보세요.
+  </div>
+
+  <!-- 🎯 KO 칩 반영 전환율 -->
+  <section class="grid">
+    <div th:replace="~{admin/fragments :: kpiCard('ko', '칩 반영 전환율', ${v.koReflectText()}, '노출 대비 반영', 'AI가 추천한 칩이 실제 프로젝트에 얼마나 쓰이는지 — 추천 품질', ${v.koReliability()}, 'none')}"></div>
+  </section>
+
+  <!-- 🔍 Diagnostic: 칩 순위 -->
+  <details class="diag" open style="margin-bottom: 18px;">
+    <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
+    </summary>
+
+    <section class="panel">
+      <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 칩 순위</h2>
+      <div class="meta" style="margin:-4px 0 12px;">많이 추천된 칩이 무조건 위로 가지 않게 전환율(노출 대비 반영)로 정렬했어요.</div>
+      <table th:if="${!v.rows().isEmpty()}">
+        <thead>
+          <tr>
+            <th>칩(키워드)</th>
+            <th class="num">노출</th>
+            <th class="num">반영</th>
+            <th class="num">전환율</th>
+            <th class="num">평균 순서</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="r : ${v.rows()}">
+            <td>
+              <span th:text="${r.label()}">watercolor</span>
+              <span th:if="${r.unmeasured()}"
+                    style="margin-left:6px; font-size:11px; padding:1px 8px; border-radius:999px; background:var(--line-soft); color:var(--line-strong);"
+                    title="노출 계측 전 반영 — 전환율 계산 제외">노출 미기록</span>
+            </td>
+            <td class="num" th:text="${r.shown()}">0</td>
+            <td class="num" th:text="${r.reflect()}">0</td>
+            <td class="num" style="font-weight:700;" th:text="${r.reflectText()}">—</td>
+            <td class="num meta" th:text="${r.avgPositionText()}">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${v.rows().isEmpty()}">아직 칩 노출·반영 데이터가 없어요.</div>
+      <div class="meta" style="margin-top:10px;" th:if="${!v.rows().isEmpty()}">
+        노출 <b th:text="${v.totalShown()}">0</b> · 반영 <b th:text="${v.totalReflect()}">0</b> ·
+        "노출 미기록"은 계측 시작 전에 이미 쓰인 칩이라 전환율에서 뺐어요.
+      </div>
+    </section>
+  </details>
+</main>
+</body>
+</html>

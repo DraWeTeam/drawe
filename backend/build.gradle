@@ -87,6 +87,9 @@ dependencies {
     // EKS IRSA: WebIdentityTokenFileCredentialsProvider 가 STS AssumeRoleWithWebIdentity 로
     // 자격증명을 얻으려면 sts 모듈이 classpath 에 필요. ECS(ContainerCredentialsProvider)에선 불필요했음.
     implementation 'software.amazon.awssdk:sts'
+    // 어드민 비용 탭 — AWS Cost Explorer(전체 AWS 지출 관측). 버전은 위 BOM 관리.
+    // CE 엔드포인트는 글로벌이지만 SDK Region 은 us-east-1 고정(CostExplorerConfig 참조).
+    implementation 'software.amazon.awssdk:costexplorer'
 
     // ── Flyway — DB schema migration ─────────────────────────
     // prod 에서는 JPA_DDL_AUTO=validate 로 Hibernate 가 스키마 만들지 않음.

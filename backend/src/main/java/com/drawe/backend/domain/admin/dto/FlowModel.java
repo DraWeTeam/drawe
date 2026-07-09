@@ -1,6 +1,7 @@
 package com.drawe.backend.domain.admin.dto;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 이용 흐름 — {@code analytics_events}를 session_id로 묶어 단계별 *세션 도달*을 본다.
@@ -22,5 +23,12 @@ public final class FlowModel {
       List<Stage> stages,
       long blockedSessions, // search_blocked 발생 세션
       long erroredSessions, // chat_error 발생 세션
-      long onboardedSessions) {}
+      long onboardedSessions,
+      Double succeededReach) { // '응답 성공' 도달율(0~100, KO 헤드라인용). 분모(전체 세션) 0이면 null
+
+    /** KO 헤드라인 표기 — 분모 0이면 "—". */
+    public String succeededReachText() {
+      return succeededReach == null ? "—" : String.format(Locale.US, "%.1f%%", succeededReach);
+    }
+  }
 }

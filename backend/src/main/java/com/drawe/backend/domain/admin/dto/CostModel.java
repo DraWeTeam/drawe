@@ -1,6 +1,7 @@
 package com.drawe.backend.domain.admin.dto;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -21,7 +22,58 @@ public record CostModel() {
       Kpi kpi,
       List<ProviderRow> providers,
       List<DailyGen> dailyImageGen,
-      boolean pricingConfigured) {}
+      boolean pricingConfigured,
+      AwsCost aws) {}
+
+  /** USD 표기 — null 이면 "—". */
+  private static String usd(BigDecimal v) {
+    return v == null ? "—" : "$" + v.setScale(2, RoundingMode.HALF_UP).toPlainString();
+  }
+
+  /** AWS 서비스별 비용 한 줄(Cost Explorer SERVICE 디멘션). */
+  public record ServiceCost(String service, BigDecimal amountUsd) {
+    public String amountText() {
+      return usd(amountUsd);
+    }
+  }
+
+  /**
+   * Cost Explorer 조회 원시 스냅샷(AwsCostService 산출). per-user 는 여기서 계산하지 않는다(활성 사용자는 analytics 소관).
+   *
+   * @param available CE 조회 성공 여부(false 면 화면에 statusText 안내)
+   * @param aiSubtotalUsd 서비스명이 "(Amazon Bedrock Edition)" 포함하는 것들 합계(LLM·이미지)
+   */
+  public record AwsCostSnapshot(
+      boolean available,
+      String statusText,
+      String monthLabel,
+      BigDecimal totalUsd,
+      List<ServiceCost> services,
+      BigDecimal aiSubtotalUsd) {}
+
+  /** 화면용 AWS 비용 뷰(스냅샷 + 사용자당). */
+  public record AwsCost(
+      boolean available,
+      String statusText,
+      String monthLabel,
+      BigDecimal totalUsd,
+      BigDecimal perUserUsd,
+      long activeUsers,
+      List<ServiceCost> services,
+      BigDecimal aiSubtotalUsd) {
+
+    public String totalText() {
+      return usd(totalUsd);
+    }
+
+    public String perUserText() {
+      return usd(perUserUsd);
+    }
+
+    public String aiSubtotalText() {
+      return usd(aiSubtotalUsd);
+    }
+  }
 
   public record Kpi(
       long chatCalls, // chat_success 수 (윈도우)

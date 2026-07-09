@@ -4,12 +4,12 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('cost')}"></header>
 
-<main class="wrap" id="admin-content" th:with="v=${view}, k=${view.kpi()}">
+<main class="wrap" id="admin-content" th:with="v=${view}, k=${view.kpi()}, aws=${view.aws()}">
+  <div th:replace="~{admin/fragments :: pageIdentity('우리 서비스 운영에 얼마가 드는가?', 'monitor')}"></div>
   <div class="pagehead">
     <div>
       <h1>비용 · 사용량</h1>
-      <div class="meta">LLM 토큰·호출 수, 추정 비용, AI 이미지 생성량 · 최근 <span th:text="${hours}">168</span>시간
-        · <span th:text="${v.generatedAtText()}">—</span></div>
+      <div class="meta">AWS 청구 기준 이번 달 지출 · <span th:text="${v.generatedAtText()}">—</span></div>
     </div>
     <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/cost(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
@@ -18,121 +18,128 @@
     </div>
   </div>
 
-  <!-- KPI -->
+  <!-- CE 조회 불가(권한 미설정/미배포) 안내 — 페이지는 정상 렌더 -->
+  <div th:if="${!aws.available()}"
+       style="background:var(--warn-soft); color:var(--warn); padding:9px 13px; border-radius:8px; margin-bottom:16px; font-size:13px;"
+       th:text="${aws.statusText()} + ' — 권한(ce:GetCostAndUsage) 설정 후 표시돼요.'">비용 데이터 없음</div>
+
+  <!-- 핵심: 이번 달 AWS 비용(KO) + 사용자당 비용 -->
   <section class="grid">
-    <div class="card">
-      <div class="label">채팅 호출</div>
-      <div class="value mono" th:text="${k.chatCalls()}">0</div>
-      <div class="foot">chat_success (윈도우)</div>
-    </div>
-    <div class="card">
-      <div class="label">토큰 합계</div>
-      <div class="value mono"
-           th:text="${#numbers.formatInteger(k.promptTokens() + k.completionTokens(), 1, 'COMMA')}">0</div>
-      <div class="foot">
-        입력 <span class="mono" th:text="${#numbers.formatInteger(k.promptTokens(),1,'COMMA')}">0</span>
-        · 출력 <span class="mono" th:text="${#numbers.formatInteger(k.completionTokens(),1,'COMMA')}">0</span>
-      </div>
-    </div>
-    <div class="card">
-      <div class="label">추정 비용 (USD)</div>
-      <div class="value mono" th:classappend="${k.estCostUsd() == null} ? 'muted' : 'good'"
-           th:text="${k.estCostUsd() != null ? '$' + #numbers.formatDecimal(k.estCostUsd(),1,2) : '—'}">—</div>
-      <div class="foot" th:text="${k.estCostUsd() != null ? '설정 단가 기준 추정' : '단가 미설정'}">—</div>
-    </div>
-    <div class="card">
-      <div class="label">AI 이미지 생성</div>
-      <div class="value mono" th:text="${k.imageGenWindow()}">0</div>
-      <div class="foot">Bria 호출 (윈도우)</div>
-    </div>
+    <div th:replace="~{admin/fragments :: kpiCard('ko', '이번 달 AWS 비용', ${aws.totalText()}, ${aws.monthLabel()}, 'AWS 청구 기준 (Anthropic 직결 Claude 채팅비는 별도, 미포함)', 'green', 'none')}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('ns', '사용자당 비용', ${aws.perUserText()}, '활성 사용자 ' + ${aws.activeUsers()} + '명', '이번 달 AWS 비용 ÷ 활성 사용자 — 대략적 원가', 'green', 'none')}"></div>
   </section>
 
-  <!-- 데이터 가용성 안내 -->
-  <div class="meta" style="margin:-8px 0 16px; line-height:1.6;">
-    토큰·비용은 <b>토큰 로깅 배포 이후</b> 발생한 호출에만 집계돼요 — 배포 직후 윈도우에선 호출 수보다
-    "토큰 기록된 호출"이 적을 수 있어요
-    (<span class="mono" th:text="${k.callsWithTokens()}">0</span> / <span class="mono" th:text="${k.chatCalls()}">0</span> 건 기록).
-    그 이전 구간은 <code>scripts/token_estimate.py</code> 사후 추정으로 보강하세요.
-    <span th:if="${!v.pricingConfigured()}" style="color:var(--warn);">
-      · 비용 표시는 <code>admin.cost.pricing.*</code> 단가 설정 후 나타나요.</span>
-  </div>
+  <!-- 🔍 Diagnostic: 서비스별·AI 소계·채팅 토큰·이미지 (평소엔 안 봐도 됨) -->
+  <details class="diag" open style="margin-bottom: 18px;">
+    <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
+    </summary>
 
-  <!-- provider/model 별 -->
-  <section class="panel">
-    <h2>Provider · Model 별</h2>
-    <div class="chartbox" th:if="${!v.providers().isEmpty()}"><canvas id="cost-tokens"></canvas></div>
-    <div class="chart-legend" th:if="${!v.providers().isEmpty()}">
-      <span><i style="background:var(--accent)"></i>입력 토큰</span>
-      <span><i style="background:var(--accent-bright)"></i>출력 토큰</span>
-    </div>
-    <table th:if="${!v.providers().isEmpty()}" style="margin-top:16px;">
-      <thead>
-        <tr>
-          <th>provider</th>
-          <th>model</th>
-          <th class="num">호출</th>
-          <th class="num">입력 토큰</th>
-          <th class="num">출력 토큰</th>
-          <th class="num">추정 $</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr th:each="p : ${v.providers()}">
-          <td><span class="tag" th:text="${p.provider()}">CLAUDE</span></td>
-          <td class="mono" th:text="${p.model()}">—</td>
-          <td class="num" th:text="${p.calls()}">0</td>
-          <td class="num" th:text="${#numbers.formatInteger(p.promptTokens(),1,'COMMA')}">0</td>
-          <td class="num" th:text="${#numbers.formatInteger(p.completionTokens(),1,'COMMA')}">0</td>
-          <td class="num"
-              th:text="${p.estCostUsd() != null ? '$' + #numbers.formatDecimal(p.estCostUsd(),1,3) : '—'}">—</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="empty" th:if="${v.providers().isEmpty()}">
-      이 기간에 chat_success 호출이 없어요. (윈도우를 7d/30d로 넓혀보세요.)
-    </div>
-  </section>
+    <!-- 서비스별 비용 -->
+    <section class="panel">
+      <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 서비스별 비용</h2>
+      <div class="meta" style="margin:-4px 0 12px;">어디에 돈이 나가는지 — 대부분 인프라예요.</div>
+      <div class="chartbox" th:if="${aws.available() and !aws.services().isEmpty()}" style="margin-bottom:14px;"><canvas id="cost-services"></canvas></div>
+      <table th:if="${aws.available() and !aws.services().isEmpty()}">
+        <thead><tr><th>서비스</th><th class="num">이번 달 ($)</th></tr></thead>
+        <tbody>
+          <tr th:each="s : ${aws.services()}">
+            <td th:text="${s.service()}">Amazon EC2</td>
+            <td class="num" th:text="${s.amountText()}">$0.00</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:unless="${aws.available() and !aws.services().isEmpty()}">아직 비용 데이터가 없어요.</div>
+    </section>
 
-  <!-- AI 이미지 생성 -->
-  <section class="panel">
-    <h2>AI 이미지 생성</h2>
-    <div class="statline" style="margin-bottom:16px;">
-      <div>
-        <span class="k">윈도우 생성 수</span>
-        <span class="v mono" th:text="${k.imageGenWindow()}">0</span>
+    <!-- AI 비용 소계 + 채팅 사용량 요약 -->
+    <section class="grid">
+      <div th:replace="~{admin/fragments :: kpiCard('diag', 'AI(LLM·이미지) 비용', ${aws.aiSubtotalText()}, '이번 달 누적', 'AI 기능 비용 — 작지만 사용 늘면 증가', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '채팅 호출', ${k.chatCalls()}, '', '이 기간에 채팅이 응답한 횟수', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '채팅 토큰 합계', ${#numbers.formatInteger(k.promptTokens() + k.completionTokens(), 1, 'COMMA')}, '', '채팅 텍스트 토큰량 (비용 아님)', 'green', 'none')}"></div>
+    </section>
+
+    <!-- 채팅 토큰 사용량 (provider별, 비용 아님) -->
+    <section class="panel">
+      <h2>채팅 토큰 사용량</h2>
+      <div class="meta" style="margin:-4px 0 12px;">채팅 텍스트 토큰량이에요 — 비용이 아니라 사용량. 실제 비용은 위 AWS 기준으로 보세요. (Anthropic 직결 Claude 채팅은 AWS 밖이라 위 금액엔 없어요.)</div>
+      <div class="chartbox" th:if="${!v.providers().isEmpty()}"><canvas id="cost-tokens"></canvas></div>
+      <div class="chart-legend" th:if="${!v.providers().isEmpty()}">
+        <span><i style="background:var(--accent)"></i>입력 토큰</span>
+        <span><i style="background:var(--accent-bright)"></i>출력 토큰</span>
       </div>
-      <div>
-        <span class="k">누적 AI 이미지 (전체)</span>
-        <span class="v mono" th:text="${k.imageAiTotal()}">0</span>
+      <table th:if="${!v.providers().isEmpty()}" style="margin-top:16px;">
+        <thead>
+          <tr>
+            <th>provider</th>
+            <th>model</th>
+            <th class="num">호출</th>
+            <th class="num">입력 토큰</th>
+            <th class="num">출력 토큰</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="p : ${v.providers()}">
+            <td><span class="tag" th:text="${p.provider()}">CLAUDE</span></td>
+            <td class="mono" th:text="${p.model()}">—</td>
+            <td class="num" th:text="${p.calls()}">0</td>
+            <td class="num" th:text="${#numbers.formatInteger(p.promptTokens(),1,'COMMA')}">0</td>
+            <td class="num" th:text="${#numbers.formatInteger(p.completionTokens(),1,'COMMA')}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${v.providers().isEmpty()}">
+        이 기간에 채팅 응답이 없어요. (윈도우를 7d/30d로 넓혀보세요.)
       </div>
-      <div>
-        <span class="k">그중 Pinecone 적재</span>
-        <span class="v mono" th:classappend="${k.imageAiIndexed() < k.imageAiTotal()} ? 'muted'"
-              th:text="${k.imageAiIndexed()}">0</span>
+      <div class="meta" style="margin-top:10px;" th:if="${!v.providers().isEmpty()}">
+        토큰은 <b>토큰 로깅 배포 이후</b> 호출만 잡혀요 (<span class="mono" th:text="${k.callsWithTokens()}">0</span> / <span class="mono" th:text="${k.chatCalls()}">0</span> 건 기록).
       </div>
-    </div>
-    <div class="chartbox" th:if="${!v.dailyImageGen().isEmpty()}" style="margin-bottom:16px;"><canvas id="cost-daily"></canvas></div>
-    <table th:if="${!v.dailyImageGen().isEmpty()}">
-      <thead><tr><th>날짜 (KST)</th><th class="num">생성 수</th></tr></thead>
-      <tbody>
-        <tr th:each="d : ${v.dailyImageGen()}">
-          <td class="mono" th:text="${d.day()}">2026-05-27</td>
-          <td class="num" th:text="${d.count()}">0</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="empty" th:if="${v.dailyImageGen().isEmpty()}">
-      이 기간에 <code>image_generated</code> 이벤트가 없어요.
-      (이 이벤트는 로깅 추가 배포 이후 생성분부터 쌓여요. 과거 누적은 위 "누적 AI 이미지"로 확인.)
-    </div>
-  </section>
+    </section>
+
+    <!-- AI 이미지 생성 -->
+    <section class="panel">
+      <h2>AI 이미지 생성</h2>
+      <div class="statline" style="margin-bottom:16px;">
+        <div>
+          <span class="k">윈도우 생성 수</span>
+          <span class="v mono" th:text="${k.imageGenWindow()}">0</span>
+        </div>
+        <div>
+          <span class="k">누적 AI 이미지 (전체)</span>
+          <span class="v mono" th:text="${k.imageAiTotal()}">0</span>
+        </div>
+        <div>
+          <span class="k">그중 Pinecone 적재</span>
+          <span class="v mono" th:classappend="${k.imageAiIndexed() < k.imageAiTotal()} ? 'muted'"
+                th:text="${k.imageAiIndexed()}">0</span>
+        </div>
+      </div>
+      <div class="chartbox" th:if="${!v.dailyImageGen().isEmpty()}" style="margin-bottom:16px;"><canvas id="cost-daily"></canvas></div>
+      <table th:if="${!v.dailyImageGen().isEmpty()}">
+        <thead><tr><th>날짜 (KST)</th><th class="num">생성 수</th></tr></thead>
+        <tbody>
+          <tr th:each="d : ${v.dailyImageGen()}">
+            <td class="mono" th:text="${d.day()}">2026-05-27</td>
+            <td class="num" th:text="${d.count()}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${v.dailyImageGen().isEmpty()}">
+        이 기간에 이미지 생성 기록이 없어요. (과거 누적은 위 "누적 AI 이미지"로 확인.)
+      </div>
+    </section>
+  </details>
 
   <script th:inline="javascript">
     (function () {
       var prov  = /*[[${view.providers()}]]*/ [];
       var daily = /*[[${view.dailyImageGen()}]]*/ [];
+      var svc   = /*[[${view.aws().services()}]]*/ [];
       window.__adminCharts = function () {
         var D = window.Drawe; if (!D) return;
+        if (svc.length) D.hbars('cost-services',
+          svc.map(function (x) { return x.service; }), svc.map(function (x) { return x.amountUsd; }),
+          { label: 'USD', color: D.tokens.accent });
         if (daily.length) D.bars('cost-daily',
           daily.map(function (x) { return x.day; }), daily.map(function (x) { return x.count; }),
           { label: '생성', color: D.tokens.accentBright });
