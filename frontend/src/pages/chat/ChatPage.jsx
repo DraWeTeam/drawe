@@ -10,7 +10,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getProject, updateProject } from "../projects/api";
 import ArchiveToCollectionModal from "../gallery/ArchiveToCollectionModal";
 import { getReferenceArchive } from "../gallery/api";
-import FeedbackModal from "./FeedbackModal";
 import {
   addPin,
   generateImage,
@@ -98,38 +97,11 @@ const ChatPage = () => {
   // 아카이브 저장 → 컬렉션 선택 모달 대상 imageId (null=닫힘).
   const [archiveModalImageId, setArchiveModalImageId] = useState(null);
 
-  // 피드백 전송 모달(10번째 토킹마다 제안).
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-
   // 모드: "split" | "refFull" | "chatFull"
   const [mode, setMode] = useState("split");
 
   // 이미지 확대 보기 (AI 생성 이미지 클릭 시)
   const [lightboxSrc, setLightboxSrc] = useState(null);
-
-  // N번째 토킹(=사용자 메시지)마다 피드백 카드를 붙일 메시지 index 집합.
-  //   규칙: 사용자 메시지 누적 수가 FEEDBACK_EVERY 의 양의 배수가 되는 '그 턴'의 마지막 AI 응답 뒤에 한 번.
-  //   (다음 메시지가 사용자거나 마지막 메시지일 때 = 그 턴의 끝) 성능상 큰 리스트가 아니라 매 렌더 계산 무해.
-  const FEEDBACK_EVERY = 10;
-  const feedbackAnchors = useMemo(() => {
-    const anchors = new Set();
-    let userCount = 0;
-    for (let i = 0; i < messages.length; i++) {
-      if (messages[i].role === "user") userCount++;
-      const isAssistant = messages[i].role !== "user";
-      const turnEnd =
-        i === messages.length - 1 || messages[i + 1].role === "user";
-      if (
-        isAssistant &&
-        turnEnd &&
-        userCount > 0 &&
-        userCount % FEEDBACK_EVERY === 0
-      ) {
-        anchors.add(i);
-      }
-    }
-    return anchors;
-  }, [messages]);
 
   // 새 프로젝트 생성 직후 노출되는 튜토리얼 코치마크 (플래그는 해당 프로젝트 id)
   const [showTutorial, setShowTutorial] = useState(
@@ -1470,37 +1442,7 @@ const ChatPage = () => {
                     </p>
                   </div>
                 ) : (
-                  messages.map((m, idx) => {
-                    const node = renderMessage(m, idx);
-                    if (!feedbackAnchors.has(idx)) return node;
-                    // 10번째 토킹마다: AI 응답 뒤에 피드백 제안 카드.
-                    return (
-                      <div key={`fb-wrap-${idx}`}>
-                        {node}
-                        <div className={styles.assistantMessage}>
-                          <p className={styles.feedbackPrompt}>
-                            더 나은 서비스를 제공하기 위해 솔직한 후기를
-                            남겨주세요!
-                          </p>
-                          <button
-                            type="button"
-                            className={styles.feedbackCard}
-                            onClick={() => setFeedbackOpen(true)}
-                          >
-                            <span className={styles.feedbackCardBody}>
-                              <span className={styles.feedbackCardTitle}>
-                                피드백 전송하기
-                              </span>
-                              <span className={styles.feedbackCardSub}>
-                                보내주세요:)
-                              </span>
-                            </span>
-                            <ChevronRightIcon />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
+                  messages.map((m, idx) => renderMessage(m, idx))
                 )}
                 {sending && !messages.some((m) => m._generating) && (
                   <div className={styles.assistantBubble}>
@@ -1704,8 +1646,6 @@ const ChatPage = () => {
           onSaved={() => handleArchived(archiveModalImageId)}
         />
       )}
-
-      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
     </div>
   );
 };
