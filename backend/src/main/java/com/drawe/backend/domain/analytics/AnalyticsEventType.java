@@ -51,6 +51,17 @@ public final class AnalyticsEventType {
   /** 온보딩 완료. payload: selected_count, saved_pref_count. */
   public static final String ONBOARDING_COMPLETED = "onboarding_completed";
 
+  // ── 키워드 칩 ──────────────────────────────────────
+  /**
+   * AI(Grok) 추천 키워드 칩 노출. 프로젝트 생성 1단계 {@code POST /projects/keyword-extraction} 결과가 사용자에게 보여지는
+   * 시점에 백엔드가 발화한다.
+   *
+   * <p>payload: {@code source="ai_keyword"}, {@code chips=[{label,position}]}(원본 라벨 보존 — 집계 때
+   * 정규화), {@code chip_count}, {@code topic_len}. 반영(최종 채택)은 {@code projects.keywords}(JSON)로
+   * 별도 저장되므로 이벤트로 다루지 않는다 — 노출→반영 전환은 이 이벤트 + 프로젝트 쿼리로 집계.
+   */
+  public static final String CHIP_SHOWN = "chip_shown";
+
   // ── 가이드 ────────────────────────────────────────
   /** LLM 가이드 응답 완성 (chat_success와 같이 발송, 가이드 품질 분석용). */
   public static final String GUIDE_COMPLETED = "guide_completed";
