@@ -251,7 +251,64 @@
   margin: 8px 0 0;
 }
 
-/* ── 모달 ── */
+/* ── 환경설정 플로팅 모달(사이드바 '환경설정') — 요금제 보기 팝업과 동일 스타일 ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(40, 34, 28, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.settingsModal {
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-surface, #fefeff);
+  border-radius: 20px;
+  padding: 32px;
+  box-sizing: border-box;
+  box-shadow: 0 20px 60px rgba(15, 15, 15, 0.24);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.modalHeaderTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-secondary, #24221f);
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-tertiary, #4a4846);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.closeBtn:hover {
+  background: var(--bg-subtle, #f6f6f6);
+}
+
+/* ── 회원탈퇴 확인 모달 ── */
 .modalOverlay {
   position: fixed;
   inset: 0;

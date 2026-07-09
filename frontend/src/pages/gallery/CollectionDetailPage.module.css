@@ -1,0 +1,837 @@
+/* 프로젝트 목록과 상단 규격 통일(padding/제목 위치). */
+.page {
+  padding: 32px 56px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 32px 8px;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: #4a4846;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.backBtn:hover {
+  background: #f0ece7;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f0f0f;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.stateBox {
+  text-align: center;
+  color: #8a8580;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 72px 20px;
+}
+
+/* 필터 탭(좌) + 정렬·새 프로젝트(우) 한 행 (SCR-ARCH-05) */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filterChips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterActionsRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 정렬 드롭다운(최근 ▾) */
+.sortWrap {
+  position: relative;
+}
+
+/* 정렬 드롭다운 — 프로젝트 목록과 동일한 디자인/애니메이션. */
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #edebea;
+  background: #fff;
+  color: #4a4846;
+  border-radius: 10px;
+  height: 44px;
+  min-width: 88px;
+  padding: 0 16px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.sortBtn:hover {
+  border-color: #d9d6d4;
+  background: #faf9f8;
+}
+
+.sortBtn:active {
+  transform: scale(0.97);
+}
+
+.sortChevron {
+  display: inline-flex;
+  transition: transform 0.18s ease;
+}
+
+.sortChevronOpen {
+  transform: rotate(180deg);
+}
+
+.sortDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #edebea;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 50;
+  animation: sort-pop-in 0.15s ease;
+}
+
+@keyframes sort-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sortItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 15px;
+  color: #4a4846;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sortItem:hover {
+  background: #f5f5f5;
+}
+
+.sortItemActive {
+  color: #ff8534;
+  font-weight: 600;
+}
+
+.sortCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* + 새 프로젝트 버튼 */
+.filterChip {
+  border: 1px solid #e6e0d9;
+  background: #fff;
+  color: #7a746e;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.filterChip:hover {
+  border-color: #d8d0c7;
+}
+
+.filterActive {
+  background: #2e2c2a;
+  border-color: #2e2c2a;
+  color: #fff;
+}
+
+/* Masonry — 레퍼런스 보드와 통일. 이미지 원본 비율 유지(정사각형 크롭 안 함).
+   CSS multi-column 으로 벽돌쌓기. 카드는 컬럼 안에서 나뉘지 않게 break-inside 방지. */
+.grid {
+  column-width: 200px;
+  column-gap: 16px;
+}
+
+.card {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+/* 이미지 타일 — 오버레이(다운로드/AI 배지) 절대배치 기준. 원본 비율 유지. */
+.cardThumb {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0ece7;
+}
+
+.thumb {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* AI 생성 마크 — 썸네일 우상단 (source=AI). 보드의 AI 배지와 동일 톤.
+   다운로드 버튼(hover 시 우상단 노출)과 겹치지 않도록 z-index 로 위에 두고,
+   hover 시엔 다운로드 버튼이 그 자리를 덮는다(배지는 평상시 식별용). */
+.aiBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+/* hover 로 다운로드 버튼이 뜨면 AI 배지를 숨겨 겹침을 피한다. */
+.cardThumb:hover .aiBadge {
+  opacity: 0;
+}
+
+/* 고정 마크 — 썸네일 좌상단(다운로드/AI 는 우상단이라 안 겹침). */
+.pinMark {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #e8590c;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.downloadBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+}
+
+.cardThumb:hover .downloadBtn,
+.downloadBtn:focus-visible {
+  opacity: 1;
+}
+
+.downloadBtn:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.downloadBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (hover: none) {
+  .downloadBtn {
+    opacity: 1;
+  }
+}
+
+/* ── 썸네일 밖 하단 — (좌) 태그 3축, (우) ⋮ 옵션. ── */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+/* 카드 태그 칩(Unsplash 3축 등) — 좌측을 채우고 ⋮ 를 우측으로 민다. 한 줄 유지(넘치면 클립). */
+.cardTags {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.cardTag {
+  font-size: 12px;
+  color: #7a746e;
+  background: #f0ece7;
+  border-radius: 8px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* ⋮ 옵션 메뉴 (고정/정보수정/아카이브 취소) */
+.cardMenuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* ⋮ 옵션 버튼 — 프로젝트 목록 menuBtn 과 동일. */
+.cardMenuBtn {
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #888;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 1;
+  transition: background 0.15s ease;
+}
+
+.cardMenuBtn:hover {
+  background: #f5f5f5;
+  color: #555;
+}
+
+/* 옵션 메뉴 — 프로젝트 목록과 동일한 디자인/애니메이션(아래로 열림, pop-in). */
+.cardMenuDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  animation: card-menu-pop 0.15s ease;
+}
+
+@keyframes card-menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 헤더 ⋮ 메뉴 (컬렉션 수정/삭제) ── */
+.headerMenu {
+  position: relative;
+  margin-left: auto;
+}
+
+.menuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: #4a4846;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.menuBtn:hover {
+  background: #f0ece7;
+}
+
+.menuDropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  min-width: 150px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  animation: menu-pop 0.15s ease;
+}
+
+/* 아래로 여는 메뉴 — 보드 pop-in 과 동일(위 -4px 에서 내려오며 페이드) */
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4a4846;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: #f5f5f5;
+}
+
+.menuDanger {
+  color: #dd3a2e;
+}
+
+.menuDanger:hover {
+  background: #fff0f0;
+}
+
+/* ── 모달 (직접추가/수정/삭제) — 프로젝트 생성 모달과 동일한 등장 효과 ── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+  animation: modal-fade 0.18s ease;
+}
+
+@keyframes modal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 340px;
+  max-width: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  animation: modal-pop-in 0.18s ease;
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 닫힐 때 — 등장의 반대(페이드 아웃 + 아래로 내려가며 축소). ModalShell 의 CLOSE_MS 와 동일. */
+.modalOverlayClosing {
+  animation: modal-fade-out 0.18s ease forwards;
+}
+
+.modalClosing {
+  animation: modal-pop-out 0.18s ease forwards;
+}
+
+@keyframes modal-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.modalWide {
+  width: 440px;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0 0 16px;
+}
+
+.modalText {
+  font-size: 14px;
+  color: #7a746e;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modalCancel,
+.modalConfirm,
+.modalSave {
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modalCancel {
+  background: #f0ece7;
+  color: #4a4846;
+}
+
+.modalConfirm {
+  background: #d9463e;
+  color: #fff;
+}
+
+.modalSave {
+  background: #f5945b;
+  color: #fff;
+}
+
+.modalCancel:disabled,
+.modalConfirm:disabled,
+.modalSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── 수정 폼 필드 ── */
+.fieldLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a4846;
+  margin: 14px 0 6px;
+}
+
+.fieldLabel:first-of-type {
+  margin-top: 0;
+}
+
+.textInput,
+.textArea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e6e0d9;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #2e2c2a;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.textInput:focus,
+.textArea:focus {
+  outline: none;
+  border-color: #f5945b;
+}
+
+/* ── 태그 편집기 ── */
+.fieldHint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #a8a39e;
+}
+
+.tagEditor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e6e0d9;
+  border-radius: 9px;
+  padding: 8px;
+  min-height: 42px;
+}
+
+.tagEditor:focus-within {
+  border-color: #f5945b;
+}
+
+.tagAddBtn {
+  flex-shrink: 0;
+  border: none;
+  background: #f5945b;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tagAddBtn:disabled {
+  background: #efe7df;
+  color: #c3bcb4;
+  cursor: default;
+}
+
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0ece7;
+  color: #4a4846;
+  border-radius: 8px;
+  padding: 3px 6px 3px 10px;
+  font-size: 13px;
+}
+
+.tagRemove {
+  border: none;
+  background: none;
+  color: #a8a39e;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.tagRemove:hover {
+  color: #4a4846;
+}
+
+.tagInput {
+  flex: 1;
+  min-width: 100px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  padding: 3px;
+  font-family: inherit;
+}
+
+/* ── 직접 추가하기 업로드 그리드 ── */
+.uploadGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.uploadThumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #f0ece7;
+}
+
+.uploadThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.uploadRemove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uploadAdd {
+  aspect-ratio: 1 / 1;
+  border: 1.5px dashed #d8d0c7;
+  border-radius: 9px;
+  background: #faf7f3;
+  color: #b0a89f;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.uploadAdd:hover {
+  border-color: #f5945b;
+  color: #f5945b;
+}
+
+.uploadAdd:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.modalError {
+  color: #d9463e;
+  font-size: 13px;
+  margin: 12px 0 0;
+}
+
+/* ── 정보 수정 모달 — 태그 편집 + 대상 컬렉션 선택 목록 ── */
+.modalLabel {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b6560;
+}
+
+.modalLabel:first-of-type {
+  margin-top: 4px;
+}
+
+.moveList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.moveItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #eee5db;
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.moveItem:hover {
+  border-color: #d8d0c7;
+}
+
+.moveItemActive {
+  border-color: #f5945b;
+  background: #fef4ee;
+}
+
+.moveItemName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2e2c2a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moveItemCount {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #a8a39e;
+}
+
+.moveEmpty {
+  text-align: center;
+  color: #8a8580;
+  font-size: 14px;
+  padding: 32px 16px;
+}

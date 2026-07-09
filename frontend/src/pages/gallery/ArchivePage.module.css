@@ -1,7 +1,6 @@
+/* 상단 레이아웃 — 프로젝트 목록과 규격 통일(padding/제목/툴바 높이·간격). */
 .page {
-  padding: 32px 40px 64px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 32px 56px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -10,15 +9,202 @@
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 28px;
   flex-wrap: wrap;
+  margin: 8px 0 32px 8px;
 }
 
 .title {
   font-size: 24px;
   font-weight: 700;
-  color: #2e2c2a;
+  color: #0f0f0f;
+  letter-spacing: -0.3px;
   margin: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+/* 툴바(= 프로젝트 headerActions) — 좌/우 그룹 space-between, 높이 60px. */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+  margin: 0 8px 20px;
+}
+
+.toolbarLeft,
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sortWrap {
+  position: relative;
+}
+
+/* 정렬 드롭다운 — 프로젝트 목록과 동일한 디자인/애니메이션. */
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #edebea;
+  background: #fff;
+  color: #4a4846;
+  border-radius: 10px;
+  height: 44px;
+  min-width: 88px;
+  padding: 0 16px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.sortBtn:hover {
+  border-color: #d9d6d4;
+  background: #faf9f8;
+}
+
+.sortBtn:active {
+  transform: scale(0.97);
+}
+
+.sortChevron {
+  display: inline-flex;
+  transition: transform 0.18s ease;
+}
+
+.sortChevronOpen {
+  transform: rotate(180deg);
+}
+
+.sortDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #edebea;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 50;
+  animation: pop-in 0.15s ease;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sortItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 15px;
+  color: #4a4846;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sortItem:hover {
+  background: #f5f5f5;
+}
+
+.sortItemActive {
+  color: #ff8534;
+  font-weight: 600;
+}
+
+.sortCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* 보기 전환 토글 — 프로젝트 목록과 규격 통일(120×48, gap 0, 버튼 flex:1). */
+.viewToggle {
+  display: flex;
+  gap: 0;
+  background: #f6f6f6;
+  border-radius: 10px;
+  padding: 4px;
+  width: 120px;
+  height: 48px;
+  box-sizing: border-box;
+}
+
+.viewBtn {
+  flex: 1;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #888685;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.viewBtn:hover:not(.viewBtnActive) {
+  color: #4a4846;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.viewBtnActive {
+  background: #fff;
+  color: #4a4846;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* 직접 추가하기 — 프로젝트 '새 프로젝트'(createBtn)와 동일한 브랜드 오렌지/디자인 + 눌림 효과. */
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ff8534;
+  color: #f6f7f9;
+  border: none;
+  border-radius: 10px;
+  height: 44px;
+  padding: 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+
+.addBtn:hover {
+  background: #ff7a25;
+}
+
+.addBtn:active {
+  transform: scale(0.97);
 }
 
 .subtitle {
@@ -147,6 +333,9 @@
 
 .moreLink {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   background: none;
   border: none;
   padding: 0;
@@ -209,4 +398,326 @@
 .completedDate {
   font-size: 13px;
   color: #a8a39e;
+}
+
+/* ── 컬렉션 카드 (SCR-ARCH-02) — 4분할 썸네일 + 이름 + 태그칩 ── */
+/* 프로젝트 그리드와 규격 통일 — 3열(반응형 2/1), 카드 자체 padding 으로 간격. */
+.collectionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+@media (max-width: 1024px) {
+  .collectionGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .collectionGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 리스트 보기 — 한 줄 행 ── */
+.collectionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.collectionRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid #eee5db;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.collectionRow:hover {
+  border-color: #e0d7cc;
+}
+
+.collectionRowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-align: left;
+}
+
+.rowThumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #efeae4;
+}
+
+.rowThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.rowThumbEmpty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c3bcb4;
+}
+
+.rowName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2e2c2a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  max-width: 40%;
+}
+
+.rowTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.collectionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 16px;
+  border-radius: 20px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  box-sizing: border-box;
+  transition: background 0.15s;
+}
+
+/* 호버 시 카드 전체(썸네일+이름+태그)를 감싸는 연회색 박스 */
+.collectionCard:hover {
+  background: #f4f0eb;
+}
+
+/* 썸네일 영역 래퍼 — 진행 배지 등 오버레이(absolute)의 기준. */
+.collectionThumbBox {
+  position: relative;
+}
+
+/* 모자이크 썸네일 — 개수(1~4)에 맞춰 빈 칸 없이 꽉 채운다. 높이는 프로젝트 카드와 통일(213px). */
+.quadThumb {
+  display: grid;
+  gap: 2px;
+  height: 213px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #efeae4;
+  border: 1px solid #efeae4;
+}
+
+/* 1장 — 한 칸 꽉 */
+.quad1 {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 2장 — 좌우 2분할 */
+.quad2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 3장(가로형) — 좌측 큰 1장(세로 2칸) + 우측 2장 스택. 좌측을 넓게 잡아 비율 안정. */
+.quad3 {
+  grid-template-columns: 1.4fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.quad3 .quadCell:first-child {
+  grid-row: span 2;
+}
+
+/* 4장 — 2×2. 4:3 컨테이너에서 각 셀도 4:3 이라 비율 자연스러움. */
+.quad4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.quadCell {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 레퍼런스 0개 컬렉션 — 4분할 대신 빈 카드 안내 */
+.quadPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 213px;
+  border-radius: 20px;
+  background: #f6f2ee;
+  border: 1px solid #efeae4;
+  color: #c3bcb4;
+}
+
+/* 컬렉션 카드 ⋮ 옵션(수정/삭제) — 썸네일 밖 하단 우측(제목 옆), 상시 표시(아이패드/터치 기반). */
+.collCardMenuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* 프로젝트 목록 menuBtn 과 동일한 스타일. */
+.collCardMenuBtn {
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #888;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.collCardMenuBtn:hover {
+  background: #f5f5f5;
+  color: #555;
+}
+
+/* 옵션 메뉴 — 프로젝트 목록과 동일한 디자인/애니메이션(아래로 열림, pop-in). */
+.collCardMenuDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  animation: coll-card-menu-pop 0.15s ease;
+}
+
+@keyframes coll-card-menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.collCardMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4a4846;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.collCardMenuItem:hover {
+  background: #f5f5f5;
+}
+
+.collCardMenuDanger {
+  color: #dd3a2e;
+}
+
+.collCardMenuDanger:hover {
+  background: #fff0f0;
+}
+
+/* 썸네일 밖 하단 행 — 제목(좌) + ⋮(우) */
+.collectionNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.collectionName {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2e2c2a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  font-size: 12px;
+  color: #7a746e;
+  background: #f0ece7;
+  border-radius: 8px;
+  padding: 2px 8px;
+}
+
+/* ── 빈 상태 (SCR-ARCH-01) — 일러스트 + 안내 ── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 72px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  color: #f5945b;
+  margin-bottom: 6px;
+}
+
+.emptyTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+}
+
+.emptyDesc {
+  font-size: 14px;
+  color: #8a8580;
+  margin: 0;
 }

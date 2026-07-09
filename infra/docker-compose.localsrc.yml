@@ -1,0 +1,9 @@
+# 로컬 override — backend 를 소스에서 컴파일(Dockerfile.local)하도록 강제.
+# 기본 compose 의 backend build 는 dockerfile 미지정 → CI용 Dockerfile(사전빌드 app.jar COPY)을 써서
+# stale jar(옛 버전)가 들어감. 이 override 로 Dockerfile.local(gradle bootJar 멀티스테이지)을 명시한다.
+# 사용: docker compose -f docker-compose.local.yml -f docker-compose.localsrc.yml ... up -d --build backend
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.local

@@ -16,6 +16,8 @@ import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
 import LandingPage from "./pages/landing/LandingPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
 import ReferenceListPage from "./pages/gallery/ReferenceListPage";
+import CollectionDetailPage from "./pages/gallery/CollectionDetailPage";
+import ReferenceDetailPage from "./pages/gallery/ReferenceDetailPage";
 import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
 import CompletedDetailPage from "./pages/gallery/CompletedDetailPage";
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -27,6 +29,7 @@ import PolicyPage from "./pages/settings/PolicyPage";
 import { useEffect } from "react";
 import { track } from "./analytics";
 import { ConsentProvider, ConsentGate } from "./auth/ConsentContext";
+import { ToastProvider } from "./components/ToastContext";
 
 // 루트 진입: 비로그인은 랜딩페이지, 로그인 사용자는 앱 홈으로
 function RootRoute() {
@@ -82,15 +85,19 @@ function App() {
               />
               {/* 온보딩 비활성화:
               <Route path="/onboarding" element={<OnboardingPage />} /> */}
-              <Route path="/signup/complete" element={<SignupCompletePage />} />
-              {/* 온보딩 비활성화:
+                <Route
+                  path="/signup/complete"
+                  element={<SignupCompletePage />}
+                />
+                {/* 온보딩 비활성화:
               <Route
                 path="/onboarding/complete"
                 element={<OnboardingCompletePage />}
               /> */}
-            </Routes>
-          </ConsentGate>
-        </Template>
+              </Routes>
+            </ConsentGate>
+          </Template>
+        </ToastProvider>
       </ConsentProvider>
     </BrowserRouter>
   );

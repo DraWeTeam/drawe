@@ -7,9 +7,9 @@ import {
   useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { addReference, getProject, updateProject } from "../projects/api";
+import { getProject, updateProject } from "../projects/api";
+import ArchiveToCollectionModal from "../gallery/ArchiveToCollectionModal";
 import { getReferenceArchive } from "../gallery/api";
-import { notifyArchiveChanged } from "../gallery/archiveEvents";
 import {
   addPin,
   generateImage,
@@ -95,6 +95,8 @@ const ChatPage = () => {
   const [pinError, setPinError] = useState("");
   // 이 프로젝트에서 이미 아카이브에 저장된 imageId 집합 (카드 메뉴 상태표시용)
   const [archivedIds, setArchivedIds] = useState(() => new Set());
+  // 아카이브 저장 → 컬렉션 선택 모달 대상 imageId (null=닫힘).
+  const [archiveModalImageId, setArchiveModalImageId] = useState(null);
 
   // 모드: "split" | "refFull" | "chatFull"
   const [mode, setMode] = useState("split");
@@ -1067,24 +1069,17 @@ const ChatPage = () => {
     }
   };
 
-  // 레퍼런스 카드 ⋮ → 아카이브에 저장
-  const handleArchiveReference = async (imageId) => {
-    try {
-      await addReference(projectId, imageId);
-      setArchivedIds((prev) => new Set(prev).add(imageId));
-      notifyArchiveChanged();
-      track("reference_archived", {
-        reference_id: imageId,
-        project_id: projectId,
-      });
-      alert("아카이브에 저장했어요!");
-    } catch (err) {
-      // 인라인 에러로 통일(앱에 토스트 시스템 없음 — 기존 errorMessage 인라인 재사용).
-      setErrorMessage(
-        err.response?.data?.error?.message ||
-          "저장에 실패했어요. 다시 시도해주세요.",
-      );
-    }
+  // 레퍼런스 카드 ⋮ → 아카이브에 저장 = 컬렉션 선택 모달 열기(신규 collections).
+  const handleArchiveReference = (imageId) => {
+    setArchiveModalImageId(imageId);
+  };
+
+  const handleArchived = (imageId) => {
+    setArchivedIds((prev) => new Set(prev).add(imageId));
+    track("reference_archived", {
+      reference_id: imageId,
+      project_id: projectId,
+    });
   };
 
   const goToChatFull = () => setMode("chatFull");
@@ -1094,6 +1089,196 @@ const ChatPage = () => {
   // 모아보기용 가이드 목록 = 복원/생성된 guide 카드 메시지. 1건+ 있을 때만 진입 아이콘 노출.
   const guideMessages = messages.filter((m) => m.type === "guide");
   const hasGuides = guideMessages.length > 0;
+
+  // 메시지 한 건 렌더 — guide 로딩/실패/카드/일반(텍스트·이미지). 10번째 토킹 피드백 카드는 map 에서 이 뒤에 붙인다.
+  const renderMessage = (m, idx) => {
+    // 가이드 로딩 placeholder
+    if (m.type === "guideLoading") {
+      return (
+        <div key={idx} className={styles.assistantMessage}>
+          <div className={styles.assistantBubble}>
+            <img className={styles.assistantLogo} src={logo} alt="" />
+            <span className={styles.inlineSpinner} aria-hidden="true" />한 끗
+            가이드를 만들고 있어요…
+          </div>
+        </div>
+      );
+    }
+    // 가이드 실패 + 인라인 재시도
+    if (m.type === "guideError") {
+      return (
+        <div key={idx} className={styles.assistantMessage}>
+          <div className={styles.assistantBubble}>
+            <img className={styles.assistantLogo} src={logo} alt="" />
+            <div>
+              {m.error}
+              <button
+                type="button"
+                className={styles.followUpBtn}
+                style={{ marginTop: 8 }}
+                onClick={retryGuide}
+              >
+                다시 시도
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    // 가이드 카드(채팅 반영) — 클릭 시 전체 보기, 아래 좋아요/싫어요/PDF
+    if (m.type === "guide") {
+      // 채팅 인라인 AI 발화 = 이 그림 '한 줄 피드백'(결정론). 백엔드가 조립한
+      //   chat_feedback(현재 그림 진단 + 사용자 의도 진입, 성장 없음)을 우선 쓴다.
+      //   없으면(구버전 응답 등) 현재 그림 관찰로 폴백. ★성장(next_steps.note/synthesis)은
+      //   더 이상 채팅에 안 끌어옴 — 성장 흐름은 한 끗 상세 모달에만.
+      const g = m.guide || {};
+      // clarify/redirect 등 비-coach 응답은 chat_feedback·blocks 가 없으므로
+      //   안내 문구(message)를 채팅에도 한 줄 띄운다(빈 버블 침묵 해소).
+      const utterance =
+        g.chat_feedback ||
+        g.blocks?.[0]?.observation ||
+        (g.mode !== "coach" ? g.message : "") ||
+        "";
+      return (
+        <div key={idx} className={styles.assistantMessage}>
+          {utterance && (
+            <div className={styles.assistantBubble}>
+              <img className={styles.assistantLogo} src={logo} alt="" />
+              <span>{utterance}</span>
+            </div>
+          )}
+          <button
+            type="button"
+            className={styles.guideCard}
+            onClick={() => openGuideFromCard(m)}
+          >
+            <span className={styles.guideCardThumb}>
+              {m.guidePreview ? (
+                <AuthedImage
+                  className={styles.guideCardThumbImg}
+                  src={m.guidePreview}
+                  alt=""
+                />
+              ) : (
+                <ImgPlaceholderIcon />
+              )}
+            </span>
+            <span className={styles.guideCardFooter}>
+              <span className={styles.guideCardBody}>
+                <span className={styles.guideCardTitle}>{m.guideTitle}</span>
+                <span className={styles.guideCardSub}>가이드 보기</span>
+              </span>
+              <ChevronRightIcon />
+            </span>
+          </button>
+          <div className={styles.guideActions}>
+            <button
+              type="button"
+              className={styles.guideActBtn}
+              aria-label="PDF 다운로드"
+              onClick={() => {
+                const generatedAt = m.createdAt
+                  ? new Date(m.createdAt).getTime()
+                  : null;
+                const previousFeedback =
+                  m.guideFeedback === "up"
+                    ? "like"
+                    : m.guideFeedback === "down"
+                      ? "dislike"
+                      : "none";
+
+                track("guide_saved", {
+                  project_id: projectId,
+                  guide_id: m.guide?.guide_id || "",
+                  guide_category:
+                    m.guide?.next_steps?.track?.group ||
+                    m.guide?.primary_focus ||
+                    "",
+                  previous_feedback: previousFeedback,
+                  time_since_generated_sec: generatedAt
+                    ? Math.round((Date.now() - generatedAt) / 1000)
+                    : 0,
+                  save_entry_point: "guide_view",
+                });
+                downloadGuidePdf(
+                  { guide: m.guide, references: m.references },
+                  m.guidePreview,
+                );
+              }}
+            >
+              <DownloadIcon />
+            </button>
+            <button
+              type="button"
+              className={styles.guideActBtn}
+              data-active={m.guideFeedback === "up"}
+              aria-label="좋아요"
+              onClick={() => setGuideCardFeedback(m._gid, "up")}
+            >
+              <ThumbUpIcon />
+            </button>
+            <button
+              type="button"
+              className={styles.guideActBtn}
+              data-active={m.guideFeedback === "down"}
+              aria-label="싫어요"
+              onClick={() => setGuideCardFeedback(m._gid, "down")}
+            >
+              <ThumbDownIcon />
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div
+        key={idx}
+        className={
+          m.role === "user" ? styles.userMessage : styles.assistantMessage
+        }
+      >
+        {/* 이미지 묶음 — 배경 없이 */}
+        {(m.localPreviewUrl || m.imageUrl) && (
+          <div className={styles.messageImages}>
+            <div
+              className={`${styles.imageWrap} ${
+                m.isAi ? styles.imageWrapAi : ""
+              }`}
+            >
+              <AuthedImage
+                src={m.localPreviewUrl || m.imageUrl}
+                alt={m.isAi ? "AI로 생성된 이미지" : "첨부 이미지"}
+                className={m.isAi ? styles.aiImage : styles.bubbleImage}
+                onClick={() => setLightboxSrc(m.localPreviewUrl || m.imageUrl)}
+              />
+              {m.isAi && (
+                <span
+                  className={styles.aiBadge}
+                  aria-label="AI로 생성된 이미지"
+                >
+                  ✨ AI
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 텍스트 버블 */}
+        {m.content && (
+          <div
+            className={
+              m.role === "user" ? styles.userBubble : styles.assistantBubble
+            }
+          >
+            {m.role !== "user" && (
+              <img className={styles.assistantLogo} src={logo} alt="" />
+            )}
+            <div>{m.content}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={styles.layout}>
@@ -1260,233 +1445,7 @@ const ChatPage = () => {
                     </p>
                   </div>
                 ) : (
-                  messages.map((m, idx) => {
-                    // 가이드 로딩 placeholder
-                    if (m.type === "guideLoading") {
-                      return (
-                        <div key={idx} className={styles.assistantMessage}>
-                          <div className={styles.assistantBubble}>
-                            <img
-                              className={styles.assistantLogo}
-                              src={logo}
-                              alt=""
-                            />
-                            <span
-                              className={styles.inlineSpinner}
-                              aria-hidden="true"
-                            />
-                            한 끗 가이드를 만들고 있어요…
-                          </div>
-                        </div>
-                      );
-                    }
-                    // 가이드 실패 + 인라인 재시도
-                    if (m.type === "guideError") {
-                      return (
-                        <div key={idx} className={styles.assistantMessage}>
-                          <div className={styles.assistantBubble}>
-                            <img
-                              className={styles.assistantLogo}
-                              src={logo}
-                              alt=""
-                            />
-                            <div>
-                              {m.error}
-                              <button
-                                type="button"
-                                className={styles.followUpBtn}
-                                style={{ marginTop: 8 }}
-                                onClick={retryGuide}
-                              >
-                                다시 시도
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                    // 가이드 카드(채팅 반영) — 클릭 시 전체 보기, 아래 좋아요/싫어요/PDF
-                    if (m.type === "guide") {
-                      // 채팅 인라인 AI 발화 = 이 그림 '한 줄 피드백'(결정론). 백엔드가 조립한
-                      //   chat_feedback(현재 그림 진단 + 사용자 의도 진입, 성장 없음)을 우선 쓴다.
-                      //   없으면(구버전 응답 등) 현재 그림 관찰로 폴백. ★성장(next_steps.note/synthesis)은
-                      //   더 이상 채팅에 안 끌어옴 — 성장 흐름은 한 끗 상세 모달에만.
-                      const g = m.guide || {};
-                      // clarify/redirect 등 비-coach 응답은 chat_feedback·blocks 가 없으므로
-                      //   안내 문구(message)를 채팅에도 한 줄 띄운다(빈 버블 침묵 해소).
-                      const utterance =
-                        g.chat_feedback ||
-                        g.blocks?.[0]?.observation ||
-                        (g.mode !== "coach" ? g.message : "") ||
-                        "";
-                      return (
-                        <div key={idx} className={styles.assistantMessage}>
-                          {utterance && (
-                            <div className={styles.assistantBubble}>
-                              <img
-                                className={styles.assistantLogo}
-                                src={logo}
-                                alt=""
-                              />
-                              <span>{utterance}</span>
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            className={styles.guideCard}
-                            onClick={() => openGuideFromCard(m)}
-                          >
-                            <span className={styles.guideCardThumb}>
-                              {m.guidePreview ? (
-                                <AuthedImage
-                                  className={styles.guideCardThumbImg}
-                                  src={m.guidePreview}
-                                  alt=""
-                                />
-                              ) : (
-                                <ImgPlaceholderIcon />
-                              )}
-                            </span>
-                            <span className={styles.guideCardFooter}>
-                              <span className={styles.guideCardBody}>
-                                <span className={styles.guideCardTitle}>
-                                  {m.guideTitle}
-                                </span>
-                                <span className={styles.guideCardSub}>
-                                  가이드 보기
-                                </span>
-                              </span>
-                              <ChevronRightIcon />
-                            </span>
-                          </button>
-                          <div className={styles.guideActions}>
-                            <button
-                              type="button"
-                              className={styles.guideActBtn}
-                              aria-label="PDF 다운로드"
-                              onClick={() => {
-                                const generatedAt = m.createdAt
-                                  ? new Date(m.createdAt).getTime()
-                                  : null;
-                                const previousFeedback =
-                                  m.guideFeedback === "up"
-                                    ? "like"
-                                    : m.guideFeedback === "down"
-                                      ? "dislike"
-                                      : "none";
-
-                                track("guide_saved", {
-                                  project_id: projectId,
-                                  guide_id: m.guide?.guide_id || "",
-                                  guide_category:
-                                    m.guide?.next_steps?.track?.group ||
-                                    m.guide?.primary_focus ||
-                                    "",
-                                  previous_feedback: previousFeedback,
-                                  time_since_generated_sec: generatedAt
-                                    ? Math.round(
-                                        (Date.now() - generatedAt) / 1000,
-                                      )
-                                    : 0,
-                                  save_entry_point: "guide_view",
-                                });
-                                downloadGuidePdf(
-                                  { guide: m.guide, references: m.references },
-                                  m.guidePreview,
-                                );
-                              }}
-                            >
-                              <DownloadIcon />
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.guideActBtn}
-                              data-active={m.guideFeedback === "up"}
-                              aria-label="좋아요"
-                              onClick={() => setGuideCardFeedback(m._gid, "up")}
-                            >
-                              <ThumbUpIcon />
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.guideActBtn}
-                              data-active={m.guideFeedback === "down"}
-                              aria-label="싫어요"
-                              onClick={() =>
-                                setGuideCardFeedback(m._gid, "down")
-                              }
-                            >
-                              <ThumbDownIcon />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div
-                        key={idx}
-                        className={
-                          m.role === "user"
-                            ? styles.userMessage
-                            : styles.assistantMessage
-                        }
-                      >
-                        {/* 이미지 묶음 — 배경 없이 */}
-                        {(m.localPreviewUrl || m.imageUrl) && (
-                          <div className={styles.messageImages}>
-                            <div
-                              className={`${styles.imageWrap} ${
-                                m.isAi ? styles.imageWrapAi : ""
-                              }`}
-                            >
-                              <AuthedImage
-                                src={m.localPreviewUrl || m.imageUrl}
-                                alt={
-                                  m.isAi ? "AI로 생성된 이미지" : "첨부 이미지"
-                                }
-                                className={
-                                  m.isAi ? styles.aiImage : styles.bubbleImage
-                                }
-                                onClick={() =>
-                                  setLightboxSrc(
-                                    m.localPreviewUrl || m.imageUrl,
-                                  )
-                                }
-                              />
-                              {m.isAi && (
-                                <span
-                                  className={styles.aiBadge}
-                                  aria-label="AI로 생성된 이미지"
-                                >
-                                  ✨ AI
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 텍스트 버블 */}
-                        {m.content && (
-                          <div
-                            className={
-                              m.role === "user"
-                                ? styles.userBubble
-                                : styles.assistantBubble
-                            }
-                          >
-                            {m.role !== "user" && (
-                              <img
-                                className={styles.assistantLogo}
-                                src={logo}
-                                alt=""
-                              />
-                            )}
-                            <div>{m.content}</div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
+                  messages.map((m, idx) => renderMessage(m, idx))
                 )}
                 {sending && !messages.some((m) => m._generating) && (
                   <div className={styles.assistantBubble}>
@@ -1681,6 +1640,15 @@ const ChatPage = () => {
           onSubmit={handleGuideSubmit}
           onClose={() => setGuideFormOpen(false)}
           submitting={guideLoading}
+        />
+      )}
+
+      {/* 아카이브 저장 → 컬렉션 선택 모달(신규 collections) */}
+      {archiveModalImageId != null && (
+        <ArchiveToCollectionModal
+          imageId={archiveModalImageId}
+          onClose={() => setArchiveModalImageId(null)}
+          onSaved={() => handleArchived(archiveModalImageId)}
         />
       )}
     </div>

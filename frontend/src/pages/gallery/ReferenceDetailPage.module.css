@@ -1,0 +1,383 @@
+.page {
+  padding: 24px 40px 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stateBox {
+  text-align: center;
+  color: #8a8580;
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 96px 20px;
+}
+
+/* ── 헤더: 뒤로 + 이름 + 다운로드 + 아카이브 ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: #4a4846;
+  cursor: pointer;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.backBtn:hover {
+  background: #f0ece7;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  color: #4a4846;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.iconBtn:hover {
+  background: #f0ece7;
+}
+
+.iconBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 아카이브 버튼 + 컬렉션 선택 메뉴 */
+.archiveWrap {
+  position: relative;
+}
+
+.archiveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f5945b;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.archiveBtn:hover {
+  background: #ec8547;
+}
+
+.archiveMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 260px;
+  background: #fff;
+  border: 1px solid #eee5db;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  padding: 10px;
+  z-index: 30;
+}
+
+.archiveMenuHead {
+  margin: 4px 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a8580;
+}
+
+.archiveMenuState {
+  padding: 16px;
+  text-align: center;
+  color: #a8a39e;
+  font-size: 13px;
+}
+
+.archiveMenuList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.archiveMenuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 14px;
+  color: #2e2c2a;
+  cursor: pointer;
+}
+
+.archiveMenuItem:hover {
+  background: #f6f2ee;
+}
+
+.archiveMenuItem:disabled {
+  cursor: default;
+}
+
+.archiveMenuName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.savedMark {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #f5945b;
+  font-weight: 600;
+}
+
+.newCollBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  border: none;
+  border-top: 1px solid #f0ece7;
+  border-radius: 0 0 8px 8px;
+  background: none;
+  color: #4a4846;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newCollBtn:hover {
+  color: #2e2c2a;
+}
+
+.newCollBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0ece7;
+}
+
+.newCollRow {
+  display: flex;
+  gap: 6px;
+}
+
+.newCollInput {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #e6e0d9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.newCollInput:focus {
+  border-color: #f5945b;
+}
+
+.newCollSave {
+  flex-shrink: 0;
+  background: #f5945b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newCollSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.inlineError {
+  color: #d9463e;
+  font-size: 13px;
+  margin: -8px 0 16px;
+}
+
+/* ── 본문: 좌 이미지 + 우 정보 ── */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+/* 원본 이미지 — 비율 유지. 가로 긴 건 width 꽉, 세로 긴 건 height 꽉(컨테이너 max-height 안에서 contain). */
+.imageBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f0ec;
+  border-radius: 16px;
+  overflow: hidden;
+  max-height: 72vh;
+  min-height: 320px;
+}
+
+.image {
+  max-width: 100%;
+  max-height: 72vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.refName {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2e2c2a;
+  margin: 0;
+}
+
+.sourceLink {
+  font-size: 14px;
+  color: #8a8580;
+  text-decoration: underline;
+  width: fit-content;
+}
+
+.sourceLink:hover {
+  color: #4a4846;
+}
+
+/* 출처가 프로젝트명(텍스트)일 때 */
+.sourceLabel {
+  font-size: 14px;
+  color: #8a8580;
+  width: fit-content;
+}
+
+/* 키워드 칩(프로젝트 레퍼런스 상세와 동일한 아웃라인 pill) */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 16px;
+  border: 1px solid #e6e0d9;
+  border-radius: 999px;
+  font-size: 14px;
+  color: #4a4846;
+  background: #fff;
+  white-space: nowrap;
+}
+
+/* 관심 반응 */
+.reactionRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reactionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #e6e0d9;
+  background: #fff;
+  color: #8a8580;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.reactionBtn:hover {
+  border-color: #d8d0c7;
+  color: #4a4846;
+}
+
+.reactionActive {
+  color: #f5945b;
+  border-color: #f5945b;
+  background: #fef4ee;
+}
+
+.reactionActiveBad {
+  color: #6b7280;
+  border-color: #b8bcc4;
+  background: #f2f3f5;
+}
+
+/* 좁은 화면: 이미지 위, 정보 아래 */
+@media (max-width: 860px) {
+  .body {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .image,
+  .imageBox {
+    max-height: 56vh;
+  }
+}

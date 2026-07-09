@@ -22,6 +22,16 @@ public interface ProjectReferenceRepository extends JpaRepository<ProjectReferen
   void deleteByProject(Project project);
 
   /**
+   * 레퍼런스 상세(SCR-ARCH-05) 출처 표기 — 이 이미지가 온(담긴) 프로젝트명. 레퍼런스 이미지는 공개 자료라 소유자를 가리지 않고 그 이미지가 속한 프로젝트명을
+   * 보여준다. 한 이미지가 여러 프로젝트에 담길 수 있어 최신 프로젝트명 하나를 쓴다(없으면 빈 리스트 → DraWe 폴백).
+   */
+  @Query(
+      "SELECT p.name FROM ProjectReference pr JOIN pr.project p "
+          + "WHERE pr.image.id = :imageId "
+          + "ORDER BY p.id DESC")
+  List<String> findProjectNamesByImage(@Param("imageId") Long imageId);
+
+  /**
    * 레퍼런스 아카이브 — 한 유저의 모든 프로젝트 레퍼런스를 image 와 함께 한 번에 로드(N+1 방지). 호출 측이 project 별로 그룹핑한다. 프로젝트 최신순, 그
    * 안에서 추가 최신순(addedAt DESC).
    */

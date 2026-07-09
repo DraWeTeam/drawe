@@ -96,6 +96,7 @@ public class ProjectReferenceService {
           image.getId(),
           refId);
     }
+
     return Map.of("imageId", image.getId(), "url", signed(image.getUrl()));
   }
 
