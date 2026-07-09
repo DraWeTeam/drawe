@@ -42,6 +42,7 @@ configMapGenerator:
     files:
       - dashboards/backend.json
       - dashboards/fastapi.json
+      - dashboards/llm-latency.json   # [추가] 채팅 LLM(Spring Boot) latency P50/P95/P99 (drawe_chat_llm_latency_seconds_bucket)
 
 patches:
   # ① alloy SA → AMP RemoteWrite IRSA

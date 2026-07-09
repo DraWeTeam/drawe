@@ -3,6 +3,7 @@ package com.drawe.backend.domain.llm.metrics;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  * <p><b>태그 카디널리티 통제</b>: 고카디널리티 값(userId, sessionId, 원문 메시지)은 절대 태그로 쓰지 않는다. 유한 열거값만 (rule_id,
  * action, provider, outcome). 시계열 폭발·PII 누설 방지.
  */
+@Slf4j
 @Component
 public class LlmMetrics {
 
@@ -22,6 +24,10 @@ public class LlmMetrics {
   private static final String RULE = "drawe.intent.rule";
   private static final String CLASSIFY = "drawe.intent.classify";
   private static final String LLM_CALL = "drawe.llm.call";
+
+  // 채팅 LLM(GROK/CLAUDE, Spring Boot) 응답 latency 히스토그램(Grafana P95/P99 용).
+  // 이름에 chat 을 박아 FastAPI 가이드 VLM 지연과 구분한다. LLM_CALL(평균·성공률, 버킷 없음)과도 분리.
+  private static final String CHAT_LATENCY = "drawe.chat_llm.latency";
 
   // ⑦ COMPOSE 출력 규격화 DoD 측정(설계 §5.2).
   private static final String STRUCTURE_VIOLATION = "drawe.output.structure_violation";
@@ -76,6 +82,36 @@ public class LlmMetrics {
         .tag("outcome", success ? "success" : "error")
         .register(registry)
         .record(elapsed);
+  }
+
+  /**
+   * 채팅 LLM(GROK/CLAUDE, Spring Boot) 응답 latency 를 <b>히스토그램</b> Timer 로 기록 — Grafana P95/P99(AMP
+   * {@code histogram_quantile})용. export 이름은 {@code drawe_chat_llm_latency_seconds_*}. FastAPI 가이드
+   * VLM 지연과는 무관(별도 슬라이스).
+   *
+   * <p>{@code chat_success.latency_ms}(analytics_events payload, 사후 SQL 분석)와 <b>동일한 값</b>을 실시간
+   * 메트릭으로도 흘려보낸다(중복 OK — payload 는 그대로 유지). {@link #llmCall}(평균·성공률용, 버킷 없음)과 달리 이쪽은 {@code
+   * publishPercentileHistogram()} 으로 {@code _seconds_bucket{le}} 시리즈를 발행한다 — 이게 없으면 AMP 에서 분위수 산출이
+   * 불가능하다.
+   *
+   * <p>성공 응답에만 latency 가 존재하므로 {@code outcome="success"} 만 기록한다(실패 경로 payload 엔 latency 없음). 카디널리티
+   * 통제: provider(유한 열거)·outcome 만 태그.
+   *
+   * @param provider LLM 공급자 (GROK/CLAUDE/GEMINI)
+   * @param elapsed 채팅 응답 latency (provider 내부 측정치)
+   */
+  public void chatLatency(String provider, Duration elapsed) {
+    try {
+      Timer.builder(CHAT_LATENCY)
+          .tag("provider", provider)
+          .tag("outcome", "success")
+          .publishPercentileHistogram()
+          .register(registry)
+          .record(elapsed);
+    } catch (RuntimeException e) {
+      // 계측 실패가 채팅 응답을 깨선 안 된다 — 메트릭 유실만 허용하고 요청 처리는 계속한다.
+      log.debug("chatLatency 기록 실패(무시): error_class={}", e.getClass().getSimpleName());
+    }
   }
 
   /**
