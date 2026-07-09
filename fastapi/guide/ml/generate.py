@@ -25,6 +25,7 @@ import logging
 import requests
 
 from guide.config import settings
+from guide._metrics import measure_image_gen
 
 log = logging.getLogger("drawe-fastapi.guide")
 
@@ -191,9 +192,13 @@ def generate(prompt: str):
     prov = _provider()
     fn = _DISPATCH.get(prov)
     if not fn:
-        return None
+        return None  # provider 미설정 — 생성 자체를 시도 안 함(계측 대상 아님).
     try:
-        pil = fn(prompt)
+        # 생성 지연 초크포인트를 얇게 타이머 래핑(vision.py _call 과 동일 패턴).
+        # provider 호출이 던지면 measure 가 outcome=error 로 관측 후 예외를 그대로 전파 →
+        # 아래 except 가 받아 None(생성 실패로 앱은 안 깨짐). 계측은 관측만, 로직 무변경.
+        with measure_image_gen(prov):
+            pil = fn(prompt)
         if pil is None:
             log.info("[generate] %s 응답에 이미지 없음", prov)
         return pil

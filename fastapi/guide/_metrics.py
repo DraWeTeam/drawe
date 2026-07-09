@@ -136,3 +136,105 @@ def reset_for_test(reader):
     _provider, _hist = _make_histogram(reader)
     _init_tried = True
     return _hist
+
+
+# ── 레퍼런스 이미지 생성(diffusion) 지연 계측 — VLM 과 *별개* histogram ─────────────
+# 생성(Bedrock Stable Image Core 등)은 diffusion 이라 관찰(VLM) 대비 훨씬 느리다
+# (수초 vs 수십초). VLM 버킷(.5~60s)을 그대로 쓰면 20~60s 상단이 뭉개져 P95 를 못 가른다.
+# → 상단을 높인 *전용* 버킷 + 전용 metric 이름을 쓴다(대시보드/알림도 분리).
+# 상단 120s 는 BEDROCK_TIMEOUT(기본 60s) × 재시도(max_attempts=2) 최악치 및 AI_GEN_TIMEOUT
+# 여유를 덮어 +Inf 쏠림(P95 왜곡)을 막는다. 실제 상한이 바뀌면 여기 상단만 조정.
+IMAGE_GEN_LATENCY_BUCKETS = (1, 2, 3, 5, 8, 13, 21, 34, 55, 90, 120)
+
+# OTLP→Prometheus 변환 시 unit(s) 접미가 붙어 최종 series 는
+# drawe_image_gen_latency_seconds{_bucket,_sum,_count}. VLM(drawe_vlm_latency_seconds)과 구분.
+_IMAGE_GEN_INSTRUMENT_NAME = "drawe_image_gen_latency"
+
+_img_hist = None
+_img_provider = None
+_img_init_tried = False
+
+
+def _build_image_gen_view():
+    from opentelemetry.sdk.metrics.view import (
+        ExplicitBucketHistogramAggregation,
+        View,
+    )
+
+    return View(
+        instrument_name=_IMAGE_GEN_INSTRUMENT_NAME,
+        aggregation=ExplicitBucketHistogramAggregation(IMAGE_GEN_LATENCY_BUCKETS),
+    )
+
+
+def _make_image_gen_histogram(reader):
+    """VLM 과 동일 구조의 전용 MeterProvider+Histogram(생성 전용 View/버킷).
+    reader 주입 → 테스트는 InMemoryMetricReader 로 동일 View 검증."""
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.resources import Resource
+
+    provider = MeterProvider(
+        resource=Resource.create(),
+        metric_readers=[reader],
+        views=[_build_image_gen_view()],
+    )
+    meter = provider.get_meter("drawe.guide.imagegen")
+    hist = meter.create_histogram(
+        _IMAGE_GEN_INSTRUMENT_NAME,
+        unit="s",
+        description="레퍼런스 이미지 생성(Bedrock Stable Image / Gemini / Bria) 지연(초)",
+    )
+    return provider, hist
+
+
+def _get_image_gen_hist():
+    """지연·1회 초기화. 실패하면 None 캐시 → 이후 조용히 no-op(생성은 정상)."""
+    global _img_hist, _img_provider, _img_init_tried
+    if _img_hist is not None:
+        return _img_hist
+    if _img_init_tried:
+        return None
+    _img_init_tried = True
+    try:
+        _img_provider, _img_hist = _make_image_gen_histogram(_default_reader())
+    except Exception:  # OTEL 미가용/엔드포인트 오류 등 — 계측만 끄고 생성은 그대로.
+        log.warning(
+            "이미지 생성 latency 계측 초기화 실패 — 계측 비활성(생성은 정상)",
+            exc_info=True,
+        )
+        _img_hist = None
+    return _img_hist
+
+
+def observe_image_gen(seconds: float, *, provider: str, outcome: str) -> None:
+    """단일 이미지 생성 지연(초)을 기록. 어떤 예외도 삼켜 호출부를 깨지 않는다."""
+    h = _get_image_gen_hist()
+    if h is None:
+        return
+    try:
+        h.record(max(0.0, float(seconds)), {"provider": provider, "outcome": outcome})
+    except Exception:
+        log.debug("이미지 생성 latency record 실패(무시)", exc_info=True)
+
+
+@contextmanager
+def measure_image_gen(provider: str):
+    """이미지 생성 호출을 감싸 지연을 잰다. 정상 반환=success, 예외=error 로 라벨 후 예외는
+    그대로 전파(계측 실패가 생성 실패로 이어지지 않게). time.monotonic() 사용."""
+    t0 = time.monotonic()
+    outcome = "success"
+    try:
+        yield
+    except BaseException:
+        outcome = "error"
+        raise
+    finally:
+        observe_image_gen(time.monotonic() - t0, provider=provider, outcome=outcome)
+
+
+def reset_image_gen_for_test(reader):
+    """테스트 전용: 주어진 reader 로 이미지 생성 histogram 을 재구성해 반환."""
+    global _img_hist, _img_provider, _img_init_tried
+    _img_provider, _img_hist = _make_image_gen_histogram(reader)
+    _img_init_tried = True
+    return _img_hist
