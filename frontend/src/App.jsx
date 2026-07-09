@@ -5,6 +5,9 @@ import Signup from "./pages/login/Signup";
 import TermsAgreement from "./pages/login/TermsAgreement";
 import SignupCompletePage from "./pages/login/SignupCompletePage";
 import OAuthCallback from "./pages/login/OAuthCallback";
+import ForgotPassword from "./pages/login/ForgotPassword";
+import ResetPassword from "./pages/login/ResetPassword";
+import ResetPasswordComplete from "./pages/login/ResetPasswordComplete";
 import Home from "./pages/Home";
 import ReferencePage from "./pages/chat/ReferencePage";
 import ProjectList from "./pages/projects/ProjectList";
@@ -46,6 +49,12 @@ function App() {
               <Route path="/terms" element={<TermsAgreement consentMode />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/oauth/callback" element={<OAuthCallback />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route
+                path="/reset-password/complete"
+                element={<ResetPasswordComplete />}
+              />
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/" element={<RootRoute />} />
               <Route

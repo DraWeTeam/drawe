@@ -16,6 +16,9 @@ const HIDDEN_PATHS = [
   "/signup/terms",
   "/terms",
   "/oauth/callback",
+  "/forgot-password",
+  "/reset-password",
+  "/reset-password/complete",
   "/onboarding",
 ];
 
