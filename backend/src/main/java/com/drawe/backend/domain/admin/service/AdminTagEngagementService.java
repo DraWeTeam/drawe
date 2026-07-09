@@ -1,6 +1,9 @@
 package com.drawe.backend.domain.admin.service;
 
 import com.drawe.backend.domain.admin.dto.TagEngagementModel.AxisRollup;
+import com.drawe.backend.domain.admin.dto.TagEngagementModel.CandidateRow;
+import com.drawe.backend.domain.admin.dto.TagEngagementModel.Gate;
+import com.drawe.backend.domain.admin.dto.TagEngagementModel.Hygiene;
 import com.drawe.backend.domain.admin.dto.TagEngagementModel.TagRow;
 import com.drawe.backend.domain.admin.dto.TagEngagementModel.View;
 import com.drawe.backend.domain.admin.repository.AdminTagEngagementRepository;
@@ -11,21 +14,19 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 태그별 레퍼런스 관심도 조립.
+ * 태그별 레퍼런스 관심도 조립. 약신호 페이지 — 게이트로 신뢰도 판정 후 노출 보정 전환율로 순위를 낸다.
  *
- * <p>흐름: (1) DB에서 engagement 있는 이미지별 shown/likes/pins + 태그를 받고 → (2) GA4에서 reference_id별 클릭을 받아
- * 이미지에 병합 → (3) technique/subject/mood 세 축으로 각각 롤업.
- *
- * <p>클릭(GA4)이 비어 있어도(자격증명 미설정) 나머지는 그대로 나온다.
+ * <p>DB/GA4 집계만 여기서 하고 판단(전환율 정렬·게이트·점유율·사분면·위생)은 {@link TagEngagementAnalyzer}(순수 함수)에 위임한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -44,11 +45,18 @@ public class AdminTagEngagementService {
 
     List<PerImageRow> rows = repo.perImageEngagement(since);
     Map<Long, Long> clicks = ga4.clicksByImageId(since);
+    boolean clicksAvailable = ga4.isAvailable();
 
-    // 축별 누산기: axis -> (tagValue -> Acc)
     Map<String, Acc> technique = new LinkedHashMap<>();
     Map<String, Acc> subject = new LinkedHashMap<>();
     Map<String, Acc> mood = new LinkedHashMap<>();
+    Set<String> allTagValues = new LinkedHashSet<>(); // 위생용(null/blank 포함)
+
+    // 전체(이미지 단위) 합계 — 게이트·KO 분모. 축 합산은 3축 중복이라 쓰지 않는다.
+    long totalShown = 0;
+    long totalLikes = 0;
+    long totalPins = 0;
+    long totalClicks = 0;
 
     for (PerImageRow r : rows) {
       long shown = num(r.getShown());
@@ -56,21 +64,77 @@ public class AdminTagEngagementService {
       long pins = num(r.getPins());
       long click = clicks.getOrDefault(r.getImageId(), 0L);
 
+      totalShown += shown;
+      totalLikes += likes;
+      totalPins += pins;
+      totalClicks += click;
+
       add(technique, r.getTechnique(), shown, click, likes, pins);
       add(subject, r.getSubject(), shown, click, likes, pins);
       add(mood, r.getMood(), shown, click, likes, pins);
+
+      allTagValues.add(r.getTechnique());
+      allTagValues.add(r.getSubject());
+      allTagValues.add(r.getMood());
     }
 
-    List<AxisRollup> axes =
-        List.of(
-            new AxisRollup("technique", toRows(technique)),
-            new AxisRollup("subject", toRows(subject)),
-            new AxisRollup("mood", toRows(mood)));
+    AxisRollup techRollup = rollup("technique", technique);
+    AxisRollup subjRollup = rollup("subject", subject);
+    AxisRollup moodRollup = rollup("mood", mood);
+    List<AxisRollup> axes = List.of(techRollup, subjRollup, moodRollup);
 
-    return new View(TS.format(Instant.now()), ga4.isAvailable(), axes);
+    // Guardrail — 전 축 중 최대 노출 점유율과 그 축.
+    double maxAxisShare = 0;
+    String maxShareAxis = null;
+    for (AxisRollup a : axes) {
+      double share = a.maxShare() == null ? 0 : a.maxShare();
+      if (share > maxAxisShare) {
+        maxAxisShare = share;
+        maxShareAxis = a.axis();
+      }
+    }
+
+    Gate gate =
+        TagEngagementAnalyzer.judge(
+            totalShown, totalLikes, totalPins, totalClicks, clicksAvailable, maxAxisShare);
+    Double ko = TagEngagementAnalyzer.conversionRate(totalClicks, totalLikes, totalPins, totalShown);
+    String koReliability = "green".equals(gate.level()) ? "green" : "yellow";
+
+    List<CandidateRow> candidates = new ArrayList<>();
+    for (AxisRollup a : axes) {
+      candidates.addAll(TagEngagementAnalyzer.supplyGapCandidates(a.axis(), a.rows()));
+    }
+
+    Hygiene hygiene = TagEngagementAnalyzer.hygiene(allTagValues);
+
+    return new View(
+        TS.format(Instant.now()),
+        clicksAvailable,
+        gate,
+        ko,
+        koReliability,
+        maxAxisShare,
+        maxShareAxis,
+        maxAxisShare > 0.5,
+        axes,
+        candidates,
+        hygiene);
   }
 
-  /** 태그 값 null/blank 는 무시(태그 안 달린 이미지). */
+  private AxisRollup rollup(String axis, Map<String, Acc> bucket) {
+    List<TagRow> out = new ArrayList<>(bucket.size());
+    for (Map.Entry<String, Acc> e : bucket.entrySet()) {
+      Acc a = e.getValue();
+      Double ctr = a.shown > 0 ? (double) a.clicks / a.shown : null;
+      Double conv = TagEngagementAnalyzer.conversionRate(a.clicks, a.likes, a.pins, a.shown);
+      out.add(new TagRow(e.getKey(), a.images, a.shown, a.clicks, a.likes, a.pins, ctr, conv));
+    }
+    TagEngagementAnalyzer.sortByConversion(out); // 노출 보정 전환율 내림차순
+    return new AxisRollup(
+        axis, out, TagEngagementAnalyzer.maxShare(out), TagEngagementAnalyzer.topTag(out));
+  }
+
+  /** 태그 값 null/blank 는 축 버킷에 넣지 않는다(태그 안 달린 이미지). */
   private void add(
       Map<String, Acc> bucket, String value, long shown, long click, long like, long pin) {
     if (value == null || value.isBlank()) {
@@ -84,31 +148,10 @@ public class AdminTagEngagementService {
     a.pins += pin;
   }
 
-  /** 관심도 정렬: 노출 대비 행동(클릭+좋아요+핀)이 큰 순. 노출 0이면 뒤로. */
-  private List<TagRow> toRows(Map<String, Acc> bucket) {
-    List<TagRow> out = new ArrayList<>(bucket.size());
-    for (Map.Entry<String, Acc> e : bucket.entrySet()) {
-      Acc a = e.getValue();
-      Double ctr = a.shown > 0 ? (double) a.clicks / a.shown : null;
-      out.add(new TagRow(e.getKey(), a.images, a.shown, a.clicks, a.likes, a.pins, ctr));
-    }
-    out.sort(
-        Comparator.comparingDouble((TagRow t) -> engagementScore(t))
-            .reversed()
-            .thenComparingLong(t -> -t.shown()));
-    return out;
-  }
-
-  /** 단순 관심도 점수 — 필요에 맞게 가중치 조정. */
-  private double engagementScore(TagRow t) {
-    return t.clicks() * 2 + t.likes() * 3 + t.pins() * 4;
-  }
-
   private static long num(Number n) {
     return n == null ? 0L : n.longValue();
   }
 
-  /** 가변 누산기(내부용). */
   private static final class Acc {
     long images;
     long shown;
