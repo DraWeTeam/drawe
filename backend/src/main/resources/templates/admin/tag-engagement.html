@@ -113,7 +113,11 @@
         </thead>
         <tbody>
           <tr th:each="r : ${axis.rows()}">
-            <td th:text="${r.value()}">-</td>
+            <td>
+              <a th:href="@{/admin/funnel(q=${r.value()})}" th:text="${r.value()}"
+                 title="이 태그의 이미지별 상세 보기"
+                 style="color:var(--accent); text-decoration:none; border-bottom:1px dashed var(--peach-line);">-</a>
+            </td>
             <td class="num" style="font-weight:700;" th:text="${r.conversionText()}">—</td>
             <td class="num" th:text="${r.shown()}">0</td>
             <td class="num" th:text="${r.likes()}">0</td>

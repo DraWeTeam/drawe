@@ -277,8 +277,7 @@
     <a href="/admin/search-quality" th:classappend="${active == 'search'} ? 'active'">검색 품질</a>
     <a href="/admin/cost" th:classappend="${active == 'cost'} ? 'active'">비용</a>
     <a href="/admin/tag-engagement" th:classappend="${active == 'tag'} ? 'active'">태그 관심도</a>
-    <!-- TODO(WP7): Funnel(이미지 단위 전환율)을 태그 관심도의 드릴다운 하위 화면으로 편입.
-         태그 클릭 → 해당 태그 이미지들의 Funnel 표시. 기능 제거가 아니라 진입 경로 재배치. -->
+    <!-- Funnel: 태그 관심도(/admin/tag-engagement)의 이미지 단위 드릴다운. q=태그로 필터 진입 가능 -->
     <a href="/admin/funnel" th:classappend="${active == 'funnel'} ? 'active'">Funnel</a>
     <!-- // 사용자 피드백 어드민 탭: Phase 2 -->
   </nav>
