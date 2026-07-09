@@ -3,6 +3,7 @@ package com.drawe.backend.domain.auth.controller;
 import com.drawe.backend.domain.auth.dto.*;
 import com.drawe.backend.domain.auth.service.AuthService;
 import com.drawe.backend.domain.auth.service.EmailVerificationService;
+import com.drawe.backend.domain.auth.service.PasswordResetService;
 import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ public class AuthController {
 
   private final AuthService authService;
   private final EmailVerificationService emailVerificationService;
+  private final PasswordResetService passwordResetService;
 
   @Value("${spring.security.oauth2.client.registration.google.client-id}")
   private String clientId;
@@ -114,6 +116,25 @@ public class AuthController {
   @PostMapping("/email/verify-code")
   public ApiResponse<Void> verifyCode(@Valid @RequestBody VerifyCodeRequest request) {
     emailVerificationService.verifyCode(request.getEmail(), request.getCode());
+    return ApiResponse.success();
+  }
+
+  // ── 비밀번호 재설정 (SCR-AUTH-02~04): 이메일 인증코드 → 검증 → 새 비번 ──
+  @PostMapping("/password-reset/send-code")
+  public ApiResponse<Void> sendResetCode(@Valid @RequestBody SendCodeRequest request) {
+    passwordResetService.sendResetCode(request.getEmail());
+    return ApiResponse.success();
+  }
+
+  @PostMapping("/password-reset/verify-code")
+  public ApiResponse<Void> verifyResetCode(@Valid @RequestBody VerifyCodeRequest request) {
+    passwordResetService.verifyResetCode(request.getEmail(), request.getCode());
+    return ApiResponse.success();
+  }
+
+  @PostMapping("/password-reset")
+  public ApiResponse<Void> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+    passwordResetService.resetPassword(request.getEmail(), request.getNewPassword());
     return ApiResponse.success();
   }
 }
