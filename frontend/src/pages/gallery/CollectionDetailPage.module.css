@@ -1,7 +1,6 @@
+/* 프로젝트 목록과 상단 규격 통일(padding/제목 위치). */
 .page {
-  padding: 24px 40px 64px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 32px 56px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -10,7 +9,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 20px;
+  margin: 8px 0 32px 8px;
 }
 
 .backBtn {
@@ -31,9 +30,10 @@
 }
 
 .title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  color: #2e2c2a;
+  color: #0f0f0f;
+  letter-spacing: -0.3px;
   margin: 0;
 }
 
@@ -72,57 +72,102 @@
   position: relative;
 }
 
+/* 정렬 드롭다운 — 프로젝트 목록과 동일한 디자인/애니메이션. */
 .sortBtn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  border: 1px solid #e6e0d9;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #edebea;
   background: #fff;
   color: #4a4846;
   border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 14px;
+  height: 44px;
+  min-width: 88px;
+  padding: 0 16px;
+  font-size: 15px;
+  font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
 }
 
 .sortBtn:hover {
-  border-color: #d8d0c7;
+  border-color: #d9d6d4;
+  background: #faf9f8;
+}
+
+.sortBtn:active {
+  transform: scale(0.97);
+}
+
+.sortChevron {
+  display: inline-flex;
+  transition: transform 0.18s ease;
+}
+
+.sortChevronOpen {
+  transform: rotate(180deg);
 }
 
 .sortDropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   right: 0;
-  min-width: 120px;
+  min-width: 140px;
   background: #fff;
-  border: 1px solid #eee5db;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  padding: 4px;
-  z-index: 20;
+  border: 1px solid #edebea;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 50;
+  animation: sort-pop-in 0.15s ease;
+}
+
+@keyframes sort-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .sortItem {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   text-align: left;
   background: none;
   border: none;
-  border-radius: 7px;
-  padding: 8px 10px;
-  font-size: 14px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 15px;
   color: #4a4846;
+  font-family: inherit;
   cursor: pointer;
 }
 
 .sortItem:hover {
-  background: #f6f2ee;
+  background: #f5f5f5;
 }
 
 .sortItemActive {
-  color: #2e2c2a;
+  color: #ff8534;
   font-weight: 600;
+}
+
+.sortCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
 }
 
 /* + 새 프로젝트 버튼 */
@@ -150,51 +195,30 @@
   color: #fff;
 }
 
+/* Masonry — 레퍼런스 보드와 통일. 이미지 원본 비율 유지(정사각형 크롭 안 함).
+   CSS multi-column 으로 벽돌쌓기. 카드는 컬럼 안에서 나뉘지 않게 break-inside 방지. */
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
+  column-width: 200px;
+  column-gap: 16px;
 }
 
 .card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  break-inside: avoid;
+  margin-bottom: 16px;
 }
 
-/* 이미지 타일 — 오버레이(고정/다운로드/⋮) 절대배치 기준 */
+/* 이미지 타일 — 오버레이(다운로드/AI 배지) 절대배치 기준. 원본 비율 유지. */
 .cardThumb {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
-  aspect-ratio: 1 / 1;
   background: #f0ece7;
 }
 
 .thumb {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
   display: block;
-}
-
-/* 카드 밑 사용자 태그 칩 (정보 수정에서 편집) */
-.cardTags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.cardTag {
-  font-size: 12px;
-  color: #6b6560;
-  background: #f0ece7;
-  border-radius: 6px;
-  padding: 2px 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
 }
 
 /* AI 생성 마크 — 썸네일 우상단 (source=AI). 보드의 AI 배지와 동일 톤.
@@ -219,6 +243,24 @@
 /* hover 로 다운로드 버튼이 뜨면 AI 배지를 숨겨 겹침을 피한다. */
 .cardThumb:hover .aiBadge {
   opacity: 0;
+}
+
+/* 고정 마크 — 썸네일 좌상단(다운로드/AI 는 우상단이라 안 겹침). */
+.pinMark {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #e8590c;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
 }
 
 .downloadBtn {
@@ -261,52 +303,81 @@
   }
 }
 
-/* ── 카드 ⋮ 메뉴 (고정/아카이브 취소) — 카드 우하단 ── */
-.cardMenuWrap {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
+/* ── 썸네일 밖 하단 — (좌) 태그 3축, (우) ⋮ 옵션. ── */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 0 2px;
 }
 
-/* ⋮ 옵션 버튼은 상시 표시 — 아이패드/터치 기반이라 hover 로 띄우지 않는다. */
-.cardMenuBtn {
-  width: 30px;
-  height: 30px;
-  border: none;
+/* 카드 태그 칩(Unsplash 3축 등) — 좌측을 채우고 ⋮ 를 우측으로 민다. 한 줄 유지(넘치면 클립). */
+.cardTags {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.cardTag {
+  font-size: 12px;
+  color: #7a746e;
+  background: #f0ece7;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #4a4846;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* ⋮ 옵션 메뉴 (고정/정보수정/아카이브 취소) */
+.cardMenuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* ⋮ 옵션 버튼 — 프로젝트 목록 menuBtn 과 동일. */
+.cardMenuBtn {
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #888;
+  padding: 4px 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   opacity: 1;
+  transition: background 0.15s ease;
 }
 
-/* 우하단 버튼이라 메뉴는 위로 연다(카드 밖으로 안 잘리게).
-   레퍼런스 보드(프로젝트→레퍼런스) 옵션 메뉴와 스타일·애니메이션 통일. */
+.cardMenuBtn:hover {
+  background: #f5f5f5;
+  color: #555;
+}
+
+/* 옵션 메뉴 — 프로젝트 목록과 동일한 디자인/애니메이션(아래로 열림, pop-in). */
 .cardMenuDropdown {
   position: absolute;
-  bottom: 34px;
+  top: calc(100% + 4px);
   right: 0;
-  min-width: 150px;
+  min-width: 160px;
   background: #fff;
   border: 1px solid #e8e8e8;
-  border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-  padding: 4px;
-  z-index: 20;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   animation: card-menu-pop 0.15s ease;
 }
 
-/* 위로 여는 메뉴라 아래(+4px)에서 올라오며 페이드 — 보드의 pop-in 과 방향만 반전 */
 @keyframes card-menu-pop {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
@@ -368,15 +439,15 @@
 .menuItem {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: none;
   border: none;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #444;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4a4846;
   font-family: inherit;
   cursor: pointer;
 }
@@ -386,14 +457,14 @@
 }
 
 .menuDanger {
-  color: #d9463e;
+  color: #dd3a2e;
 }
 
 .menuDanger:hover {
-  background: #fdeceb;
+  background: #fff0f0;
 }
 
-/* ── 모달 (수정/삭제) ── */
+/* ── 모달 (직접추가/수정/삭제) — 프로젝트 생성 모달과 동일한 등장 효과 ── */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -403,6 +474,16 @@
   justify-content: center;
   z-index: 100;
   padding: 20px;
+  animation: modal-fade 0.18s ease;
+}
+
+@keyframes modal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal {
@@ -412,6 +493,47 @@
   width: 340px;
   max-width: 100%;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  animation: modal-pop-in 0.18s ease;
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 닫힐 때 — 등장의 반대(페이드 아웃 + 아래로 내려가며 축소). ModalShell 의 CLOSE_MS 와 동일. */
+.modalOverlayClosing {
+  animation: modal-fade-out 0.18s ease forwards;
+}
+
+.modalClosing {
+  animation: modal-pop-out 0.18s ease forwards;
+}
+
+@keyframes modal-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
 }
 
 .modalWide {

@@ -12,6 +12,7 @@ import { downloadImage } from "./download";
 import AuthedImage from "../chat/AuthedImage";
 import CollectionEditModal from "./CollectionEditModal";
 import MoveReferenceModal from "./MoveReferenceModal";
+import ModalShell from "./ModalShell";
 import styles from "./CollectionDetailPage.module.css";
 
 // SCR-ARCH-04 컬렉션 상세 — 헤더(뒤로/제목/⋮) + 필터 탭(전체/AI/사진/일러스트) + 레퍼런스 그리드.
@@ -116,16 +117,18 @@ const CollectionDetailPage = () => {
     return () => document.removeEventListener("mousedown", onDown);
   }, [cardMenu]);
 
+  // 성공 시 true 반환 → 모달이 닫힘 애니메이션 후 스스로 onCancel(setModal(null)) 호출.
   const handleSaveEdit = async ({ name, description, tags }) => {
     setBusy(true);
     try {
       await updateCollection(collectionId, { name, description, tags });
       setCollection((prev) => ({ ...prev, name, description, tags }));
-      setModal(null);
+      return true;
     } catch (err) {
       setErrorMessage(
         err.response?.data?.error?.message || "컬렉션을 수정하지 못했어요.",
       );
+      return false;
     } finally {
       setBusy(false);
     }
@@ -182,8 +185,9 @@ const CollectionDetailPage = () => {
 
   // 정보 수정 — 사용자 태그 저장 + (선택) 다른 컬렉션으로 이동.
   //   이동하면 현재 목록에서 제거, 이동 안 하면 해당 레퍼런스의 태그만 갱신.
+  //   성공 시 true 반환 → 모달이 닫힘 애니메이션 후 스스로 onCancel(setMoveImageId(null)) 호출.
   const handleSaveInfo = async ({ targetCollectionId, userTags }) => {
-    if (moveImageId == null) return;
+    if (moveImageId == null) return false;
     setMoving(true);
     try {
       await updateReferenceInfo(collectionId, moveImageId, {
@@ -201,12 +205,13 @@ const CollectionDetailPage = () => {
               r.imageId === moveImageId ? { ...r, userTags } : r,
             ),
       }));
-      setMoveImageId(null);
+      return true;
     } catch (err) {
       setErrorMessage(
         err.response?.data?.error?.message ||
           "레퍼런스 정보를 수정하지 못했어요.",
       );
+      return false;
     } finally {
       setMoving(false);
     }
@@ -244,6 +249,62 @@ const CollectionDetailPage = () => {
   }, [refs, filter, sort]);
 
   const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "최근";
+
+  // 카드/리스트 공용 ⋮ 옵션 메뉴 (고정/정보수정/아카이브 취소).
+  const renderCardMenu = (ref) => (
+    <div
+      className={styles.cardMenuWrap}
+      ref={cardMenu === ref.imageId ? cardMenuRef : null}
+    >
+      <button
+        type="button"
+        className={styles.cardMenuBtn}
+        onClick={(e) => {
+          e.stopPropagation();
+          setCardMenu((cur) => (cur === ref.imageId ? null : ref.imageId));
+        }}
+        aria-label="레퍼런스 옵션"
+        aria-haspopup="true"
+        aria-expanded={cardMenu === ref.imageId}
+      >
+        <MoreIcon />
+      </button>
+      {cardMenu === ref.imageId && (
+        <div
+          className={styles.cardMenuDropdown}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className={styles.menuItem}
+            onClick={() => handleTogglePin(ref.imageId)}
+          >
+            <PinMenuIcon />
+            {ref.pinned ? "고정 해제" : "고정하기"}
+          </button>
+          <button
+            type="button"
+            className={styles.menuItem}
+            onClick={() => {
+              setCardMenu(null);
+              setMoveImageId(ref.imageId);
+            }}
+          >
+            <EditIcon />
+            정보 수정
+          </button>
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.menuDanger}`}
+            onClick={() => handleRemove(ref.imageId)}
+          >
+            <TrashIcon />
+            아카이브 취소
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className={styles.page}>
@@ -303,7 +364,7 @@ const CollectionDetailPage = () => {
         <div className={styles.stateBox}>{errorMessage}</div>
       ) : (
         <>
-          {/* 필터 탭 (전체/AI/사진/일러스트) + 정렬 + 새 프로젝트 (SCR-ARCH-05) */}
+          {/* 필터 탭(전체/AI/사진/일러스트) + 정렬 (SCR-ARCH-05) */}
           <div className={styles.filterRow}>
             <div className={styles.filterChips}>
               {FILTERS.map((f) => (
@@ -323,24 +384,33 @@ const CollectionDetailPage = () => {
                   type="button"
                   className={styles.sortBtn}
                   onClick={() => setSortOpen((o) => !o)}
-                  aria-haspopup="true"
+                  aria-haspopup="listbox"
                   aria-expanded={sortOpen}
                 >
                   {sortLabel}
-                  <ChevronDown />
+                  <span
+                    className={`${styles.sortChevron} ${sortOpen ? styles.sortChevronOpen : ""}`}
+                  >
+                    <ChevronDown />
+                  </span>
                 </button>
                 {sortOpen && (
-                  <div className={styles.sortDropdown}>
+                  <div className={styles.sortDropdown} role="listbox">
                     {SORTS.map((s) => (
                       <button
                         key={s.key}
                         type="button"
+                        role="option"
+                        aria-selected={sort === s.key}
                         className={`${styles.sortItem} ${sort === s.key ? styles.sortItemActive : ""}`}
                         onClick={() => {
                           setSort(s.key);
                           setSortOpen(false);
                         }}
                       >
+                        <span className={styles.sortCheck}>
+                          {sort === s.key && <CheckIcon />}
+                        </span>
                         {s.label}
                       </button>
                     ))}
@@ -385,6 +455,11 @@ const CollectionDetailPage = () => {
                         AI
                       </span>
                     )}
+                    {ref.pinned && (
+                      <span className={styles.pinMark} title="고정됨">
+                        <PinMarkIcon />
+                      </span>
+                    )}
                     <button
                       type="button"
                       className={styles.downloadBtn}
@@ -398,67 +473,19 @@ const CollectionDetailPage = () => {
                     >
                       <DownloadIcon />
                     </button>
-                    <div
-                      className={styles.cardMenuWrap}
-                      ref={cardMenu === ref.imageId ? cardMenuRef : null}
-                    >
-                      <button
-                        type="button"
-                        className={styles.cardMenuBtn}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCardMenu((cur) =>
-                            cur === ref.imageId ? null : ref.imageId,
-                          );
-                        }}
-                        aria-label="레퍼런스 옵션"
-                        aria-haspopup="true"
-                        aria-expanded={cardMenu === ref.imageId}
-                      >
-                        <MoreIcon />
-                      </button>
-                      {cardMenu === ref.imageId && (
-                        <div
-                          className={styles.cardMenuDropdown}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            className={styles.menuItem}
-                            onClick={() => handleTogglePin(ref.imageId)}
-                          >
-                            {ref.pinned ? "고정 해제" : "고정하기"}
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.menuItem}
-                            onClick={() => {
-                              setCardMenu(null);
-                              setMoveImageId(ref.imageId);
-                            }}
-                          >
-                            정보 수정
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.menuItem} ${styles.menuDanger}`}
-                            onClick={() => handleRemove(ref.imageId)}
-                          >
-                            아카이브 취소
-                          </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
-                  {ref.userTags?.length > 0 && (
+
+                  {/* 썸네일 밖 하단 — (좌) 태그 3축(Unsplash 등 있을 때만), (우) ⋮ 옵션. */}
+                  <div className={styles.cardFooter}>
                     <div className={styles.cardTags}>
-                      {ref.userTags.map((t) => (
-                        <span key={t} className={styles.cardTag}>
-                          {t}
+                      {ref.keywords?.slice(0, 3).map((kw) => (
+                        <span key={kw} className={styles.cardTag}>
+                          {kw}
                         </span>
                       ))}
                     </div>
-                  )}
+                    {renderCardMenu(ref)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -491,38 +518,35 @@ const CollectionDetailPage = () => {
 
       {/* 컬렉션 삭제 확인 모달 (SCR-ARCH-06) */}
       {modal === "delete" && collection && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => !busy && setModal(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>컬렉션을 삭제할까요?</h3>
-            <p className={styles.modalText}>
-              &lsquo;{collection.name}&rsquo; 컬렉션과 저장된 모든 레퍼런스가
-              삭제돼요. 이 작업은 되돌릴 수 없어요.
-            </p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancel}
-                onClick={() => setModal(null)}
-                disabled={busy}
-              >
-                취소하기
-              </button>
-              <button
-                type="button"
-                className={styles.modalConfirm}
-                onClick={handleDelete}
-                disabled={busy}
-              >
-                삭제하기
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalShell onClose={() => setModal(null)} busy={busy}>
+          {(requestClose) => (
+            <>
+              <h3 className={styles.modalTitle}>컬렉션을 삭제할까요?</h3>
+              <p className={styles.modalText}>
+                &lsquo;{collection.name}&rsquo; 컬렉션과 저장된 모든 레퍼런스가
+                삭제돼요. 이 작업은 되돌릴 수 없어요.
+              </p>
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.modalCancel}
+                  onClick={requestClose}
+                  disabled={busy}
+                >
+                  취소하기
+                </button>
+                <button
+                  type="button"
+                  className={styles.modalConfirm}
+                  onClick={handleDelete}
+                  disabled={busy}
+                >
+                  삭제하기
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       )}
     </div>
   );
@@ -559,11 +583,49 @@ const ChevronDown = () => (
   </svg>
 );
 
+// 정렬 활성 항목 체크 — 프로젝트 목록과 동일.
+const CheckIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 14 14"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M5.25 9.4L2.85 7L2 7.85L5.25 11.1L12 4.35L11.15 3.5L5.25 9.4Z"
+      fill="#FF8534"
+    />
+  </svg>
+);
+
 const MoreIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <circle cx="12" cy="5" r="1.7" />
     <circle cx="12" cy="12" r="1.7" />
     <circle cx="12" cy="19" r="1.7" />
+  </svg>
+);
+
+const PinMarkIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M14.4 3l6.6 6.6-1.4 1.4-1-.3-3.6 3.6.7 3.6L14 19.6 9.4 15 4 20l5-5.4-4.6-4.6 1.6-1.4 3.6.7L13.2 5.6l-.3-1L14.4 3z" />
+  </svg>
+);
+
+const PinMenuIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="12" y1="17" x2="12" y2="22" />
+    <path d="M5 17h14l-1.7-2.3a2 2 0 0 1-.3-1V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v8.7a2 2 0 0 1-.3 1L5 17z" />
   </svg>
 );
 
