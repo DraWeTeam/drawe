@@ -18,8 +18,7 @@ class ChipAnalyzerTest {
   void joinsCaseInsensitively() {
     List<ChipRow> rows =
         ChipAnalyzer.join(
-            List.of(new ShownAgg("Watercolor", 10, 1.0)),
-            List.of(new ReflectAgg("watercolor", 5)));
+            List.of(new ShownAgg("Watercolor", 10, 1.0)), List.of(new ReflectAgg("watercolor", 5)));
     assertThat(rows).hasSize(1);
     ChipRow r = rows.get(0);
     assertThat(r.shown()).isEqualTo(10);
@@ -62,8 +61,7 @@ class ChipAnalyzerTest {
   void mergesCaseInsensitiveWithWeightedAvgPosition() {
     // "a"(노출2,pos1.0) + "A"(노출3,pos3.0) → 병합 노출5, 가중평균 (2*1+3*3)/5 = 2.2
     List<ChipRow> rows =
-        ChipAnalyzer.join(
-            List.of(new ShownAgg("a", 2, 1.0), new ShownAgg("A", 3, 3.0)), List.of());
+        ChipAnalyzer.join(List.of(new ShownAgg("a", 2, 1.0), new ShownAgg("A", 3, 3.0)), List.of());
     assertThat(rows).hasSize(1);
     assertThat(rows.get(0).shown()).isEqualTo(5);
     assertThat(rows.get(0).avgPosition()).isCloseTo(2.2, within(1e-9));

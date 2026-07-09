@@ -86,8 +86,8 @@ public class AdminCostService {
   }
 
   /**
-   * AWS Cost Explorer 당월 스냅샷 + 사용자당 비용. 사용자당 = 당월 총액 ÷ 당월 활성 사용자(월 시작 기준으로
-   * countActiveUsers 재사용 — 비용도 월 단위라 기간을 맞춘다). 활성 0·조회 실패면 per-user 는 null("—").
+   * AWS Cost Explorer 당월 스냅샷 + 사용자당 비용. 사용자당 = 당월 총액 ÷ 당월 활성 사용자(월 시작 기준으로 countActiveUsers 재사용 —
+   * 비용도 월 단위라 기간을 맞춘다). 활성 0·조회 실패면 per-user 는 null("—").
    */
   private AwsCost buildAwsCost() {
     AwsCostSnapshot snap = awsCostService.getMonthlySnapshot();

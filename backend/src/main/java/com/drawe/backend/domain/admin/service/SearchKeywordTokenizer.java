@@ -11,8 +11,8 @@ import java.util.Set;
 /**
  * 검색어(extracted_keywords) → 어절(단어) 빈도 랭킹. 순수 함수 유틸(상태·I/O 없음 → 테스트 용이).
  *
- * <p><b>형태소 분석기가 아니다.</b> 공백 분리 + 영어 불용어 + 한국어 끝조사 제거 + 단순 복수 정규화의 규칙 기반 근사다. 방향성(무슨 어절이
- * 많이 검색되나)은 보지만 정밀 형태소는 못 본다.
+ * <p><b>형태소 분석기가 아니다.</b> 공백 분리 + 영어 불용어 + 한국어 끝조사 제거 + 단순 복수 정규화의 규칙 기반 근사다. 방향성(무슨 어절이 많이 검색되나)은
+ * 보지만 정밀 형태소는 못 본다.
  *
  * <p>{@code extracted_keywords}는 SearchExecutor가 {@code String.join(" ", keywords)}로 공백 조인 + 소문자
  * 저장하므로 공백 분리·소문자화는 사실상 완료 상태(방어적으로 재적용).
@@ -35,9 +35,7 @@ public final class SearchKeywordTokenizer {
       List.of(
           "에서", "으로", "까지", "부터", "은", "는", "이", "가", "을", "를", "의", "에", "로", "와", "과", "도", "만");
 
-  /**
-   * 어절 빈도 랭킹 상위 {@code topN}. 각 토큰 빈도는 해당 키워드의 {@code count}만큼 가중 합산. 동점은 어절 사전순.
-   */
+  /** 어절 빈도 랭킹 상위 {@code topN}. 각 토큰 빈도는 해당 키워드의 {@code count}만큼 가중 합산. 동점은 어절 사전순. */
   public static List<WordRank> rank(List<KeywordCount> sources, int topN) {
     Map<String, Long> freq = new HashMap<>();
     if (sources != null) {
@@ -63,9 +61,7 @@ public final class SearchKeywordTokenizer {
         .toList();
   }
 
-  /**
-   * 한 토큰 정규화: trim → 소문자 → 끝조사 1개 제거 → 불용어 버림 → 단순 복수(-s) 정규화. 빈 문자열이 되면 {@code null}(버림).
-   */
+  /** 한 토큰 정규화: trim → 소문자 → 끝조사 1개 제거 → 불용어 버림 → 단순 복수(-s) 정규화. 빈 문자열이 되면 {@code null}(버림). */
   static String normalize(String raw) {
     if (raw == null) {
       return null;

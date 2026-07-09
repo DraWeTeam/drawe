@@ -6,8 +6,8 @@ import java.util.Locale;
 /**
  * 어드민 Overview 탭 KPI 묶음 — 비즈니스(사용량) 지표만.
  *
- * <p>시스템 건강도(응답 지연·에러율의 원인·error_class)는 observability(Tempo/Prometheus/Loki)로 분리됨. 여기엔 "누가·얼마나
- * 썼나 + 시스템 실패가 났나(규모만)"만 남긴다 — 전부 {@code analytics_events} 단일 테이블 집계.
+ * <p>시스템 건강도(응답 지연·에러율의 원인·error_class)는 observability(Tempo/Prometheus/Loki)로 분리됨. 여기엔 "누가·얼마나 썼나
+ * + 시스템 실패가 났나(규모만)"만 남긴다 — 전부 {@code analytics_events} 단일 테이블 집계.
  *
  * <p>비율(success/error/searchBlock)은 분모 0일 때 {@code null} → 뷰에서 "—" 로 렌더한다. 임계·강조 판정은 raw {@code
  * Double} 값으로 뷰에서 한다. 원인·예외 종류(error_class)·지연 분위수(P95)는 여기서 다루지 않는다.

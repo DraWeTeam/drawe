@@ -88,8 +88,7 @@ class GuideServiceInstrumentationTest {
     stubAuthAndUser();
     stubNewGeneration(coachResp("hand_structure"));
 
-    GuideResult result =
-        guideService.guide(user, 1L, file, "손이 이상해요", null, null, null, "req-1");
+    GuideResult result = guideService.guide(user, 1L, file, "손이 이상해요", null, null, null, "req-1");
 
     assertThat(result).isNotNull();
     ArgumentCaptor<Map<String, Object>> cap = ArgumentCaptor.forClass(Map.class);
@@ -110,8 +109,7 @@ class GuideServiceInstrumentationTest {
     existing.setRequestText("손이 이상해요");
     when(guideRepository.findByRequestId("req-1")).thenReturn(Optional.of(existing));
 
-    GuideResult result =
-        guideService.guide(user, 1L, file, "손이 이상해요", null, null, null, "req-1");
+    GuideResult result = guideService.guide(user, 1L, file, "손이 이상해요", null, null, null, "req-1");
 
     assertThat(result).isNotNull();
     // 재사용 경로에선 외부 호출·계측 모두 스킵(중복 카운트 방지)
@@ -130,8 +128,7 @@ class GuideServiceInstrumentationTest {
         .when(analyticsEventService)
         .track(eq(AnalyticsEventType.GUIDE_RESULT), eq(user), isNull(), any());
 
-    GuideResult result =
-        guideService.guide(user, 1L, file, null, null, null, null, "req-2");
+    GuideResult result = guideService.guide(user, 1L, file, null, null, null, null, "req-2");
 
     assertThat(result).isNotNull();
   }

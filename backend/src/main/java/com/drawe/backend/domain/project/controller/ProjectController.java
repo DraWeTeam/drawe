@@ -60,9 +60,9 @@ public class ProjectController {
   /**
    * AI 추천 키워드 칩 노출 계측(chip_shown). <b>부가 기능</b> — 계측이 실패해도 추출 응답은 정상 반환되게 감싼다.
    *
-   * <p>{@code analyticsEventService.track} 자체가 REQUIRES_NEW + 내부 try-catch 지만, payload 구성 단계의
-   * 예외까지 방어한다. Grok degrade 로 keywords 가 비면 chips 빈 배열로 발화(노출 시도 자체는 chip_count=0 으로 기록).
-   * 라벨은 원본 그대로 저장하고 정규화는 집계 시점에 한다.
+   * <p>{@code analyticsEventService.track} 자체가 REQUIRES_NEW + 내부 try-catch 지만, payload 구성 단계의 예외까지
+   * 방어한다. Grok degrade 로 keywords 가 비면 chips 빈 배열로 발화(노출 시도 자체는 chip_count=0 으로 기록). 라벨은 원본 그대로
+   * 저장하고 정규화는 집계 시점에 한다.
    */
   private void trackChipShown(PrincipalDetails principal, String topic, List<String> keywords) {
     try {

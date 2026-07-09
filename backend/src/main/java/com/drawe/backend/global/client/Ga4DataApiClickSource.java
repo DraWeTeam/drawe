@@ -51,8 +51,8 @@ public class Ga4DataApiClickSource implements Ga4ClickSource {
       "https://www.googleapis.com/auth/analytics.readonly";
 
   /**
-   * reference_id 클릭으로 집계할 이벤트들. 챗(가이딩)에서 참고 이미지를 여는 {@code
-   * prompt_reference_viewed} 와 레퍼런스 보드에서 여는 {@code reference_board_reference_viewed} 둘 다 포함.
+   * reference_id 클릭으로 집계할 이벤트들. 챗(가이딩)에서 참고 이미지를 여는 {@code prompt_reference_viewed} 와 레퍼런스 보드에서 여는
+   * {@code reference_board_reference_viewed} 둘 다 포함.
    */
   private static final List<String> REFERENCE_VIEW_EVENTS =
       List.of("prompt_reference_viewed", "reference_board_reference_viewed");

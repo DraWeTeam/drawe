@@ -67,8 +67,8 @@ public final class TagEngagementAnalyzer {
   /**
    * 게이트 판정. 커버리지(노출/좋아요/핀/클릭)와 쏠림(maxAxisShare)으로 green/yellow/red.
    *
-   * <p>green = 좋아요·핀 살아있고 + 쏠림 없음(클릭은 필수 아님).
-   * 노출만 있거나 한 태그 과반이면 red. 클릭 미연동은 레벨을 낮추지 않고 coverageText 에만 표기.
+   * <p>green = 좋아요·핀 살아있고 + 쏠림 없음(클릭은 필수 아님). 노출만 있거나 한 태그 과반이면 red. 클릭 미연동은 레벨을 낮추지 않고
+   * coverageText 에만 표기.
    */
   public static Gate judge(
       long shownSum,
@@ -91,10 +91,7 @@ public final class TagEngagementAnalyzer {
       return new Gate("red", coverage, "노출 데이터가 없어요.");
     }
     if (maxAxisShare >= SKEW_THRESHOLD) {
-      return new Gate(
-          "red",
-          coverage,
-          "한 태그가 노출의 절반 이상을 차지해요 — 태그 간 비교가 왜곡돼요.");
+      return new Gate("red", coverage, "한 태그가 노출의 절반 이상을 차지해요 — 태그 간 비교가 왜곡돼요.");
     }
     if (likesSum == 0 && pinsSum == 0 && clicksSum == 0) {
       return new Gate("red", coverage, "노출만 있고 좋아요·핀·클릭이 전혀 없어요.");
@@ -106,19 +103,15 @@ public final class TagEngagementAnalyzer {
     return new Gate("yellow", coverage, "좋아요·핀 반응이 아직 약해 방향만 참고하세요.");
   }
 
-  /**
-   * 공급-관심 갭 후보(축 중앙값 기준 사분면). 전환율↑·노출↓ = "공급 부족", 노출↑·전환율↓ = "과공급". 표본이 적으면(&lt;4) 빈 목록.
-   */
+  /** 공급-관심 갭 후보(축 중앙값 기준 사분면). 전환율↑·노출↓ = "공급 부족", 노출↑·전환율↓ = "과공급". 표본이 적으면(&lt;4) 빈 목록. */
   public static List<CandidateRow> supplyGapCandidates(String axis, List<TagRow> rows) {
     List<TagRow> withShown =
         rows.stream().filter(r -> r.shown() > 0 && r.conversionRate() != null).toList();
     if (withShown.size() < QUADRANT_MIN) {
       return List.of();
     }
-    double medConv =
-        median(withShown.stream().map(TagRow::conversionRate).sorted().toList());
-    double medShown =
-        median(withShown.stream().map(r -> (double) r.shown()).sorted().toList());
+    double medConv = median(withShown.stream().map(TagRow::conversionRate).sorted().toList());
+    double medShown = median(withShown.stream().map(r -> (double) r.shown()).sorted().toList());
 
     List<CandidateRow> out = new ArrayList<>();
     for (TagRow r : withShown) {
@@ -136,9 +129,7 @@ public final class TagEngagementAnalyzer {
     if (n == 0) {
       return 0d;
     }
-    return n % 2 == 1
-        ? sorted.get(n / 2)
-        : (sorted.get(n / 2 - 1) + sorted.get(n / 2)) / 2d;
+    return n % 2 == 1 ? sorted.get(n / 2) : (sorted.get(n / 2 - 1) + sorted.get(n / 2)) / 2d;
   }
 
   // ── 태그 위생 ──────────────────────────────────────────

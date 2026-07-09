@@ -69,11 +69,7 @@ class GuideQualityAnalyzerTest {
   void topFocusSortedByCountDescTopN() {
     List<FocusRow> rows =
         GuideQualityAnalyzer.topFocus(
-            List.of(
-                new FocusAgg("hand", 3),
-                new FocusAgg("face", 10),
-                new FocusAgg("pose", 5)),
-            2);
+            List.of(new FocusAgg("hand", 3), new FocusAgg("face", 10), new FocusAgg("pose", 5)), 2);
     // 상위 2개, 내림차순: face(10) → pose(5)
     assertThat(rows).extracting(FocusRow::label).containsExactly("face", "pose");
     assertThat(rows.get(0).count()).isEqualTo(10);

@@ -10,8 +10,8 @@ import java.util.List;
  * <p>신호 출처: shown(노출)=references_json, likes=image_feedback, pins=project_references(프로젝트 저장),
  * clicks=GA4. <b>약신호 페이지</b>라 화면 최상단 게이트로 신뢰도를 먼저 판정한 뒤 순위를 본다.
  *
- * <p><b>정렬 = 노출 보정 전환율</b>(clicks+likes+pins)/shown. 절대 점수(engagementScore)는 tiebreak 로 강등 — 많이
- * 보여준 태그가 무조건 위로 가지 않게.
+ * <p><b>정렬 = 노출 보정 전환율</b>(clicks+likes+pins)/shown. 절대 점수(engagementScore)는 tiebreak 로 강등 — 많이 보여준
+ * 태그가 무조건 위로 가지 않게.
  */
 public record TagEngagementModel() {
 

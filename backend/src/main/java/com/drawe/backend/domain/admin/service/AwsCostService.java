@@ -107,8 +107,7 @@ public class AwsCostService {
           }
         }
       }
-      return new AwsCostSnapshot(
-          true, null, monthLabel, total, topNWithOther(all), aiSubtotal);
+      return new AwsCostSnapshot(true, null, monthLabel, total, topNWithOther(all), aiSubtotal);
     } catch (Exception e) {
       // 권한 미설정(AccessDenied) 포함 — 로그만 남기고 화면은 안내로.
       log.warn("Cost Explorer 조회 실패: error_class={}", e.getClass().getSimpleName());

@@ -15,9 +15,8 @@ import software.amazon.awssdk.services.costexplorer.model.ResultByTime;
 /**
  * 로컬 검증용 가짜 Cost Explorer 클라이언트 — {@code costmock} 프로파일에서만.
  *
- * <p>로컬엔 실제 AWS 비용/권한이 없으므로 canned 응답을 돌려준다. {@code AwsCostService} 의 실제 파싱·정렬·"기타" 합산·Bedrock
- * 소계 경로를 그대로 태워 화면 렌더를 확인한다. prod({@code s3})엔 {@link CostExplorerConfig} 의 실 클라이언트가 뜬다(서로 배타적
- * 프로파일).
+ * <p>로컬엔 실제 AWS 비용/권한이 없으므로 canned 응답을 돌려준다. {@code AwsCostService} 의 실제 파싱·정렬·"기타" 합산·Bedrock 소계
+ * 경로를 그대로 태워 화면 렌더를 확인한다. prod({@code s3})엔 {@link CostExplorerConfig} 의 실 클라이언트가 뜬다(서로 배타적 프로파일).
  */
 @Configuration
 @Profile("costmock")

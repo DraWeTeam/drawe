@@ -5,9 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * 가이딩 품질 순수 계산 — 만족도(좋아요율)·degraded율·신뢰도·축 분포 정렬. DB·시간·프레임워크 의존 없음(단위 테스트 용이).
- */
+/** 가이딩 품질 순수 계산 — 만족도(좋아요율)·degraded율·신뢰도·축 분포 정렬. DB·시간·프레임워크 의존 없음(단위 테스트 용이). */
 public final class GuideQualityAnalyzer {
 
   private GuideQualityAnalyzer() {}

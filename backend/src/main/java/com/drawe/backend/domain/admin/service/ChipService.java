@@ -14,9 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 칩 분석 탭 조립 — AI 추천 칩의 노출→반영 전환율. DB 집계만 하고 정규화·조인·정렬·전환율은 {@link ChipAnalyzer}(순수 함수)에 위임.
- */
+/** 칩 분석 탭 조립 — AI 추천 칩의 노출→반영 전환율. DB 집계만 하고 정규화·조인·정렬·전환율은 {@link ChipAnalyzer}(순수 함수)에 위임. */
 @Service
 @RequiredArgsConstructor
 public class ChipService {

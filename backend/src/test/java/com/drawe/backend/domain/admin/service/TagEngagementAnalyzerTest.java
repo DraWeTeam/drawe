@@ -1,7 +1,6 @@
 package com.drawe.backend.domain.admin.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
 
 import com.drawe.backend.domain.admin.dto.TagEngagementModel.CandidateRow;
 import com.drawe.backend.domain.admin.dto.TagEngagementModel.Gate;

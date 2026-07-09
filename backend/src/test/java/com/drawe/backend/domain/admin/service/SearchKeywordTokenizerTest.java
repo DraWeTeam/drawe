@@ -6,7 +6,6 @@ import com.drawe.backend.domain.admin.dto.SearchQualityModel.WordRank;
 import com.drawe.backend.domain.admin.service.SearchKeywordTokenizer.KeywordCount;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,8 +38,7 @@ class SearchKeywordTokenizerTest {
   @Test
   @DisplayName("한국어_조사_제거")
   void stripsKoreanParticles() {
-    Map<String, Long> f =
-        freq(List.of(new KeywordCount("남자를", 1), new KeywordCount("남자", 1)));
+    Map<String, Long> f = freq(List.of(new KeywordCount("남자를", 1), new KeywordCount("남자", 1)));
     // "남자를" → "남자" 로 정규화되어 "남자"=2 로 합산
     assertThat(f).containsEntry("남자", 2L).doesNotContainKey("남자를");
   }
@@ -55,8 +53,7 @@ class SearchKeywordTokenizerTest {
   @Test
   @DisplayName("단순_복수_정규화")
   void normalizesSimplePlural() {
-    Map<String, Long> f =
-        freq(List.of(new KeywordCount("cats", 2), new KeywordCount("cat", 1)));
+    Map<String, Long> f = freq(List.of(new KeywordCount("cats", 2), new KeywordCount("cat", 1)));
     assertThat(f).containsEntry("cat", 3L).doesNotContainKey("cats");
   }
 

@@ -147,8 +147,8 @@ public class GuideService {
   }
 
   /**
-   * 가이드 생성 결과 계측(GUIDE_RESULT). 계측 실패가 본 기능(가이드 응답)을 깨지 않게 방어한다 — {@code
-   * analyticsEventService} 도 내부적으로 무예외지만 payload 조립까지 포함해 이중 안전.
+   * 가이드 생성 결과 계측(GUIDE_RESULT). 계측 실패가 본 기능(가이드 응답)을 깨지 않게 방어한다 — {@code analyticsEventService} 도
+   * 내부적으로 무예외지만 payload 조립까지 포함해 이중 안전.
    */
   private void fireResultEvent(User user, GuideResponse resp) {
     try {
