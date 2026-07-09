@@ -277,8 +277,9 @@
     <a href="/admin/search-quality" th:classappend="${active == 'search'} ? 'active'">검색 품질</a>
     <a href="/admin/cost" th:classappend="${active == 'cost'} ? 'active'">비용</a>
     <a href="/admin/tag-engagement" th:classappend="${active == 'tag'} ? 'active'">태그 관심도</a>
-    <!-- Funnel: 태그 관심도(/admin/tag-engagement)의 이미지 단위 드릴다운. q=태그로 필터 진입 가능 -->
-    <a href="/admin/funnel" th:classappend="${active == 'funnel'} ? 'active'">Funnel</a>
+    <a href="/admin/chip" th:classappend="${active == 'chip'} ? 'active'">칩 분석</a>
+    <!-- Funnel: 내비에서 제거. 태그 관심도(/admin/tag-engagement) 태그 클릭 → ?q=태그 로 진입하는
+         이미지 단위 드릴다운 전용 페이지(라우트·페이지 유지). -->
     <!-- // 사용자 피드백 어드민 탭: Phase 2 -->
   </nav>
   <form class="logout" th:action="@{/admin/logout}" method="post">
