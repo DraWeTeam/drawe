@@ -6,6 +6,8 @@ import com.drawe.backend.domain.ImageBlob;
 import com.drawe.backend.domain.Project;
 import com.drawe.backend.domain.User;
 import com.drawe.backend.domain.UserPrefTag;
+import com.drawe.backend.domain.analytics.AnalyticsEventType;
+import com.drawe.backend.domain.analytics.service.AnalyticsEventService;
 import com.drawe.backend.domain.enums.Axis;
 import com.drawe.backend.domain.enums.FeedbackType;
 import com.drawe.backend.domain.guide.dto.GuideResult;
@@ -27,6 +29,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +61,8 @@ public class GuideService {
   private final ImageBlobRepository imageBlobRepository;
   // 온보딩 무드 취향 → 가이드 추천 soft boost(fastapi mood_map). 읽기 전용.
   private final UserPrefTagRepository userPrefTagRepository;
+  // 가이딩 품질 계측(백엔드 직접 발화, chip_shown 패턴). 발화 실패는 가이드 기능에 영향 없음.
+  private final AnalyticsEventService analyticsEventService;
 
   /** 레퍼런스 이미지의 '브라우저 도달용' base(/image/{ref_id}). prod 도달성은 P5 인프라에서 확정. */
   @Value("${fastapi.guide.public-url}")
@@ -127,6 +132,11 @@ public class GuideService {
       throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
     }
 
+    // 생성 성공률 계측 — 신규 생성만(멱등 재사용은 위 existing.isPresent() early-return 으로 이미 빠져
+    // 여기 도달 못 함 → 중복 카운트 없음). guides 는 coach 만 저장하므로 refused/clarify/redirect 를 못 봐,
+    // 모든 mode 를 GUIDE_RESULT 이벤트로 남겨 성공률(coach 비율)을 산출한다.
+    fireResultEvent(user, resp);
+
     // coach 모드만 영속(거절/재질문/리다이렉트는 히스토리에 남기지 않음).
     String uploadUrl = null;
     if ("coach".equals(resp.mode())) {
@@ -134,6 +144,22 @@ public class GuideService {
       uploadUrl = saved != null ? uploadUrl(saved) : null;
     }
     return buildResult(resp, Instant.now(), uploadUrl, message);
+  }
+
+  /**
+   * 가이드 생성 결과 계측(GUIDE_RESULT). 계측 실패가 본 기능(가이드 응답)을 깨지 않게 방어한다 — {@code analyticsEventService} 도
+   * 내부적으로 무예외지만 payload 조립까지 포함해 이중 안전.
+   */
+  private void fireResultEvent(User user, GuideResponse resp) {
+    try {
+      Map<String, Object> payload = new HashMap<>();
+      payload.put("mode", resp.mode());
+      payload.put("degraded", resp.degraded());
+      payload.put("primary_focus", resp.primaryFocus()); // nullable
+      analyticsEventService.track(AnalyticsEventType.GUIDE_RESULT, user, null, payload);
+    } catch (RuntimeException e) {
+      log.warn("guide_result 계측 실패(무시): {}", e.getMessage());
+    }
   }
 
   private Guide persistGuide(
@@ -272,6 +298,8 @@ public class GuideService {
     if (subProblem == null || !blockSubProblems(g.getPayload()).contains(subProblem)) {
       throw new CustomException(ErrorCode.INVALID_INPUT);
     }
+    // 불만족 신호 계측 — 결과(성공/고갈/생성중) 무관하게 '재추천 시도' 자체를 기록.
+    fireRerollEvent(user, guideId, subProblem);
     RerollResponse rr = guideClient.reroll(subProblem, exclude);
     if (rr.pending() != null) {
       return RerollResult.pending(subProblem, rr.pending().message());
@@ -294,6 +322,18 @@ public class GuideService {
               m != null ? m.category() : null));
     }
     return RerollResult.ok(subProblem, refs);
+  }
+
+  /** 레퍼런스 재추천 계측(GUIDE_REROLL). 계측 실패가 재추천 기능을 깨지 않게 방어. */
+  private void fireRerollEvent(User user, String guideId, String subProblem) {
+    try {
+      Map<String, Object> payload = new HashMap<>();
+      payload.put("guide_id", guideId);
+      payload.put("sub_problem", subProblem);
+      analyticsEventService.track(AnalyticsEventType.GUIDE_REROLL, user, null, payload);
+    } catch (RuntimeException e) {
+      log.warn("guide_reroll 계측 실패(무시): {}", e.getMessage());
+    }
   }
 
   /** 가이드 페이로드 블록들의 sub_problem 집합 — 재추천 축 화이트리스트(임의 축 차단). */

@@ -35,7 +35,14 @@ public class AdminAnalyticsService {
     long activeUsers = repo.countActiveUsers(since);
     long chatStart = repo.countByType(AnalyticsEventType.CHAT_START, since);
     long chatSuccess = repo.countByType(AnalyticsEventType.CHAT_SUCCESS, since);
+    long chatError = repo.countByType(AnalyticsEventType.CHAT_ERROR, since);
     long searchExecuted = repo.countByType(AnalyticsEventType.SEARCH_EXECUTED, since);
+    long searchBlocked = repo.countByType(AnalyticsEventType.SEARCH_BLOCKED, since);
+
+    // 성공률/에러율 분모 = success + error (턴 단위). chat_start(세션 단위)는 분모에 쓰지 않는다.
+    Double successRate = rate(chatSuccess, chatSuccess + chatError);
+    Double errorRate = rate(chatError, chatSuccess + chatError);
+    Double searchBlockRate = rate(searchBlocked, searchExecuted + searchBlocked);
 
     List<OverviewKpi.EventTypeCount> distribution =
         repo.eventTypeDistribution(since).stream()
@@ -48,7 +55,17 @@ public class AdminAnalyticsService {
         activeUsers,
         chatStart,
         chatSuccess,
+        chatError,
         searchExecuted,
+        searchBlocked,
+        successRate,
+        errorRate,
+        searchBlockRate,
         distribution);
+  }
+
+  /** 비율(0~100). 분모 0이면 null → 뷰에서 "—". */
+  private static Double rate(long numerator, long denominator) {
+    return denominator == 0 ? null : numerator * 100.0 / denominator;
   }
 }

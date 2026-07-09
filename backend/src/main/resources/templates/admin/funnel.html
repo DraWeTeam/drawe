@@ -5,16 +5,25 @@
 <header th:replace="~{admin/fragments :: topbar('funnel')}"></header>
 
 <main class="wrap" id="admin-content">
+  <div th:replace="~{admin/fragments :: pageIdentity('이 태그·조건의 레퍼런스 이미지들은 어떤 반응을 얻는가?', 'monitor')}"></div>
   <div class="pagehead">
     <div>
       <h1>Engagement Funnel</h1>
-      <div class="meta">노출(shown) → 좋아요/싫어요 → 저장(save) · 최근 <span th:text="${hours}">168</span>시간</div>
+      <div class="meta">태그 관심도의 이미지 단위 상세 보기 · 노출 → 좋아요 → 저장 · 최근 <span th:text="${hours}">168</span>시간</div>
     </div>
     <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/funnel(hours=24)}"  th:classappend="${hours == 24} ? 'active'">24h</a>
       <a th:href="@{/admin/funnel(hours=168)}" th:classappend="${hours == 168} ? 'active'">7d</a>
       <a th:href="@{/admin/funnel(hours=720)}" th:classappend="${hours == 720} ? 'active'">30d</a>
     </div>
+  </div>
+
+  <!-- 태그 관심도에서 드릴다운으로 들어온 경우: 필터 + 돌아가기 -->
+  <div th:if="${!#strings.isEmpty(funnel.q())}"
+       style="margin:2px 0 16px; font-size:13px; background:var(--accent-soft); color:var(--accent);
+              padding:9px 13px; border-radius:8px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+    <span>필터: <b th:text="${funnel.q()}">-</b></span>
+    <a th:href="@{/admin/tag-engagement}" style="color:var(--accent); text-decoration:underline;">← 태그 관심도로 돌아가기</a>
   </div>
 
   <!-- 추천 적합도 요약 (윈도우 전체 기준 — 검색/페이지 영향 없음) -->
@@ -69,6 +78,7 @@
   </section>
 
   <section class="panel">
+    <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 이미지별 상세</h2>
     <!-- 검색 + 총건수 -->
     <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
       <form action="/admin/funnel" method="get"

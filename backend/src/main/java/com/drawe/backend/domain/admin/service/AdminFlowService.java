@@ -44,6 +44,9 @@ public class AdminFlowService {
             stage("검색 실행", searched, sessions),
             stage("응답 성공", succeeded, sessions));
 
+    // KO 헤드라인용 편의 필드 — 새 쿼리 없이 위에서 쓴 succeeded/sessions 재사용. 0~100, 분모 0이면 null.
+    Double succeededReach = sessions > 0 ? succeeded * 100.0 / sessions : null;
+
     return new View(
         windowHours,
         TS.format(Instant.now()),
@@ -51,7 +54,8 @@ public class AdminFlowService {
         stages,
         num(r.getBlocked()),
         num(r.getErrored()),
-        num(r.getOnboarded()));
+        num(r.getOnboarded()),
+        succeededReach);
   }
 
   private static Stage stage(String label, long sessions, long base) {

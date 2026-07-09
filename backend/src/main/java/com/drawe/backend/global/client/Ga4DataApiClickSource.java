@@ -36,8 +36,8 @@ import org.springframework.stereotype.Component;
  *   <li><b>로컬</b>: env 비우고 {@code GOOGLE_APPLICATION_CREDENTIALS=/path/key.json}(파일) 로 ADC 사용.
  * </ul>
  *
- * <p>커스텀 측정기준은 Data API 에서 {@code customEvent:reference_id}. 이벤트 필터 {@code eventName ==
- * prompt_reference_viewed}.
+ * <p>커스텀 측정기준은 Data API 에서 {@code customEvent:reference_id}. 이벤트 필터 {@code eventName in
+ * (prompt_reference_viewed, reference_board_reference_viewed)} — 챗 가이딩·레퍼런스 보드 클릭 모두 집계.
  *
  * <p>회복력: property-id 미설정/호출 실패 시 빈 맵 + {@link #isAvailable()}=false. GA4 가 죽어도 DB 집계는 정상.
  */
@@ -49,6 +49,13 @@ public class Ga4DataApiClickSource implements Ga4ClickSource {
       DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("Asia/Seoul"));
   private static final String ANALYTICS_READONLY =
       "https://www.googleapis.com/auth/analytics.readonly";
+
+  /**
+   * reference_id 클릭으로 집계할 이벤트들. 챗(가이딩)에서 참고 이미지를 여는 {@code prompt_reference_viewed} 와 레퍼런스 보드에서 여는
+   * {@code reference_board_reference_viewed} 둘 다 포함.
+   */
+  private static final List<String> REFERENCE_VIEW_EVENTS =
+      List.of("prompt_reference_viewed", "reference_board_reference_viewed");
 
   private final String propertyId;
   private final String saKeyJson; // ECS env(SSM) 로 받은 JSON 내용. 비면 파일(ADC) 사용.
@@ -86,9 +93,9 @@ public class Ga4DataApiClickSource implements Ga4ClickSource {
                       .setFilter(
                           Filter.newBuilder()
                               .setFieldName("eventName")
-                              .setStringFilter(
-                                  Filter.StringFilter.newBuilder()
-                                      .setValue("prompt_reference_viewed")))
+                              .setInListFilter(
+                                  Filter.InListFilter.newBuilder()
+                                      .addAllValues(REFERENCE_VIEW_EVENTS)))
                       .build())
               .setLimit(100000)
               .build();
@@ -133,7 +140,15 @@ public class Ga4DataApiClickSource implements Ga4ClickSource {
               .build();
       return BetaAnalyticsDataClient.create(settings);
     }
-    return BetaAnalyticsDataClient.create(); // 로컬: 파일 ADC
+    // 로컬: 파일 ADC(GOOGLE_APPLICATION_CREDENTIALS). SA 키는 scope 가 없으므로
+    // analytics.readonly 를 명시적으로 붙여야 UNAUTHENTICATED 를 피한다(env 경로와 동일).
+    GoogleCredentials creds =
+        GoogleCredentials.getApplicationDefault().createScoped(List.of(ANALYTICS_READONLY));
+    BetaAnalyticsDataSettings settings =
+        BetaAnalyticsDataSettings.newBuilder()
+            .setCredentialsProvider(FixedCredentialsProvider.create(creds))
+            .build();
+    return BetaAnalyticsDataClient.create(settings);
   }
 
   private static Long parseLong(String s) {

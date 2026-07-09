@@ -5,6 +5,7 @@
 <header th:replace="~{admin/fragments :: topbar('overview')}"></header>
 
 <main class="wrap" id="admin-content">
+  <div th:replace="~{admin/fragments :: pageIdentity('오늘 우리 서비스에 이상한 일이 있었는가?', 'monitor')}"></div>
   <div class="pagehead">
     <div>
       <h1>Overview</h1>
@@ -20,38 +21,41 @@
     </div>
   </div>
 
+  <!-- 핵심: North Star(헤드라인) + Guardrail(채팅 성공률, 임계 위반 시 빨강 강조) -->
   <section class="grid">
-    <div class="card">
-      <div class="label">활성 사용자</div>
-      <div class="value mono" th:text="${kpi.activeUsers()}">0</div>
-      <div class="foot">고유 user_id</div>
-    </div>
-    <div class="card">
-      <div class="label">채팅 수</div>
-      <div class="value mono" th:text="${kpi.chatSuccess()}">0</div>
-      <div class="foot">chat_success · 시작 <span th:text="${kpi.chatStart()}">0</span></div>
-    </div>
-    <div class="card">
-      <div class="label">검색 수</div>
-      <div class="value mono" th:text="${kpi.searchExecuted()}">0</div>
-      <div class="foot">search_executed</div>
-    </div>
+    <div th:replace="~{admin/fragments :: kpiCard('ns', '활성 사용자', ${kpi.activeUsers()}, '', '아직 사용자가 적어 정확하진 않아요 — 흐름만 참고', 'yellow', 'none')}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '채팅 성공률', ${kpi.successRateText()}, '', '응답이 떴는지만 봐요 (내용이 좋은지는 아님)', 'green', ${kpi.successRate() != null and kpi.successRate() < 95.0 ? 'bad' : 'none'})}"></div>
   </section>
 
-  <section class="panel">
-    <h2>이벤트 분포 <span class="tag">전체 event_type</span></h2>
-    <div class="chartbox" th:if="${!kpi.eventDistribution().isEmpty()}"><canvas id="ov-events"></canvas></div>
-    <table th:if="${!kpi.eventDistribution().isEmpty()}">
-      <thead><tr><th>event_type</th><th class="num">건수</th></tr></thead>
-      <tbody>
-        <tr th:each="d : ${kpi.eventDistribution()}">
-          <td class="mono" th:text="${d.eventType()}">-</td>
-          <td class="num" th:text="${d.count()}">0</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="empty" th:if="${kpi.eventDistribution().isEmpty()}">이 구간에 이벤트가 없어요.</div>
-  </section>
+  <!-- Diagnostic: 평소엔 안 봐도 되는 진단 지표 (접기 가능) -->
+  <details class="diag" open style="margin-bottom: 18px;">
+    <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
+    </summary>
+
+    <section class="grid">
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '에러율', ${kpi.errorRateText()}, '', '채팅 중 오류가 난 비율', 'green', 'none')}"></div>
+      <div th:replace="~{admin/fragments :: kpiCard('diag', '검색 차단율', ${kpi.searchBlockRateText()}, '', '결과를 제대로 못 준 검색 비율', 'green', 'none')}"></div>
+    </section>
+
+    <section class="panel">
+      <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 이벤트 분포 <span class="tag">전체 event_type</span></h2>
+      <div class="chartbox" th:if="${!kpi.eventDistribution().isEmpty()}"><canvas id="ov-events"></canvas></div>
+      <table th:if="${!kpi.eventDistribution().isEmpty()}">
+        <thead><tr><th>event_type</th><th class="num">건수</th></tr></thead>
+        <tbody>
+          <tr th:each="d : ${kpi.eventDistribution()}">
+            <td class="mono" th:text="${d.eventType()}">-</td>
+            <td class="num" th:text="${d.count()}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${kpi.eventDistribution().isEmpty()}">이 구간에 이벤트가 없어요.</div>
+    </section>
+  </details>
+
+  <!-- WP0: 긴급도 범례 렌더 검증 -->
+  <div th:replace="~{admin/fragments :: urgencyLegend()}"></div>
 
   <script th:inline="javascript">
     (function () {
