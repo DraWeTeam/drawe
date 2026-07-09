@@ -39,6 +39,10 @@ resource "aws_iam_role_policy_attachment" "backend_bria_s3" {
   policy_arn = data.terraform_remote_state.ecs_dev.outputs.bria_s3_policy_arn
 }
 
+# Cost Explorer — 어드민 비용 탭. dev 는 현재 꺼져 있고 비용 탭을 dev 에서 검증하지 않아
+#   이번엔 prod 만 부여했다(eks/prod/3-platform/backend-irsa.tf). dev 에서 비용 탭을
+#   검증하려면 prod 와 동일하게 ce:GetCostAndUsage(Resource "*") 정책을 여기 추가하면 된다.
+
 output "backend_irsa_role_arn" {
   description = "backend SA annotation(eks.amazonaws.com/role-arn) 에 넣을 IRSA 롤 ARN"
   value       = aws_iam_role.backend.arn
