@@ -38,7 +38,8 @@ public final class TagEngagementAnalyzer {
   /** 전환율 내림차순 정렬(노출 0=전환율 null 은 맨 뒤). 동률은 절대 점수 내림차순. */
   public static void sortByConversion(List<TagRow> rows) {
     rows.sort(
-        Comparator.comparingDouble((TagRow t) -> t.conversionRate() == null ? -1d : t.conversionRate())
+        Comparator.comparingDouble(
+                (TagRow t) -> t.conversionRate() == null ? -1d : t.conversionRate())
             .reversed()
             .thenComparing(
                 Comparator.comparingDouble(
@@ -57,13 +58,17 @@ public final class TagEngagementAnalyzer {
   }
 
   public static String topTag(List<TagRow> rows) {
-    return rows.stream().max(Comparator.comparingLong(TagRow::shown)).map(TagRow::value).orElse(null);
+    return rows.stream()
+        .max(Comparator.comparingLong(TagRow::shown))
+        .map(TagRow::value)
+        .orElse(null);
   }
 
   /**
    * 게이트 판정. 커버리지(노출/좋아요/핀/클릭)와 쏠림(maxAxisShare)으로 green/yellow/red.
    *
-   * <p>green = 좋아요·핀 살아있고 + 쏠림 없음(클릭은 필수 아님). 노출만 있거나 한 태그 과반이면 red. 클릭 미연동은 레벨을 낮추지 않고 coverageText 에만 표기.
+   * <p>green = 좋아요·핀 살아있고 + 쏠림 없음(클릭은 필수 아님).
+   * 노출만 있거나 한 태그 과반이면 red. 클릭 미연동은 레벨을 낮추지 않고 coverageText 에만 표기.
    */
   public static Gate judge(
       long shownSum,

@@ -62,11 +62,11 @@ public class AdminTagEngagementService {
       long shown = num(r.getShown());
       long likes = num(r.getLikes());
       long pins = num(r.getPins());
-      long click = clicks.getOrDefault(r.getImageId(), 0L);
 
       totalShown += shown;
       totalLikes += likes;
       totalPins += pins;
+      long click = clicks.getOrDefault(r.getImageId(), 0L);
       totalClicks += click;
 
       add(technique, r.getTechnique(), shown, click, likes, pins);
@@ -97,7 +97,8 @@ public class AdminTagEngagementService {
     Gate gate =
         TagEngagementAnalyzer.judge(
             totalShown, totalLikes, totalPins, totalClicks, clicksAvailable, maxAxisShare);
-    Double ko = TagEngagementAnalyzer.conversionRate(totalClicks, totalLikes, totalPins, totalShown);
+    Double ko =
+        TagEngagementAnalyzer.conversionRate(totalClicks, totalLikes, totalPins, totalShown);
     String koReliability = "green".equals(gate.level()) ? "green" : "yellow";
 
     List<CandidateRow> candidates = new ArrayList<>();

@@ -22,6 +22,7 @@ import com.drawe.backend.global.response.ApiResponse;
 import com.drawe.backend.global.security.PrincipalDetails;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -40,14 +41,16 @@ class ProjectControllerChipShownTest {
   }
 
   @Test
-  void 노출시_chip_shown_payload_검증() {
+  @DisplayName("노출시_chip_shown_payload_검증")
+  void tracksChipShownPayloadOnExtraction() {
     User user = mock(User.class);
     when(keywordService.extract("수채화 인물화"))
         .thenReturn(
             new KeywordExtractionResponse("인물화", List.of("watercolor", "portrait", "soft")));
 
     ApiResponse<KeywordExtractionResponse> resp =
-        controller.keywordExtraction(new PrincipalDetails(user), new KeywordExtractionRequest("수채화 인물화"));
+        controller.keywordExtraction(
+            new PrincipalDetails(user), new KeywordExtractionRequest("수채화 인물화"));
 
     // 본 기능 응답 정상
     assertThat(resp.getData().keywords()).containsExactly("watercolor", "portrait", "soft");
@@ -65,7 +68,8 @@ class ProjectControllerChipShownTest {
   }
 
   @Test
-  void 계측_예외나도_추출응답_정상반환() {
+  @DisplayName("계측_예외나도_추출응답_정상반환")
+  void returnsExtractionResponseWhenTrackingThrows() {
     User user = mock(User.class);
     when(keywordService.extract("t")).thenReturn(new KeywordExtractionResponse("n", List.of("a")));
     doThrow(new RuntimeException("boom"))
@@ -79,19 +83,23 @@ class ProjectControllerChipShownTest {
   }
 
   @Test
-  void keywords_비면_chips_빈배열_chip_count0() {
+  @DisplayName("keywords_비면_chips_빈배열_chip_count0")
+  void emitsEmptyChipsWhenKeywordsEmpty() {
     when(keywordService.extract("x")).thenReturn(new KeywordExtractionResponse("x", List.of()));
 
-    controller.keywordExtraction(new PrincipalDetails(mock(User.class)), new KeywordExtractionRequest("x"));
+    controller.keywordExtraction(
+        new PrincipalDetails(mock(User.class)), new KeywordExtractionRequest("x"));
 
     ArgumentCaptor<Map<String, Object>> cap = payloadCaptor();
-    verify(analytics).track(eq(AnalyticsEventType.CHIP_SHOWN), any(User.class), isNull(), cap.capture());
+    verify(analytics)
+        .track(eq(AnalyticsEventType.CHIP_SHOWN), any(User.class), isNull(), cap.capture());
     assertThat(cap.getValue()).containsEntry("chip_count", 0);
     assertThat((List<?>) cap.getValue().get("chips")).isEmpty();
   }
 
   @Test
-  void principal_null이어도_null_user로_발화() {
+  @DisplayName("principal_null이어도_null_user로_발화")
+  void tracksWithNullUserWhenPrincipalNull() {
     when(keywordService.extract("x")).thenReturn(new KeywordExtractionResponse("x", List.of("a")));
 
     controller.keywordExtraction(null, new KeywordExtractionRequest("x"));

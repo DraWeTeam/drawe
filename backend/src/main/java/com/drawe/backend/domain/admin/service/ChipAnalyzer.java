@@ -11,7 +11,8 @@ import java.util.Map;
 /**
  * 칩 노출/반영 조인·전환율·정렬 — 순수 함수(상태·I/O 없음 → 테스트 용이).
  *
- * <p>라벨을 정규화(trim·lowercase)해 노출({@code chip_shown})과 반영({@code projects.keywords})을 조인한다. <b>정렬은 노출
+ * <p>라벨을 정규화(trim·lowercase)해 노출({@code chip_shown})과
+ * 반영({@code projects.keywords})을 조인한다. <b>정렬은 노출
  * 보정 전환율</b>(반영/노출) 내림차순 — 절대 반영수로 정렬하지 않는다(어절 랭킹과 같은 함정 방지). 노출 0(미기록)은 전환율 null 로 맨 뒤.
  */
 public final class ChipAnalyzer {

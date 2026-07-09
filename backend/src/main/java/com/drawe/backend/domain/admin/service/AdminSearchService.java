@@ -115,7 +115,8 @@ public class AdminSearchService {
             demandRows, demandRaw.total(), demandRaw.page(), demandRaw.size(), demandRaw.q());
 
     // 검색어 어절 TOP — keyword+cnt 경량 집계를 자바에서 어절 분해(순수 유틸). original_message 미조회.
-    List<WordRank> wordTopAll = SearchKeywordTokenizer.rank(toKeywordCounts(repo.wordSourceAll(since)), WORD_TOP_N);
+    List<WordRank> wordTopAll =
+        SearchKeywordTokenizer.rank(toKeywordCounts(repo.wordSourceAll(since)), WORD_TOP_N);
     List<WordRank> wordTopLowQuality =
         SearchKeywordTokenizer.rank(toKeywordCounts(repo.wordSourceLowQuality(since)), WORD_TOP_N);
 

@@ -10,7 +10,8 @@ import org.springframework.data.repository.query.Param;
 /**
  * 칩 분석 집계 (읽기 전용, 네이티브).
  *
- * <p>노출 = {@code analytics_events} 의 {@code chip_shown} payload.chips 를 JSON_TABLE 로 unnest. 반영 = {@code
+ * <p>노출 = {@code analytics_events} 의 {@code chip_shown} payload.chips 를 JSON_TABLE 로
+ * unnest. 반영 = {@code
  * projects.keywords}(JSON 배열)를 JSON_TABLE 로 unnest. 라벨 정규화·조인·전환율은 서비스(순수 함수)에서 한다.
  *
  * <p>네이티브 쿼리는 엔티티 테이블에 묶이지 않으므로 같은 리포지토리에서 analytics_events / projects 를 각각 조회해도 된다.

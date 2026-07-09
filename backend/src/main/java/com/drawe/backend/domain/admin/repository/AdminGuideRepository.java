@@ -8,10 +8,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * 가이딩 품질 집계 (읽기 전용, 네이티브). 전부 어드민 DB({@code drawe_db})의 {@code guides} / {@code guide_feedback} 만 본다 —
+ * 가이딩 품질 집계 (읽기 전용, 네이티브).
+ * 전부 어드민 DB({@code drawe_db})의 {@code guides} / {@code guide_feedback} 만 본다 —
  * 계측 추가 없음. FastAPI DB(adoption_log/practice_log)는 범위 밖.
  *
- * <p>{@code guides} 는 coach 가이드 1건=1행(refused/clarify/redirect 미저장). 일자 그룹핑은 KST 기준 — created_at(UTC)에
+ * <p>{@code guides} 는 coach 가이드 1건=1행(refused/clarify/redirect 미저장).
+ * 일자 그룹핑은 KST 기준 — created_at(UTC)에
  * {@code +09:00} offset 을 적용한다(다른 어드민 집계와 동일, CONVERT_TZ 의 tz 테이블 의존 회피).
  */
 public interface AdminGuideRepository extends JpaRepository<Guide, Long> {

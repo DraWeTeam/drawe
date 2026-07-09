@@ -29,6 +29,7 @@ import com.drawe.backend.global.client.dto.GuideResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -82,7 +83,8 @@ class GuideServiceInstrumentationTest {
   }
 
   @Test
-  void 신규생성_guide_result_발화_mode_담김() throws Exception {
+  @DisplayName("신규생성_guide_result_발화_mode_담김")
+  void firesGuideResultOnNewGeneration() throws Exception {
     stubAuthAndUser();
     stubNewGeneration(coachResp("hand_structure"));
 
@@ -99,7 +101,8 @@ class GuideServiceInstrumentationTest {
   }
 
   @Test
-  void 멱등_재사용_guide_result_미발화() {
+  @DisplayName("멱등_재사용_guide_result_미발화")
+  void doesNotFireOnIdempotentReuse() {
     stubAuthAndUser();
     // 같은 request_id 로 이미 저장된 가이드가 있음 → early-return
     Guide existing = new Guide();
@@ -118,7 +121,8 @@ class GuideServiceInstrumentationTest {
   }
 
   @Test
-  void 계측_예외나도_가이드_응답_정상() throws Exception {
+  @DisplayName("계측_예외나도_가이드_응답_정상")
+  void guideStillReturnsWhenTrackThrows() throws Exception {
     stubAuthAndUser();
     stubNewGeneration(coachResp("eye_line"));
     // 계측이 터져도 본 기능은 살아야 함

@@ -12,6 +12,7 @@ import com.drawe.backend.domain.admin.dto.CostModel.ServiceCost;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
@@ -45,7 +46,8 @@ class AwsCostServiceTest {
   }
 
   @Test
-  void 총액_정렬_bedrock소계() {
+  @DisplayName("총액_정렬_bedrock소계")
+  void sortsTotalWithBedrockSubtotal() {
     CostExplorerClient client = mock(CostExplorerClient.class);
     when(client.getCostAndUsage(any(GetCostAndUsageRequest.class)))
         .thenReturn(
@@ -70,7 +72,8 @@ class AwsCostServiceTest {
   }
 
   @Test
-  void 상위N_초과분은_기타로_합산() {
+  @DisplayName("상위N_초과분은_기타로_합산")
+  void aggregatesOverflowIntoOthers() {
     // TOP_N=8 → 10개 넣으면 상위 8 + "기타"(하위 2 합)
     Group[] gs = new Group[10];
     for (int i = 0; i < 10; i++) {
@@ -89,7 +92,8 @@ class AwsCostServiceTest {
   }
 
   @Test
-  void 캐시_2회호출시_CE_1회만() {
+  @DisplayName("캐시_2회호출시_CE_1회만")
+  void cachesSoCostExplorerCalledOnce() {
     CostExplorerClient client = mock(CostExplorerClient.class);
     when(client.getCostAndUsage(any(GetCostAndUsageRequest.class)))
         .thenReturn(respWith(grp("Amazon EC2", "1.00")));
@@ -102,7 +106,8 @@ class AwsCostServiceTest {
   }
 
   @Test
-  void CE예외시_available_false_페이지안죽음() {
+  @DisplayName("CE예외시_available_false_페이지안죽음")
+  void returnsUnavailableWhenCostExplorerThrows() {
     CostExplorerClient client = mock(CostExplorerClient.class);
     when(client.getCostAndUsage(any(GetCostAndUsageRequest.class)))
         .thenThrow(new RuntimeException("AccessDenied"));
@@ -116,7 +121,8 @@ class AwsCostServiceTest {
   }
 
   @Test
-  void 클라이언트_부재시_미설정_안내() {
+  @DisplayName("클라이언트_부재시_미설정_안내")
+  void returnsUnavailableWhenClientMissing() {
     AwsCostSnapshot s = new AwsCostService(providerOf(null)).getMonthlySnapshot();
     assertThat(s.available()).isFalse();
     assertThat(s.statusText()).contains("미설정");

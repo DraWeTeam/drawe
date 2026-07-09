@@ -100,7 +100,10 @@ public class GuideAdminService {
             .toList();
     long resultTotal = GuideQualityAnalyzer.totalModes(modeAgg);
     long coachCount =
-        modeAgg.stream().filter(m -> "coach".equalsIgnoreCase(m.label())).mapToLong(FocusAgg::count).sum();
+        modeAgg.stream()
+            .filter(m -> "coach".equalsIgnoreCase(m.label()))
+            .mapToLong(FocusAgg::count)
+            .sum();
     Double successRate = GuideQualityAnalyzer.coachSuccessRate(modeAgg);
     String successReliability = GuideQualityAnalyzer.reliability(resultTotal, RESULT_LOW_DATA);
     String successTone = GuideQualityAnalyzer.satisfactionTone(successRate, SUCCESS_BAD_BELOW);

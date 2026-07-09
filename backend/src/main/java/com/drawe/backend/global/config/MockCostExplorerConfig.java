@@ -55,7 +55,8 @@ public class MockCostExplorerConfig {
     private static Group grp(String service, String amount) {
       return Group.builder()
           .keys(service)
-          .metrics(Map.of("UnblendedCost", MetricValue.builder().amount(amount).unit("USD").build()))
+          .metrics(
+              Map.of("UnblendedCost", MetricValue.builder().amount(amount).unit("USD").build()))
           .build();
     }
 

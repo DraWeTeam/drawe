@@ -67,19 +67,22 @@ public final class AnalyticsEventType {
   public static final String GUIDE_COMPLETED = "guide_completed";
 
   /**
-   * 이미지 가이딩 생성 결과 1건. {@code GuideService.guide()} 신규 생성 시 백엔드가 모든 mode 에 대해 발화(멱등 재사용은 스킵). 성공률(coach
+   * 이미지 가이딩 생성 결과 1건. {@code GuideService.guide()} 신규 생성 시 백엔드가
+   * 모든 mode 에 대해 발화(멱등 재사용은 스킵). 성공률(coach
    * 비율) 산출용 — {@code guides} 테이블은 coach 만 저장해 refused/clarify/redirect 를 못 보므로 이벤트로 남긴다.
    *
    * <p>payload: {@code mode}(coach|refused|clarify|redirect), {@code degraded}(bool), {@code
    * primary_focus}(nullable).
    *
-   * <p>⚠️ 프론트가 GA4(dataLayer)로 쏘는 {@code guide_generated} 와는 <b>별개</b>다 — 저장소(백엔드 analytics_events)와
+   * <p>⚠️ 프론트가 GA4(dataLayer)로 쏘는 {@code guide_generated} 와는
+   * <b>별개</b>다 — 저장소(백엔드 analytics_events)와
    * 목적(성공률)이 다르다. 이름 충돌을 피하려고 {@code guide_result} 로 명명.
    */
   public static final String GUIDE_RESULT = "guide_result";
 
   /**
-   * 이미지 가이딩 레퍼런스 재추천(🔄) 요청 1건. {@code GuideService.rerollReferences()} 진입 시 발화(결과 성공/고갈/생성중 무관 — '재추천
+   * 이미지 가이딩 레퍼런스 재추천(🔄) 요청 1건.
+   * {@code GuideService.rerollReferences()} 진입 시 발화(결과 성공/고갈/생성중 무관 — '재추천
    * 시도' 자체가 불만족 신호). payload: {@code guide_id}, {@code sub_problem}.
    */
   public static final String GUIDE_REROLL = "guide_reroll";

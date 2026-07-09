@@ -7,7 +7,8 @@ import java.util.Locale;
  * 어드민 "가이딩" 탭 뷰모델 — 서비스 핵심 기능(이미지 기반 한 끗 가이드)의 품질.
  *
  * <p>데이터는 전부 어드민 DB({@code drawe_db})에 이미 쌓인 것만 쓴다(계측 추가 없음): {@code guides}(coach 가이드 1건=1행) +
- * {@code guide_feedback}(가이드 전체 👍/👎). refused/clarify/redirect(생성 성공률)·reroll(불만족)·레퍼런스 소비(adoption_log)는
+ * {@code guide_feedback}(가이드 전체 👍/👎). refused/clarify/redirect(생성 성공률)·reroll(불만족)·
+ * 레퍼런스 소비(adoption_log)는
  * 이 범위 밖 — WP8-b(계측) 및 백로그.
  *
  * <p>🎯 KO = 가이드 만족도(좋아요율). 🛡️ Guardrail = 품질 저하(degraded) 비율. 순수 계산은 {@link
