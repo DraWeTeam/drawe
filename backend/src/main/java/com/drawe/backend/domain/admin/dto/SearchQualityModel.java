@@ -21,8 +21,20 @@ public final class SearchQualityModel {
       long totalSearches,
       long blockedSearches, // result_count=0 OR avg_score<0.2
       Double blockRate, // 0.0~1.0
+      Double successRate, // 1 - blockRate (검색 성공률, KO 헤드라인). blockRate null이면 null
       Double avgResultCount,
-      Double avgScore) {}
+      Double avgScore) {
+
+    /** KO 헤드라인 표기 — total 0이면 "—". */
+    public String successRateText() {
+      return successRate == null
+          ? "—"
+          : String.format(java.util.Locale.US, "%.1f%%", successRate * 100);
+    }
+  }
+
+  /** 검색어 어절 랭킹 한 줄 — extracted_keywords를 어절로 쪼갠 빈도(형태소 분석 아님, 규칙 기반 근사). */
+  public record WordRank(String word, long count) {}
 
   /**
    * 검색 마찰 — 세션 기준(analytics_events). "검색을 했는데 바로 성공 못 하고 겪는 과정".
@@ -49,11 +61,30 @@ public final class SearchQualityModel {
   /** 시드 보강 백로그 한 줄 — 결과가 부족했던 검색을 키워드별로. */
   public record BacklogRow(String keyword, long count, Double avgScore, String lastAtText) {}
 
-  /** 검색 수요 TOP 한 줄 — 전체 키워드 빈도 + 품질. */
+  /**
+   * 검색 수요 TOP 한 줄 — 전체 키워드 빈도 + 품질.
+   *
+   * @param inBacklog 현재 백로그 페이지에도 등장(고수요이면서 저품질) → 강조 배지용
+   */
   public record DemandRow(
-      String keyword, long count, Double avgResultCount, Double avgScore, long blockedCount) {}
+      String keyword,
+      long count,
+      Double avgResultCount,
+      Double avgScore,
+      long blockedCount,
+      boolean inBacklog) {}
 
-  /** 화면에 한 번에 넘기는 묶음. backlog/demand 는 페이지 객체. */
+  /**
+   * 화면에 한 번에 넘기는 묶음. backlog/demand 는 페이지 객체.
+   *
+   * @param wordTopAll 검색어 어절 TOP(전체 기준)
+   * @param wordTopLowQuality 검색어 어절 TOP(저품질 기준)
+   */
   public record View(
-      Kpi kpi, Friction friction, AdminPage<BacklogRow> backlog, AdminPage<DemandRow> demand) {}
+      Kpi kpi,
+      Friction friction,
+      AdminPage<BacklogRow> backlog,
+      AdminPage<DemandRow> demand,
+      java.util.List<WordRank> wordTopAll,
+      java.util.List<WordRank> wordTopLowQuality) {}
 }

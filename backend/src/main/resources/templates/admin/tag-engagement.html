@@ -4,77 +4,134 @@
 <body>
 <header th:replace="~{admin/fragments :: topbar('tag')}"></header>
 
-<main class="wrap" id="admin-content">
+<main class="wrap" id="admin-content" th:with="v=${view}, g=${view.gate()}">
+  <div th:replace="~{admin/fragments :: pageIdentity('어떤 레퍼런스 태그가 사용자 반응을 얻는가?', 'candidate')}"></div>
   <div class="pagehead">
     <div>
       <h1>태그별 레퍼런스 관심도</h1>
       <div class="meta">
-        기법·주제·분위기 태그별 노출·클릭·좋아요·핀 ·
-        최근 <span th:text="${hours}">2160</span>시간 ·
-        기준 <span th:text="${view.generatedAtText()}">-</span>
-      </div>
-      <div class="meta"
-           th:if="${!view.clicksAvailable()}"
-           style="margin-top:6px; color:var(--warn);">
-        ※ GA4 클릭 미연동 — 클릭/CTR 컬럼은 0입니다 (admin.ga4.property-id 설정 시 채워짐)
+        노출 = 추천으로 보여준 횟수(≠impression) · 최근 <span th:text="${hours}">2160</span>시간 · 기준 <span th:text="${v.generatedAtText()}">-</span>
       </div>
     </div>
-    <div class="ranges"
-         hx-boost="true"
-         hx-target="#admin-content"
-         hx-select="#admin-content"
-         hx-swap="outerHTML">
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
       <a th:href="@{/admin/tag-engagement(hours=168)}"  th:classappend="${hours == 168}  ? 'active'">7d</a>
       <a th:href="@{/admin/tag-engagement(hours=720)}"  th:classappend="${hours == 720}  ? 'active'">30d</a>
       <a th:href="@{/admin/tag-engagement(hours=2160)}" th:classappend="${hours == 2160} ? 'active'">90d</a>
     </div>
   </div>
 
-  <section class="panel" th:each="axis : ${view.axes()}">
-    <h2 th:switch="${axis.axis()}">
-      <span th:case="'technique'">기법 <span class="tag">technique</span></span>
-      <span th:case="'subject'">주제 <span class="tag">subject</span></span>
-      <span th:case="'mood'">분위기 <span class="tag">mood</span></span>
-      <span th:case="*" th:text="${axis.axis()}"></span>
-    </h2>
-    <div class="meta" style="margin:-4px 0 12px;">
-      이 태그 값을 가진 이미지들의 engagement 합계 (관심도 점수 내림차순)
-    </div>
+  <!-- 🚦 신호 신뢰도 게이트 (최상단) -->
+  <div th:replace="~{admin/fragments :: gatePanel(${g.level()}, ${g.coverageText()}, ${g.reasonText()})}"></div>
 
-    <table th:if="${!axis.rows().isEmpty()}">
-      <thead>
-        <tr>
-          <th>태그</th>
-          <th class="num">이미지</th>
-          <th class="num">노출</th>
-          <th class="num">클릭</th>
-          <th class="num">좋아요</th>
-          <th class="num">핀</th>
-          <th class="num">CTR</th>
-        </tr>
-      </thead>
+  <!-- 🧭 권한 경계 -->
+  <div th:replace="~{admin/fragments :: authorityPanel(
+        ${ {'어떤 태그가 상대적으로 반응이 좋은지 방향 파악', '콘텐츠 확보·태그 정비 후보 도출'} },
+        ${ {'태그 순위를 확정적 사실로 단정', '이 데이터만으로 태그 추가/삭제 자동 실행', '적은 표본에서 절대 성과 비교'} })}"></div>
+
+  <!-- 게이트가 green 이 아니면 순위 단정 금지 경고 -->
+  <div th:if="${g.warn()}"
+       style="margin:2px 0 12px; font-size:12.5px; font-weight:700; color:var(--warn);">
+    ⚠️ 순위 단정 금지 · 상대 비교만
+  </div>
+
+  <!-- 🎯 KO 전환율 + 🛡️ 노출 쏠림 -->
+  <section class="grid">
+    <div th:replace="~{admin/fragments :: kpiCard('ko', '레퍼런스 관심 전환율', ${v.koConversionText()}, '노출 대비 반응', '많이 보여준 태그가 무조건 위로 가지 않게 보정한 값', ${v.koReliability()}, 'none')}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard('guardrail', '노출 쏠림', ${v.maxAxisShareText()}, ${v.maxShareAxis() != null ? v.maxShareAxis() + ' 축 최대' : ''}, '한 태그가 노출을 독점하면 다른 태그 비교가 왜곡돼요', 'green', ${v.skewWarn() ? 'bad' : 'none'})}"></div>
+  </section>
+
+  <!-- ⭐ 추천 후보 큐 -->
+  <div th:replace="~{admin/fragments :: queueHeader('candidate')}"></div>
+
+  <section class="panel">
+    <h2>공급-관심 갭 <span class="tag">사람이 검토·채택</span></h2>
+    <div class="meta" style="margin:-4px 0 12px;">반응은 좋은데 적게 보여준 태그(공급 부족)와, 많이 보여줬는데 반응이 약한 태그(과공급)예요.</div>
+    <table th:if="${!v.supplyGapCandidates().isEmpty()}">
+      <thead><tr><th>축</th><th>태그</th><th>종류</th><th class="num">전환율</th><th class="num">노출</th></tr></thead>
       <tbody>
-        <tr th:each="r : ${axis.rows()}">
-          <td th:text="${r.value()}">-</td>
-          <td class="num" th:text="${r.images()}">0</td>
-          <td class="num" th:text="${r.shown()}">0</td>
-          <td class="num" th:text="${r.clicks()}">0</td>
-          <td class="num" th:text="${r.likes()}">0</td>
-          <td class="num" th:text="${r.pins()}">0</td>
-          <td class="num meta"
-              th:text="${r.ctr() == null ? '—' : #numbers.formatPercent(r.ctr(),1,1)}">—</td>
+        <tr th:each="c : ${v.supplyGapCandidates()}">
+          <td class="meta" th:text="${c.axis()}">mood</td>
+          <td th:text="${c.tag()}">dreamy</td>
+          <td>
+            <span th:if="${c.kind() == '공급 부족'}" style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--accent-soft); color:var(--accent);">공급 부족</span>
+            <span th:if="${c.kind() == '과공급'}" style="font-size:12px; padding:1px 8px; border-radius:999px; background:var(--warn-soft); color:var(--warn);">과공급</span>
+          </td>
+          <td class="num" th:text="${c.conversionText()}">0%</td>
+          <td class="num" th:text="${c.shown()}">0</td>
         </tr>
       </tbody>
     </table>
+    <div class="empty" th:if="${v.supplyGapCandidates().isEmpty()}">아직 사분면을 나눌 만큼 태그가 많지 않아요.</div>
 
-    <div class="empty" th:if="${axis.rows().isEmpty()}">
-      이 축엔 집계된 태그가 없어요
+    <!-- 태그 정비 후보 (표시만) -->
+    <div style="margin-top:16px; font-weight:700; font-size:13.5px;">태그 정비 후보 <span class="meta" style="font-weight:500;">— 표시만, 자동 병합·삭제 안 함</span></div>
+    <div class="meta" style="margin-top:6px;" th:if="${!v.hygiene().testLikeTags().isEmpty()}">
+      정리 후보(test·빈 태그): <b th:text="${#strings.listJoin(v.hygiene().testLikeTags(), ', ')}">-</b>
+    </div>
+    <div class="meta" style="margin-top:6px;" th:if="${!v.hygiene().aliasSuspects().isEmpty()}">
+      한·영 중복 의심:
+      <span th:each="p,i : ${v.hygiene().aliasSuspects()}" th:text="${(i.index>0 ? ' · ' : '') + p.a() + ' ↔ ' + p.b()}">dreamy ↔ 몽환적인</span>
+    </div>
+    <div class="meta" style="margin-top:6px;" th:if="${v.hygiene().testLikeTags().isEmpty() and v.hygiene().aliasSuspects().isEmpty()}">
+      정비할 태그 후보가 없어요 👍
     </div>
   </section>
 
-  <div class="empty" th:if="${view.axes().isEmpty()}">
-    이 기간엔 집계할 태그 데이터가 없어요
-  </div>
+  <!-- 🔍 Diagnostic: 축별 태그 분포 -->
+  <details class="diag" open style="margin-bottom: 18px;">
+    <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
+    </summary>
+
+    <div class="meta" style="margin:0 0 12px;" th:if="${!v.clicksAvailable()}">
+      <span th:replace="~{admin/fragments :: reliabilityBadge('none')}"></span>
+      클릭 데이터 없음 (GA4 미연동) — 클릭·CTR 컬럼은 0이에요.
+    </div>
+
+    <section class="panel" th:each="axis : ${v.axes()}">
+      <h2>
+        <span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span>
+        <span th:switch="${axis.axis()}">
+          <span th:case="'technique'">기법</span>
+          <span th:case="'subject'">주제</span>
+          <span th:case="'mood'">분위기</span>
+          <span th:case="*" th:text="${axis.axis()}"></span>
+        </span>
+      </h2>
+      <div class="meta" style="margin:-4px 0 12px;">전환율(노출 대비 반응) 높은 순 — 표본이 작으면 순위는 방향으로만 보세요.</div>
+      <table th:if="${!axis.rows().isEmpty()}">
+        <thead>
+          <tr>
+            <th>태그</th>
+            <th class="num">전환율</th>
+            <th class="num">노출</th>
+            <th class="num">좋아요</th>
+            <th class="num">핀</th>
+            <th class="num">클릭</th>
+            <th class="num">CTR</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="r : ${axis.rows()}">
+            <td>
+              <a th:href="@{/admin/funnel(q=${r.value()})}" th:text="${r.value()}"
+                 title="이 태그의 이미지별 상세 보기"
+                 style="color:var(--accent); text-decoration:none; border-bottom:1px dashed var(--peach-line);">-</a>
+            </td>
+            <td class="num" style="font-weight:700;" th:text="${r.conversionText()}">—</td>
+            <td class="num" th:text="${r.shown()}">0</td>
+            <td class="num" th:text="${r.likes()}">0</td>
+            <td class="num" th:text="${r.pins()}">0</td>
+            <td class="num" th:text="${r.clicks()}">0</td>
+            <td class="num meta" th:text="${r.ctr() == null ? '—' : #numbers.formatPercent(r.ctr(),1,1)}">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${axis.rows().isEmpty()}">이 축엔 집계된 태그가 없어요.</div>
+    </section>
+
+    <div class="empty" th:if="${v.axes().isEmpty()}">이 기간엔 집계할 태그 데이터가 없어요.</div>
+  </details>
 </main>
 </body>
 </html>

@@ -42,6 +42,8 @@ configMapGenerator:
     files:
       - dashboards/backend.json
       - dashboards/fastapi.json
+      - dashboards/llm-latency.json   # [추가] 채팅 LLM(Spring Boot) latency P50/P95/P99 (drawe_chat_llm_latency_seconds_bucket)
+      - dashboards/vlm-latency.json   # [추가] 가이드 VLM(FastAPI, Bedrock Claude Haiku) latency P50/P95/P99 (drawe_vlm_latency_seconds_bucket, OTEL→OTLP→AMP)
 
 patches:
   # ① alloy SA → AMP RemoteWrite IRSA

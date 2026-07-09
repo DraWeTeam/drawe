@@ -143,6 +143,30 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
       nativeQuery = true)
   long demandCount(@Param("since") Instant since, @Param("q") String q);
 
+  // ── 어절 랭킹 소스 (keyword+cnt 경량 집계, 자바에서 어절 분해) ──
+  // original_message(PII)는 select 하지 않는다. extracted_keywords 만.
+
+  /** 전체 검색 기준 키워드+빈도(윈도우 내). 어절 랭킹(전체)의 입력. */
+  @Query(
+      value =
+          "SELECT extracted_keywords AS keyword, COUNT(*) AS cnt "
+              + "FROM search_logs "
+              + "WHERE created_at >= :since AND extracted_keywords IS NOT NULL "
+              + "GROUP BY extracted_keywords",
+      nativeQuery = true)
+  List<KeywordCountProj> wordSourceAll(@Param("since") Instant since);
+
+  /** 저품질(result_count=0 OR avg_score<0.2) 검색 기준 키워드+빈도. 어절 랭킹(저품질)의 입력. */
+  @Query(
+      value =
+          "SELECT extracted_keywords AS keyword, COUNT(*) AS cnt "
+              + "FROM search_logs "
+              + "WHERE created_at >= :since AND extracted_keywords IS NOT NULL "
+              + "  AND (result_count = 0 OR avg_score < 0.2) "
+              + "GROUP BY extracted_keywords",
+      nativeQuery = true)
+  List<KeywordCountProj> wordSourceLowQuality(@Param("since") Instant since);
+
   /** SUM/COUNT은 드라이버가 BigDecimal/Long 등으로 줄 수 있어 Number로 받는다. */
   interface KpiRow {
     Number getTotal();
@@ -188,5 +212,12 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
     Double getAvgScore();
 
     Number getBlockedCnt();
+  }
+
+  /** 어절 랭킹 입력용 경량 projection. */
+  interface KeywordCountProj {
+    String getKeyword();
+
+    Number getCnt();
   }
 }

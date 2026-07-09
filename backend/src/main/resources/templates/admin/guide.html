@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{admin/fragments :: head('Drawe Admin · 가이딩')}"></head>
+<body>
+<header th:replace="~{admin/fragments :: topbar('guide')}"></header>
+
+<main class="wrap" id="admin-content" th:with="v=${view}">
+  <div th:replace="~{admin/fragments :: pageIdentity('가이드가 사용자에게 도움이 되고 있는가?', 'monitor')}"></div>
+  <div class="pagehead">
+    <div>
+      <h1>가이딩</h1>
+      <div class="meta">이미지 기반 한 끗 가이드의 품질 · 최근 <span th:text="${hours}">720</span>시간 · 기준 <span th:text="${v.generatedAtText()}">-</span></div>
+    </div>
+    <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML">
+      <a th:href="@{/admin/guide(hours=168)}"  th:classappend="${hours == 168}  ? 'active'">7d</a>
+      <a th:href="@{/admin/guide(hours=720)}"  th:classappend="${hours == 720}  ? 'active'">30d</a>
+      <a th:href="@{/admin/guide(hours=2160)}" th:classappend="${hours == 2160} ? 'active'">90d</a>
+    </div>
+  </div>
+
+  <!-- 데이터 없음/얇음 안내 -->
+  <div th:if="${v.guideCount() == 0}"
+       style="margin:2px 0 16px; font-size:13px; background:var(--warn-soft); color:var(--warn);
+              padding:9px 13px; border-radius:8px;">
+    <span th:replace="~{admin/fragments :: reliabilityBadge('none')}"></span>
+    이 기간에 생성된 가이드가 없어요. 기간(7d/30d/90d)을 넓혀보세요.
+  </div>
+  <div th:if="${v.lowData()}"
+       style="margin:2px 0 16px; font-size:13px; background:var(--warn-soft); color:var(--warn);
+              padding:9px 13px; border-radius:8px;">
+    <span th:replace="~{admin/fragments :: reliabilityBadge('yellow')}"></span>
+    데이터 적음 — 피드백(좋아요/싫어요) 표본이 얇아요. 만족도는 방향으로만 보세요.
+  </div>
+
+  <!-- 계측 최근 시작 안내(성공률/재추천율) -->
+  <div th:if="${v.instrumentationLowData()}"
+       style="margin:2px 0 16px; font-size:13px; background:var(--warn-soft); color:var(--warn);
+              padding:9px 13px; border-radius:8px;">
+    <span th:replace="~{admin/fragments :: reliabilityBadge('yellow')}"></span>
+    생성 성공률·재추천율은 <b>계측이 최근 시작</b>됐어요(요청 <span th:text="${v.resultTotal()}">0</span>건). 방향으로만 보세요.
+  </div>
+
+  <!-- 🎯 만족도·성공률 · 🛡️ 품질 저하·재추천율 -->
+  <section class="grid">
+    <div th:replace="~{admin/fragments :: kpiCard(
+           'ko', '가이드 만족도', ${v.satisfactionText()},
+           '좋아요 ' + ${v.likeCount()} + ' · 싫어요 ' + ${v.dislikeCount()},
+           '가이드에 좋아요 누른 비율 — 피드백 남긴 사람 기준',
+           ${v.satisfactionReliability()}, ${v.satisfactionTone()})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard(
+           'ko', '생성 성공률', ${v.successText()},
+           '가이드 요청 ' + ${v.resultTotal()} + '건 중 coach ' + ${v.coachCount()},
+           'AI가 가이드를 실제로 만들어낸 비율 (업로드 거부·되묻기·직접그리기 거절 제외)',
+           ${v.successReliability()}, ${v.successTone()})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard(
+           'guardrail', '품질 저하(degraded) 비율', ${v.degradedText()},
+           '전체 가이드 ' + ${v.guideCount()} + '건 중',
+           'AI가 충분히 관찰 못 하고 만든 가이드 비율 — 높으면 관찰·게이트 점검',
+           ${v.degradedReliability()}, ${v.degradedTone()})}"></div>
+    <div th:replace="~{admin/fragments :: kpiCard(
+           'guardrail', '재추천율(reroll)', ${v.rerollText()},
+           '재추천 ' + ${v.rerollCount()} + ' / coach ' + ${v.coachCount()},
+           '가이드 받고 다시 추천(🔄) 누른 비율 — 높으면 첫 추천이 아쉬웠다는 신호',
+           ${v.rerollReliability()}, ${v.rerollTone()})}"></div>
+  </section>
+
+  <!-- ⚠️ 아직 못 보는 것 -->
+  <div style="margin:-6px 0 20px; font-size:12.5px; color:var(--muted);
+              background:var(--line-soft); padding:9px 13px; border-radius:8px;">
+    ⚠️ <b>생성 성공률</b>은 계측(guide_result) 시작 이후 요청만 세요 — 그 전 과거치는 빠져 있어요.
+    가이드 <b>레퍼런스 채택(👍👎)</b>은 FastAPI 쪽 기록이라 아직 여기 없어요(백로그).
+  </div>
+
+  <!-- 🔍 Diagnostic -->
+  <details class="diag" open style="margin-bottom: 18px;">
+    <summary style="cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); margin:2px 0 14px;">
+      🔍 자세히 보기 <span class="meta" style="font-weight:500;">— 평소엔 안 봐도 돼요</span>
+    </summary>
+
+    <!-- 가이드 생성 수 (일별) -->
+    <section class="panel">
+      <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 가이드 생성 수</h2>
+      <div class="meta" style="margin:-4px 0 12px;">이 기간에 만들어진 한 끗 가이드 — 일별 추이예요.</div>
+      <div class="statline" style="margin-bottom:16px;">
+        <div>
+          <span class="k">기간 생성 수</span>
+          <span class="v mono" th:text="${v.guideCount()}">0</span>
+        </div>
+        <div>
+          <span class="k">피드백 수(좋아요+싫어요)</span>
+          <span class="v mono" th:classappend="${v.feedbackTotal() == 0} ? 'muted'" th:text="${v.feedbackTotal()}">0</span>
+        </div>
+      </div>
+      <div class="chartbox" th:if="${!v.dailyRows().isEmpty()}" style="margin-bottom:14px;"><canvas id="guide-daily"></canvas></div>
+      <table th:if="${!v.dailyRows().isEmpty()}">
+        <thead><tr><th>날짜 (KST)</th><th class="num">생성 수</th></tr></thead>
+        <tbody>
+          <tr th:each="d : ${v.dailyRows()}">
+            <td class="mono" th:text="${d.day()}">2026-06-01</td>
+            <td class="num" th:text="${d.count()}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${v.dailyRows().isEmpty()}">이 기간에 가이드 생성 기록이 없어요.</div>
+    </section>
+
+    <!-- 생성 결과 분포 (mode) -->
+    <section class="panel">
+      <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 생성 결과 분포</h2>
+      <div class="meta" style="margin:-4px 0 12px;">가이드 요청이 어떻게 끝났나 — coach(성공)·refused(거부)·clarify(되묻기)·redirect(직접그리기 거절). 계측(guide_result) 시작 이후.</div>
+      <table th:if="${!v.modeRows().isEmpty()}">
+        <thead><tr><th>결과(mode)</th><th class="num">건수</th><th class="num">비중</th></tr></thead>
+        <tbody>
+          <tr th:each="m : ${v.modeRows()}">
+            <td th:text="${m.label()}">coach</td>
+            <td class="num" th:text="${m.count()}">0</td>
+            <td class="num meta" th:text="${m.shareText()}">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${v.modeRows().isEmpty()}">아직 생성 결과(guide_result) 계측 데이터가 없어요.</div>
+    </section>
+
+    <!-- 축(primary_focus) 분포 -->
+    <section class="panel">
+      <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 어떤 문제를 많이 가이드하나</h2>
+      <div class="meta" style="margin:-4px 0 12px;">가이드의 대표 초점 축(primary_focus) 분포 — 상위부터.</div>
+      <div class="chartbox" th:if="${!v.focusRows().isEmpty()}" style="margin-bottom:14px;"><canvas id="guide-focus"></canvas></div>
+      <table th:if="${!v.focusRows().isEmpty()}">
+        <thead><tr><th>축(primary_focus)</th><th class="num">가이드 수</th><th class="num">비중</th></tr></thead>
+        <tbody>
+          <tr th:each="f : ${v.focusRows()}">
+            <td th:text="${f.label()}">foreshortening</td>
+            <td class="num" th:text="${f.count()}">0</td>
+            <td class="num meta" th:text="${f.shareText()}">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${v.focusRows().isEmpty()}">아직 축 분포 데이터가 없어요.</div>
+    </section>
+
+    <!-- 가이드당 과제 수 분포 -->
+    <section class="panel">
+      <h2><span th:replace="~{admin/fragments :: categoryBadge('diag')}"></span> 가이드당 과제 수</h2>
+      <div class="meta" style="margin:-4px 0 12px;">한 가이드가 짚어준 과제(블록) 개수 분포예요.</div>
+      <table th:if="${!v.taskRows().isEmpty()}">
+        <thead><tr><th>과제 수</th><th class="num">가이드 수</th></tr></thead>
+        <tbody>
+          <tr th:each="t : ${v.taskRows()}">
+            <td th:text="${t.tasks()} + '개'">2개</td>
+            <td class="num" th:text="${t.count()}">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="empty" th:if="${v.taskRows().isEmpty()}">아직 과제 수 데이터가 없어요.</div>
+    </section>
+  </details>
+
+  <script th:inline="javascript">
+    (function () {
+      var daily = /*[[${view.dailyRows()}]]*/ [];
+      var focus = /*[[${view.focusRows()}]]*/ [];
+      window.__adminCharts = function () {
+        var D = window.Drawe; if (!D) return;
+        if (daily.length) D.bars('guide-daily',
+          daily.map(function (x) { return x.day; }), daily.map(function (x) { return x.count; }),
+          { label: '생성', color: D.tokens.accentBright });
+        if (focus.length) D.hbars('guide-focus',
+          focus.map(function (x) { return x.label; }), focus.map(function (x) { return x.count; }),
+          { label: '가이드', color: D.tokens.accent });
+      };
+      window.__adminRun && window.__adminRun();
+    })();
+  </script>
+</main>
+</body>
+</html>

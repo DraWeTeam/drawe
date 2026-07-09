@@ -304,6 +304,8 @@ public class ChatLlmService {
           AnalyticsEventType.CHAT_SUCCESS, user, session.getId(), successPayload);
       // LLM 내부 측정 latency 를 그대로 Timer 에 (외부 nanoTime 보다 정확).
       llmMetrics.llmCall(provider.name(), Duration.ofMillis(result.latencyMs()), true);
+      // 같은 latency 를 P95 용 히스토그램에도 (chat_success.latency_ms 와 동일 값, Grafana 분위수용).
+      llmMetrics.chatLatency(provider.name(), Duration.ofMillis(result.latencyMs()));
 
       return new ChatResponse(
           session.getId(),
@@ -464,6 +466,8 @@ public class ChatLlmService {
       analyticsEventService.track(
           AnalyticsEventType.CHAT_SUCCESS, user, session.getId(), successPayload);
       llmMetrics.llmCall(provider.name(), Duration.ofMillis(latencyMs), true);
+      // 같은 latency 를 P95 용 히스토그램에도 (chat_success.latency_ms 와 동일 값, Grafana 분위수용).
+      llmMetrics.chatLatency(provider.name(), Duration.ofMillis(latencyMs));
 
       return new ChatResponse(
           session.getId(),

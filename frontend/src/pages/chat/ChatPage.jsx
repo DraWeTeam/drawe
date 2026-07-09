@@ -37,6 +37,7 @@ import Tooltip from "../../components/Tooltip";
 import styles from "./ChatPage.module.css";
 import logo from "../../assets/drawe_logo.png";
 import { track } from "../../analytics";
+import FeedbackPrompt from "./feedback/FeedbackPrompt";
 
 const sessionKey = (projectId) => `chat_session_${projectId}`;
 const MAX_INPUT_HEIGHT = 160;
@@ -246,8 +247,10 @@ const ChatPage = () => {
       }
       // ↑↑↑ 트래킹 끝 ↑↑↑
     } catch (err) {
+      console.error("requestGuide failed", err);
       const msg =
         err.response?.data?.error?.message ||
+        err.message ||
         "가이드를 만들지 못했어요. 잠시 후 다시 시도해주세요.";
       setMessages((prev) =>
         prev.map((m) =>
@@ -1450,6 +1453,8 @@ const ChatPage = () => {
                     응답을 작성 중...
                   </div>
                 )}
+                {/* 15턴 도달 시 채팅 흐름 하단에 인라인 피드백 카드(+모달) 노출 */}
+                <FeedbackPrompt messages={messages} sessionId={sessionId} />
               </div>
             </div>
 

@@ -6,6 +6,8 @@ import com.drawe.backend.domain.admin.service.AdminFlowService;
 import com.drawe.backend.domain.admin.service.AdminFunnelService;
 import com.drawe.backend.domain.admin.service.AdminSearchService;
 import com.drawe.backend.domain.admin.service.AdminTagEngagementService;
+import com.drawe.backend.domain.admin.service.ChipService;
+import com.drawe.backend.domain.admin.service.GuideAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -32,6 +34,8 @@ public class AdminDashboardController {
   private final AdminFlowService flowService;
   private final AdminCostService costService;
   private final AdminTagEngagementService tagEngagementService;
+  private final ChipService chipService;
+  private final GuideAdminService guideAdminService;
 
   @GetMapping("/login")
   public String login() {
@@ -108,6 +112,24 @@ public class AdminDashboardController {
     model.addAttribute("view", tagEngagementService.build(safeHours));
     model.addAttribute("hours", safeHours);
     return "admin/tag-engagement";
+  }
+
+  /** 칩 분석 — AI 추천 키워드 칩의 노출→반영 전환율(추천 품질). */
+  @GetMapping("/chip")
+  public String chip(@RequestParam(name = "hours", defaultValue = "2160") int hours, Model model) {
+    int safeHours = clampHours(hours);
+    model.addAttribute("view", chipService.build(safeHours));
+    model.addAttribute("hours", safeHours);
+    return "admin/chip";
+  }
+
+  /** 가이딩 — 이미지 기반 한 끗 가이드의 품질(만족도·품질 저하·축 분포·생성 추이). */
+  @GetMapping("/guide")
+  public String guide(@RequestParam(name = "hours", defaultValue = "720") int hours, Model model) {
+    int safeHours = clampHours(hours);
+    model.addAttribute("view", guideAdminService.build(safeHours));
+    model.addAttribute("hours", safeHours);
+    return "admin/guide";
   }
 
   private static int clampHours(int hours) {
