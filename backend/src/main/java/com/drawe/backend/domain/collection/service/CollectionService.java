@@ -188,8 +188,8 @@ public class CollectionService {
   }
 
   /**
-   * 상세 화면 태그(SCR-ARCH-05) — 프로젝트 레퍼런스 상세와 동일하게 AI 분류 3축 {@code [technique, subject, mood]} 을 쓴다. 3축이
-   * 하나도 없으면(태깅 안 된 이미지) rawTags 앞부분으로 폴백해 빈 칸을 피한다.
+   * 상세 화면 태그(SCR-ARCH-05) — 프로젝트 레퍼런스 상세와 동일하게 AI 분류 3축 {@code [technique, subject, mood]} 을 쓴다.
+   * 3축이 하나도 없으면(태깅 안 된 이미지) rawTags 앞부분으로 폴백해 빈 칸을 피한다.
    */
   private List<String> detailKeywords(Image image, ImageDraweTag tag) {
     if (tag != null) {
