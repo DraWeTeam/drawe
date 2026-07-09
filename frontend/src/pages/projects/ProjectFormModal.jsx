@@ -3,6 +3,7 @@ import styles from "./ProjectFormModal.module.css";
 import { uploadImage } from "./api";
 import AuthedImage from "../chat/AuthedImage";
 import KeywordChips from "./KeywordChips";
+import { useModalClose } from "./useModalClose";
 
 // 표지 업로드 제약 — 백엔드 ImageUploadService 와 일치(형식/용량). 위반은 프론트에서 먼저 걸러 toast.
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -88,6 +89,9 @@ const ProjectFormModal = ({ initial, onClose, onSubmit }) => {
   const toastTimer = useRef(null);
   const mouseDownTarget = useRef(null);
 
+  // 닫힘 애니메이션 — requestClose 로 pop-out 재생 후 실제 onClose.
+  const { closing, requestClose } = useModalClose(onClose);
+
   useEffect(() => {
     return () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -166,6 +170,7 @@ const ProjectFormModal = ({ initial, onClose, onSubmit }) => {
     setSubmitting(true);
     try {
       await onSubmit(payload);
+      requestClose(); // 성공 시 닫힘 애니메이션 후 언마운트.
     } catch (err) {
       setErrorMessage(
         err.response?.data?.error?.message || "요청에 실패했습니다.",
@@ -177,7 +182,7 @@ const ProjectFormModal = ({ initial, onClose, onSubmit }) => {
 
   return (
     <div
-      className={styles.backdrop}
+      className={`${styles.backdrop} ${closing ? styles.backdropClosing : ""}`}
       onMouseDown={(e) => {
         mouseDownTarget.current = e.target;
       }}
@@ -186,7 +191,7 @@ const ProjectFormModal = ({ initial, onClose, onSubmit }) => {
           e.target === e.currentTarget &&
           mouseDownTarget.current === e.currentTarget;
         mouseDownTarget.current = null;
-        if (onBackdrop) onClose();
+        if (onBackdrop) requestClose();
       }}
     >
       {toast && (
@@ -208,13 +213,13 @@ const ProjectFormModal = ({ initial, onClose, onSubmit }) => {
         </div>
       )}
 
-      <div className={styles.modal}>
+      <div className={`${styles.modal} ${closing ? styles.modalClosing : ""}`}>
         <div className={styles.header}>
           <h2 className={styles.title}>프로젝트 수정</h2>
           <button
             type="button"
             className={styles.closeBtn}
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="닫기"
           >
             <CloseIcon />
@@ -346,7 +351,7 @@ const ProjectFormModal = ({ initial, onClose, onSubmit }) => {
           <div className={styles.footer}>
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className={styles.cancelBtn}
               disabled={submitting}
             >

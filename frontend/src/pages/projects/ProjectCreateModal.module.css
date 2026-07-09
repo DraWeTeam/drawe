@@ -7,6 +7,12 @@
   justify-content: center;
   z-index: 1000;
   padding: 24px;
+  animation: backdrop-fade-in 0.18s ease;
+}
+
+/* 닫힐 때 — 등장의 반대(페이드 아웃 + 아래로 내려가며 축소). useModalClose delayMs 와 동일. */
+.backdropClosing {
+  animation: backdrop-fade-out 0.18s ease forwards;
 }
 
 .modal {
@@ -19,6 +25,10 @@
   animation: pop-in 0.18s ease;
 }
 
+.modalClosing {
+  animation: pop-out 0.18s ease forwards;
+}
+
 @keyframes pop-in {
   from {
     opacity: 0;
@@ -27,6 +37,35 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes backdrop-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 

@@ -5,6 +5,7 @@ import { getProfile } from "../settings/api";
 import { searchReferenceBoard } from "../board/referenceBoardApi";
 import KeywordChips from "./KeywordChips";
 import { track } from "../../analytics";
+import { useModalClose } from "./useModalClose";
 import styles from "./ProjectCreateModal.module.css";
 
 // distinct 유지(추출 결과에 중복이 와도 프론트에서 정리)
@@ -29,6 +30,8 @@ const distinct = (arr) => {
  */
 const ProjectCreateModal = ({ onClose }) => {
   const navigate = useNavigate();
+  // 닫힘 애니메이션 — 취소/배경/닫기 시 pop-out 후 실제 onClose.
+  const { closing, requestClose } = useModalClose(onClose);
 
   const [step, setStep] = useState("topic"); // "topic" | "keywords" | "loading"
   const [topic, setTopic] = useState("");
@@ -132,14 +135,20 @@ const ProjectCreateModal = ({ onClose }) => {
 
   // ── 모달(주제/키워드 단계) ──
   return (
-    <div className={styles.backdrop} onMouseDown={onClose}>
-      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className={`${styles.backdrop} ${closing ? styles.backdropClosing : ""}`}
+      onMouseDown={requestClose}
+    >
+      <div
+        className={`${styles.modal} ${closing ? styles.modalClosing : ""}`}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className={styles.header}>
           <h2 className={styles.title}>새 프로젝트</h2>
           <button
             type="button"
             className={styles.closeBtn}
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="닫기"
           >
             <CloseIcon />

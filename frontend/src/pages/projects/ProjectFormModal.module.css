@@ -6,6 +6,12 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: backdrop-fade-in 0.18s ease;
+}
+
+/* 닫힐 때 — 등장의 반대. useModalClose delayMs 와 동일. */
+.backdropClosing {
+  animation: backdrop-fade-out 0.18s ease forwards;
 }
 
 .modal {
@@ -18,6 +24,51 @@
   background: #fefeff;
   border-radius: 32px;
   box-shadow: 0 5px 25px rgba(15, 15, 15, 0.1);
+  animation: pop-in 0.18s ease;
+}
+
+.modalClosing {
+  animation: pop-out 0.18s ease forwards;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes backdrop-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* ── header ── */

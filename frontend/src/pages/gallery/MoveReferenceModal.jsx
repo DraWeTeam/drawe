@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCollections } from "./api";
 import TagChipEditor from "./TagChipEditor";
+import ModalShell from "./ModalShell";
 import styles from "./CollectionDetailPage.module.css";
 
 // SCR-ARCH-05 카드 ⋮ '정보 수정' — 이 레퍼런스의 사용자 태그 편집 + (선택) 다른 컬렉션으로 이동.
@@ -41,79 +42,86 @@ const MoveReferenceModal = ({
     (c) => String(c.id) !== String(currentCollectionId),
   );
 
-  // 저장 — 태그는 항상 전달, 이동은 선택(대상 고른 경우만).
-  const handleSave = () => {
-    if (busy) return;
-    onSave({ targetCollectionId: selected, userTags: tags });
-  };
-
   return (
-    <div
-      className={styles.modalOverlay}
-      onClick={() => !busy && onCancel()}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h3 className={styles.modalTitle}>레퍼런스 정보 수정</h3>
+    <ModalShell onClose={onCancel} busy={busy}>
+      {(requestClose) => {
+        // 저장 — 태그는 항상 전달, 이동은 선택(대상 고른 경우만). 성공 시 닫힘 애니메이션 후 언마운트.
+        const handleSave = async () => {
+          if (busy) return;
+          const ok = await onSave({
+            targetCollectionId: selected,
+            userTags: tags,
+          });
+          if (ok !== false) requestClose();
+        };
 
-        {/* 태그 편집 — 이 레퍼런스에 직접 태그 추가/수정 */}
-        <p className={styles.modalLabel}>태그</p>
-        <TagChipEditor
-          tags={tags}
-          draft={tagDraft}
-          onChange={setTags}
-          onDraftChange={setTagDraft}
-          placeholder="태그 추가 (Enter)"
-        />
+        return (
+          <>
+            <h3 className={styles.modalTitle}>레퍼런스 정보 수정</h3>
 
-        {/* 컬렉션 이동(선택) */}
-        <p className={styles.modalLabel}>다른 컬렉션으로 이동 (선택)</p>
-        {loading ? (
-          <div className={styles.moveEmpty}>불러오는 중…</div>
-        ) : targets.length === 0 ? (
-          <div className={styles.moveEmpty}>이동할 다른 컬렉션이 없어요.</div>
-        ) : (
-          <div className={styles.moveList}>
-            {targets.map((c) => (
+            {/* 태그 편집 — 이 레퍼런스에 직접 태그 추가/수정 */}
+            <p className={styles.modalLabel}>태그</p>
+            <TagChipEditor
+              tags={tags}
+              draft={tagDraft}
+              onChange={setTags}
+              onDraftChange={setTagDraft}
+              placeholder="태그 추가 (Enter)"
+            />
+
+            {/* 컬렉션 이동(선택) */}
+            <p className={styles.modalLabel}>다른 컬렉션으로 이동 (선택)</p>
+            {loading ? (
+              <div className={styles.moveEmpty}>불러오는 중…</div>
+            ) : targets.length === 0 ? (
+              <div className={styles.moveEmpty}>
+                이동할 다른 컬렉션이 없어요.
+              </div>
+            ) : (
+              <div className={styles.moveList}>
+                {targets.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`${styles.moveItem} ${
+                      selected === c.id ? styles.moveItemActive : ""
+                    }`}
+                    // 다시 누르면 이동 취소(선택 해제).
+                    onClick={() =>
+                      setSelected((cur) => (cur === c.id ? null : c.id))
+                    }
+                  >
+                    <span className={styles.moveItemName}>{c.name}</span>
+                    <span className={styles.moveItemCount}>
+                      {c.count ?? 0}개
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className={styles.modalActions}>
               <button
-                key={c.id}
                 type="button"
-                className={`${styles.moveItem} ${
-                  selected === c.id ? styles.moveItemActive : ""
-                }`}
-                // 다시 누르면 이동 취소(선택 해제).
-                onClick={() =>
-                  setSelected((cur) => (cur === c.id ? null : c.id))
-                }
+                className={styles.modalCancel}
+                onClick={requestClose}
+                disabled={busy}
               >
-                <span className={styles.moveItemName}>{c.name}</span>
-                <span className={styles.moveItemCount}>{c.count ?? 0}개</span>
+                취소하기
               </button>
-            ))}
-          </div>
-        )}
-
-        <div className={styles.modalActions}>
-          <button
-            type="button"
-            className={styles.modalCancel}
-            onClick={onCancel}
-            disabled={busy}
-          >
-            취소하기
-          </button>
-          <button
-            type="button"
-            className={styles.modalSave}
-            onClick={handleSave}
-            disabled={busy}
-          >
-            {selected != null ? "저장 후 이동" : "저장하기"}
-          </button>
-        </div>
-      </div>
-    </div>
+              <button
+                type="button"
+                className={styles.modalSave}
+                onClick={handleSave}
+                disabled={busy}
+              >
+                {selected != null ? "저장 후 이동" : "저장하기"}
+              </button>
+            </div>
+          </>
+        );
+      }}
+    </ModalShell>
   );
 };
 

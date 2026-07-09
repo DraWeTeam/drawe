@@ -127,14 +127,14 @@ const ProjectList = () => {
   };
 
   const handleEdit = async (payload) => {
+    // 모달이 성공 후 닫힘 애니메이션을 재생하고 onClose(setEditTarget(null))로 스스로 닫는다.
     await updateProject(editTarget.id, payload);
-    setEditTarget(null);
     fetchProjects();
   };
 
   const handleDelete = async () => {
+    // 모달이 성공 후 닫힘 애니메이션을 재생하고 onClose(setDeleteTarget(null))로 스스로 닫는다.
     await deleteProject(deleteTarget.id);
-    setDeleteTarget(null);
     fetchProjects();
   };
 
