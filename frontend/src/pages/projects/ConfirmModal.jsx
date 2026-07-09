@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useModalClose } from "./useModalClose";
 import styles from "./ConfirmModal.module.css";
 
 const ConfirmModal = ({
@@ -11,12 +12,15 @@ const ConfirmModal = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  // 닫힘 애니메이션 — 취소/배경/확인 성공 시 pop-out 후 실제 onClose.
+  const { closing, requestClose } = useModalClose(onClose);
 
   const handleConfirm = async () => {
     setErrorMessage("");
     setLoading(true);
     try {
       await onConfirm();
+      requestClose(); // 성공 시 닫힘 애니메이션 후 언마운트.
     } catch (err) {
       const message =
         err.response?.data?.error?.message || "요청에 실패했습니다.";
@@ -26,16 +30,27 @@ const ConfirmModal = ({
     }
   };
 
+  const close = () => {
+    if (loading) return;
+    requestClose();
+  };
+
   return (
-    <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`${styles.backdrop} ${closing ? styles.backdropClosing : ""}`}
+      onClick={close}
+    >
+      <div
+        className={`${styles.modal} ${closing ? styles.modalClosing : ""}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className={styles.title}>{title}</h2>
         {description && <p className={styles.desc}>{description}</p>}
         {errorMessage && <p className={styles.error}>{errorMessage}</p>}
         <div className={styles.actions}>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className={styles.cancelBtn}
             disabled={loading}
           >

@@ -10,7 +10,7 @@ resources:
 images:
   - name: drawe-fastapi
     newName: 570515227314.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-dev-fastapi
-    newTag: 5cf96fe10ec5d12ef38c530d5dae1831f74ca56b
+    newTag: f0b0cdc4d1b18c25148f116a1b905ab813672335
 
 # 환경별 env (fastapi-embed-env). disableNameSuffixHash 로 이름 고정 → Deployment envFrom 가 참조
 generatorOptions:

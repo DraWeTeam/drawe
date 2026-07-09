@@ -1,0 +1,68 @@
+/* 컬렉션 태그 칩 편집기(공용) — CollectionDetailPage 의 태그 편집기 스타일과 동일. */
+.tagEditor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e6e0d9;
+  border-radius: 9px;
+  padding: 8px;
+  min-height: 42px;
+}
+
+.tagEditor:focus-within {
+  border-color: #f5945b;
+}
+
+.tagAddBtn {
+  flex-shrink: 0;
+  border: none;
+  background: #f5945b;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tagAddBtn:disabled {
+  background: #efe7df;
+  color: #c3bcb4;
+  cursor: default;
+}
+
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0ece7;
+  color: #4a4846;
+  border-radius: 8px;
+  padding: 3px 6px 3px 10px;
+  font-size: 13px;
+}
+
+.tagRemove {
+  border: none;
+  background: none;
+  color: #a8a39e;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.tagRemove:hover {
+  color: #4a4846;
+}
+
+.tagInput {
+  flex: 1;
+  min-width: 100px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  padding: 3px;
+  font-family: inherit;
+}

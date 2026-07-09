@@ -5,8 +5,7 @@ import Tooltip from "../../components/Tooltip";
 import styles from "./ReferencePage.module.css";
 import { track } from "../../analytics";
 import { downloadImage } from "../gallery/download";
-import { addReference } from "../projects/api";
-import { notifyArchiveChanged } from "../gallery/archiveEvents";
+import ArchiveToCollectionModal from "../gallery/ArchiveToCollectionModal";
 import { unsplashSized } from "./imageUtils";
 
 const ReferencePage = () => {
@@ -22,8 +21,9 @@ const ReferencePage = () => {
   const [feedbackLoading, setFeedbackLoading] = useState(true); // 추가
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  // 아카이브 저장 → 컬렉션 선택 모달 열림 여부.
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
 
   // reference 없으면 챗으로 돌아감
   useEffect(() => {
@@ -85,30 +85,20 @@ const ReferencePage = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (saving) return;
+  // 아카이브 저장 = 컬렉션 선택 모달 열기(신규 collections). 옛 project_references 직접 저장 대신.
+  const handleSave = () => {
     if (!reference?.id) {
       alert("저장할 수 없는 이미지예요.");
       return;
     }
-    setSaving(true);
-    try {
-      await addReference(projectId, reference.id);
-      notifyArchiveChanged();
-      alert("아카이브에 저장했어요!");
-      track("reference_archived", {
-        reference_id: reference.id,
-        project_id: projectId,
-      });
-    } catch (err) {
-      // 백엔드 메시지를 그대로 노출.
-      const message =
-        err.response?.data?.error?.message ||
-        "저장에 실패했어요. 다시 시도해주세요.";
-      alert(message);
-    } finally {
-      setSaving(false);
-    }
+    setArchiveModalOpen(true);
+  };
+
+  const handleArchived = () => {
+    track("reference_archived", {
+      reference_id: reference.id,
+      project_id: projectId,
+    });
   };
 
   const handleLike = async () => {
@@ -243,12 +233,8 @@ const ReferencePage = () => {
               <DownloadIcon />
             </button>
           </Tooltip>
-          <button
-            className={styles.saveBtn}
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "저장 중…" : "저장"}
+          <button className={styles.saveBtn} onClick={handleSave}>
+            저장
           </button>
         </div>
       </div>
@@ -338,6 +324,14 @@ const ReferencePage = () => {
           </div>
         </div>
       </div>
+
+      {archiveModalOpen && reference?.id && (
+        <ArchiveToCollectionModal
+          imageId={reference.id}
+          onClose={() => setArchiveModalOpen(false)}
+          onSaved={handleArchived}
+        />
+      )}
     </div>
   );
 };

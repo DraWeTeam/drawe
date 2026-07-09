@@ -16,6 +16,8 @@ import ReferenceBoardPage from "./pages/board/ReferenceBoardPage";
 import LandingPage from "./pages/landing/LandingPage";
 import ArchivePage from "./pages/gallery/ArchivePage";
 import ReferenceListPage from "./pages/gallery/ReferenceListPage";
+import CollectionDetailPage from "./pages/gallery/CollectionDetailPage";
+import ReferenceDetailPage from "./pages/gallery/ReferenceDetailPage";
 import CompletedGalleryPage from "./pages/gallery/CompletedGalleryPage";
 import CompletedDetailPage from "./pages/gallery/CompletedDetailPage";
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -27,6 +29,7 @@ import PolicyPage from "./pages/settings/PolicyPage";
 import { useEffect } from "react";
 import { track } from "./analytics";
 import { ConsentProvider, ConsentGate } from "./auth/ConsentContext";
+import { ToastProvider } from "./components/ToastContext";
 
 // 루트 진입: 비로그인은 랜딩페이지, 로그인 사용자는 앱 홈으로
 function RootRoute() {
@@ -41,56 +44,64 @@ function App() {
   return (
     <BrowserRouter>
       <ConsentProvider>
-        <Template>
-          <ConsentGate>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup/terms" element={<TermsAgreement />} />
-              <Route path="/terms" element={<TermsAgreement consentMode />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/oauth/callback" element={<OAuthCallback />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route
-                path="/reset-password/complete"
-                element={<ResetPasswordComplete />}
-              />
-              <Route path="/landing" element={<LandingPage />} />
-              <Route path="/" element={<RootRoute />} />
-              <Route
-                path="/projects/:projectId/reference/:referenceId"
-                element={<ReferencePage />}
-              />
-              <Route path="/projects" element={<ProjectList />} />
-              <Route path="/archive" element={<ArchivePage />} />
-              <Route
-                path="/archive/references"
-                element={<ReferenceListPage />}
-              />
-              <Route path="/gallery" element={<CompletedGalleryPage />} />
-              <Route
-                path="/gallery/:projectId"
-                element={<CompletedDetailPage />}
-              />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/plan" element={<PlanPage />} />
-              <Route path="/policy" element={<PolicyPage />} />
-              <Route path="/projects/:projectId/chat" element={<ChatPage />} />
-              <Route
-                path="/projects/:projectId/board"
-                element={<ReferenceBoardPage />}
-              />
-              {/* 온보딩 비활성화:
+        <ToastProvider>
+          <Template>
+            <ConsentGate>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup/terms" element={<TermsAgreement />} />
+                <Route path="/terms" element={<TermsAgreement consentMode />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route
+                  path="/reset-password/complete"
+                  element={<ResetPasswordComplete />}
+                />
+                <Route path="/landing" element={<LandingPage />} />
+                <Route path="/" element={<RootRoute />} />
+                <Route
+                  path="/projects/:projectId/reference/:referenceId"
+                  element={<ReferencePage />}
+                />
+                <Route path="/projects" element={<ProjectList />} />
+                <Route path="/archive" element={<ArchivePage />} />
+                <Route
+                  path="/archive/references"
+                  element={<ReferenceListPage />}
+                />
+                <Route path="/gallery" element={<CompletedGalleryPage />} />
+                <Route
+                  path="/gallery/:projectId"
+                  element={<CompletedDetailPage />}
+                />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/plan" element={<PlanPage />} />
+                <Route path="/policy" element={<PolicyPage />} />
+                <Route
+                  path="/projects/:projectId/chat"
+                  element={<ChatPage />}
+                />
+                <Route
+                  path="/projects/:projectId/board"
+                  element={<ReferenceBoardPage />}
+                />
+                {/* 온보딩 비활성화:
               <Route path="/onboarding" element={<OnboardingPage />} /> */}
-              <Route path="/signup/complete" element={<SignupCompletePage />} />
-              {/* 온보딩 비활성화:
+                <Route
+                  path="/signup/complete"
+                  element={<SignupCompletePage />}
+                />
+                {/* 온보딩 비활성화:
               <Route
                 path="/onboarding/complete"
                 element={<OnboardingCompletePage />}
               /> */}
-            </Routes>
-          </ConsentGate>
-        </Template>
+              </Routes>
+            </ConsentGate>
+          </Template>
+        </ToastProvider>
       </ConsentProvider>
     </BrowserRouter>
   );
