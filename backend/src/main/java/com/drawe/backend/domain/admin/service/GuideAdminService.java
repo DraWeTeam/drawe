@@ -38,6 +38,15 @@ public class GuideAdminService {
   /** degraded 비율이 이 초과면 경고색(빨강). */
   private static final double DEGRADED_BAD_ABOVE = 0.20;
 
+  /** 생성 성공률이 이 미만이면 경고색(빨강). */
+  private static final double SUCCESS_BAD_BELOW = 0.80;
+
+  /** 재추천율이 이 초과면 경고색(빨강) — 첫 추천 아쉬움 신호. */
+  private static final double REROLL_BAD_ABOVE = 0.30;
+
+  /** guide_result 이벤트가 이 미만이면 성공률/재추천율 해석 주의(계측 최근 시작). */
+  private static final long RESULT_LOW_DATA = 10;
+
   /** 축 분포 표시 상위 개수. */
   private static final int FOCUS_TOP_N = 12;
 
@@ -84,6 +93,26 @@ public class GuideAdminService {
             .map(p -> new TaskRow((int) num(p.getTasks()), num(p.getCnt())))
             .toList();
 
+    // ── WP8-b: 생성 성공률(guide_result mode 분포) + 재추천율(guide_reroll) ──
+    List<FocusAgg> modeAgg =
+        repo.modeDistribution(since).stream()
+            .map(p -> new FocusAgg(p.getMode(), num(p.getCnt())))
+            .toList();
+    long resultTotal = GuideQualityAnalyzer.totalModes(modeAgg);
+    long coachCount =
+        modeAgg.stream().filter(m -> "coach".equalsIgnoreCase(m.label())).mapToLong(FocusAgg::count).sum();
+    Double successRate = GuideQualityAnalyzer.coachSuccessRate(modeAgg);
+    String successReliability = GuideQualityAnalyzer.reliability(resultTotal, RESULT_LOW_DATA);
+    String successTone = GuideQualityAnalyzer.satisfactionTone(successRate, SUCCESS_BAD_BELOW);
+    List<FocusRow> modeRows = GuideQualityAnalyzer.topFocus(modeAgg, modeAgg.size());
+
+    long rerollCount = repo.rerollCount(since);
+    Double rerollRate = GuideQualityAnalyzer.rerollRate(rerollCount, coachCount);
+    // 재추천율 신뢰도는 분모(coach 생성 수) 표본 기준.
+    String rerollReliability = GuideQualityAnalyzer.reliability(coachCount, RESULT_LOW_DATA);
+    String rerollTone = GuideQualityAnalyzer.degradedTone(rerollRate, REROLL_BAD_ABOVE);
+    boolean instrumentationLowData = resultTotal > 0 && resultTotal < RESULT_LOW_DATA;
+
     return new View(
         TS.format(Instant.now()),
         guideCount,
@@ -97,6 +126,17 @@ public class GuideAdminService {
         degradedReliability,
         degradedTone,
         lowData,
+        resultTotal,
+        coachCount,
+        successRate,
+        successReliability,
+        successTone,
+        rerollCount,
+        rerollRate,
+        rerollReliability,
+        rerollTone,
+        instrumentationLowData,
+        modeRows,
         focusRows,
         dailyRows,
         taskRows);

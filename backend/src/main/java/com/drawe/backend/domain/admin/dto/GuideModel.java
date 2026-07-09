@@ -17,7 +17,7 @@ public record GuideModel() {
 
   public record View(
       String generatedAtText,
-      long guideCount, // 윈도우 내 coach 가이드 생성 수
+      long guideCount, // 윈도우 내 coach 가이드 생성 수(guides 테이블)
       long likeCount,
       long dislikeCount,
       Double satisfactionRate, // 좋아요/(좋아요+싫어요). 피드백 0이면 null
@@ -28,6 +28,18 @@ public record GuideModel() {
       String degradedReliability, // none | green
       String degradedTone, // good | bad | muted
       boolean lowData, // 피드백 표본이 얇아 만족도 해석 주의
+      // ── WP8-b 계측 파생(guide_result / guide_reroll 이벤트) ──
+      long resultTotal, // guide_result 이벤트 수(= 생성 요청 수, 성공률 분모)
+      long coachCount, // 그중 mode=coach
+      Double successRate, // coach/전체. 이벤트 0이면 null
+      String successReliability, // none | yellow | green (계측 표본 기준)
+      String successTone, // good | bad | muted (<임계 bad)
+      long rerollCount, // guide_reroll 이벤트 수(재추천 시도)
+      Double rerollRate, // reroll/coach. coach 0이면 null
+      String rerollReliability, // none | yellow | green
+      String rerollTone, // good | bad | muted (>임계 bad)
+      boolean instrumentationLowData, // 계측 최근 시작 — 성공률/reroll 표본 얇음
+      List<FocusRow> modeRows, // 생성 결과 mode 분포
       List<FocusRow> focusRows,
       List<DailyRow> dailyRows,
       List<TaskRow> taskRows) {
@@ -37,13 +49,23 @@ public record GuideModel() {
     }
 
     public String satisfactionText() {
-      return satisfactionRate == null
-          ? "—"
-          : String.format(Locale.US, "%.0f%%", satisfactionRate * 100);
+      return pct(satisfactionRate);
     }
 
     public String degradedText() {
-      return degradedRate == null ? "—" : String.format(Locale.US, "%.0f%%", degradedRate * 100);
+      return pct(degradedRate);
+    }
+
+    public String successText() {
+      return pct(successRate);
+    }
+
+    public String rerollText() {
+      return pct(rerollRate);
+    }
+
+    private static String pct(Double r) {
+      return r == null ? "—" : String.format(Locale.US, "%.0f%%", r * 100);
     }
   }
 

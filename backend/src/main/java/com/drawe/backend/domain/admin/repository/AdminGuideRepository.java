@@ -62,6 +62,29 @@ public interface AdminGuideRepository extends JpaRepository<Guide, Long> {
       nativeQuery = true)
   List<TaskProj> taskCountDistribution(@Param("since") Instant since);
 
+  /**
+   * 생성 결과 mode 분포 — {@code guide_result} 이벤트(WP8-b 계측)의 payload.mode 별 수. coach/(전체)로 생성 성공률 산출.
+   *
+   * <p>{@code guides} 테이블과 달리 refused/clarify/redirect 도 잡힌다. 계측 시작 이후 발생분만 존재.
+   */
+  @Query(
+      value =
+          "SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.mode')),'(unknown)') AS mode, "
+              + "       COUNT(*) AS cnt "
+              + "FROM analytics_events "
+              + "WHERE event_type = 'guide_result' AND created_at >= :since "
+              + "GROUP BY mode",
+      nativeQuery = true)
+  List<ModeProj> modeDistribution(@Param("since") Instant since);
+
+  /** 레퍼런스 재추천(불만족) 요청 수 — {@code guide_reroll} 이벤트(WP8-b 계측), 윈도우. */
+  @Query(
+      value =
+          "SELECT COUNT(*) FROM analytics_events "
+              + "WHERE event_type = 'guide_reroll' AND created_at >= :since",
+      nativeQuery = true)
+  long rerollCount(@Param("since") Instant since);
+
   interface GuideCountRow {
     Number getTotal();
 
@@ -88,6 +111,12 @@ public interface AdminGuideRepository extends JpaRepository<Guide, Long> {
 
   interface TaskProj {
     Number getTasks();
+
+    Number getCnt();
+  }
+
+  interface ModeProj {
+    String getMode();
 
     Number getCnt();
   }

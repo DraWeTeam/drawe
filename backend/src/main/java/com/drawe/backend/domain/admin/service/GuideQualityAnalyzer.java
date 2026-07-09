@@ -81,6 +81,41 @@ public final class GuideQualityAnalyzer {
     return out;
   }
 
-  /** 축 분포 원자료(정렬 전). */
+  /**
+   * 생성 성공률 = coach / (전체 mode 합). mode 분포({@code guide_result} 이벤트)에서 계산. 이벤트가 하나도 없으면 {@code
+   * null}(계측 시작 전/데이터 없음).
+   *
+   * @param modes (label=mode, count) 목록. label 은 coach|refused|clarify|redirect
+   */
+  public static Double coachSuccessRate(List<FocusAgg> modes) {
+    if (modes == null || modes.isEmpty()) {
+      return null;
+    }
+    long total = modes.stream().mapToLong(FocusAgg::count).sum();
+    if (total <= 0) {
+      return null;
+    }
+    long coach =
+        modes.stream()
+            .filter(m -> "coach".equalsIgnoreCase(m.label()))
+            .mapToLong(FocusAgg::count)
+            .sum();
+    return (double) coach / total;
+  }
+
+  /** mode 분포 전체 합(생성 요청 수 = 성공률 분모). */
+  public static long totalModes(List<FocusAgg> modes) {
+    return modes == null ? 0L : modes.stream().mapToLong(FocusAgg::count).sum();
+  }
+
+  /**
+   * 재추천율 = reroll 수 / 생성 수(coach). 생성이 하나도 없으면 {@code null}. 한 가이드에 재추천을 여러 번 하면 100%를 넘을 수 있다(가이드당
+   * 재추천 시도 비율).
+   */
+  public static Double rerollRate(long rerollCount, long generatedCount) {
+    return generatedCount > 0 ? (double) rerollCount / generatedCount : null;
+  }
+
+  /** 축/모드 분포 원자료(정렬 전). label 은 축(primary_focus) 또는 mode. */
   public record FocusAgg(String label, long count) {}
 }

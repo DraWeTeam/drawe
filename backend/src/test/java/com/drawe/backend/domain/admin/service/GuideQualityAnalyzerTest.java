@@ -86,4 +86,46 @@ class GuideQualityAnalyzerTest {
     assertThat(GuideQualityAnalyzer.topFocus(List.of(), 5)).isEmpty();
     assertThat(GuideQualityAnalyzer.topFocus(null, 5)).isEmpty();
   }
+
+  @Test
+  void 생성성공률_mode분포_coach비율() {
+    // coach 8 / (coach8 + refused1 + clarify1) = 8/10 = 0.8
+    List<FocusAgg> modes =
+        List.of(new FocusAgg("coach", 8), new FocusAgg("refused", 1), new FocusAgg("clarify", 1));
+    assertThat(GuideQualityAnalyzer.coachSuccessRate(modes)).isEqualTo(0.8);
+    assertThat(GuideQualityAnalyzer.totalModes(modes)).isEqualTo(10);
+  }
+
+  @Test
+  void 생성성공률_대소문자_무관() {
+    assertThat(GuideQualityAnalyzer.coachSuccessRate(List.of(new FocusAgg("COACH", 3))))
+        .isEqualTo(1.0);
+  }
+
+  @Test
+  void 생성성공률_이벤트없으면_null() {
+    assertThat(GuideQualityAnalyzer.coachSuccessRate(List.of())).isNull();
+    assertThat(GuideQualityAnalyzer.coachSuccessRate(null)).isNull();
+    assertThat(GuideQualityAnalyzer.totalModes(null)).isEqualTo(0);
+  }
+
+  @Test
+  void 재추천율() {
+    // reroll 3 / coach 12 = 0.25
+    assertThat(GuideQualityAnalyzer.rerollRate(3, 12)).isEqualTo(0.25);
+    // 생성 0이면 null(분모 0 안전)
+    assertThat(GuideQualityAnalyzer.rerollRate(5, 0)).isNull();
+    // 여러 번 재추천 → 100% 초과 가능
+    assertThat(GuideQualityAnalyzer.rerollRate(15, 10)).isEqualTo(1.5);
+  }
+
+  @Test
+  void 성공률_tone_임계미만_bad_재추천_tone_임계초과_bad() {
+    // 성공률은 만족도와 같은 로직(미만 bad) 재사용
+    assertThat(GuideQualityAnalyzer.satisfactionTone(0.79, 0.80)).isEqualTo("bad");
+    assertThat(GuideQualityAnalyzer.satisfactionTone(0.80, 0.80)).isEqualTo("good");
+    // 재추천율은 degraded 와 같은 로직(초과 bad) 재사용
+    assertThat(GuideQualityAnalyzer.degradedTone(0.31, 0.30)).isEqualTo("bad");
+    assertThat(GuideQualityAnalyzer.degradedTone(0.30, 0.30)).isEqualTo("good");
+  }
 }
