@@ -46,6 +46,25 @@ export const login = async ({ email, password }) => {
   return res.data.data;
 };
 
+// 비밀번호 재설정 (SCR-AUTH-02~04) — 미가입/소셜 계정은 백엔드가 에러 반환.
+export const sendPasswordResetCode = async (email) => {
+  const res = await api.post("/auth/password-reset/send-code", { email });
+  return res.data.data;
+};
+
+export const verifyPasswordResetCode = async (email, code) => {
+  const res = await api.post("/auth/password-reset/verify-code", {
+    email,
+    code,
+  });
+  return res.data.data;
+};
+
+export const resetPassword = async (email, newPassword) => {
+  const res = await api.post("/auth/password-reset", { email, newPassword });
+  return res.data.data;
+};
+
 export const checkEmail = async (email) => {
   const res = await api.get("/auth/check-email", { params: { email } });
   return res.data.data;

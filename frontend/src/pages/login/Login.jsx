@@ -191,13 +191,34 @@ const Login = () => {
               <img src={Google} className={styles.googleLogo}></img>
               <p style={{ fontWeight: "500" }}>Sign in with Google</p>
             </button>
-            <div className={styles.signin}>
-              <p style={{ margin: "0", fontWeight: "350" }}>
-                계정이 없으신가요?
-              </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "12px",
+                marginTop: "16px",
+                fontSize: "14px",
+              }}
+            >
+              <Link
+                to="/forgot-password"
+                style={{
+                  color: "#888685",
+                  fontWeight: 350,
+                  textDecoration: "none",
+                }}
+              >
+                비밀번호 찾기
+              </Link>
+              <span style={{ color: "#d8d7d5" }}>|</span>
               <Link
                 to="/signup/terms"
-                style={{ margin: "0", fontWeight: "500" }}
+                style={{
+                  color: "#888685",
+                  fontWeight: 350,
+                  textDecoration: "none",
+                }}
                 onClick={() => {
                   track("signup_started", {
                     source: getUrlParam("utm_source") || "organic",

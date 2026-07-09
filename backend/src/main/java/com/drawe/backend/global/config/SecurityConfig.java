@@ -79,6 +79,9 @@ public class SecurityConfig {
                         "/auth/refresh",
                         "/auth/email/send-code",
                         "/auth/email/verify-code",
+                        "/auth/password-reset/send-code",
+                        "/auth/password-reset/verify-code",
+                        "/auth/password-reset",
                         "/search/**")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/image/**", "/guide-asset/**")
