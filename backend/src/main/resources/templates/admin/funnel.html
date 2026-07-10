@@ -27,7 +27,7 @@
        style="margin:-6px 0 18px; display:flex; gap:8px; flex-wrap:wrap;">
     <a th:href="@{/admin/funnel(hours=${hours}, source='generated')}" th:classappend="${isGenerated} ? 'active'">생성 AI</a>
     <a th:href="@{/admin/funnel(hours=${hours}, source='board')}" th:classappend="${isBoard} ? 'active'">보드 검색</a>
-    <a th:href="@{/admin/funnel(hours=${hours}, source='guiding')}" th:classappend="${isGuiding} ? 'active'" style="opacity:.75;">가이딩 추천 <span style="opacity:.6; font-size:11px;">레거시</span></a>
+    <a th:href="@{/admin/funnel(hours=${hours}, source='guiding')}" th:classappend="${isGuiding} ? 'active'" style="opacity:.75;">채팅 추천 <span style="opacity:.6; font-size:11px;">레거시</span></a>
   </div>
 
   <!-- 태그 관심도에서 드릴다운으로 들어온 경우: 필터 + 돌아가기 -->
