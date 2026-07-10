@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { globalSearch } from "../pages/search/api";
 import AuthedImage from "../pages/chat/AuthedImage";
 import { track } from "../analytics";
@@ -25,6 +25,14 @@ const SCOPE_BY_FILTER = {
   completed: "COMPLETED",
 };
 
+// 프론트 필터 키 → GA4 이벤트 값 (스펙상 completed 는 gallery 로 집계)
+const FILTER_GA = {
+  all: "all",
+  project: "project",
+  reference: "reference",
+  completed: "gallery",
+};
+
 const EMPTY_RESULTS = { projects: [], references: [], completed: [] };
 
 // 최근 검색어 = { term, type } (type: 검색 당시 대상 — 아이콘 결정용)
@@ -47,12 +55,17 @@ function loadRecent() {
 
 const SearchModal = ({ onClose }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [results, setResults] = useState(EMPTY_RESULTS);
   const [loading, setLoading] = useState(false);
   const [recent, setRecent] = useState(loadRecent);
   const inputRef = useRef(null);
+
+  // search_cancelled 시그널용 — 검색어 입력/결과 클릭 여부를 modal 생명주기 동안 기억
+  const hadQueryRef = useRef(false);
+  const hadClickRef = useRef(false);
 
   const trimmed = query.trim();
   const showResults = trimmed.length > 0;
@@ -61,9 +74,36 @@ const SearchModal = ({ onClose }) => {
     results.references.length +
     results.completed.length;
 
+  // 진입점: /archive·/gallery 영역에서 열면 archive, 그 외엔 프로젝트 목록
+  const inArchiveArea =
+    location.pathname.startsWith("/archive") ||
+    location.pathname.startsWith("/gallery");
+  const entryPoint = inArchiveArea ? "archive" : "project_list";
+  const searchScope = inArchiveArea ? "archive" : "project";
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // GA4: 검색창 진입(마운트) / 이탈·초기화(언마운트). 모든 닫기 경로를 커버.
+  useEffect(() => {
+    track("search_started", {
+      entry_point: entryPoint,
+      initial_filter: "all",
+    });
+    return () => {
+      track("search_cancelled", {
+        had_query: hadQueryRef.current,
+        had_click: hadClickRef.current,
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 검색어가 한 번이라도 입력되었는지 기록
+  useEffect(() => {
+    if (trimmed) hadQueryRef.current = true;
+  }, [trimmed]);
 
   // ESC로 닫기
   useEffect(() => {
@@ -132,25 +172,34 @@ const SearchModal = ({ onClose }) => {
     });
   }, []);
 
-  const openProject = (p) => {
-    track("project_search_result_clicked", {
-      project_id: p.id,
-      query: trimmed,
+  const trackResultClick = (resultType, index) => {
+    hadClickRef.current = true;
+    track("search_result_clicked", {
+      result_type: resultType,
+      result_position: index + 1, // 1부터
+      query_length: trimmed.length,
+      total_results: totalCount,
     });
+  };
+
+  const openProject = (p, index) => {
+    trackResultClick("project", index);
     pushRecent(trimmed, "project");
     onClose();
     navigate(`/projects/${p.id}/chat`);
   };
 
   // 레퍼런스 결과 → 레퍼런스 아카이브로 이동
-  const openReference = () => {
+  const openReference = (index) => {
+    trackResultClick("reference", index);
     pushRecent(trimmed, "reference");
     onClose();
     navigate("/archive");
   };
 
   // 완성작 결과 → 완성작 갤러리로 이동
-  const openCompleted = () => {
+  const openCompleted = (index) => {
+    trackResultClick("gallery_item", index);
     pushRecent(trimmed, "completed");
     onClose();
     navigate("/gallery");
@@ -190,7 +239,16 @@ const SearchModal = ({ onClose }) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") pushRecent(trimmed, filter);
+              if (e.key !== "Enter") return;
+              if (trimmed) {
+                track("search_query_submitted", {
+                  search_scope: searchScope,
+                  query_length: trimmed.length,
+                  filter_type: FILTER_GA[filter] || filter,
+                  result_count: totalCount,
+                });
+              }
+              pushRecent(trimmed, filter);
             }}
           />
           <button
@@ -212,7 +270,16 @@ const SearchModal = ({ onClose }) => {
               className={`${styles.chip} ${
                 filter === f.key ? styles.chipActive : ""
               }`}
-              onClick={() => setFilter(f.key)}
+              onClick={() => {
+                if (f.key !== filter) {
+                  track("search_filter_changed", {
+                    previous_filter: FILTER_GA[filter] || filter,
+                    new_filter: FILTER_GA[f.key] || f.key,
+                    has_query: trimmed.length > 0,
+                  });
+                }
+                setFilter(f.key);
+              }}
             >
               {f.label}
             </button>
@@ -238,12 +305,12 @@ const SearchModal = ({ onClose }) => {
                         <p className={styles.groupLabel}>프로젝트</p>
                       )}
                       <ul className={styles.list}>
-                        {results.projects.map((p) => (
+                        {results.projects.map((p, i) => (
                           <li key={`p-${p.id}`}>
                             <button
                               type="button"
                               className={styles.row}
-                              onClick={() => openProject(p)}
+                              onClick={() => openProject(p, i)}
                             >
                               <span className={styles.rowIcon}>
                                 <FolderIcon />
@@ -269,12 +336,12 @@ const SearchModal = ({ onClose }) => {
                         <p className={styles.groupLabel}>레퍼런스</p>
                       )}
                       <ul className={styles.list}>
-                        {results.references.map((r) => (
+                        {results.references.map((r, i) => (
                           <li key={`r-${r.imageId}-${r.projectId}`}>
                             <button
                               type="button"
                               className={styles.row}
-                              onClick={openReference}
+                              onClick={() => openReference(i)}
                             >
                               <AuthedImage
                                 src={r.url}
@@ -306,12 +373,12 @@ const SearchModal = ({ onClose }) => {
                         <p className={styles.groupLabel}>완성작 갤러리</p>
                       )}
                       <ul className={styles.list}>
-                        {results.completed.map((c) => (
+                        {results.completed.map((c, i) => (
                           <li key={`c-${c.projectId}`}>
                             <button
                               type="button"
                               className={styles.row}
-                              onClick={openCompleted}
+                              onClick={() => openCompleted(i)}
                             >
                               <AuthedImage
                                 src={c.drawingUrl}
