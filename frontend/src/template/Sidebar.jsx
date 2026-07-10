@@ -28,7 +28,12 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
-  const [archiveOpen, setArchiveOpen] = useState(true);
+  // 기본은 닫힘 — 단, 아카이브 하위 페이지 진입 시엔 열어서 현재 위치를 보이게
+  const [archiveOpen, setArchiveOpen] = useState(
+    () =>
+      location.pathname === "/archive/references" ||
+      location.pathname === "/gallery",
+  );
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [referenceCount, setReferenceCount] = useState(0);
@@ -244,11 +249,15 @@ const Sidebar = () => {
               <button
                 type="button"
                 className={`${styles.menuItem} ${
-                  !archiveOpen && isArchiveActive ? styles.active : ""
+                  location.pathname === "/archive" ? styles.active : ""
                 }`}
                 onClick={() => {
-                  navigate("/archive"); // 아카이브 홈
-                  setArchiveOpen(true);
+                  if (location.pathname !== "/archive") {
+                    navigate("/archive"); // 아카이브 홈으로 이동하며 서브 펼침
+                    setArchiveOpen(true);
+                  } else {
+                    setArchiveOpen((o) => !o); // 이미 홈이면 서브 열고/닫기 토글
+                  }
                 }}
               >
                 <span className={styles.menuIcon}>

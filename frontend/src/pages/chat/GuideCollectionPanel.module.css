@@ -148,7 +148,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-200);
-  padding: 0 var(--space-500) var(--space-300);
+  padding: 0 var(--space-600) var(--space-300); /* 카드 리스트와 좌우 정렬 맞춤 */
 }
 .filterTab {
   border: 1px solid var(--border-input);
