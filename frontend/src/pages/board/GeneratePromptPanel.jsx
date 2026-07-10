@@ -375,7 +375,16 @@ const GeneratePromptPanel = ({
       const res = await generateReference(projectId, prompt); // { imageId, url }
       setGenMessages((prev) =>
         prev.map((m) =>
-          m.id === answerId ? { ...m, loading: false, image: res } : m,
+          m.id === answerId
+            ? {
+                ...m,
+                loading: false,
+                image: res,
+                // [트래킹] prompt_image_feedback/saved 의 프롬프트 길이·생성 경과 계산용.
+                genPrompt: prompt,
+                generatedAt: Date.now(),
+              }
+            : m,
         ),
       );
       onGenerated?.({ id: res.imageId, url: res.url, source: "AI" });
@@ -427,11 +436,32 @@ const GeneratePromptPanel = ({
 
   // 생성 이미지 반응(좋아요/싫어요) — 왼쪽 보드와 같은 백엔드에 저장(best-effort), 로컬 토글로 표시.
   const reactGen = (m, kind) => {
+    const prevFb = m.reaction ?? null;
     const next = m.reaction === kind ? null : kind;
-    setGenMessages((prev) =>
-      prev.map((x) => (x.id === m.id ? { ...x, reaction: next } : x)),
-    );
+    const now = Date.now();
     const imageId = m.image?.imageId;
+    // [트래킹] AI 생성 이미지 좋아요/싫어요 — applied/changed/removed.
+    if (imageId) {
+      track("prompt_image_feedback", {
+        image_id: imageId,
+        action_type:
+          prevFb === null ? "applied" : next === null ? "removed" : "changed",
+        current_feedback: next ?? "none",
+        previous_feedback: prevFb ?? "none",
+        generation_prompt_length: m.genPrompt?.length ?? null,
+        time_since_generated_sec: m.generatedAt
+          ? Math.round((now - m.generatedAt) / 1000)
+          : null,
+        time_since_previous_action_sec: m.lastFeedbackAt
+          ? Math.round((now - m.lastFeedbackAt) / 1000)
+          : null,
+      });
+    }
+    setGenMessages((prev) =>
+      prev.map((x) =>
+        x.id === m.id ? { ...x, reaction: next, lastFeedbackAt: now } : x,
+      ),
+    );
     if (!imageId) return;
     const req =
       next === null
@@ -580,7 +610,18 @@ const GeneratePromptPanel = ({
                         type="button"
                         className={chatStyles.guideActBtn}
                         aria-label="다운로드"
-                        onClick={() => downloadImage(m.image.url)}
+                        onClick={() => {
+                          // [트래킹] AI 생성 이미지 저장(다운로드).
+                          track("prompt_image_saved", {
+                            image_id: m.image?.imageId,
+                            previous_feedback: m.reaction ?? "none",
+                            save_type: "download",
+                            time_since_generated_sec: m.generatedAt
+                              ? Math.round((Date.now() - m.generatedAt) / 1000)
+                              : null,
+                          });
+                          downloadImage(m.image.url);
+                        }}
                       >
                         <DownloadIcon />
                       </button>

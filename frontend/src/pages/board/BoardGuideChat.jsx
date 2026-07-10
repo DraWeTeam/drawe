@@ -7,6 +7,7 @@ import {
 } from "../chat/api";
 import { axisLabel } from "../chat/guideLabels";
 import { downloadGuidePdf } from "../chat/guidePdf";
+import { track } from "../../analytics";
 import AuthedImage from "../chat/AuthedImage";
 import GuideCollectionPanel from "../chat/GuideCollectionPanel";
 // ★ChatPage.module.css 를 read-only 로 재사용 — ChatPage 파일은 미접촉(0 diff)이고 결과카드·버블
@@ -166,11 +167,13 @@ const BoardGuideChat = ({
 
   const setGuideCardFeedback = (gidVal, kind) => {
     const msg = messages.find((m) => m._gid === gidVal && m.type === "guide");
+    const prevKind = msg?.guideFeedback ?? null;
     const nextKind = msg && msg.guideFeedback === kind ? null : kind; // 토글
+    const now = Date.now();
     setMessages((prev) =>
       prev.map((m) =>
         m._gid === gidVal && m.type === "guide"
-          ? { ...m, guideFeedback: nextKind }
+          ? { ...m, guideFeedback: nextKind, lastFeedbackAt: now }
           : m,
       ),
     );
@@ -179,6 +182,33 @@ const BoardGuideChat = ({
       const fb =
         nextKind === "up" ? "like" : nextKind === "down" ? "dislike" : null;
       sendGuideFeedback(projectId, guideId, fb).catch(() => {});
+      // [트래킹] 가이드 좋아요/싫어요 — applied/changed/removed (ChatPage 와 동일 규격).
+      const generatedAt = msg.createdAt
+        ? new Date(msg.createdAt).getTime()
+        : null;
+      track("guide_feedback", {
+        project_id: projectId,
+        guide_id: guideId,
+        action_type:
+          !prevKind && nextKind
+            ? "applied"
+            : prevKind && !nextKind
+              ? "removed"
+              : "changed",
+        current_feedback: fb || "none",
+        previous_feedback:
+          prevKind === "up" ? "like" : prevKind === "down" ? "dislike" : "none",
+        guide_category:
+          msg.guide?.next_steps?.track?.group ||
+          msg.guide?.primary_focus ||
+          "",
+        time_since_generated_sec: generatedAt
+          ? Math.round((now - generatedAt) / 1000)
+          : 0,
+        time_since_previous_action_sec: msg.lastFeedbackAt
+          ? Math.round((now - msg.lastFeedbackAt) / 1000)
+          : 0,
+      });
     }
   };
 
@@ -234,12 +264,34 @@ const BoardGuideChat = ({
                   type="button"
                   className={styles.guideActBtn}
                   aria-label="PDF 다운로드"
-                  onClick={() =>
+                  onClick={() => {
+                    // [트래킹] 가이드 저장(PDF 다운로드) — 보드 인라인 가이드 뷰.
+                    const generatedAt = m.createdAt
+                      ? new Date(m.createdAt).getTime()
+                      : null;
+                    track("guide_saved", {
+                      project_id: projectId,
+                      guide_id: m.guide?.guide_id || "",
+                      guide_category:
+                        m.guide?.next_steps?.track?.group ||
+                        m.guide?.primary_focus ||
+                        "",
+                      previous_feedback:
+                        m.guideFeedback === "up"
+                          ? "like"
+                          : m.guideFeedback === "down"
+                            ? "dislike"
+                            : "none",
+                      time_since_generated_sec: generatedAt
+                        ? Math.round((Date.now() - generatedAt) / 1000)
+                        : 0,
+                      save_entry_point: "guide_view",
+                    });
                     downloadGuidePdf(
                       { guide: m.guide, references: m.references },
                       m.guidePreview,
-                    )
-                  }
+                    );
+                  }}
                 >
                   <DownloadIcon />
                 </button>
