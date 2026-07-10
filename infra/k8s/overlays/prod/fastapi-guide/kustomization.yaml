@@ -9,7 +9,7 @@ resources:
 images:
   - name: drawe-fastapi-guide
     newName: 933832340498.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-prod-fastapi-guide
-    newTag: latest
+    newTag: f74a0da71d26695dbfcfe4d85bfecf4de0e17b62
 
 generatorOptions:
   disableNameSuffixHash: true
@@ -51,7 +51,7 @@ patches:
       - op: replace
         path: /spec/securityGroups/groupIds
         value:
-          - sg-03266d4b8793d8258        # drawe-prod-pods-db
+          - sg-0ce73e01249357fe2        # drawe-prod-pods-db
           - sg-01cd9b17e6765c840        # 클러스터 SG
   - target:
       kind: ExternalSecret
