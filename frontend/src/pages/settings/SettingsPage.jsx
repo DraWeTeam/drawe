@@ -55,6 +55,13 @@ const SettingsPage = ({ onClose }) => {
     } catch {
       // ignore
     } finally {
+      const startedAt = Number(sessionStorage.getItem("session_started_at"));
+      track("logout_completed", {
+        session_duration_sec: startedAt
+          ? Math.round((Date.now() - startedAt) / 1000)
+          : null,
+        entry_point: "settings",
+      });
       clearTokens();
       navigate("/login");
     }
@@ -75,6 +82,7 @@ const SettingsPage = ({ onClose }) => {
         />
 
         <AccountSection
+          profile={profile}
           social={profile.social}
           onLogout={() => {
             onClose?.();
@@ -140,13 +148,49 @@ const ProfileSection = ({ profile, onUpdated }) => {
   const dirty = nickname.trim() !== profile.nickname;
   const valid = nickname.trim().length > 0 && nickname.trim().length <= 100;
 
+  // [트래킹] 편집 진입 여부/최신 dirty 상태를 ref 로 보관(이탈 계측용).
+  const editStartedRef = useRef(false);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
+  // [트래킹] 닉네임 입력 첫 진입(변경 시도) 1회 → profile_nickname_edit_started.
+  const handleNicknameFocus = () => {
+    if (editStartedRef.current) return;
+    editStartedRef.current = true;
+    track("profile_nickname_edit_started", { entry_point: "settings" });
+  };
+
+  // [트래킹] 변경 시도 후 저장 없이 이탈(언마운트) → profile_nickname_edit_cancelled.
+  useEffect(() => {
+    return () => {
+      if (editStartedRef.current && dirtyRef.current) {
+        track("profile_nickname_edit_cancelled", {
+          abandon_reason: "navigation_away",
+        });
+      }
+    };
+  }, []);
+
   const handleSave = async () => {
     if (!dirty || !valid || saving) return;
     setSaving(true);
     setMessage(null);
     try {
+      const prevLength = profile.nickname.length;
       const next = await updateNickname(nickname.trim());
       onUpdated(next);
+      // [트래킹] 닉네임 변경 완료 → profile_nickname_changed.
+      //   time_since_signup_days 는 프로필 API 에 가입일이 없어 현재 null(백엔드 노출 시 자동 채움).
+      track("profile_nickname_changed", {
+        previous_nickname_length: prevLength,
+        new_nickname_length: nickname.trim().length,
+        time_since_signup_days: profile.createdAt
+          ? Math.max(
+              0,
+              Math.floor((Date.now() - Date.parse(profile.createdAt)) / 86400000),
+            )
+          : null,
+      });
       setMessage({ type: "ok", text: "닉네임을 변경했어요." });
     } catch (err) {
       setMessage({
@@ -177,6 +221,7 @@ const ProfileSection = ({ profile, onUpdated }) => {
             className={styles.input}
             value={nickname}
             maxLength={100}
+            onFocus={handleNicknameFocus}
             onChange={(e) => setNickname(e.target.value)}
           />
           <button
@@ -201,8 +246,16 @@ const ProfileSection = ({ profile, onUpdated }) => {
 };
 
 /* ── 계정 (비밀번호 / 로그아웃 / 회원탈퇴) ──────── */
-const AccountSection = ({ social, onLogout, onWithdrawn }) => {
+const AccountSection = ({ profile, social, onLogout, onWithdrawn }) => {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+
+  // [트래킹] 프로필 API 에 가입일이 없어 현재 null(백엔드 노출 시 자동 채움).
+  const accountAgeDays = profile?.createdAt
+    ? Math.max(
+        0,
+        Math.floor((Date.now() - Date.parse(profile.createdAt)) / 86400000),
+      )
+    : null;
 
   return (
     <section className={styles.card}>
@@ -225,7 +278,13 @@ const AccountSection = ({ social, onLogout, onWithdrawn }) => {
         <button
           type="button"
           className={styles.dangerText}
-          onClick={() => setWithdrawOpen(true)}
+          onClick={() => {
+            track("account_deletion_started", {
+              entry_point: "settings",
+              account_age_days: accountAgeDays,
+            });
+            setWithdrawOpen(true);
+          }}
         >
           회원탈퇴
         </button>
@@ -233,6 +292,8 @@ const AccountSection = ({ social, onLogout, onWithdrawn }) => {
 
       {withdrawOpen && (
         <WithdrawModal
+          accountAgeDays={accountAgeDays}
+          projectCount={profile?.projectCount ?? null}
           onClose={() => setWithdrawOpen(false)}
           onWithdrawn={onWithdrawn}
         />
@@ -352,10 +413,34 @@ const PasswordChanger = () => {
 };
 
 /* ── 회원탈퇴 확인 모달 ──────────────────────────── */
-const WithdrawModal = ({ onClose, onWithdrawn }) => {
+const WithdrawModal = ({
+  accountAgeDays = null,
+  projectCount = null,
+  onClose,
+  onWithdrawn,
+}) => {
   const [confirmText, setConfirmText] = useState("");
   const [processing, setProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // [트래킹] 탈퇴 완료 여부/최신 입력값 ref — 도중 이탈 계측용.
+  const confirmedRef = useRef(false);
+  const confirmTextRef = useRef("");
+  confirmTextRef.current = confirmText;
+
+  // [트래킹] 탈퇴 완료 없이 모달 닫힘(취소/배경 클릭/이탈) → account_deletion_cancelled.
+  useEffect(() => {
+    return () => {
+      if (!confirmedRef.current) {
+        track("account_deletion_cancelled", {
+          abandon_step:
+            confirmTextRef.current.length > 0
+              ? "confirmation"
+              : "warning_screen",
+        });
+      }
+    };
+  }, []);
 
   const handleWithdraw = async () => {
     if (confirmText !== "탈퇴" || processing) return;
@@ -363,6 +448,14 @@ const WithdrawModal = ({ onClose, onWithdrawn }) => {
     setErrorMessage("");
     try {
       await withdraw();
+      confirmedRef.current = true;
+      // [트래킹] 탈퇴 최종 완료 → account_deletion_confirmed.
+      //   deletion_reason 은 사유 선택 UI 가 없어 미발송. account_age_days/project_count 는
+      //   프로필 API 미노출로 현재 null(백엔드 노출 시 자동 채움).
+      track("account_deletion_confirmed", {
+        account_age_days: accountAgeDays,
+        project_count: projectCount,
+      });
       onWithdrawn();
     } catch (err) {
       setErrorMessage(
