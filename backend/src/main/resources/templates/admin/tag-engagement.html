@@ -114,7 +114,7 @@
         <tbody>
           <tr th:each="r : ${axis.rows()}">
             <td>
-              <a th:href="@{/admin/funnel(q=${r.value()})}" th:text="${r.value()}"
+              <a th:href="@{/admin/funnel(q=${r.value()}, source='guiding')}" th:text="${r.value()}"
                  title="이 태그의 이미지별 상세 보기"
                  style="color:var(--accent); text-decoration:none; border-bottom:1px dashed var(--peach-line);">-</a>
             </td>
