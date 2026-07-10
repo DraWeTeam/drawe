@@ -489,116 +489,126 @@ const GeneratePromptPanel = ({
       {/* 메시지 영역 — 복원된 인라인 가이드 챗(BoardGuideChat, BOARD-01 66:26420 정본).
           가이드가 없으면 인트로, 있으면 버블+인라인 결과카드 스트림. ChatPage 미접촉 조립. */}
       <div className={styles.messages}>
-        {chatCount === 0 && genMessages.length === 0 && (
-          <div className={styles.intro}>
-            <img className={styles.introLogo} src={logo} alt="" />
-            <h2 className={styles.introTitle}>어떤 도움이 필요하신가요?</h2>
-          </div>
-        )}
-        <BoardGuideChat
-          projectId={projectId}
-          reloadSignal={chatReload}
-          onCount={setChatCount}
-          collectionOpen={collectionOpen}
-          onCollectionChange={onCollectionChange}
-          onGuidesCount={onGuidesCount}
-          onOpenGuide={onOpenGuide}
-        />
-
-        {/* SCRUM-118 — 레퍼런스 생성 채팅 스트림(사용자 프롬프트 → drawe 답변 + 생성 이미지). */}
-        {genMessages.map((m) =>
-          m.role === "user" ? (
-            <div
-              key={m.id}
-              className={`${chatStyles.userMessage} ${styles.genMsg}`}
-            >
-              <div className={chatStyles.userBubble}>
-                <div>{m.content}</div>
-              </div>
+        <div className={styles.messagesInner}>
+          {chatCount === 0 && genMessages.length === 0 && (
+            <div className={styles.intro}>
+              <img className={styles.introLogo} src={logo} alt="" />
+              <h2 className={styles.introTitle}>어떤 도움이 필요하신가요?</h2>
             </div>
-          ) : (
-            <div
-              key={m.id}
-              className={`${chatStyles.assistantMessage} ${styles.genMsg}`}
-            >
-              {m.loading && (
-                <div className={chatStyles.assistantBubble}>
-                  <img className={chatStyles.assistantLogo} src={logo} alt="" />
-                  <span>레퍼런스를 생성하고 있어요…</span>
+          )}
+          <BoardGuideChat
+            projectId={projectId}
+            reloadSignal={chatReload}
+            onCount={setChatCount}
+            collectionOpen={collectionOpen}
+            onCollectionChange={onCollectionChange}
+            onGuidesCount={onGuidesCount}
+            onOpenGuide={onOpenGuide}
+          />
+
+          {/* SCRUM-118 — 레퍼런스 생성 채팅 스트림(사용자 프롬프트 → drawe 답변 + 생성 이미지). */}
+          {genMessages.map((m) =>
+            m.role === "user" ? (
+              <div
+                key={m.id}
+                className={`${chatStyles.userMessage} ${styles.genMsg}`}
+              >
+                <div className={chatStyles.userBubble}>
+                  <div>{m.content}</div>
                 </div>
-              )}
-              {m.error && (
-                <div className={chatStyles.assistantBubble}>
-                  <img className={chatStyles.assistantLogo} src={logo} alt="" />
-                  <div>
-                    {m.error}
-                    {m.retryPrompt && (
-                      <button
-                        type="button"
-                        className={chatStyles.followUpBtn}
-                        style={{ marginTop: 8 }}
-                        onClick={() => runGeneration(m.retryPrompt)}
-                        disabled={genLoading}
-                      >
-                        다시 시도
-                      </button>
-                    )}
+              </div>
+            ) : (
+              <div
+                key={m.id}
+                className={`${chatStyles.assistantMessage} ${styles.genMsg}`}
+              >
+                {m.loading && (
+                  <div className={chatStyles.assistantBubble}>
+                    <img
+                      className={chatStyles.assistantLogo}
+                      src={logo}
+                      alt=""
+                    />
+                    <span>레퍼런스를 생성하고 있어요…</span>
                   </div>
-                </div>
-              )}
-              {m.image && (
-                <>
-                  {/* drawe 답변 표시 — 로고 아바타 */}
-                  <img
-                    className={chatStyles.assistantLogo}
-                    src={logo}
-                    alt="drawe"
-                  />
-                  <div className={chatStyles.messageImages}>
-                    <div
-                      className={`${chatStyles.imageWrap} ${chatStyles.imageWrapAi}`}
-                    >
-                      <AuthedImage
-                        src={m.image.url}
-                        alt="생성된 레퍼런스"
-                        className={chatStyles.aiImage}
-                      />
+                )}
+                {m.error && (
+                  <div className={chatStyles.assistantBubble}>
+                    <img
+                      className={chatStyles.assistantLogo}
+                      src={logo}
+                      alt=""
+                    />
+                    <div>
+                      {m.error}
+                      {m.retryPrompt && (
+                        <button
+                          type="button"
+                          className={chatStyles.followUpBtn}
+                          style={{ marginTop: 8 }}
+                          onClick={() => runGeneration(m.retryPrompt)}
+                          disabled={genLoading}
+                        >
+                          다시 시도
+                        </button>
+                      )}
                     </div>
                   </div>
-                  {/* 가이드 카드와 동일한 액션 — 다운로드/좋아요/싫어요 */}
-                  <div className={chatStyles.guideActions}>
-                    <button
-                      type="button"
-                      className={chatStyles.guideActBtn}
-                      aria-label="다운로드"
-                      onClick={() => downloadImage(m.image.url)}
-                    >
-                      <DownloadIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={chatStyles.guideActBtn}
-                      data-active={m.reaction === "like"}
-                      aria-label="좋아요"
-                      onClick={() => reactGen(m, "like")}
-                    >
-                      <ThumbUpIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={chatStyles.guideActBtn}
-                      data-active={m.reaction === "dislike"}
-                      aria-label="싫어요"
-                      onClick={() => reactGen(m, "dislike")}
-                    >
-                      <ThumbDownIcon />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ),
-        )}
+                )}
+                {m.image && (
+                  <>
+                    {/* drawe 답변 표시 — 로고 아바타 */}
+                    <img
+                      className={chatStyles.assistantLogo}
+                      src={logo}
+                      alt="drawe"
+                    />
+                    <div className={chatStyles.messageImages}>
+                      <div
+                        className={`${chatStyles.imageWrap} ${chatStyles.imageWrapAi}`}
+                      >
+                        <AuthedImage
+                          src={m.image.url}
+                          alt="생성된 레퍼런스"
+                          className={chatStyles.aiImage}
+                        />
+                      </div>
+                    </div>
+                    {/* 가이드 카드와 동일한 액션 — 다운로드/좋아요/싫어요 */}
+                    <div className={chatStyles.guideActions}>
+                      <button
+                        type="button"
+                        className={chatStyles.guideActBtn}
+                        aria-label="다운로드"
+                        onClick={() => downloadImage(m.image.url)}
+                      >
+                        <DownloadIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={chatStyles.guideActBtn}
+                        data-active={m.reaction === "like"}
+                        aria-label="좋아요"
+                        onClick={() => reactGen(m, "like")}
+                      >
+                        <ThumbUpIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={chatStyles.guideActBtn}
+                        data-active={m.reaction === "dislike"}
+                        aria-label="싫어요"
+                        onClick={() => reactGen(m, "dislike")}
+                      >
+                        <ThumbDownIcon />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ),
+          )}
+        </div>
       </div>
 
       {/* 프롬프트 바 */}

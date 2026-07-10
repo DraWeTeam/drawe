@@ -33,15 +33,21 @@
   background: #f5f5f5;
 }
 
-/* ===== 메시지 영역(셸) ===== */
+/* 스크롤 셸 — full-width (스크롤바가 패널 끝에 오도록) */
 .messages {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  width: 100%;
+}
+
+/* 실제 콘텐츠 폭 — 800 중앙정렬 (스크롤바는 패널 끝, 콘텐츠만 좁게) */
+.messagesInner {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 800px; /* 입력창(promptBar)과 폭 통일 */
+  height: 100%;
+  max-width: 800px;
   margin: 0 auto;
 }
 
