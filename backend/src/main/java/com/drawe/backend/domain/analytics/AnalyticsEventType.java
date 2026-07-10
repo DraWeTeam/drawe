@@ -26,6 +26,14 @@ public final class AnalyticsEventType {
   /** 검색 결과 무관 판단으로 차단. payload: keyword, avg_score, max_score. */
   public static final String SEARCH_BLOCKED = "search_blocked";
 
+  // ── 보드 검색 ──────────────────────────────────────
+  // 채팅 검색(위)과 별개 소스 — 채팅 검색 품질 지표를 오염시키지 않도록 별도 event_type 으로 집계한다.
+  /** 무드보드 검색 실행(결과 반환). payload: keyword, result_count, avg_score, max_score. */
+  public static final String BOARD_SEARCH_EXECUTED = "board_search_executed";
+
+  /** 무드보드 검색 결과 무관 판단으로 차단(→ 생성 유도). payload: keyword, result_count, avg_score, max_score. */
+  public static final String BOARD_SEARCH_BLOCKED = "board_search_blocked";
+
   /** 키워드 추출 결정: 이전 references 유지. */
   public static final String DECISION_KEEP = "decision_keep";
 

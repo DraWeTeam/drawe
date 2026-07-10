@@ -47,6 +47,7 @@ class ReferenceBoardServiceTest {
   @Mock ProjectRepository projectRepository;
   @Mock ReferenceBoardSessionService sessionService;
   @Mock ReferenceBoardImpressionService impressionService;
+  @Mock com.drawe.backend.domain.analytics.service.AnalyticsEventService analyticsEventService;
 
   @InjectMocks ReferenceBoardService service;
 
