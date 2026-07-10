@@ -26,6 +26,9 @@ public class AdminFunnelService {
   /** 능동 수집(active curation) 세그먼트 — 사용자가 직접 생성한 AI 이미지. 현재 기본 뷰. */
   public static final String SOURCE_GENERATED = "generated";
 
+  /** 능동 수집 세그먼트 — 보드 검색으로 노출된 레퍼런스(Unsplash·코퍼스·AI). anchor=reference_board_impressions. */
+  public static final String SOURCE_BOARD = "board";
+
   /** 레거시 세그먼트 — 채팅 가이딩이 추천한 ref(references_json). 비교 기준으로만 접근 가능(기본 비노출). */
   public static final String SOURCE_GUIDING = "guiding";
 
@@ -46,18 +49,21 @@ public class AdminFunnelService {
     String safeQ = q == null ? "" : q.trim();
     int offset = (safePage - 1) * safeSize;
 
-    boolean guiding = SOURCE_GUIDING.equals(source);
-    boolean generated = SOURCE_GENERATED.equals(source);
-    if (!guiding && !generated) {
-      // board 등 미구현 세그먼트 — Phase 2에서 노출 로깅이 들어오면 채워진다.
+    long total;
+    List<FunnelProjection> ps;
+    if (SOURCE_GUIDING.equals(source)) {
+      total = repo.funnelCount(since, safeQ);
+      ps = repo.funnel(since, safeQ, safeSize, offset);
+    } else if (SOURCE_BOARD.equals(source)) {
+      total = repo.funnelBoardCount(since, safeQ);
+      ps = repo.funnelBoard(since, safeQ, safeSize, offset);
+    } else if (SOURCE_GENERATED.equals(source)) {
+      total = repo.funnelGeneratedCount(since, safeQ);
+      ps = repo.funnelGenerated(since, safeQ, safeSize, offset);
+    } else {
       return new FunnelPage(new ArrayList<>(), 0, safePage, safeSize, safeQ);
     }
 
-    long total = guiding ? repo.funnelCount(since, safeQ) : repo.funnelGeneratedCount(since, safeQ);
-    List<FunnelProjection> ps =
-        guiding
-            ? repo.funnel(since, safeQ, safeSize, offset)
-            : repo.funnelGenerated(since, safeQ, safeSize, offset);
     List<FunnelRow> rows = new ArrayList<>();
     for (FunnelProjection p : ps) {
       long shown = p.getShown();
@@ -82,20 +88,31 @@ public class AdminFunnelService {
   @Transactional(readOnly = true)
   public RelevanceSummary buildSummary(int windowHours, String source) {
     Instant since = Instant.now().minus(Duration.ofHours(windowHours));
-    boolean guiding = SOURCE_GUIDING.equals(source);
-    boolean generated = SOURCE_GENERATED.equals(source);
-    if (!guiding && !generated) {
+    long shown;
+    FeedbackCounts fc;
+    long saves;
+    // decision_keep/skip은 채팅 키워드-추출 단계의 시스템 결정이라 능동 수집 세그먼트엔 무의미 → 0.
+    long keep = 0L;
+    long skip = 0L;
+    if (SOURCE_GUIDING.equals(source)) {
+      shown = repo.countShown(since);
+      fc = repo.feedbackCounts(since);
+      saves = repo.countSaves(since);
+      keep = analyticsRepo.countByType("decision_keep", since);
+      skip = analyticsRepo.countByType("decision_skip", since);
+    } else if (SOURCE_BOARD.equals(source)) {
+      shown = repo.countBoardShown(since);
+      fc = repo.feedbackCountsBoard(since);
+      saves = repo.countSavesBoard(since);
+    } else if (SOURCE_GENERATED.equals(source)) {
+      shown = repo.countGenerated(since);
+      fc = repo.feedbackCountsGenerated(since);
+      saves = repo.countSavesGenerated(since);
+    } else {
       return new RelevanceSummary(0, 0, 0, 0, null, null, null, 0, 0);
     }
-
-    long shown = guiding ? repo.countShown(since) : repo.countGenerated(since);
-    FeedbackCounts fc = guiding ? repo.feedbackCounts(since) : repo.feedbackCountsGenerated(since);
     long likes = num(fc.getLikes());
     long dislikes = num(fc.getDislikes());
-    long saves = guiding ? repo.countSaves(since) : repo.countSavesGenerated(since);
-    // decision_keep/skip은 채팅 키워드-추출 단계의 시스템 결정이라 생성 세그먼트엔 무의미 → 0.
-    long keep = guiding ? analyticsRepo.countByType("decision_keep", since) : 0L;
-    long skip = guiding ? analyticsRepo.countByType("decision_skip", since) : 0L;
     return new RelevanceSummary(
         shown,
         likes,

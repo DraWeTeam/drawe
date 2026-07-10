@@ -26,7 +26,7 @@
   <div class="ranges" hx-boost="true" hx-target="#admin-content" hx-select="#admin-content" hx-swap="outerHTML"
        style="margin:-6px 0 18px; display:flex; gap:8px; flex-wrap:wrap;">
     <a th:href="@{/admin/funnel(hours=${hours}, source='generated')}" th:classappend="${isGenerated} ? 'active'">생성 AI</a>
-    <a th:href="@{/admin/funnel(hours=${hours}, source='board')}" th:classappend="${isBoard} ? 'active'">보드 검색 <span style="opacity:.6; font-size:11px;">준비중</span></a>
+    <a th:href="@{/admin/funnel(hours=${hours}, source='board')}" th:classappend="${isBoard} ? 'active'">보드 검색</a>
     <a th:href="@{/admin/funnel(hours=${hours}, source='guiding')}" th:classappend="${isGuiding} ? 'active'" style="opacity:.75;">가이딩 추천 <span style="opacity:.6; font-size:11px;">레거시</span></a>
   </div>
 
@@ -73,8 +73,13 @@
   </div>
 
   <div class="meta" style="margin:0 0 16px; line-height:1.6;" th:if="${isGenerated}">
-    읽는 법 — <b>저장율</b> = 생성한 이미지를 실제로 프로젝트에 담은 비율(만족도 신호, 자동 저장 아님) ·
+    읽는 법 — <b>저장율</b> = 생성한 이미지를 담기·아카이브·핀 중 하나로 간직한 비율(만족도 신호, 자동 저장 아님) ·
     <b>싫어요 발생</b> = 생성 품질 불만 · <b>많이 생성했는데 저장 0</b> = 프롬프트/모델 재검토.
+    (베타 표본이 작으니 절대 수치보다 상대 비교로.)
+  </div>
+  <div class="meta" style="margin:0 0 16px; line-height:1.6;" th:if="${isBoard}">
+    읽는 법 — 보드 <b>검색 결과로 노출</b>된 레퍼런스(Unsplash·코퍼스·AI)의 반응. 기본 그리드 스크롤은 제외 ·
+    <b>저장율</b> = 담기·아카이브·핀 중 하나로 간직한 비율 · <b>노출 많은데 저장 0</b> = 검색 품질/랭킹 재검토.
     (베타 표본이 작으니 절대 수치보다 상대 비교로.)
   </div>
   <div class="meta" style="margin:0 0 16px; line-height:1.6;" th:if="${isGuiding}">
@@ -82,10 +87,17 @@
     <b>노출 적은데 저장률 높음</b> = 더 자주 추천할 ref. (베타 표본이 작으니 절대 수치보다 상대 비교로.)
   </div>
 
-  <div class="meta" style="margin:0 0 16px; line-height:1.6; color:var(--warn); background:var(--warn-soft); border-radius:10px; padding:10px 14px;">
-    ⚠️ 비율 해석 주의 — <span th:text="${firstLabel}">생성</span>은 이 윈도우 안의 것만 세지만, 좋아요·저장은 각자의 발생 시각으로
-    따로 집계돼요. 그래서 윈도우 경계에 걸친 항목은 <b>좋아요%·저장%가 100%를 넘거나 어긋나 보일 수</b> 있어요
-    (윈도우 직전에 <span th:text="${firstLabel}">생성</span> → 윈도우 안에서 저장 등). <b>절대값이 아니라 항목 간 상대 비교</b>로 읽고,
+  <div class="meta" style="margin:0 0 16px; line-height:1.6; color:var(--warn); background:var(--warn-soft); border-radius:10px; padding:10px 14px;"
+       th:if="${!isGuiding}">
+    ⚠️ 비율 해석 주의 — <b>저장(keep)</b>은 담기·아카이브·핀의 <b>현재 유지 상태</b>라 노출 대비 100%를 넘지 않아요.
+    다만 <b>좋아요</b>는 발생 시각 기준 윈도우 집계라, 윈도우 경계에 걸친 항목은 좋아요%가 어긋나 보일 수 있어요.
+    절대값보다 <b>항목 간 상대 비교</b>로 읽고, 정밀 비교가 필요하면 윈도우를 넓히세요.
+  </div>
+  <div class="meta" style="margin:0 0 16px; line-height:1.6; color:var(--warn); background:var(--warn-soft); border-radius:10px; padding:10px 14px;"
+       th:if="${isGuiding}">
+    ⚠️ 비율 해석 주의 — 노출(shown)은 이 윈도우 안의 추천만 세지만, 좋아요·저장은 각자의 발생 시각으로
+    따로 집계돼요. 그래서 윈도우 경계에 걸친 ref는 <b>좋아요%·저장%가 100%를 넘거나 어긋나 보일 수</b> 있어요
+    (윈도우 직전에 노출 → 윈도우 안에서 저장 등). <b>절대값이 아니라 ref 간 상대 비교</b>로 읽고,
     정밀 비교가 필요하면 윈도우를 넓혀 경계 효과를 희석하세요.
   </div>
 
@@ -176,8 +188,11 @@
     </table>
 
     <div class="empty" th:if="${funnel.rows().isEmpty()}">
-      <span th:if="${isBoard}">
-        무드 보드 검색 세그먼트는 아직 데이터가 없어요. 검색 노출 로깅(Phase 2)이 들어오면 여기 쌓입니다.
+      <span th:if="${isBoard and #strings.isEmpty(funnel.q())}">
+        이 기간에 보드 검색으로 노출된 레퍼런스가 없어요. (유저가 보드 상단에서 검색하면 여기 쌓여요. 윈도우를 7d/30d로 넓혀보세요.)
+      </span>
+      <span th:if="${isBoard and !#strings.isEmpty(funnel.q())}">
+        '<b th:text="${funnel.q()}">-</b>' 검색 결과가 없어요. 다른 키워드를 시도해 보세요.
       </span>
       <span th:if="${!isBoard and #strings.isEmpty(funnel.q())}">
         <span th:if="${isGenerated}">이 기간에 생성된 AI 이미지가 없어요. (채팅·보드에서 이미지가 생성되면 여기 쌓여요. 윈도우를 7d/30d로 넓혀보세요.)</span>

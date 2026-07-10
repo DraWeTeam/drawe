@@ -68,6 +68,7 @@ public class ReferenceBoardService {
   private final ProjectRepository projectRepository;
   private final ReferenceBoardSessionService sessionService;
   private final ReferenceGenerationRepository referenceGenerationRepository;
+  private final ReferenceBoardImpressionService impressionService;
   private final com.drawe.backend.domain.image.service.ImageGenerationService
       imageGenerationService;
   private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
@@ -157,6 +158,13 @@ public class ReferenceBoardService {
         projectId,
         src,
         cards.size());
+
+    // 능동 수집 퍼널 anchor — 실제 노출된 결과 카드의 image_id 를 fail-safe 로 적재(검색 응답엔 영향 0).
+    impressionService.record(
+        user.getId(),
+        query,
+        src.name(),
+        cards.stream().map(c -> c.image().id()).filter(java.util.Objects::nonNull).toList());
 
     // SCRUM-113: 마지막 검색어 저장(결과 있을 때만) — 재진입 시 서버 기반으로 자동 복원(로그아웃/디바이스 무관).
     //   검색 도중 다른 변경(핀 등) 클로버 방지로 재조회 후 lastReferenceQuery 만 갱신.
