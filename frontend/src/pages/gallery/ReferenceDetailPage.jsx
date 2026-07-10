@@ -9,6 +9,7 @@ import {
   addReferenceToCollection,
 } from "./api";
 import { downloadImage } from "./download";
+import { track } from "../../analytics";
 import { unsplashSized } from "../chat/imageUtils";
 import TagChipEditor from "./TagChipEditor";
 import AuthedImage from "../chat/AuthedImage";
@@ -76,6 +77,18 @@ const ReferenceDetailPage = () => {
     };
   }, [imageId]);
 
+  // [트래킹] 레퍼런스 상세 진입 후 2초 이상 머물면 archive_reference_viewed 1회 전송.
+  useEffect(() => {
+    if (!ref) return undefined;
+    const timer = setTimeout(() => {
+      track("archive_reference_viewed", {
+        reference_id: Number(imageId),
+        view_duration_sec: 2,
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [ref, imageId]);
+
   // 바깥 클릭 시 아카이브 메뉴 닫기.
   useEffect(() => {
     if (!archiveOpen) return;
@@ -99,6 +112,15 @@ const ReferenceDetailPage = () => {
       } else {
         await saveImageFeedback(imageId, next);
       }
+      track("archive_reference_action", {
+        reference_id: Number(imageId),
+        action_type:
+          next == null
+            ? "reaction_removed"
+            : next === "LIKE"
+              ? "like"
+              : "dislike",
+      });
     } catch (err) {
       setReaction(reaction); // 롤백
       setErrorMessage(
@@ -112,6 +134,10 @@ const ReferenceDetailPage = () => {
     setDownloading(true);
     try {
       await downloadImage(ref.imageId, ref.url);
+      track("archive_reference_action", {
+        reference_id: ref.imageId,
+        action_type: "download",
+      });
     } finally {
       setDownloading(false);
     }
@@ -141,6 +167,11 @@ const ReferenceDetailPage = () => {
     try {
       await addReferenceToCollection(collectionId, Number(imageId));
       setSavedTo((prev) => new Set(prev).add(collectionId));
+      track("reference_archived", {
+        reference_id: Number(imageId),
+        collection_id: collectionId,
+        entry_point: "detail_view",
+      });
     } catch (err) {
       setErrorMessage(
         err.response?.data?.error?.message || "아카이브에 저장하지 못했어요.",
@@ -159,6 +190,12 @@ const ReferenceDetailPage = () => {
         tags: newTags,
       });
       const id = data?.collectionId;
+      track("reference_archived", {
+        reference_id: Number(imageId),
+        collection_id: id ?? null,
+        entry_point: "detail_view",
+        reference_tags: newTags,
+      });
       setNewName("");
       setNewTags([]);
       setTagDraft("");

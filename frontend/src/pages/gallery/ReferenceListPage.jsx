@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCollections, updateCollection, deleteCollection } from "./api";
+import { track } from "../../analytics";
 import CollectionCard from "./CollectionCard";
 import CollectionEditModal from "./CollectionEditModal";
 import DirectAddModal from "./DirectAddModal";
@@ -184,6 +185,11 @@ const ReferenceListPage = () => {
                       onClick={() => {
                         setSort(s.key);
                         setSortOpen(false);
+                        track("archive_sorted", {
+                          category: "reference",
+                          sort_type: "archived_date",
+                          sort_order: s.key === "recent" ? "desc" : "asc",
+                        });
                       }}
                     >
                       <span className={styles.sortCheck}>
