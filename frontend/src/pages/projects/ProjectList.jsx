@@ -76,7 +76,7 @@ const ProjectList = () => {
   useEffect(() => {
     if (location.state?.openCreate) {
       setCreateOpen(true);
-      track("project_create_clicked");
+      track("project_create_started");
       navigate(location.pathname, { replace: true, state: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -252,7 +252,7 @@ const ProjectList = () => {
               className={styles.createBtn}
               onClick={() => {
                 setCreateOpen(true);
-                track("project_create_clicked");
+                track("project_create_started");
               }}
             >
               <PlusIcon />새 프로젝트

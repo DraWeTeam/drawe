@@ -112,12 +112,19 @@ const ReferenceDetailPage = () => {
       } else {
         await saveImageFeedback(imageId, next);
       }
-      track("archive_reference_action", {
+      // 레퍼런스 좋아요/싫어요 — guide_feedback / prompt_reference_feedback 와 동일 규격.
+      //   action_type: 처음 부여=applied, 전환=changed, 해제=removed.
+      //   (재활용 액션 전용인 archive_reference_action 과 분리해 enum 오염 방지)
+      track("archive_reference_feedback", {
         reference_id: Number(imageId),
         action_type:
-          next == null
-            ? "reaction_removed"
-            : next === "LIKE"
+          reaction == null ? "applied" : next == null ? "removed" : "changed",
+        current_feedback:
+          next == null ? "none" : next === "LIKE" ? "like" : "dislike",
+        previous_feedback:
+          reaction == null
+            ? "none"
+            : reaction === "LIKE"
               ? "like"
               : "dislike",
       });

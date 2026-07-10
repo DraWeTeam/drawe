@@ -43,7 +43,7 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     track("login_attempt", {
-      login_method: "google",
+      login_method: "social",
       device_type: getDeviceType(),
     });
     window.location.href = `${import.meta.env.VITE_API_URL}/oauth2/authorization/google`;

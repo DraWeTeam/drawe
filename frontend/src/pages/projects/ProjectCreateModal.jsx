@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createProject, extractKeywords } from "./api";
 import { getProfile } from "../settings/api";
@@ -40,6 +40,65 @@ const ProjectCreateModal = ({ onClose }) => {
   const [extracting, setExtracting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [nickname, setNickname] = useState("");
+  // [트래킹] 주제 입력 project_field_input 중복 발사 방지(동일 내용 재-blur 무시).
+  const topicTrackedRef = useRef("");
+  // [트래킹] 모달 진입 시각 + 종료 결과(created/cancelled) — 취소/이탈 구분·체류시간 계산용.
+  const [mountTime] = useState(() => Date.now());
+  const resultRef = useRef(null); // null | "created" | "cancelled"
+  const snapshotRef = useRef({ topic: "", name: "", keywords: [] });
+  snapshotRef.current = { topic, name, keywords };
+
+  // 취소/이탈 시점에 채워진 필드 목록(topic/name/keywords).
+  const filledFields = () => {
+    const s = snapshotRef.current;
+    const f = [];
+    if (s.topic.trim()) f.push("topic");
+    if (s.name.trim()) f.push("name");
+    if (s.keywords.length) f.push("keywords");
+    return f;
+  };
+
+  // X(닫기) 버튼 = 명시적 취소 → project_create_cancelled.
+  const handleCancel = () => {
+    if (resultRef.current == null) {
+      resultRef.current = "cancelled";
+      const f = filledFields();
+      track("project_create_cancelled", {
+        filled_fields: f,
+        filled_fields_count: f.length,
+        time_spent_sec: Math.round((Date.now() - mountTime) / 1000),
+      });
+    }
+    requestClose();
+  };
+
+  // 생성·취소 없이 모달이 사라지면(배경 클릭·페이지 이탈) → project_create_abandoned.
+  useEffect(() => {
+    return () => {
+      if (resultRef.current == null) {
+        const f = filledFields();
+        track("project_create_abandoned", {
+          filled_fields: f,
+          filled_fields_count: f.length,
+          time_spent_sec: Math.round((Date.now() - mountTime) / 1000),
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // [트래킹] 주제 입력창 blur(= 필드 입력 완료) 시 1회 project_field_input.
+  //   실제 모달의 유일한 텍스트 입력이라 field_name 은 topic 만 수집(name/keyword 제외).
+  const handleTopicBlur = () => {
+    const v = topic.trim();
+    if (!v || v === topicTrackedRef.current) return;
+    topicTrackedRef.current = v;
+    track("project_field_input", {
+      field_name: "topic",
+      input_type: "typed",
+      input_length: v.length,
+    });
+  };
 
   useEffect(() => {
     getProfile()
@@ -81,6 +140,7 @@ const ProjectCreateModal = ({ onClose }) => {
         keywords: finalKeywords,
         description: null,
       });
+      resultRef.current = "created"; // 이탈 트래킹 억제
       track("project_created", {
         keyword_count: finalKeywords.length,
         topic_length: topic.trim().length,
@@ -148,7 +208,7 @@ const ProjectCreateModal = ({ onClose }) => {
           <button
             type="button"
             className={styles.closeBtn}
-            onClick={requestClose}
+            onClick={handleCancel}
             aria-label="닫기"
           >
             <CloseIcon />
@@ -164,6 +224,7 @@ const ProjectCreateModal = ({ onClose }) => {
               className={styles.textarea}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
+              onBlur={handleTopicBlur}
               placeholder="예) 화창한 하늘을 배경으로 날아다니는 날개 달린 강아지"
               rows={4}
               onKeyDown={(e) => {

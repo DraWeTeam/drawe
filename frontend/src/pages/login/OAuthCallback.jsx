@@ -51,7 +51,7 @@ const OAuthCallback = () => {
     if (!accessToken || !refreshToken) {
       // ↓ OAuth 실패 (토큰 못 받음)
       track("login_failed", {
-        login_method: "google",
+        login_method: "social",
         attempt_number: 1,
         error_type: "missing_tokens",
       });
@@ -68,7 +68,7 @@ const OAuthCallback = () => {
 
     // ↓ OAuth 성공
     track("login_success", {
-      login_method: "google",
+      login_method: "social",
       attempt_count: 1,
       time_taken: 0,
     });

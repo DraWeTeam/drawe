@@ -171,7 +171,7 @@ const CompletedGalleryPage = () => {
                 setSortDesc((v) => !v);
                 track("archive_sorted", {
                   category: "gallery",
-                  sort_type: "completed_date",
+                  sort_type: "recent",
                   sort_order: sortDesc ? "asc" : "desc",
                 });
               }}

@@ -19,6 +19,9 @@ const ReferenceGrid = ({
   archivedIds,
   expanded,
   firstMenuRef,
+  projectId,
+  iterationCount = 0,
+  inputMode = "text",
 }) => {
   const hasReferences = references && references.length > 0;
   const totalCount = (references || []).length;
@@ -242,13 +245,13 @@ const ReferenceCard = ({
 
       const props = {
         reference_id: reference.id,
+        project_id: projectId,
         action_type: actionType,
         feedback_type: feedbackType,
         previous_feedback_type: previous ? previous.toLowerCase() : "none",
         reference_position: index || 0,
-        // iteration_count, input_mode는 카드 컴포넌트에선 모름 → 부모에서 prop으로 받거나 0
-        iteration_count: 0,
-        input_mode: "text",
+        iteration_count: iterationCount,
+        input_mode: inputMode,
         reference_tags: reference?.tags?.join(",") || "",
       };
 

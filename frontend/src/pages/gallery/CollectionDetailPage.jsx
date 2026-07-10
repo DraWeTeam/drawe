@@ -156,11 +156,14 @@ const CollectionDetailPage = () => {
     )?.pinned;
     try {
       await togglePin(collectionId, imageId);
-      track("archive_reference_action", {
-        reference_id: imageId,
-        collection_id: collectionId,
-        action_type: wasPinned ? "unpin" : "pin",
-      });
+      // 스펙 enum(unpin/remove/download/open_project)상 '고정 해제'만 트래킹.
+      if (wasPinned) {
+        track("archive_reference_action", {
+          reference_id: imageId,
+          collection_id: collectionId,
+          action_type: "unpin",
+        });
+      }
       setCollection((prev) => {
         const references = prev.references.map((r) =>
           r.imageId === imageId ? { ...r, pinned: !r.pinned } : r,
