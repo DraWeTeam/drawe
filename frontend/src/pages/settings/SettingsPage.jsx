@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../login/api";
 import {
@@ -8,6 +8,7 @@ import {
   withdraw,
   sendFeedback,
 } from "./api";
+import { track } from "../../analytics";
 import styles from "./SettingsPage.module.css";
 
 const SUPPORT_EMAIL = "drawe3648@gmail.com";
@@ -419,12 +420,45 @@ const FeedbackSection = () => {
   const trimmed = message.trim();
   const valid = trimmed.length > 0 && trimmed.length <= FEEDBACK_MAX;
 
+  // [트래킹] 작성 시작 시각/제출 여부/최신 입력값을 ref 로 보관(이탈 계측용, 최신 클로저 회피).
+  const startedAtRef = useRef(null); // 첫 작성 진입 시각(ms) — feedback_started 발화 여부 겸용
+  const submittedRef = useRef(false);
+  const trimmedRef = useRef("");
+  trimmedRef.current = trimmed;
+
+  // [트래킹] 피드백 폼 첫 진입(작성 시도) 1회 → feedback_started.
+  const handleFeedbackFocus = () => {
+    if (startedAtRef.current) return;
+    startedAtRef.current = Date.now();
+    track("feedback_started", {});
+  };
+
+  // [트래킹] 작성 중 이탈(언마운트) 시 → feedback_cancelled. 제출했거나 빈 입력이면 발화 안 함.
+  useEffect(() => {
+    return () => {
+      if (
+        startedAtRef.current &&
+        !submittedRef.current &&
+        trimmedRef.current.length > 0
+      ) {
+        track("feedback_cancelled", {
+          time_spent_sec: Math.round(
+            (Date.now() - startedAtRef.current) / 1000,
+          ),
+          content_length: trimmedRef.current.length,
+        });
+      }
+    };
+  }, []);
+
   const handleSend = async () => {
     if (!valid || sending) return;
     setSending(true);
     setResult(null);
     try {
       await sendFeedback(trimmed);
+      submittedRef.current = true;
+      track("feedback_submitted", { feedback_length: trimmed.length });
       setMessage("");
       setResult({ type: "ok", text: "소중한 의견 감사합니다!" });
     } catch (err) {
@@ -452,6 +486,7 @@ const FeedbackSection = () => {
           placeholder="의견을 입력해주세요"
           maxLength={FEEDBACK_MAX}
           value={message}
+          onFocus={handleFeedbackFocus}
           onChange={(e) => setMessage(e.target.value)}
         />
         <div className={styles.feedbackActions}>
