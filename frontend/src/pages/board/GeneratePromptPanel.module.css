@@ -40,6 +40,9 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 800px; /* 입력창(promptBar)과 폭 통일 */
+  margin: 0 auto;
 }
 
 /* 생성 채팅 메시지 간 간격(원래 채팅처럼 메시지끼리 떨어지게) */

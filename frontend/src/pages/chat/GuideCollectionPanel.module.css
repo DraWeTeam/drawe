@@ -25,7 +25,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-200);
-  padding: var(--space-300) var(--space-800);
+  /* 위쪽이 너무 붙지 않게 상단 여백 확대 */
+  padding: var(--space-800) var(--space-800) var(--space-300);
   flex-shrink: 0;
 }
 .title {
@@ -148,7 +149,9 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-200);
-  padding: 0 var(--space-600) var(--space-300); /* 카드 리스트와 좌우 정렬 맞춤 */
+  /* 왼쪽을 헤더 제목(헤더 32 + 제목 16 = 48)에 맞춤 */
+  padding: 0 var(--space-600) var(--space-300)
+    calc(var(--space-800) + var(--space-400));
 }
 .filterTab {
   border: 1px solid var(--border-input);
