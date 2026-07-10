@@ -167,6 +167,138 @@ public interface AdminSearchRepository extends JpaRepository<SearchLog, Long> {
       nativeQuery = true)
   List<KeywordCountProj> wordSourceLowQuality(@Param("since") Instant since);
 
+  // ── 보드 검색 (analytics_events, board_search_executed/blocked) ──
+  // 채팅과 달리 search_logs 테이블이 없어 analytics_events payload 를 JSON_EXTRACT 로 집계한다.
+  // "차단"은 이벤트 타입(board_search_blocked)으로 명시 판정(result_count 휴리스틱 아님).
+  // keyword = payload.$.keyword(원문 쿼리). 컬럼명은 payload(=payloadJson 매핑).
+
+  /** payload 에서 원문 검색어 추출(집계 GROUP BY·필터 공용). 인터페이스 상수라 암묵 public static final. */
+  String BOARD_KEYWORD = "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(payload, '$.keyword')), '(없음)')";
+
+  /** payload.result_count 평균(숫자). */
+  String BOARD_AVG_RESULT = "AVG(CAST(JSON_EXTRACT(payload, '$.result_count') AS SIGNED))";
+
+  /** payload.avg_score 평균(소수). */
+  String BOARD_AVG_SCORE = "AVG(CAST(JSON_EXTRACT(payload, '$.avg_score') AS DECIMAL(10,4)))";
+
+  /** 보드 검색 상단 KPI 한 행. */
+  @Query(
+      value =
+          "SELECT COUNT(*) AS total, "
+              + "       SUM(CASE WHEN event_type = 'board_search_blocked' THEN 1 ELSE 0 END)"
+              + "           AS blocked, "
+              + "       "
+              + BOARD_AVG_RESULT
+              + " AS avgResults, "
+              + "       "
+              + BOARD_AVG_SCORE
+              + " AS avgScore "
+              + "FROM analytics_events "
+              + "WHERE created_at >= :since "
+              + "  AND event_type IN ('board_search_executed','board_search_blocked')",
+      nativeQuery = true)
+  KpiRow boardKpi(@Param("since") Instant since);
+
+  /** 보드 차단(생성 유도) 검색을 키워드별 빈도순 + 검색(q) + 페이지네이션. */
+  @Query(
+      value =
+          "SELECT "
+              + BOARD_KEYWORD
+              + " AS keyword, "
+              + "       COUNT(*) AS cnt, "
+              + "       "
+              + BOARD_AVG_SCORE
+              + " AS avgScore, "
+              + "       DATE_FORMAT(MAX(created_at), '%Y-%m-%d %H:%i') AS lastAt "
+              + "FROM analytics_events "
+              + "WHERE created_at >= :since AND event_type = 'board_search_blocked' "
+              + "  AND (:q = '' OR "
+              + BOARD_KEYWORD
+              + " LIKE CONCAT('%', :q, '%')) "
+              + "GROUP BY "
+              + BOARD_KEYWORD
+              + " "
+              + "ORDER BY cnt DESC "
+              + "LIMIT :size OFFSET :offset",
+      nativeQuery = true)
+  List<BacklogProj> boardBacklog(
+      @Param("since") Instant since,
+      @Param("q") String q,
+      @Param("size") int size,
+      @Param("offset") int offset);
+
+  /** 보드 백로그 총 키워드 수(필터 적용 후). */
+  @Query(
+      value =
+          "SELECT COUNT(*) FROM ( "
+              + "  SELECT "
+              + BOARD_KEYWORD
+              + " AS keyword "
+              + "  FROM analytics_events "
+              + "  WHERE created_at >= :since AND event_type = 'board_search_blocked' "
+              + "    AND (:q = '' OR "
+              + BOARD_KEYWORD
+              + " LIKE CONCAT('%', :q, '%')) "
+              + "  GROUP BY "
+              + BOARD_KEYWORD
+              + " "
+              + ") c",
+      nativeQuery = true)
+  long boardBacklogCount(@Param("since") Instant since, @Param("q") String q);
+
+  /** 보드 검색 수요 TOP — 전체 보드 검색 키워드 빈도 + 품질 + 검색(q) + 페이지네이션. */
+  @Query(
+      value =
+          "SELECT "
+              + BOARD_KEYWORD
+              + " AS keyword, "
+              + "       COUNT(*) AS cnt, "
+              + "       "
+              + BOARD_AVG_RESULT
+              + " AS avgResults, "
+              + "       "
+              + BOARD_AVG_SCORE
+              + " AS avgScore, "
+              + "       SUM(CASE WHEN event_type = 'board_search_blocked' THEN 1 ELSE 0 END)"
+              + "           AS blockedCnt "
+              + "FROM analytics_events "
+              + "WHERE created_at >= :since "
+              + "  AND event_type IN ('board_search_executed','board_search_blocked') "
+              + "  AND (:q = '' OR "
+              + BOARD_KEYWORD
+              + " LIKE CONCAT('%', :q, '%')) "
+              + "GROUP BY "
+              + BOARD_KEYWORD
+              + " "
+              + "ORDER BY cnt DESC "
+              + "LIMIT :size OFFSET :offset",
+      nativeQuery = true)
+  List<DemandProj> boardDemand(
+      @Param("since") Instant since,
+      @Param("q") String q,
+      @Param("size") int size,
+      @Param("offset") int offset);
+
+  /** 보드 수요 총 키워드 수(필터 적용 후). */
+  @Query(
+      value =
+          "SELECT COUNT(*) FROM ( "
+              + "  SELECT "
+              + BOARD_KEYWORD
+              + " AS keyword "
+              + "  FROM analytics_events "
+              + "  WHERE created_at >= :since "
+              + "    AND event_type IN ('board_search_executed','board_search_blocked') "
+              + "    AND (:q = '' OR "
+              + BOARD_KEYWORD
+              + " LIKE CONCAT('%', :q, '%')) "
+              + "  GROUP BY "
+              + BOARD_KEYWORD
+              + " "
+              + ") c",
+      nativeQuery = true)
+  long boardDemandCount(@Param("since") Instant since, @Param("q") String q);
+
   /** SUM/COUNT은 드라이버가 BigDecimal/Long 등으로 줄 수 있어 Number로 받는다. */
   interface KpiRow {
     Number getTotal();

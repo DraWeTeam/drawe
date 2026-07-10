@@ -68,6 +68,9 @@ public class ReferenceBoardService {
   private final ProjectRepository projectRepository;
   private final ReferenceBoardSessionService sessionService;
   private final ReferenceGenerationRepository referenceGenerationRepository;
+  private final ReferenceBoardImpressionService impressionService;
+  private final com.drawe.backend.domain.analytics.service.AnalyticsEventService
+      analyticsEventService;
   private final com.drawe.backend.domain.image.service.ImageGenerationService
       imageGenerationService;
   private final com.drawe.backend.domain.image.service.ImageUrlSigner imageUrlSigner;
@@ -132,6 +135,8 @@ public class ReferenceBoardService {
         tagRelevant,
         blocked);
     if (blocked) {
+      // 보드 검색 수요·실패 로깅 — 결과 약해 생성으로 이어지는 검색어를 어드민 검색 품질에서 볼 수 있게(fail-safe).
+      emitBoardSearch(user, query, true, 0, avg, max);
       return new ReferenceBoardSearchResponse(List.of(), 0, query, src.name(), true);
     }
 
@@ -158,6 +163,16 @@ public class ReferenceBoardService {
         src,
         cards.size());
 
+    // 능동 수집 퍼널 anchor — 실제 노출된 결과 카드의 image_id 를 fail-safe 로 적재(검색 응답엔 영향 0).
+    impressionService.record(
+        user.getId(),
+        query,
+        src.name(),
+        cards.stream().map(c -> c.image().id()).filter(java.util.Objects::nonNull).toList());
+
+    // 보드 검색 수요 로깅 — 검색 품질(보드) 섹션 집계용(fail-safe).
+    emitBoardSearch(user, query, false, cards.size(), avg, max);
+
     // SCRUM-113: 마지막 검색어 저장(결과 있을 때만) — 재진입 시 서버 기반으로 자동 복원(로그아웃/디바이스 무관).
     //   검색 도중 다른 변경(핀 등) 클로버 방지로 재조회 후 lastReferenceQuery 만 갱신.
     if (!cards.isEmpty()) {
@@ -171,6 +186,26 @@ public class ReferenceBoardService {
               });
     }
     return new ReferenceBoardSearchResponse(cards, cards.size(), query, src.name(), false);
+  }
+
+  /**
+   * 보드 검색 수요·실패 이벤트 기록(fail-safe). 채팅 검색(search_executed/blocked)과 별개 event_type 으로 남겨 어드민 검색 품질의
+   * 보드 섹션에서만 집계된다. keyword 는 원문 쿼리(민감 키라 로그에선 길이로 마스킹, DB엔 원문 저장).
+   */
+  private void emitBoardSearch(
+      User user, String query, boolean blocked, int resultCount, double avg, double max) {
+    java.util.Map<String, Object> payload = new java.util.HashMap<>();
+    payload.put("keyword", query);
+    payload.put("result_count", resultCount);
+    payload.put("avg_score", avg);
+    payload.put("max_score", max);
+    analyticsEventService.track(
+        blocked
+            ? com.drawe.backend.domain.analytics.AnalyticsEventType.BOARD_SEARCH_BLOCKED
+            : com.drawe.backend.domain.analytics.AnalyticsEventType.BOARD_SEARCH_EXECUTED,
+        user,
+        null,
+        payload);
   }
 
   private ReferenceBoardSearchResponse searchArchive(User user, String query, int limit) {

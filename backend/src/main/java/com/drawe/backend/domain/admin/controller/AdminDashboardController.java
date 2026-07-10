@@ -65,18 +65,25 @@ public class AdminDashboardController {
     return "admin/flow";
   }
 
-  /** Engagement Funnel + 추천 적합도 요약 (②). */
+  /**
+   * Engagement Funnel — 능동 수집(active curation) 관점: 사용자가 직접 끌어온 이미지(생성/검색)의 노출→좋아요→저장.
+   *
+   * <p>{@code source}: {@code generated}(생성 AI, 기본) / {@code board}(무드 보드 검색, Phase 2 로깅 대기) /
+   * {@code guiding}(채팅 추천 ref, 레거시 비교용).
+   */
   @GetMapping("/funnel")
   public String funnel(
       @RequestParam(name = "hours", defaultValue = "168") int hours,
       @RequestParam(name = "page", defaultValue = "1") int page,
       @RequestParam(name = "size", defaultValue = "15") int size,
       @RequestParam(name = "q", required = false) String q,
+      @RequestParam(name = "source", defaultValue = "generated") String source,
       Model model) {
     int safeHours = clampHours(hours);
-    model.addAttribute("summary", funnelService.buildSummary(safeHours));
-    model.addAttribute("funnel", funnelService.buildFunnel(safeHours, page, size, q));
+    model.addAttribute("summary", funnelService.buildSummary(safeHours, source));
+    model.addAttribute("funnel", funnelService.buildFunnel(safeHours, page, size, q, source));
     model.addAttribute("hours", safeHours);
+    model.addAttribute("source", source);
     return "admin/funnel";
   }
 
@@ -89,9 +96,17 @@ public class AdminDashboardController {
       @RequestParam(name = "dpage", defaultValue = "1") int dp,
       @RequestParam(name = "dsize", defaultValue = "30") int ds,
       @RequestParam(name = "dq", required = false) String dq,
+      @RequestParam(name = "bbpage", defaultValue = "1") int bbp,
+      @RequestParam(name = "bbsize", defaultValue = "30") int bbs,
+      @RequestParam(name = "bbq", required = false) String bbq,
+      @RequestParam(name = "bdpage", defaultValue = "1") int bdp,
+      @RequestParam(name = "bdsize", defaultValue = "30") int bds,
+      @RequestParam(name = "bdq", required = false) String bdq,
       Model model) {
     int safeHours = clampHours(hours);
-    model.addAttribute("view", searchService.build(safeHours, bp, bs, bq, dp, ds, dq));
+    model.addAttribute(
+        "view",
+        searchService.build(safeHours, bp, bs, bq, dp, ds, dq, bbp, bbs, bbq, bdp, bds, bdq));
     model.addAttribute("hours", safeHours);
     return "admin/search-quality";
   }
