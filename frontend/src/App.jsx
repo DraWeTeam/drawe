@@ -71,6 +71,14 @@ function App() {
                   path="/archive/references"
                   element={<ReferenceListPage />}
                 />
+                <Route
+                  path="/archive/collections/:collectionId"
+                  element={<CollectionDetailPage />}
+                />
+                <Route
+                  path="/archive/reference/:imageId"
+                  element={<ReferenceDetailPage />}
+                />
                 <Route path="/gallery" element={<CompletedGalleryPage />} />
                 <Route
                   path="/gallery/:projectId"

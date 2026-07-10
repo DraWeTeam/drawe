@@ -1,5 +1,5 @@
 .page {
-  padding: 24px 40px 64px;
+  padding: 32px 40px 64px; /* 헤더 상단 여백을 레퍼런스 페이지(32)와 동일하게 */
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
@@ -19,7 +19,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 24px;
+  min-height: 46px; /* 레퍼런스 페이지 헤더(버튼 46) 높이와 동일 */
+  margin-bottom: 16px; /* 아래 여백도 레퍼런스(16)와 동일 */
 }
 
 .backBtn {
@@ -262,11 +263,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f4f0ec;
-  border-radius: 16px;
   overflow: hidden;
   max-height: 72vh;
-  min-height: 320px;
 }
 
 .image {
@@ -276,6 +274,7 @@
   height: auto;
   object-fit: contain;
   display: block;
+  border-radius: 16px; /* radius를 렌더 이미지 자체에 (레퍼런스 페이지와 동일) */
 }
 
 .info {

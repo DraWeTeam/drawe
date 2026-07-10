@@ -532,10 +532,12 @@ const ReferenceBoard = ({
           if (newId != null) await deleteCollection(newId);
           unmarkArchived(imageId);
         });
+        return newId != null ? { id: newId, name } : null;
       } catch (err) {
         setError(
           err.response?.data?.error?.message || "컬렉션을 만들지 못했어요.",
         );
+        return null;
       }
     },
     [projectId, markArchived, unmarkArchived, showSavedToast],
@@ -869,6 +871,8 @@ const BoardCard = ({
   const [savedIds, setSavedIds] = useState(() => new Set()); // 이번 세션에 방금 담은 컬렉션 id
   const [creatingNew, setCreatingNew] = useState(false);
   const [newName, setNewName] = useState("");
+  // 플라이아웃 방향 — 카드가 패널 오른쪽 절반이면 왼쪽으로 펴서 잘림 방지
+  const [subOpenLeft, setSubOpenLeft] = useState(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -900,9 +904,21 @@ const BoardCard = ({
     fn();
   };
 
+  // 플라이아웃 방향 결정 — 트리거가 스크롤 컨테이너 오른쪽 절반이면 왼쪽으로 편다.
+  const decideSubSide = () => {
+    const wrap = menuRef.current;
+    if (!wrap) return false;
+    const container = wrap.closest('[class*="content"]');
+    const wrapRect = wrap.getBoundingClientRect();
+    const cRect = container?.getBoundingClientRect();
+    if (!cRect) return false;
+    return wrapRect.left > cRect.left + cRect.width / 2;
+  };
+
   // 아카이브 서브메뉴 열기 — 최초 1회 컬렉션 목록 로드.
   const openArchiveSub = async () => {
     const willOpen = !archiveSubOpen;
+    if (willOpen) setSubOpenLeft(decideSubSide());
     setArchiveSubOpen(willOpen);
     setCreatingNew(false);
     if (!willOpen || targets != null) return;
@@ -924,11 +940,22 @@ const BoardCard = ({
     closeMenu();
   };
 
-  const submitNewCollection = () => {
+  const submitNewCollection = async () => {
     const name = newName.trim();
     if (!name) return;
-    onCreateAndArchive(name, image.id);
-    closeMenu();
+    const created = await onCreateAndArchive(name, image.id);
+    if (created?.id != null) {
+      // 새 컬렉션을 목록에 즉시 반영(담김 표시) → 다시 열면 바로 보임.
+      setTargets((prev) => [
+        ...(prev ?? []),
+        { id: created.id, name: created.name, contained: true },
+      ]);
+      setSavedIds((prev) => new Set(prev).add(created.id));
+    } else {
+      // 실패/미확인 시 다음 열람에 서버에서 재조회하도록 캐시 무효화.
+      setTargets(null);
+    }
+    closeMenu(); // 기존 컬렉션 선택과 동일하게 저장 후 닫기
   };
 
   const isContained = (t) => t.contained || savedIds.has(t.id);
@@ -1058,7 +1085,9 @@ const BoardCard = ({
 
                 {archiveSubOpen && (
                   <div
-                    className={styles.subMenu}
+                    className={`${styles.subMenu} ${
+                      subOpenLeft ? styles.subMenuLeft : ""
+                    }`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {targetsLoading ? (

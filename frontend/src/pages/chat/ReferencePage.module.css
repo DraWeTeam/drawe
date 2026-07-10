@@ -7,13 +7,28 @@
   overflow: hidden;
 }
 
-/* 상단 바 */
+/* 상단 바 — 보드 페이지 헤더와 동일 */
 .topBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 32px 32px 16px 48px;
+  height: 96px;
+  box-sizing: border-box;
   flex-shrink: 0;
+}
+
+/* 헤더 — 타고 들어온 프로젝트 제목 (보드 페이지 .title 과 동일) */
+.projectTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f0f0f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .backBtn {
@@ -56,15 +71,28 @@
 }
 
 .saveBtn {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: #ff8534;
-  color: #f6f7f9;
+  color: #fefeff;
   border: none;
-  width: 76px;
-  height: 44px;
+  height: 46px;
+  padding: 0 24px 0 16px;
   border-radius: 8px;
   font-size: 16px;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 22px;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.15s ease;
+}
+
+.saveBtn:hover {
+  background: #ff7a25;
 }
 
 .saveBtn:hover {
@@ -92,12 +120,13 @@
 
 /* 이미지 — Figma 69:21338: shimmer 컨테이너, 폭 꽉참, 원본 비율 유지 */
 .image {
-  width: 100%;
-  height: auto;
+  /* 박스를 이미지 실제 크기에 맞춰(레터박스 X) radius가 이미지 모서리에 붙게 */
+  max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
   border-radius: var(--radius-200);
-  background: var(--bg-subtle);
 }
 
 /* 이미지 로드 실패 폴백 */
@@ -124,7 +153,7 @@
   font-weight: 700;
   line-height: 32px;
   color: var(--text-secondary);
-  text-align: center;
+  text-align: left;
 }
 
 /* 이름 + 출처 그룹 — Figma 69:21341(gap 8) */
