@@ -96,9 +96,17 @@ public class AdminDashboardController {
       @RequestParam(name = "dpage", defaultValue = "1") int dp,
       @RequestParam(name = "dsize", defaultValue = "30") int ds,
       @RequestParam(name = "dq", required = false) String dq,
+      @RequestParam(name = "bbpage", defaultValue = "1") int bbp,
+      @RequestParam(name = "bbsize", defaultValue = "30") int bbs,
+      @RequestParam(name = "bbq", required = false) String bbq,
+      @RequestParam(name = "bdpage", defaultValue = "1") int bdp,
+      @RequestParam(name = "bdsize", defaultValue = "30") int bds,
+      @RequestParam(name = "bdq", required = false) String bdq,
       Model model) {
     int safeHours = clampHours(hours);
-    model.addAttribute("view", searchService.build(safeHours, bp, bs, bq, dp, ds, dq));
+    model.addAttribute(
+        "view",
+        searchService.build(safeHours, bp, bs, bq, dp, ds, dq, bbp, bbs, bbq, bdp, bds, bdq));
     model.addAttribute("hours", safeHours);
     return "admin/search-quality";
   }

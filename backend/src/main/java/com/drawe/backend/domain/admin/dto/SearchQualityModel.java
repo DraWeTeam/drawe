@@ -75,10 +75,18 @@ public final class SearchQualityModel {
       boolean inBacklog) {}
 
   /**
+   * 보드 검색 섹션 — 무드보드 상단 검색의 수요·실패(생성 유도). 채팅 검색과 별개 소스({@code analytics_events}의 {@code
+   * board_search_executed/blocked})라 지표를 섞지 않는다. Kpi/BacklogRow/DemandRow 구조를 재사용한다(검색 결과만 집계, 기본
+   * 그리드 제외).
+   */
+  public record Board(Kpi kpi, AdminPage<BacklogRow> backlog, AdminPage<DemandRow> demand) {}
+
+  /**
    * 화면에 한 번에 넘기는 묶음. backlog/demand 는 페이지 객체.
    *
    * @param wordTopAll 검색어 어절 TOP(전체 기준)
    * @param wordTopLowQuality 검색어 어절 TOP(저품질 기준)
+   * @param board 보드 검색 섹션(수요·실패)
    */
   public record View(
       Kpi kpi,
@@ -86,5 +94,6 @@ public final class SearchQualityModel {
       AdminPage<BacklogRow> backlog,
       AdminPage<DemandRow> demand,
       java.util.List<WordRank> wordTopAll,
-      java.util.List<WordRank> wordTopLowQuality) {}
+      java.util.List<WordRank> wordTopLowQuality,
+      Board board) {}
 }

@@ -2,6 +2,7 @@ package com.drawe.backend.domain.admin.service;
 
 import com.drawe.backend.domain.admin.dto.AdminPage;
 import com.drawe.backend.domain.admin.dto.SearchQualityModel.BacklogRow;
+import com.drawe.backend.domain.admin.dto.SearchQualityModel.Board;
 import com.drawe.backend.domain.admin.dto.SearchQualityModel.DemandRow;
 import com.drawe.backend.domain.admin.dto.SearchQualityModel.Friction;
 import com.drawe.backend.domain.admin.dto.SearchQualityModel.Kpi;
@@ -52,24 +53,16 @@ public class AdminSearchService {
       String backlogQ,
       int demandPage,
       int demandSize,
-      String demandQ) {
+      String demandQ,
+      int boardBacklogPage,
+      int boardBacklogSize,
+      String boardBacklogQ,
+      int boardDemandPage,
+      int boardDemandSize,
+      String boardDemandQ) {
     Instant since = Instant.now().minus(Duration.ofHours(windowHours));
 
-    KpiRow k = repo.kpi(since);
-    long total = num(k.getTotal());
-    long blocked = num(k.getBlocked());
-    Double blockRate = total > 0 ? (double) blocked / total : null;
-    Double successRate = blockRate == null ? null : 1.0 - blockRate; // KO 검색 성공률 (새 쿼리 0)
-    Kpi kpi =
-        new Kpi(
-            windowHours,
-            TS.format(Instant.now()),
-            total,
-            blocked,
-            blockRate,
-            successRate,
-            k.getAvgResults(),
-            k.getAvgScore());
+    Kpi kpi = buildKpi(repo.kpi(since), windowHours);
 
     // 검색 마찰 (세션 기준, analytics_events) — 변경 없음
     FrictionCoreRow fc = repo.frictionCore(since);
@@ -120,7 +113,92 @@ public class AdminSearchService {
     List<WordRank> wordTopLowQuality =
         SearchKeywordTokenizer.rank(toKeywordCounts(repo.wordSourceLowQuality(since)), WORD_TOP_N);
 
-    return new View(kpi, friction, backlog, demand, wordTopAll, wordTopLowQuality);
+    Board board =
+        buildBoard(
+            since,
+            windowHours,
+            boardBacklogPage,
+            boardBacklogSize,
+            boardBacklogQ,
+            boardDemandPage,
+            boardDemandSize,
+            boardDemandQ);
+
+    return new View(kpi, friction, backlog, demand, wordTopAll, wordTopLowQuality, board);
+  }
+
+  /** KpiRow → Kpi (채팅·보드 공용). blockRate=blocked/total, successRate=1-blockRate. */
+  private Kpi buildKpi(KpiRow k, int windowHours) {
+    long total = num(k.getTotal());
+    long blocked = num(k.getBlocked());
+    Double blockRate = total > 0 ? (double) blocked / total : null;
+    Double successRate = blockRate == null ? null : 1.0 - blockRate;
+    return new Kpi(
+        windowHours,
+        TS.format(Instant.now()),
+        total,
+        blocked,
+        blockRate,
+        successRate,
+        k.getAvgResults(),
+        k.getAvgScore());
+  }
+
+  /** 보드 검색 섹션 조립 — KPI + 백로그(생성 유도 실패어) + 수요 TOP. 채팅과 별개 소스(board_search_*). */
+  private Board buildBoard(
+      Instant since,
+      int windowHours,
+      int backlogPage,
+      int backlogSize,
+      String backlogQ,
+      int demandPage,
+      int demandSize,
+      String demandQ) {
+    Kpi kpi = buildKpi(repo.boardKpi(since), windowHours);
+
+    int safeBacklogPage = Math.max(1, backlogPage);
+    int safeBacklogSize = Math.min(Math.max(backlogSize, MIN_SIZE), MAX_SIZE);
+    String safeBacklogQ = backlogQ == null ? "" : backlogQ.trim();
+    int backlogOffset = (safeBacklogPage - 1) * safeBacklogSize;
+    List<BacklogRow> backlogRows =
+        repo.boardBacklog(since, safeBacklogQ, safeBacklogSize, backlogOffset).stream()
+            .map(this::toBacklogRow)
+            .toList();
+    AdminPage<BacklogRow> backlog =
+        new AdminPage<>(
+            backlogRows,
+            repo.boardBacklogCount(since, safeBacklogQ),
+            safeBacklogPage,
+            safeBacklogSize,
+            safeBacklogQ);
+
+    int safeDemandPage = Math.max(1, demandPage);
+    int safeDemandSize = Math.min(Math.max(demandSize, MIN_SIZE), MAX_SIZE);
+    String safeDemandQ = demandQ == null ? "" : demandQ.trim();
+    int demandOffset = (safeDemandPage - 1) * safeDemandSize;
+    Set<String> backlogKeywords =
+        backlogRows.stream().map(BacklogRow::keyword).collect(Collectors.toSet());
+    List<DemandRow> demandRows =
+        repo.boardDemand(since, safeDemandQ, safeDemandSize, demandOffset).stream()
+            .map(
+                p ->
+                    new DemandRow(
+                        p.getKeyword(),
+                        num(p.getCnt()),
+                        p.getAvgResults(),
+                        p.getAvgScore(),
+                        num(p.getBlockedCnt()),
+                        backlogKeywords.contains(p.getKeyword())))
+            .toList();
+    AdminPage<DemandRow> demand =
+        new AdminPage<>(
+            demandRows,
+            repo.boardDemandCount(since, safeDemandQ),
+            safeDemandPage,
+            safeDemandSize,
+            safeDemandQ);
+
+    return new Board(kpi, backlog, demand);
   }
 
   private static List<SearchKeywordTokenizer.KeywordCount> toKeywordCounts(
