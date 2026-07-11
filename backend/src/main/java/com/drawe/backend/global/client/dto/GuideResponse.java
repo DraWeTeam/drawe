@@ -91,7 +91,10 @@ public record GuideResponse(
       RecurringStat recurringStat,
       List<TrendPoint> trend,
       String deltaNote,
-      Chips chips) {}
+      Chips chips,
+      // 이번 프로젝트 '첫 가이드'(콜드스타트) 여부 — fastapi 가 계산. 프론트가 '처음 사용' 안내를 추세 부족 안내와
+      //   구분하는 게이트로만 쓴다(순수 통과). 이 필드가 없으면 ignoreUnknown 로 드롭돼 프론트가 늘 '이력 부족'만 띄운다.
+      Boolean first) {}
 
   @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
   @JsonIgnoreProperties(ignoreUnknown = true)
