@@ -183,3 +183,45 @@ jobs:
             sleep $((RANDOM % 5 + 2))   # 2~6초 지터로 동시 재시도 분산
           done
           echo "✘ 5회 재시도 후에도 push 실패 — 수동 확인 필요"; exit 1
+
+      # ───────── PROD → develop 동기화 (승격 롤백 방지 / drift 차단) ─────────
+      # main 의 prod overlay 를 방금 ${SHA} 로 올렸으니, develop 이 든 '같은 파일 사본' 도
+      # 같은 값으로 맞춘다. 다음 develop→main 승격(merge) 때 낡은 사본이 prod 를 롤백시키지 않게 함.
+      # overlays/prod 만 건드리므로 ArgoCD-dev(overlays/dev 추적)에는 무영향 = dev 재배포 없음.
+      # develop push 는 paths 필터(코드 경로)와 무관 + [skip ci] → CD 재트리거 없음.
+      - name: "[prod->develop] Sync develop's prod overlay (backend, drift 방지)"
+        if: env.ENV_NAME == 'prod'
+        env:
+          OVERLAY: infra/k8s/overlays/prod/backend/kustomization.yaml
+          SHA: ${{ github.sha }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git stash push --include-untracked --quiet || true
+          git fetch --quiet origin develop
+          git checkout -f -B _sync_prod_to_develop origin/develop
+          sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\1${SHA}|" "$OVERLAY"
+          git add "$OVERLAY"
+          if git diff --cached --quiet; then
+            echo "develop 의 prod overlay 이미 ${SHA} — 동기화 불필요"; exit 0
+          fi
+          git commit -m "ci(sync): develop prod overlay(backend) -> ${SHA} [skip ci]"
+          git config pull.rebase true
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:develop"; then
+              echo "OK: develop 의 prod/backend overlay 를 ${SHA} 로 동기화 (승격 롤백 방지)."
+              exit 0
+            fi
+            echo "push 거부(경합) — 재시도 ${attempt}/5: origin/develop rebase"
+            if ! git pull --rebase origin develop; then
+              sed -i -E "s|(newTag:[[:space:]]*)[A-Za-z0-9._-]+|\1${SHA}|" "$OVERLAY"
+              git add "$OVERLAY"
+              if [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+                GIT_EDITOR=true git rebase --continue || git rebase --abort
+              else
+                git rebase --abort >/dev/null 2>&1 || true
+              fi
+            fi
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "develop 동기화 push 실패 — 옵션3 게이트가 승격 시 잡아줌(수동 확인 권장)"; exit 1
