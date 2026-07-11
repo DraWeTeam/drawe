@@ -460,6 +460,7 @@ def _guide_sync(
                 user_id, track=track, degraded=resp.degraded, project_id=project_id
             ),
             note=_note,
+            first=bool((growth or {}).get("cold")),
         )
     payload = finalize_guide_response(resp, growth_obj=growth_obj)
     payload.update(_make_overlay(dx, growth))  # 모드 선택 → overlay_axes 만 렌더
@@ -577,6 +578,7 @@ def _guide_stream_sync(
                 user_id, track=track, degraded=resp.degraded, project_id=project_id
             ),
             note=_note,
+            first=bool((growth or {}).get("cold")),
         )
 
     def gen():
