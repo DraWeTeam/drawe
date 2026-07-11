@@ -10,9 +10,9 @@ name: Prod Overlay Drift Gate
 #   belt-and-suspenders 다.
 #
 # 판정 방식: pull_request 체크아웃의 기본 ref 는 '머지 결과 커밋'(refs/pull/N/merge)이다.
-#   따라서 워킹트리 = 이 PR 을 머지했을 때의 트리. 각 prod overlay 의 newTag 를 origin/main 과
-#   비교해 하나라도 다르면 = 머지가 prod 를 바꾼다 = 실패. (git 3-way 가 main 값을 그대로
-#   유지하는 정상 케이스는 '같음' → 통과하므로 오탐이 없다.)
+#   따라서 워킹트리 = 이 PR 을 머지했을 때의 트리. 이미지 newTag 를 가진 각 prod overlay 의
+#   newTag 를 origin/main 과 비교해 하나라도 다르면 = 머지가 prod 를 바꾼다 = 실패. (git 3-way 가
+#   main 값을 그대로 유지하는 정상 케이스는 '같음' → 통과하므로 오탐이 없다.)
 #
 # 의도적으로 prod overlay 를 PR 로 바꿔야 하면 PR 에 'allow-prod-overlay-change' 라벨을 달면
 #   실패 대신 경고로 통과시킨다.
@@ -37,37 +37,42 @@ jobs:
         with:
           fetch-depth: 0 # origin/main 과 비교하려면 히스토리 필요
 
+      # GitHub 기본 run 셸은 'bash -e'(errexit) — 이미지 newTag 가 없는 오버레이(observability 등)에서
+      #   grep 무매치가 비정상 종료를 일으키므로, 이 스텝은 errexit/pipefail 없는 셸로 실행하고
+      #   drift 판정은 아래 로직이 명시적으로 제어한다.
       - name: Compare prod overlay tags (merge result vs main)
+        shell: bash --noprofile --norc {0}
         run: |
-          set -uo pipefail
           git fetch --quiet origin main
           newtag() { grep -E "^[[:space:]]*newTag:" "$1" 2>/dev/null | head -1 | sed -E 's/.*newTag:[[:space:]]*//; s/[[:space:]]+$//'; }
           drift=0
-          printf "%-52s %-42s %-42s\n" "PROD OVERLAY" "MERGE RESULT" "main(현재)"
-          printf -- "-%.0s" $(seq 1 138); printf "\n"
-          for f in $(find infra/k8s/overlays/prod -name kustomization.yaml | sort); do
+          echo "PROD OVERLAY | MERGE RESULT(머지결과) | main(현재)"
+          echo "--------------------------------------------------------------------------------"
+          while IFS= read -r f; do
             merged=$(newtag "$f")
+            # 이미지 newTag 가 없는 오버레이(순수 kustomize: observability 등)는 비교 대상 아님 → 스킵
+            [ -z "$merged" ] && continue
             main=$(git show "origin/main:$f" 2>/dev/null | grep -E "^[[:space:]]*newTag:" | head -1 | sed -E 's/.*newTag:[[:space:]]*//; s/[[:space:]]+$//')
-            [ -z "$merged" ] && continue   # newTag 없는 오버레이(순수 kustomize)면 스킵
             if [ "$merged" != "$main" ]; then
-              printf "DRIFT  %-45s %-42s %-42s\n" "$f" "$merged" "${main:-<none>}"
+              echo "DRIFT  $f"
+              echo "         머지결과=$merged   main=${main:-<none>}"
               drift=1
             else
-              printf "ok     %-45s %-42s %-42s\n" "$f" "$merged" "$main"
+              echo "ok     $f  ($merged)"
             fi
-          done
+          done < <(find infra/k8s/overlays/prod -name kustomization.yaml | sort)
           echo ""
           if [ "$drift" -eq 0 ]; then
             echo "✅ 모든 prod overlay 태그가 main 과 일치 — 이 PR 을 머지해도 prod 롤백/변경 없음."
             exit 0
           fi
-          if [ "${ALLOW_OVERRIDE}" = "true" ]; then
+          if [ "$ALLOW_OVERRIDE" = "true" ]; then
             echo "::warning::prod overlay 가 바뀌지만 'allow-prod-overlay-change' 라벨로 통과합니다(의도된 변경으로 간주)."
             exit 0
           fi
           echo "::error::이 PR 을 머지하면 prod overlay 태그가 main 과 달라집니다(드리프트=롤백 위험)."
           echo "해결(둘 중 하나):"
           echo "  1) main 을 develop 으로 백머지해 prod overlay 를 최신 main 값으로 맞춘 뒤 다시 푸시"
-          echo "  2) 위 'main(현재)' 값으로 각 overlays/prod/*/kustomization.yaml 의 newTag 를 수정"
+          echo "  2) 위 'main' 값으로 각 overlays/prod/*/kustomization.yaml 의 newTag 를 수정"
           echo "정말 의도한 prod 변경이면 PR 에 'allow-prod-overlay-change' 라벨을 달아 우회하세요."
           exit 1
