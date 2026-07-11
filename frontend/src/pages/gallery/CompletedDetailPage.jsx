@@ -273,7 +273,8 @@ const CompletedDetailPage = () => {
   const ov = detail.overview || {};
   // [트래킹] completed_work_id 소스 — 대표 이미지 /images/{id}.
   const completedWorkId =
-    Number(/\/images\/(\d+)/.exec(ov.representativeImageUrl || "")?.[1]) || null;
+    Number(/\/images\/(\d+)/.exec(ov.representativeImageUrl || "")?.[1]) ||
+    null;
   const timeline = detail.timeline || [];
   // 정본: 8개 초과 시 6번째 이후 생략, 마지막 단계만 표시(가운데 …). '전체 보기'로 전 단계 펼침.
   const timelineCollapsed = !timelineOpen && timeline.length > TIMELINE_HEAD;

@@ -195,9 +195,7 @@ const CollectionDetailPage = () => {
         time_since_archived_days: removed?.addedAt
           ? Math.max(
               0,
-              Math.floor(
-                (Date.now() - Date.parse(removed.addedAt)) / 86400000,
-              ),
+              Math.floor((Date.now() - Date.parse(removed.addedAt)) / 86400000),
             )
           : null,
       });

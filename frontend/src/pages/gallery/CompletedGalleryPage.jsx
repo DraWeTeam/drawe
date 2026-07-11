@@ -223,8 +223,7 @@ const CompletedGalleryPage = () => {
                             ? Math.max(
                                 0,
                                 Math.floor(
-                                  (Date.now() -
-                                    Date.parse(item.completedAt)) /
+                                  (Date.now() - Date.parse(item.completedAt)) /
                                     86400000,
                                 ),
                               )

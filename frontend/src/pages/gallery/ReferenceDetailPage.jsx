@@ -122,11 +122,7 @@ const ReferenceDetailPage = () => {
         current_feedback:
           next == null ? "none" : next === "LIKE" ? "like" : "dislike",
         previous_feedback:
-          reaction == null
-            ? "none"
-            : reaction === "LIKE"
-              ? "like"
-              : "dislike",
+          reaction == null ? "none" : reaction === "LIKE" ? "like" : "dislike",
       });
     } catch (err) {
       setReaction(reaction); // 롤백

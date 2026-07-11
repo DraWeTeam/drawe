@@ -199,9 +199,7 @@ const BoardGuideChat = ({
         previous_feedback:
           prevKind === "up" ? "like" : prevKind === "down" ? "dislike" : "none",
         guide_category:
-          msg.guide?.next_steps?.track?.group ||
-          msg.guide?.primary_focus ||
-          "",
+          msg.guide?.next_steps?.track?.group || msg.guide?.primary_focus || "",
         time_since_generated_sec: generatedAt
           ? Math.round((now - generatedAt) / 1000)
           : 0,
