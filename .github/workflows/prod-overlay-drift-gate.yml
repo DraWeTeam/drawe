@@ -1,4 +1,5 @@
 name: Prod Overlay Drift Gate
+# (branch protection 의 required check 등록을 위해 1회 실행시키는 트리거용 주석 — 무해)
 
 # develop→main(및 임의) 승격 PR 에서, 머지 결과가 prod overlay 태그를 main 현재값과 다르게
 # 만들면(=드리프트로 인한 롤백/의도치 않은 변경) CI 를 실패시킨다.
