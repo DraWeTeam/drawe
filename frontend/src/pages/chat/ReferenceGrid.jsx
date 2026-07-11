@@ -127,6 +127,9 @@ const ReferenceGrid = ({
                   onPinToggle={onPinToggle}
                   onArchive={onArchive}
                   onClick={() => onCardClick(ref, index)}
+                  projectId={projectId}
+                  iterationCount={iterationCount}
+                  inputMode={inputMode}
                   menuBtnRef={
                     ref.id === displayItems[0]?.ref.id
                       ? firstMenuRef
@@ -161,6 +164,9 @@ const ReferenceCard = ({
   onArchive,
   onClick,
   menuBtnRef,
+  projectId,
+  iterationCount = 0,
+  inputMode = "text",
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState(null); // 'LIKE' | 'DISLIKE' | null
