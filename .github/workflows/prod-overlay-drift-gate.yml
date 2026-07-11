@@ -1,0 +1,73 @@
+name: Prod Overlay Drift Gate
+
+# develop→main(및 임의) 승격 PR 에서, 머지 결과가 prod overlay 태그를 main 현재값과 다르게
+# 만들면(=드리프트로 인한 롤백/의도치 않은 변경) CI 를 실패시킨다.
+#
+# 왜 필요한가: 환경을 브랜치로 가르는 GitOps(dev=develop, prod=main)에서는 prod overlay 파일이
+#   두 브랜치에 각각 복제된다. develop 사본이 낡으면 승격(merge) 시 prod 가 롤백될 수 있다.
+#   CD 자동 동기화(각 *-cd.yml 의 [prod->develop] 스텝)가 1차 방어이고, 이 게이트는 그게
+#   놓치는 케이스(수동 편집·동기화 실패·신규 서비스·observability 처럼 CD 없는 오버레이)의
+#   belt-and-suspenders 다.
+#
+# 판정 방식: pull_request 체크아웃의 기본 ref 는 '머지 결과 커밋'(refs/pull/N/merge)이다.
+#   따라서 워킹트리 = 이 PR 을 머지했을 때의 트리. 각 prod overlay 의 newTag 를 origin/main 과
+#   비교해 하나라도 다르면 = 머지가 prod 를 바꾼다 = 실패. (git 3-way 가 main 값을 그대로
+#   유지하는 정상 케이스는 '같음' → 통과하므로 오탐이 없다.)
+#
+# 의도적으로 prod overlay 를 PR 로 바꿔야 하면 PR 에 'allow-prod-overlay-change' 라벨을 달면
+#   실패 대신 경고로 통과시킨다.
+
+on:
+  pull_request:
+    branches: [main]
+  # paths 필터를 두지 않는다: required check 로 지정해도 '스킵되어 영영 pending' 되지 않도록
+  #   main 대상 모든 PR 에서 항상 실행해 초록/빨강 상태를 낸다(드리프트 없으면 수 초 내 통과).
+
+permissions:
+  contents: read
+
+jobs:
+  check-prod-overlay-drift:
+    runs-on: ubuntu-latest
+    env:
+      ALLOW_OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'allow-prod-overlay-change') }}
+    steps:
+      - name: Checkout merge result
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # origin/main 과 비교하려면 히스토리 필요
+
+      - name: Compare prod overlay tags (merge result vs main)
+        run: |
+          set -uo pipefail
+          git fetch --quiet origin main
+          newtag() { grep -E "^[[:space:]]*newTag:" "$1" 2>/dev/null | head -1 | sed -E 's/.*newTag:[[:space:]]*//; s/[[:space:]]+$//'; }
+          drift=0
+          printf "%-52s %-42s %-42s\n" "PROD OVERLAY" "MERGE RESULT" "main(현재)"
+          printf -- "-%.0s" $(seq 1 138); printf "\n"
+          for f in $(find infra/k8s/overlays/prod -name kustomization.yaml | sort); do
+            merged=$(newtag "$f")
+            main=$(git show "origin/main:$f" 2>/dev/null | grep -E "^[[:space:]]*newTag:" | head -1 | sed -E 's/.*newTag:[[:space:]]*//; s/[[:space:]]+$//')
+            [ -z "$merged" ] && continue   # newTag 없는 오버레이(순수 kustomize)면 스킵
+            if [ "$merged" != "$main" ]; then
+              printf "DRIFT  %-45s %-42s %-42s\n" "$f" "$merged" "${main:-<none>}"
+              drift=1
+            else
+              printf "ok     %-45s %-42s %-42s\n" "$f" "$merged" "$main"
+            fi
+          done
+          echo ""
+          if [ "$drift" -eq 0 ]; then
+            echo "✅ 모든 prod overlay 태그가 main 과 일치 — 이 PR 을 머지해도 prod 롤백/변경 없음."
+            exit 0
+          fi
+          if [ "${ALLOW_OVERRIDE}" = "true" ]; then
+            echo "::warning::prod overlay 가 바뀌지만 'allow-prod-overlay-change' 라벨로 통과합니다(의도된 변경으로 간주)."
+            exit 0
+          fi
+          echo "::error::이 PR 을 머지하면 prod overlay 태그가 main 과 달라집니다(드리프트=롤백 위험)."
+          echo "해결(둘 중 하나):"
+          echo "  1) main 을 develop 으로 백머지해 prod overlay 를 최신 main 값으로 맞춘 뒤 다시 푸시"
+          echo "  2) 위 'main(현재)' 값으로 각 overlays/prod/*/kustomization.yaml 의 newTag 를 수정"
+          echo "정말 의도한 prod 변경이면 PR 에 'allow-prod-overlay-change' 라벨을 달아 우회하세요."
+          exit 1
