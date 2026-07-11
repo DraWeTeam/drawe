@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import {
   checkEmail,
@@ -26,7 +26,13 @@ const Signup = () => {
   const location = useLocation();
   // 약관 동의 화면(/signup/terms)에서 전달받은 동의 내역
   const agreements = location.state?.agreements;
+  // [트래킹] 가입 진입 시각 + 완료 여부 + 진행단계/마지막 상호작용(이탈 계측용).
+  const [signupMountTime] = useState(() => Date.now());
+  const signupDoneRef = useRef(false);
+  const lastInteractionRef = useRef(null);
+  const progressRef = useRef("basic_info");
   const handleFieldFocus = (e) => {
+    lastInteractionRef.current = `focus:${e.target.name}`;
     if (e.target.dataset.tracked) return;
     e.target.dataset.tracked = "true";
     track("signup_form_interaction", {
@@ -34,6 +40,19 @@ const Signup = () => {
       interaction_type: "focus",
     });
   };
+
+  // [트래킹] 가입 미완료 상태로 화면 이탈 시 → signup_abandoned.
+  useEffect(() => {
+    return () => {
+      if (signupDoneRef.current) return;
+      track("signup_abandoned", {
+        abandon_step: progressRef.current,
+        time_spent: Math.round((Date.now() - signupMountTime) / 1000),
+        last_interaction: lastInteractionRef.current,
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -83,6 +102,14 @@ const Signup = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // [트래킹] 이탈 시점 abandon_step 계산용 — 도달한 최대 진행 단계.
+  progressRef.current =
+    emailVerify.status === "ok"
+      ? "form_filling"
+      : codeSent
+        ? "email_verification"
+        : "basic_info";
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -100,6 +127,7 @@ const Signup = () => {
   };
 
   const handleSendCode = async () => {
+    lastInteractionRef.current = "send_code";
     if (!emailRegex.test(form.email)) {
       setEmailVerify({
         status: "error",
@@ -145,6 +173,13 @@ const Signup = () => {
       await verifyEmailCode(form.email, code.trim());
       setEmailVerify({ status: "ok", message: "이메일 인증이 완료됐어요." });
       setSecondsLeft(0); // 인증 완료 → 유효시간 카운트다운 종료
+      lastInteractionRef.current = "verify_code";
+      // [트래킹] 이메일 인증 단계 완료 → signup_step_completed.
+      track("signup_step_completed", {
+        step_number: 1,
+        step_name: "verification",
+        completion_time: Math.round((Date.now() - signupMountTime) / 1000),
+      });
     } catch (err) {
       const errorCode = err.response?.data?.error?.code;
       // 인증번호 불일치만 시도 횟수 차감 (만료/기타는 제외)
@@ -180,9 +215,10 @@ const Signup = () => {
   };
 
   const handleCheckEmail = async () => {
+    lastInteractionRef.current = "check_email";
     if (!emailRegex.test(form.email)) {
       trackValidationError(
-        "invalid_email_format",
+        "invalid_email",
         "email",
         "이메일 형식이 올바르지 않아요.",
       ); // ← 추가
@@ -216,6 +252,7 @@ const Signup = () => {
   };
 
   const handleCheckNickname = async () => {
+    lastInteractionRef.current = "check_nickname";
     const trimmed = form.nickname.trim();
     if (trimmed.length < 2 || trimmed.length > 20) {
       trackValidationError(
@@ -261,7 +298,7 @@ const Signup = () => {
 
     if (!emailRegex.test(form.email)) {
       trackValidationError(
-        "invalid_email_format",
+        "invalid_email",
         "email",
         "이메일 형식이 올바르지 않아요.",
       );
@@ -345,6 +382,7 @@ const Signup = () => {
         localStorage.setItem("refreshToken", loginRes.refreshToken);
       }
 
+      signupDoneRef.current = true; // 이탈 트래킹 억제
       track("signup_completed", {
         signup_method: "email",
         user_type: "free",

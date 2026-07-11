@@ -76,7 +76,7 @@ const ProjectList = () => {
   useEffect(() => {
     if (location.state?.openCreate) {
       setCreateOpen(true);
-      track("project_create_clicked");
+      track("project_create_started");
       navigate(location.pathname, { replace: true, state: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,6 +86,14 @@ const ProjectList = () => {
     setSortOpen(false);
     if (value === sort) return;
     setSort(value);
+    // 정렬 방식 변경 — 백엔드 enum(RECENT/CREATED/NAME)을 스펙 sort_type 으로 매핑.
+    //   현재 UI 는 오름/내림 토글이 없어 sort_order 는 발송하지 않는다("해당 시").
+    track("project_list_sorted", {
+      sort_type:
+        { RECENT: "recent", CREATED: "created_date", NAME: "name" }[value] ??
+        value,
+      project_count: projects.length,
+    });
     fetchProjects(value);
   };
 
@@ -160,7 +168,15 @@ const ProjectList = () => {
                     className={`${styles.viewBtn} ${
                       viewMode === "grid" ? styles.viewBtnActive : ""
                     }`}
-                    onClick={() => setViewMode("grid")}
+                    onClick={() => {
+                      if (viewMode !== "grid") {
+                        track("project_list_view_changed", {
+                          previous_view: "list",
+                          new_view: "thumbnail",
+                        });
+                      }
+                      setViewMode("grid");
+                    }}
                     aria-label="대시보드 보기"
                   >
                     <GridIcon />
@@ -172,7 +188,15 @@ const ProjectList = () => {
                     className={`${styles.viewBtn} ${
                       viewMode === "list" ? styles.viewBtnActive : ""
                     }`}
-                    onClick={() => setViewMode("list")}
+                    onClick={() => {
+                      if (viewMode !== "list") {
+                        track("project_list_view_changed", {
+                          previous_view: "thumbnail",
+                          new_view: "list",
+                        });
+                      }
+                      setViewMode("list");
+                    }}
                     aria-label="리스트 보기"
                   >
                     <ListIcon />
@@ -228,7 +252,7 @@ const ProjectList = () => {
               className={styles.createBtn}
               onClick={() => {
                 setCreateOpen(true);
-                track("project_create_clicked");
+                track("project_create_started");
               }}
             >
               <PlusIcon />새 프로젝트

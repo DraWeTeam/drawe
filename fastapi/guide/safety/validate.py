@@ -125,7 +125,7 @@ def coach_with_guardrails(
     tax_ids = set(taxonomy)
     last_err = None
     for _ in range(max_retries + 1):
-        raw = llm.complete_json(prompt)
+        raw = llm.complete_json(prompt, step="coach")
         try:
             g = validate_guide(raw, diagnosis, retrieved_ids, tax_ids)
             return _set_refs(g, refs_by_sp)

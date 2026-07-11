@@ -71,7 +71,7 @@ def finalize_guide_response(resp, growth_obj=None) -> dict:
     return data
 
 
-def growth_from_raw(raw, note=None):
+def growth_from_raw(raw, note=None, first=False):
     """roadmap.growth_view(raw dict) → schemas.Growth | None (§4).
     측정=사실(약점 '개수' 변화)로만 서술. _stage·평가어 비노출(경계 모니터가 재확인).
     축은 id 그대로(블록 sub_problem 처럼; 프론트가 id→라벨 매핑).
@@ -161,10 +161,13 @@ def growth_from_raw(raw, note=None):
         trend=tpoints,
         delta_note=delta,
         chips=chips,
+        first=bool(first),
     )
-    # 자료가 사실상 없으면 None(프론트가 섹션 숨기기 쉽게)
+    # 자료가 사실상 없으면 None(프론트가 섹션 숨기기 쉽게). 단 first(첫 가이드)면 '처음 사용' 안내를
+    #   띄워야 하므로 유지한다.
     if (
-        not tpoints
+        not first
+        and not tpoints
         and rstat is None
         and not chips.current_stage_axes
         and not chips.improving_axes

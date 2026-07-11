@@ -23,6 +23,8 @@ function getSessionId() {
   if (!id) {
     id = crypto.randomUUID();
     sessionStorage.setItem("session_id", id);
+    // 세션 시작 시각 — logout_completed 의 session_duration_sec 산출용.
+    sessionStorage.setItem("session_started_at", String(Date.now()));
   }
   return id;
 }

@@ -312,6 +312,16 @@ const ChatPage = () => {
           : m,
       ),
     );
+    // 이전 피드백 액션 시각 — time_since_previous_action_sec 계산용(직전 값 캡처 후 갱신).
+    const now = Date.now();
+    const prevFeedbackAt = msg?.lastFeedbackAt ?? null;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m._gid === gidVal && m.type === "guide"
+          ? { ...m, lastFeedbackAt: now }
+          : m,
+      ),
+    );
     const guideId = msg?.guide?.guide_id;
     if (guideId) {
       const fb =
@@ -346,7 +356,7 @@ const ChatPage = () => {
         ? new Date(msg.createdAt).getTime()
         : null;
       const timeSinceGenerated = generatedAt
-        ? Math.round((Date.now() - generatedAt) / 1000)
+        ? Math.round((now - generatedAt) / 1000)
         : 0;
 
       track("guide_feedback", {
@@ -358,7 +368,9 @@ const ChatPage = () => {
         guide_category:
           msg.guide?.next_steps?.track?.group || msg.guide?.primary_focus || "",
         time_since_generated_sec: timeSinceGenerated,
-        time_since_previous_action_sec: 0, // 이전 action 시각 추적 안 하면 0
+        time_since_previous_action_sec: prevFeedbackAt
+          ? Math.round((now - prevFeedbackAt) / 1000)
+          : 0,
       });
     }
   };
@@ -784,20 +796,6 @@ const ChatPage = () => {
           button_shown: true,
           project_id: projectId,
         });
-      }
-
-      if (res?.detectedStage) {
-        // 백엔드 응답에 이 필드 와야 함
-        track("prompt_stage_detected", {
-          detected_stage: res.detectedStage,
-          previous_stage: lastDetectedStage.current,
-          stage_changed: lastDetectedStage.current !== res.detectedStage,
-          confidence_score: res.confidenceScore || null,
-          input_mode: inputMode,
-          prompt_length: text.length,
-          project_id: projectId,
-        });
-        lastDetectedStage.current = res.detectedStage;
       }
 
       if (action === "NEW_SEARCH" && newRefs.length > 0) {
@@ -1345,6 +1343,14 @@ const ChatPage = () => {
             archivedIds={archivedIds}
             expanded={mode === "refFull"}
             firstMenuRef={firstRefMenuRef}
+            // 트래킹(prompt_reference_feedback)용 컨텍스트 — 카드가 모르는 값 주입.
+            projectId={projectId}
+            iterationCount={messages.filter((m) => m.role === "user").length}
+            inputMode={
+              [...messages].reverse().find((m) => m.role === "user")?.imageUrl
+                ? "text_image"
+                : "text"
+            }
           />
           {/* 가이드 — 떠 있는 모달이 아니라 좌측 패널을 덮어서 표시(분할/전체화면) */}
           {guideOpen && (

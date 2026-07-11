@@ -8,6 +8,7 @@ import { getCompletedDetail } from "./api";
 import { getGuides } from "../chat/api";
 import { updateProject } from "../projects/api";
 import { downloadImage } from "./download";
+import { track } from "../../analytics";
 import styles from "./CompletedDetailPage.module.css";
 
 const GROUP_TABS = ["전체", "형태", "구조", "표현", "연출"];
@@ -141,6 +142,39 @@ const CompletedDetailPage = () => {
     };
   }, [projectId]);
 
+  // [트래킹] 완성작 상세 진입 후 2초 이상 머물면 archive_gallery_item_viewed 1회 전송.
+  useEffect(() => {
+    if (!detail) return undefined;
+    const cwId = /\/images\/(\d+)/.exec(
+      detail.overview?.representativeImageUrl || "",
+    )?.[1];
+    const timer = setTimeout(() => {
+      track("archive_gallery_item_viewed", {
+        completed_work_id: cwId ? Number(cwId) : null,
+        project_id: projectId,
+        view_duration_sec: 2,
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [detail, projectId]);
+
+  // [트래킹] 완성작에 연결된 가이드 상세(GuideModal) 진입 후 2초 이상 머물면
+  //   completed_work_guide_viewed 1회 전송.
+  useEffect(() => {
+    if (!activeGuide) return undefined;
+    const timer = setTimeout(() => {
+      track("completed_work_guide_viewed", {
+        guide_id: activeGuide._gid,
+        completed_work_id: /\/images\/(\d+)/.exec(
+          detail?.overview?.representativeImageUrl || "",
+        )?.[1],
+        project_id: projectId,
+        view_duration_sec: 2,
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [activeGuide, detail, projectId]);
+
   const trendByGroup = useMemo(() => {
     const m = {};
     for (const tg of detail?.weeklyTrend || []) m[tg.group] = tg.points;
@@ -237,6 +271,10 @@ const CompletedDetailPage = () => {
   }
 
   const ov = detail.overview || {};
+  // [트래킹] completed_work_id 소스 — 대표 이미지 /images/{id}.
+  const completedWorkId =
+    Number(/\/images\/(\d+)/.exec(ov.representativeImageUrl || "")?.[1]) ||
+    null;
   const timeline = detail.timeline || [];
   // 정본: 8개 초과 시 6번째 이후 생략, 마지막 단계만 표시(가운데 …). '전체 보기'로 전 단계 펼침.
   const timelineCollapsed = !timelineOpen && timeline.length > TIMELINE_HEAD;
@@ -559,7 +597,14 @@ const CompletedDetailPage = () => {
             <button
               type="button"
               className={styles.moreLink}
-              onClick={() => setCollectionOpen(true)}
+              onClick={() => {
+                track("completed_work_guide_opened", {
+                  completed_work_id: completedWorkId,
+                  project_id: projectId,
+                  guide_count: guides.length,
+                });
+                setCollectionOpen(true);
+              }}
             >
               전체보기 ›
             </button>
@@ -593,7 +638,24 @@ const CompletedDetailPage = () => {
                   key={g._gid ?? i}
                   type="button"
                   className={styles.guideRow}
-                  onClick={() => setActiveGuide(g)} // 정본: 항목 클릭 → 가이드 상세
+                  onClick={() => {
+                    track("completed_work_guide_clicked", {
+                      guide_id: g._gid,
+                      completed_work_id: completedWorkId,
+                      project_id: projectId,
+                      guide_category: g.guide?.primary_focus ?? grp ?? null,
+                      days_since_guide_created: g.createdAt
+                        ? Math.max(
+                            0,
+                            Math.floor(
+                              (Date.now() - Date.parse(g.createdAt)) / 86400000,
+                            ),
+                          )
+                        : null,
+                      guide_position: i,
+                    });
+                    setActiveGuide(g); // 정본: 항목 클릭 → 가이드 상세
+                  }}
                 >
                   <span className={styles.guideRowMain}>
                     <span className={styles.guideRowTitle}>

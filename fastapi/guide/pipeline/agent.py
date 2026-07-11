@@ -133,7 +133,7 @@ def _llm_select(ctx, llm):
         '"refs":{id:ref_id,...},"emphasis":"progress_first|direct"}\n'
         "order=이번에 보여줄 순서, lead=가장 먼저 다룰 것, refs=각 id에 보여줄 레퍼런스(그 id의 refs 후보 중 하나)."
     )
-    return json.loads(_strip(llm.complete_json(prompt)))
+    return json.loads(_strip(llm.complete_json(prompt, step="select")))
 
 
 def validate(decision, ctx):
@@ -254,7 +254,7 @@ def _plan_llm(state, candidates, llm):
         '"recent_recurring|curriculum_order|consolidate_before_advance|revisit_regressed|next_in_sequence"}\n'
         "plan[0]=이번에 집중할 축. 토대를 앞에 둘 때 사유는 consolidate_before_advance/revisit_regressed."
     )
-    return json.loads(_strip(llm.complete_json(prompt)))
+    return json.loads(_strip(llm.complete_json(prompt, step="plan")))
 
 
 def _plan_validate(decision, candidates):

@@ -9,6 +9,7 @@ import {
   removeReferenceFromCollection,
 } from "./api";
 import { downloadImage } from "./download";
+import { track } from "../../analytics";
 import AuthedImage from "../chat/AuthedImage";
 import CollectionEditModal from "./CollectionEditModal";
 import MoveReferenceModal from "./MoveReferenceModal";
@@ -150,8 +151,19 @@ const CollectionDetailPage = () => {
   // 고정하기 토글 — 로컬 state 반영 후 재정렬(고정 우선).
   const handleTogglePin = async (imageId) => {
     setCardMenu(null);
+    const wasPinned = collection?.references?.find(
+      (r) => r.imageId === imageId,
+    )?.pinned;
     try {
       await togglePin(collectionId, imageId);
+      // 스펙 enum(unpin/remove/download/open_project)상 '고정 해제'만 트래킹.
+      if (wasPinned) {
+        track("archive_reference_action", {
+          reference_id: imageId,
+          collection_id: collectionId,
+          action_type: "unpin",
+        });
+      }
       setCollection((prev) => {
         const references = prev.references.map((r) =>
           r.imageId === imageId ? { ...r, pinned: !r.pinned } : r,
@@ -170,12 +182,23 @@ const CollectionDetailPage = () => {
   // 아카이브 취소 — 컬렉션에서 레퍼런스 제거.
   const handleRemove = async (imageId) => {
     setCardMenu(null);
+    const removed = collection?.references?.find((r) => r.imageId === imageId);
     try {
       await removeReferenceFromCollection(collectionId, imageId);
       setCollection((prev) => ({
         ...prev,
         references: prev.references.filter((r) => r.imageId !== imageId),
       }));
+      track("reference_archive_removed", {
+        reference_id: imageId,
+        collection_id: collectionId,
+        time_since_archived_days: removed?.addedAt
+          ? Math.max(
+              0,
+              Math.floor((Date.now() - Date.parse(removed.addedAt)) / 86400000),
+            )
+          : null,
+      });
     } catch (err) {
       setErrorMessage(
         err.response?.data?.error?.message || "아카이브를 취소하지 못했어요.",
@@ -222,6 +245,11 @@ const CollectionDetailPage = () => {
     setDownloadingIds((prev) => new Set(prev).add(imageId));
     try {
       await downloadImage(imageId, url);
+      track("archive_reference_action", {
+        reference_id: imageId,
+        collection_id: collectionId,
+        action_type: "download",
+      });
     } finally {
       setDownloadingIds((prev) => {
         const next = new Set(prev);
@@ -406,6 +434,11 @@ const CollectionDetailPage = () => {
                         onClick={() => {
                           setSort(s.key);
                           setSortOpen(false);
+                          track("archive_sorted", {
+                            category: "reference",
+                            sort_type: "archived_date",
+                            sort_order: s.key === "recent" ? "desc" : "asc",
+                          });
                         }}
                       >
                         <span className={styles.sortCheck}>
@@ -428,15 +461,30 @@ const CollectionDetailPage = () => {
             </div>
           ) : (
             <div className={styles.grid}>
-              {filtered.map((ref) => (
+              {filtered.map((ref, index) => (
                 <div key={ref.imageId} className={styles.card}>
                   <div
                     className={styles.cardThumb}
                     role="button"
                     tabIndex={0}
-                    onClick={() =>
-                      navigate(`/archive/reference/${ref.imageId}`)
-                    }
+                    onClick={() => {
+                      track("archive_reference_clicked", {
+                        reference_id: ref.imageId,
+                        collection_id: collectionId,
+                        item_position: index,
+                        days_since_archived: ref.addedAt
+                          ? Math.max(
+                              0,
+                              Math.floor(
+                                (Date.now() - Date.parse(ref.addedAt)) /
+                                  86400000,
+                              ),
+                            )
+                          : null,
+                        reference_tags: ref.keywords ?? [],
+                      });
+                      navigate(`/archive/reference/${ref.imageId}`);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();

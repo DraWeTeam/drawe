@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCompletedGallery } from "./api";
 import { downloadImage } from "./download";
+import { track } from "../../analytics";
 import AuthedImage from "../chat/AuthedImage";
 import styles from "./CompletedGalleryPage.module.css";
 
@@ -166,7 +167,14 @@ const CompletedGalleryPage = () => {
             <button
               type="button"
               className={styles.sortBtn}
-              onClick={() => setSortDesc((v) => !v)}
+              onClick={() => {
+                setSortDesc((v) => !v);
+                track("archive_sorted", {
+                  category: "gallery",
+                  sort_type: "recent",
+                  sort_order: sortDesc ? "asc" : "desc",
+                });
+              }}
               title="정렬 전환"
             >
               {sortDesc ? "최근순" : "오래된순"} ▾
@@ -199,14 +207,30 @@ const CompletedGalleryPage = () => {
                 const db = Date.parse(b.completedAt || 0) || 0;
                 return sortDesc ? db - da : da - db;
               })
-              .map((item) => {
+              .map((item, index) => {
                 const imageId = imageIdFromUrl(item.drawingUrl);
                 return (
                   <div key={item.projectId} className={styles.card}>
                     <button
                       type="button"
                       className={styles.cardThumbBtn}
-                      onClick={() => navigate(`/gallery/${item.projectId}`)}
+                      onClick={() => {
+                        track("archive_gallery_item_clicked", {
+                          completed_work_id: imageId,
+                          project_id: item.projectId,
+                          item_position: index,
+                          days_since_completed: item.completedAt
+                            ? Math.max(
+                                0,
+                                Math.floor(
+                                  (Date.now() - Date.parse(item.completedAt)) /
+                                    86400000,
+                                ),
+                              )
+                            : null,
+                        });
+                        navigate(`/gallery/${item.projectId}`);
+                      }}
                       aria-label={`${item.projectName || "완성작"} 상세 보기`}
                     >
                       {/* 완성 그림은 /images/{id} 로 인증 서빙된다. */}
