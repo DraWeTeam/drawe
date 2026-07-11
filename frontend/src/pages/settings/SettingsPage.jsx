@@ -187,7 +187,9 @@ const ProfileSection = ({ profile, onUpdated }) => {
         time_since_signup_days: profile.createdAt
           ? Math.max(
               0,
-              Math.floor((Date.now() - Date.parse(profile.createdAt)) / 86400000),
+              Math.floor(
+                (Date.now() - Date.parse(profile.createdAt)) / 86400000,
+              ),
             )
           : null,
       });
@@ -250,10 +252,12 @@ const AccountSection = ({ profile, social, onLogout, onWithdrawn }) => {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   // [트래킹] 프로필 API 에 가입일이 없어 현재 null(백엔드 노출 시 자동 채움).
+  //   Date.now()(impure)를 render 중 호출하지 않도록 마운트 시 1회 고정 — 세션 내 가입일수는 불변.
+  const [nowMs] = useState(() => Date.now());
   const accountAgeDays = profile?.createdAt
     ? Math.max(
         0,
-        Math.floor((Date.now() - Date.parse(profile.createdAt)) / 86400000),
+        Math.floor((nowMs - Date.parse(profile.createdAt)) / 86400000),
       )
     : null;
 
@@ -426,7 +430,10 @@ const WithdrawModal = ({
   // [트래킹] 탈퇴 완료 여부/최신 입력값 ref — 도중 이탈 계측용.
   const confirmedRef = useRef(false);
   const confirmTextRef = useRef("");
-  confirmTextRef.current = confirmText;
+  // ref 는 render 중 write 금지(react-compiler) → effect 에서 최신 입력값 동기화.
+  useEffect(() => {
+    confirmTextRef.current = confirmText;
+  }, [confirmText]);
 
   // [트래킹] 탈퇴 완료 없이 모달 닫힘(취소/배경 클릭/이탈) → account_deletion_cancelled.
   useEffect(() => {

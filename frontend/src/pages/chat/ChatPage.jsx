@@ -1345,9 +1345,7 @@ const ChatPage = () => {
             firstMenuRef={firstRefMenuRef}
             // 트래킹(prompt_reference_feedback)용 컨텍스트 — 카드가 모르는 값 주입.
             projectId={projectId}
-            iterationCount={
-              messages.filter((m) => m.role === "user").length
-            }
+            iterationCount={messages.filter((m) => m.role === "user").length}
             inputMode={
               [...messages].reverse().find((m) => m.role === "user")?.imageUrl
                 ? "text_image"

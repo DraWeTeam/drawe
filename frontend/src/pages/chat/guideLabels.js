@@ -32,9 +32,12 @@ export const growthMessage = (growth, hasChart) => {
     return `'${label}' 요청이 주 ${rs.first_week_hits}회 → ${rs.last_week_hits}회로 줄었어요.`;
   }
   if (growth.narration) return growth.narration;
-  return hasChart
-    ? ""
-    : "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요.";
+  if (hasChart) return ""; // 추세 차트가 있으면 문구는 delta/narration 이 담당
+  // 차트 없음(활동 주<임계): 진짜 첫 사용(growth.first)과 '아직 이력 부족'을 구분한다.
+  //   기존엔 둘 다 "처음으로…" 로 떠서 2번째·3번째에도 '처음' 오안내가 났다.
+  return growth.first
+    ? "처음으로 한 끗 가이드를 사용하셨어요! 가이드를 더 받을수록 어떤 어려움을 자주 겪는지 흐름으로 보여드려요."
+    : "추세를 보여드리기에는 아직 이력이 조금 더 필요해요.";
 };
 
 // delta 문장('주 N→M회로 줄었어요') 노출 시 함께 뜨는 정본 해설 캡션(114:15761 카피 그대로).

@@ -84,6 +84,9 @@ class Growth(BaseModel):
     trend: list[TrendPoint] = []
     delta_note: Optional[str] = None
     chips: GrowthChips = GrowthChips()
+    # 이번 프로젝트 '첫 가이드'(콜드스타트: 진단 시점 이력 없음)인지. 프론트가 '처음 사용' 안내 문구를
+    #   추세 부족 안내와 구분하는 게이트로만 쓴다(축·평가와 무관, 표시층 전용).
+    first: bool = False
 
 
 class PendingReference(BaseModel):

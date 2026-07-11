@@ -238,3 +238,86 @@ def reset_image_gen_for_test(reader):
     _img_provider, _img_hist = _make_image_gen_histogram(reader)
     _img_init_tried = True
     return _img_hist
+
+
+# ── LLM(Grok/xAI) 호출 지연 계측 — VLM·이미지생성과 *별개* histogram ─────────────
+# 한 /guide 요청이 Grok(추론 모델)을 순차 다회 호출한다(plan → select → coach 재시도).
+# step 라벨로 어느 호출이 지배적인지 가른다("추가 개선"의 근거). 상단 90s = complete_json timeout.
+# ⚠️ VLM 버킷(.5~60s)으로는 grok 추론(5~30s)+timeout(90s) 구간을 못 가름 → 전용 버킷.
+LLM_LATENCY_BUCKETS = (0.5, 1, 2, 3, 5, 8, 13, 21, 34, 55, 90)
+
+# OTLP→Prometheus 변환 시 unit(s) 접미 → drawe_llm_latency_seconds{_bucket,_sum,_count}.
+_LLM_INSTRUMENT_NAME = "drawe_llm_latency"
+
+_llm_hist = None
+_llm_provider = None
+_llm_init_tried = False
+
+
+def _build_llm_view():
+    from opentelemetry.sdk.metrics.view import (
+        ExplicitBucketHistogramAggregation,
+        View,
+    )
+
+    return View(
+        instrument_name=_LLM_INSTRUMENT_NAME,
+        aggregation=ExplicitBucketHistogramAggregation(LLM_LATENCY_BUCKETS),
+    )
+
+
+def _make_llm_histogram(reader):
+    """VLM 과 동일 구조의 전용 MeterProvider+Histogram(LLM 전용 View/버킷)."""
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.resources import Resource
+
+    provider = MeterProvider(
+        resource=Resource.create(),
+        metric_readers=[reader],
+        views=[_build_llm_view()],
+    )
+    meter = provider.get_meter("drawe.guide.llm")
+    hist = meter.create_histogram(
+        _LLM_INSTRUMENT_NAME,
+        unit="s",
+        description="가이드 LLM(Grok/xAI) 호출 지연(초) — step=plan|select|coach",
+    )
+    return provider, hist
+
+
+def _get_llm_hist():
+    """지연·1회 초기화. 실패하면 None 캐시 → 이후 조용히 no-op(가이드는 정상)."""
+    global _llm_hist, _llm_provider, _llm_init_tried
+    if _llm_hist is not None:
+        return _llm_hist
+    if _llm_init_tried:
+        return None
+    _llm_init_tried = True
+    try:
+        _llm_provider, _llm_hist = _make_llm_histogram(_default_reader())
+    except Exception:  # OTEL 미가용 등 — 계측만 끄고 가이드는 그대로.
+        log.warning(
+            "LLM latency 계측 초기화 실패 — 계측 비활성(가이드는 정상)", exc_info=True
+        )
+        _llm_hist = None
+    return _llm_hist
+
+
+def observe_llm(seconds: float, *, step: str, outcome: str) -> None:
+    """단일 LLM 호출 지연(초)을 기록. step=plan|select|coach, outcome=success|error|fallback.
+    어떤 예외도 삼켜 호출부(가이드 생성)를 깨지 않는다. 라벨은 저카디널리티만."""
+    h = _get_llm_hist()
+    if h is None:
+        return
+    try:
+        h.record(max(0.0, float(seconds)), {"step": step, "outcome": outcome})
+    except Exception:
+        log.debug("LLM latency record 실패(무시)", exc_info=True)
+
+
+def reset_llm_for_test(reader):
+    """테스트 전용: 주어진 reader 로 LLM histogram 을 재구성해 반환."""
+    global _llm_hist, _llm_provider, _llm_init_tried
+    _llm_provider, _llm_hist = _make_llm_histogram(reader)
+    _llm_init_tried = True
+    return _llm_hist
