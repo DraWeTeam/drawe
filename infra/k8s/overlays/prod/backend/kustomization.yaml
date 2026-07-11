@@ -9,7 +9,7 @@ resources:
 images:
   - name: drawe-backend
     newName: 933832340498.dkr.ecr.ap-northeast-2.amazonaws.com/drawe-prod-backend
-    newTag: f74a0da71d26695dbfcfe4d85bfecf4de0e17b62
+    newTag: 7644563cf8b43ac5a5a23cb0fb1f6e8984b0c283
 
 generatorOptions:
   disableNameSuffixHash: true
