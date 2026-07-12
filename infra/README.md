@@ -70,7 +70,7 @@ flowchart LR
 
 ## 📡 관측성 (Observability)
 
-OpenTelemetry로 **trace · log · metric**을 한 파이프라인에서 수집합니다. 앱은 자동 계측만 하고, 수집·라우팅·가공은 **Alloy(DaemonSet, 노드당 1)** 가 전담합니다.
+OpenTelemetry로 **trace · log · metric**을 한 파이프라인에서 수집합니다. 앱은 **자동 계측 + 도메인 커스텀 계측**(FastAPI=OTel 전용 히스토그램 · Spring=Micrometer 카운터/타이머)을 내보내고, 수집·라우팅·가공은 **Alloy(DaemonSet, 노드당 1)** 가 전담합니다.
 
 ```mermaid
 flowchart LR
@@ -90,11 +90,12 @@ flowchart LR
 | --- | --- | --- |
 | **Logs** | Spring Boot JSON 로그 · Alloy stdout → **Loki (S3)** | `service_name` 라벨링 |
 | **Traces** | OTel auto-instrument → **Tempo (S3)** | spanmetrics로 RED 파생 |
-| **Metrics** | Micrometer 커스텀 카운터 → **AMP** | Grafana는 SigV4로 AMP query 인증 |
+| **Metrics** | 자동 계측 + **도메인 커스텀 계측**(Micrometer · OTel 히스토그램) → **AMP** | `drawe.*`/`drawe_*` 네임스페이스. Grafana는 SigV4로 AMP query 인증. 전체 목록 → [`docs/observability-custom-metrics.md`](../docs/observability-custom-metrics.md) |
 
 핵심 설계 포인트 (SRE 관점):
 
 - **계측-전송 분리** — 앱은 OTLP만 내보내고 destination은 Alloy가 환경별로 라우팅(dev → Grafana Cloud / prod → AMP + self-host). 앱 코드 변경 없이 백엔드 전환 가능.
+- **도메인 커스텀 계측** — 자동 계측(HTTP·DB·런타임) 위에 AI 파이프라인 지표를 직접 심었다: FastAPI 가이드는 VLM/이미지생성/LLM 호출 **지연 히스토그램**(전용 MeterProvider·명시 버킷 → 단계별 P95/P99), Spring 백엔드는 의도 분기·챗 LLM 지연·출력 안전(구조위반·환각 인용)·캐시 적중 등 **Micrometer 카운터/타이머**. 전부 `drawe.*` 네임스페이스로 AMP export. 전체 목록 → [`docs/observability-custom-metrics.md`](../docs/observability-custom-metrics.md).
 - **PII redaction(외부 전송 전)** — 이메일·토큰·LLM 프롬프트 본문 삭제/해싱, `user.id`는 1회 해시·`session.id`는 opaque 처리. 개인정보가 관측 스토어로 새지 않도록 수집 단계에서 차단.
 - **self-host로 단가·소유권 통제** — prod는 트래픽 증가 시 SaaS 단가가 부담이라 LGTM 셀프호스트(로그·트레이스는 S3 백엔드)로 비용·데이터 소유권 확보. dev는 프리 티어 Grafana Cloud로 무운영.
 - **알람** — 4xx/5xx · RDS CPU/스토리지 · NAT NetworkOut(LLM 비용 폭주 감지) · ALB unhealthy target 등을 **SNS → Lambda → Discord**로 통지.
@@ -248,4 +249,5 @@ aws ssm put-parameter --name "/drawe/prod/<key>" --value "<secret>" \
 
 - [`../README.md`](../README.md) — 모노레포 전체 그림
 - [`../docs/SDS/`](../docs/SDS/README.md) — 시스템 설계 문서(아키텍처·AI 파이프라인·다이어그램)
+- [`../docs/observability-custom-metrics.md`](../docs/observability-custom-metrics.md) — 도메인 커스텀 계측 전체 목록(FastAPI OTel · Spring Micrometer)
 - `runbooks/` — 운영 런북(재우기/깨우기 · 백필)
