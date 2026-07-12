@@ -10,6 +10,8 @@ import com.drawe.backend.domain.search.dto.SearchResponse;
 import com.drawe.backend.global.client.FastApiClient;
 import com.drawe.backend.global.client.PineconeClient;
 import com.drawe.backend.global.client.dto.PineconeMatch;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -35,6 +37,7 @@ public class SearchService {
   private final ImageRepository imageRepository;
   private final ImageDraweTagRepository imageDraweTagRepository;
   private final TagIdfIndex tagIdfIndex;
+  private final MeterRegistry meterRegistry;
 
   /**
    * 텍스트 쿼리(검색어)를 받아 유사도 검색 결과를 반환
@@ -49,16 +52,44 @@ public class SearchService {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
   public SearchResponse search(SearchRequest request) {
-    String query = request.query();
-    int topK = request.getTopK();
+    // 무드보드 레퍼런스 검색 계측: 지연 + result(hit/empty=원하는 이미지 못 찾음 비율) + 성패.
+    //   export: drawe_reference_search_seconds_{bucket,sum,count}{outcome,result}.
+    Timer.Sample sample = Timer.start(meterRegistry);
+    String outcome = "success";
+    SearchResponse response = null;
+    try {
+      String query = request.query();
+      int topK = request.getTopK();
 
-    log.info("topK:{}", topK);
+      log.info("topK:{}", topK);
 
-    // 1. 텍스트 -> 벡터
-    List<Float> vector = fastApiClient.embedText(query);
+      // 1. 텍스트 -> 벡터
+      List<Float> vector = fastApiClient.embedText(query);
 
-    // 2~6. 벡터 -> Pinecone -> MySQL -> 결과 조립 (벡터 출처와 무관한 공통 경로)
-    return searchByVectorInternal(vector, topK, "query_length=" + query.length(), query);
+      // 2~6. 벡터 -> Pinecone -> MySQL -> 결과 조립 (벡터 출처와 무관한 공통 경로)
+      response = searchByVectorInternal(vector, topK, "query_length=" + query.length(), query);
+      return response;
+    } catch (RuntimeException e) {
+      outcome = "error";
+      throw e;
+    } finally {
+      recordSearchMetric(sample, outcome, response);
+    }
+  }
+
+  /** 무드보드 검색 계측 기록 — 계측 실패가 검색을 깨지 않게 격리. hit/empty 로 '원하는 걸 못 찾음' 비율을 추적한다. */
+  private void recordSearchMetric(Timer.Sample sample, String outcome, SearchResponse response) {
+    try {
+      String result = (response != null && response.total() > 0) ? "hit" : "empty";
+      sample.stop(
+          Timer.builder("drawe.reference.search")
+              .tag("outcome", outcome)
+              .tag("result", result)
+              .publishPercentileHistogram()
+              .register(meterRegistry));
+    } catch (RuntimeException e) {
+      log.debug("reference.search 계측 실패(무시): {}", e.getClass().getSimpleName());
+    }
   }
 
   /**
