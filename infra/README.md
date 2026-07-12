@@ -119,6 +119,7 @@ flowchart LR
 - **IaC (Terraform)** — EKS · Karpenter · ALB Ingress · IRSA · RDS · Cloudflare를 코드로 관리. state는 **S3 원격 백엔드**(`drawe-tfstate-<account>`)라 작업 디렉터리와 무관하게 동일 state 공유, dev/prod 일관 구성·drift 관리. `terraform-dev` / `terraform-prod`로 환경 분리.
 - **GitOps (ArgoCD)** — `main` = prod 배포 상태의 단일 출처. git push → **auto-sync(prune+selfHeal)** 롤링 반영. 배포 이력·롤백이 git으로 추적됨.
 - **CI/CD (GitHub Actions · 경로 필터)** — 모노레포에서 변경된 서비스만 빌드(`backend/**`·`fastapi/**` 등). **GitHub OIDC**로 AWS 자격증명 비저장 assume. overlay bump push는 동시 실행 경합(race)에 대비해 rebase 재시도로 안정화.
+- **드리프트 방어 (branch-per-env)** — 환경을 브랜치로 가르면(dev=`develop` / prod=`main`) prod overlay 파일이 두 브랜치에 복제되어, `develop` 사본이 낡으면 승격(`develop`→`main`) 시 prod가 롤백될 수 있다. 이를 막기 위해 ① 각 서비스 CD의 `[prod->develop]` 스텝이 `main`의 prod overlay bump 시 `develop` 사본도 같은 태그로 자동 동기화하고(`overlays/prod`만 건드려 dev 배포엔 무영향), ② `prod-overlay-drift-gate`가 `main` 대상 PR의 머지 결과를 검사해 드리프트를 표시한다.
 - **시크릿** — **ESO(External Secrets) + SSM SecureString**으로 런타임 주입. 시크릿을 매니페스트·레포에 두지 않음. 파드 권한은 **IRSA**로 최소화.
 
 | 워크플로 | 트리거 경로 | 동작 |
@@ -127,8 +128,9 @@ flowchart LR
 | `fastapi-cd` | `fastapi/**` (embed) | 빌드 → ECR → overlay bump → ArgoCD |
 | `fastapi-guide-cd` | `fastapi/guide/**` · `fastapi/assets/**` · `Dockerfile.guide` · `requirements.guide.txt` | guide 이미지 빌드 → ECR → ArgoCD |
 | `qdrant-keepalive` | cron(3일) | Qdrant Cloud 무료 클러스터 keep-alive |
+| `prod-overlay-drift-gate` | PR → `main` | 머지 결과가 prod overlay 태그를 `main`과 다르게 만들면(드리프트=승격 롤백 위험) 검사·표시 |
 
-> `develop` → dev 동기화, `main` → prod 배포(Required reviewers 통과 후 ArgoCD sync).
+> `develop` → dev 동기화, `main` → prod 배포(deploy 브랜치 정책=`main` 한정, ArgoCD auto-sync).
 
 ---
 
