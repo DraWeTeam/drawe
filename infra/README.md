@@ -95,7 +95,7 @@ flowchart LR
 핵심 설계 포인트 (SRE 관점):
 
 - **계측-전송 분리** — 앱은 OTLP만 내보내고 destination은 Alloy가 환경별로 라우팅(dev → Grafana Cloud / prod → AMP + self-host). 앱 코드 변경 없이 백엔드 전환 가능.
-- **도메인 커스텀 계측** — 자동 계측(HTTP·DB·런타임) 위에 AI 파이프라인 지표를 직접 심었다: FastAPI 가이드는 VLM/이미지생성/LLM 호출 **지연 히스토그램**(전용 MeterProvider·명시 버킷 → 단계별 P95/P99), Spring 백엔드는 의도 분기·챗 LLM 지연·출력 안전(구조위반·환각 인용)·캐시 적중 등 **Micrometer 카운터/타이머**. 전부 `drawe.*` 네임스페이스로 AMP export. 전체 목록 → [`docs/observability-custom-metrics.md`](../docs/observability-custom-metrics.md).
+- **도메인 커스텀 계측** — 자동 계측(HTTP·DB·런타임) 위에 AI 파이프라인 지표를 직접 심었다. 현재 서비스 방향 기준: **한 끗 가이드**(FastAPI VLM/LLM 지연 히스토그램·단계별 P95/P99), **레퍼런스 무드보드**(검색 `drawe.reference.search`{hit/empty} · 생성 `drawe_image_gen_latency`). 옛 대화형 채팅(의도분기·compose) 지표는 폐기 방향이라 **legacy**로 분리 표기. 전부 `drawe.*` 네임스페이스로 AMP export. 전체 목록 → [`docs/observability-custom-metrics.md`](../docs/observability-custom-metrics.md).
 - **PII redaction(외부 전송 전)** — 이메일·토큰·LLM 프롬프트 본문 삭제/해싱, `user.id`는 1회 해시·`session.id`는 opaque 처리. 개인정보가 관측 스토어로 새지 않도록 수집 단계에서 차단.
 - **self-host로 단가·소유권 통제** — prod는 트래픽 증가 시 SaaS 단가가 부담이라 LGTM 셀프호스트(로그·트레이스는 S3 백엔드)로 비용·데이터 소유권 확보. dev는 프리 티어 Grafana Cloud로 무운영.
 - **알람** — 4xx/5xx · RDS CPU/스토리지 · NAT NetworkOut(LLM 비용 폭주 감지) · ALB unhealthy target 등을 **SNS → Lambda → Discord**로 통지.
