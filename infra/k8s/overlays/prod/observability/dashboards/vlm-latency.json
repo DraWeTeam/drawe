@@ -2,81 +2,231 @@
   "uid": "drawe-vlm-latency",
   "title": "가이드 VLM 응답 지연 (FastAPI) — P50/P95/P99",
   "description": "FastAPI 가이드 VLM(Bedrock Claude Haiku) 기준. metric=drawe_vlm_latency_seconds (guide/ml/vision.py _call 초크포인트, OTEL histogram→OTLP→AMP). 명시 버킷(.5~60s)으로 VLM 지연대 P95 정확. Spring Boot 채팅 LLM 은 별도 대시보드(drawe-chat-llm-latency).",
-  "tags": ["drawe", "fastapi", "guide", "vlm", "latency"],
+  "tags": [
+    "drawe",
+    "ai-pipeline",
+    "fastapi",
+    "guide",
+    "vlm",
+    "latency"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "templating": {
     "list": [
-      { "name": "datasource", "type": "datasource", "query": "prometheus", "current": {}, "hide": 0 }
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
     ]
   },
   "panels": [
     {
-      "id": 1, "type": "timeseries", "title": "VLM 지연 — P50 · P95 · P99 (전체)",
+      "id": 1,
+      "type": "timeseries",
+      "title": "VLM 지연 — P50 · P95 · P99 (전체)",
       "description": "FastAPI 가이드 VLM(Bedrock Claude Haiku) 기준. drawe_vlm_latency_seconds_bucket 히스토그램(명시 버킷 .5,1,2,3,5,8,13,21,34,60s). 메트릭명이 이 서비스 전용이라 서비스 필터 불필요.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.50, sum by (le) (rate(drawe_vlm_latency_seconds_bucket[5m])))",
-          "legendFormat": "p50" },
-        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_vlm_latency_seconds_bucket[5m])))",
-          "legendFormat": "p95" },
-        { "refId": "C", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.99, sum by (le) (rate(drawe_vlm_latency_seconds_bucket[5m])))",
-          "legendFormat": "p99" }
+          "legendFormat": "p99"
+        }
       ]
     },
     {
-      "id": 2, "type": "timeseries", "title": "P95 by outcome (success/error)",
+      "id": 2,
+      "type": "timeseries",
+      "title": "P95 by outcome (success/error)",
       "description": "VLM outcome 별 P95. le·outcome 로 분해 — 타임아웃/에러가 지연대를 끌어올리는지 분리 관찰.",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.95, sum by (outcome, le) (rate(drawe_vlm_latency_seconds_bucket[5m])))",
-          "legendFormat": "{{outcome}} p95" }
+          "legendFormat": "{{outcome}} p95"
+        }
       ]
     },
     {
-      "id": 3, "type": "timeseries", "title": "요청량 — 초당 VLM 호출수 (by outcome)",
+      "id": 3,
+      "type": "timeseries",
+      "title": "요청량 — 초당 VLM 호출수 (by outcome)",
       "description": "히스토그램 _count 의 rate. 분위수의 표본 규모·에러율 파악용.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum by (outcome) (rate(drawe_vlm_latency_seconds_count[5m]))",
-          "legendFormat": "{{outcome}}" }
+          "legendFormat": "{{outcome}}"
+        }
       ]
     },
     {
-      "id": 4, "type": "stat", "title": "P95 (현재, 전체)",
+      "id": 4,
+      "type": "stat",
+      "title": "P95 (현재, 전체)",
       "description": "지금 5분 창의 전체 P95. VLM 은 채팅 LLM 보다 느리다 — 임계 참고용(임의값): 8s 경고 / 20s 위험.",
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 8 }, { "color": "red", "value": 20 } ] } }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 8
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_vlm_latency_seconds_bucket[5m])))" }
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_vlm_latency_seconds_bucket[5m])))"
+        }
       ]
     },
     {
-      "id": 5, "type": "timeseries", "title": "평균 응답시간 (참고 · 버킷 아님)",
+      "id": 5,
+      "type": "timeseries",
+      "title": "평균 응답시간 (참고 · 버킷 아님)",
       "description": "_sum/_count 평균. 분위수와 함께 보는 보조 지표.",
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum(rate(drawe_vlm_latency_seconds_sum[5m])) / sum(rate(drawe_vlm_latency_seconds_count[5m]))",
-          "legendFormat": "avg" }
+          "legendFormat": "avg"
+        }
       ]
     }
   ]

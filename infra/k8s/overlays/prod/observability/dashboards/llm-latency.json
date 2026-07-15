@@ -1,82 +1,248 @@
 {
   "uid": "drawe-chat-llm-latency",
-  "title": "채팅 LLM 응답 지연 (Spring Boot) — P50/P95/P99",
-  "description": "Spring Boot 채팅 LLM(GROK/CLAUDE) 응답 지연. metric=drawe_chat_llm_latency_seconds (chat_success.latency_ms 와 동일 값, 실시간 계측). FastAPI 가이드 VLM 지연은 별도 대시보드(추후 슬라이스).",
-  "tags": ["drawe", "backend", "spring-boot", "chat-llm", "latency"],
+  "title": "[DEPRECATED] 채팅 LLM 응답 지연 (Spring Boot) — P50/P95/P99",
+  "description": "⚠️ DEPRECATED (2026-07-15) — 계측·쿼리는 정상이나 측정 대상 경로가 미사용이라 영구히 빈다. POST /projects/{projectId}/chat (ChatLlmService.chat) 가 제품 피벗으로 사용되지 않는다: frontend/src/pages/board/ReferenceBoardPage.jsx '채팅 기반 추천을 걷어낸 새 워크스페이스'. AMP 확인: uri=\"/projects/{projectId}/chat\" 시리즈 부재(= 핸들러 도달 0), 반면 /chat/latest-session·/chat/{sessionId}/history(GET)는 /board 가 세션 공유로 계속 호출. 현행 주경로 대시보드는 drawe-guide-pipeline. 채팅 부활 시 이 대시보드를 되살리고 LlmMetrics.chatLatency 버킷 clamp(min 100ms/max 60s)를 먼저 적용할 것 — 현재 무제한이라 285 le/조합.",
+  "tags": [
+    "drawe",
+    "deprecated",
+    "backend",
+    "spring-boot",
+    "chat-llm",
+    "latency"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
-  "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
+  "version": 2,
+  "refresh": false,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "templating": {
     "list": [
-      { "name": "datasource", "type": "datasource", "query": "prometheus", "current": {}, "hide": 0 }
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
     ]
   },
   "panels": [
     {
-      "id": 1, "type": "timeseries", "title": "채팅 LLM 지연 — P50 · P95 · P99 (전체)",
+      "id": 900,
+      "type": "text",
+      "title": "⚠️ 이 대시보드는 DEPRECATED 입니다",
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### 빈 게 정상입니다 — 계측 고장이 아닙니다\n\n측정 대상인 **`POST /projects/{projectId}/chat`** (`ChatLlmService.chat()`) 가 제품 피벗으로 **미사용** 상태입니다. `drawe_chat_llm_latency_seconds` 는 Micrometer **lazy 등록**이라, 호출이 0이면 시리즈 자체가 생기지 않아 영구히 `No data` 입니다.\n\n| 근거 | 확인 |\n|---|---|\n| `uri=\"/projects/{projectId}/chat\"` 시리즈 부재 | 핸들러 도달 0건 |\n| `/chat/latest-session`, `/chat/{sessionId}/history` (GET) 은 존재 | `/board` 가 세션만 공유해 읽음 |\n| `ReferenceBoardPage.jsx` | *\"채팅 기반 추천을 걷어낸 새 워크스페이스\"* |\n\n➡️ **현행 주경로: [DraWe — 가이드 파이프라인](/d/drawe-guide-pipeline)**\n\n채팅을 되살릴 경우: `LlmMetrics.chatLatency()` 의 `publishPercentileHistogram()` 에 `minimumExpectedValue(100ms)` / `maximumExpectedValue(60s)` 를 **먼저** 넣으세요. 현재는 무제한이라 (provider × outcome) 조합마다 `le` 시리즈 285개가 발행됩니다."
+      },
+      "transparent": false
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "채팅 LLM 지연 — P50 · P95 · P99 (전체)",
       "description": "Spring Boot 채팅 LLM(GROK/CLAUDE) 기준. drawe_chat_llm_latency_seconds_bucket 히스토그램 기반(LlmMetrics.chatLatency publishPercentileHistogram). FastAPI 가이드 VLM 지연은 별도 대시보드(추후).",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.50, sum by (le) (rate(drawe_chat_llm_latency_seconds_bucket{application=\"drawe-backend\"}[5m])))",
-          "legendFormat": "p50" },
-        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_chat_llm_latency_seconds_bucket{application=\"drawe-backend\"}[5m])))",
-          "legendFormat": "p95" },
-        { "refId": "C", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.99, sum by (le) (rate(drawe_chat_llm_latency_seconds_bucket{application=\"drawe-backend\"}[5m])))",
-          "legendFormat": "p99" }
+          "legendFormat": "p99"
+        }
       ]
     },
     {
-      "id": 2, "type": "timeseries", "title": "P95 by provider (GROK/CLAUDE)",
+      "id": 2,
+      "type": "timeseries",
+      "title": "P95 by provider (GROK/CLAUDE)",
       "description": "채팅 LLM provider 별 P95. le·provider 로 분해.",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "histogram_quantile(0.95, sum by (provider, le) (rate(drawe_chat_llm_latency_seconds_bucket{application=\"drawe-backend\"}[5m])))",
-          "legendFormat": "{{provider}} p95" }
+          "legendFormat": "{{provider}} p95"
+        }
       ]
     },
     {
-      "id": 3, "type": "timeseries", "title": "요청량 — 초당 채팅 성공 응답수 (by provider)",
+      "id": 3,
+      "type": "timeseries",
+      "title": "요청량 — 초당 채팅 성공 응답수 (by provider)",
       "description": "히스토그램 _count 의 rate. 분위수의 표본 규모 파악용.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum by (provider) (rate(drawe_chat_llm_latency_seconds_count{application=\"drawe-backend\"}[5m]))",
-          "legendFormat": "{{provider}}" }
+          "legendFormat": "{{provider}}"
+        }
       ]
     },
     {
-      "id": 4, "type": "stat", "title": "P95 (현재, 전체)",
+      "id": 4,
+      "type": "stat",
+      "title": "P95 (현재, 전체)",
       "description": "지금 5분 창의 전체 P95. 임계 참고용(임의값): 4s 경고 / 8s 위험.",
-      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 4 }, { "color": "red", "value": 8 } ] } }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 4
+              },
+              {
+                "color": "red",
+                "value": 8
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_chat_llm_latency_seconds_bucket{application=\"drawe-backend\"}[5m])))" }
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_chat_llm_latency_seconds_bucket{application=\"drawe-backend\"}[5m])))"
+        }
       ]
     },
     {
-      "id": 5, "type": "timeseries", "title": "평균 응답시간 (참고 · 버킷 아님)",
+      "id": 5,
+      "type": "timeseries",
+      "title": "평균 응답시간 (참고 · 버킷 아님)",
       "description": "_sum/_count 평균. 분위수와 함께 보는 보조 지표.",
-      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum(rate(drawe_chat_llm_latency_seconds_sum{application=\"drawe-backend\"}[5m])) / sum(rate(drawe_chat_llm_latency_seconds_count{application=\"drawe-backend\"}[5m]))",
-          "legendFormat": "avg" }
+          "legendFormat": "avg"
+        }
       ]
     }
   ]

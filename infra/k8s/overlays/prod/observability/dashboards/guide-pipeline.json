@@ -1,0 +1,416 @@
+{
+  "uid": "drawe-guide-pipeline",
+  "title": "DraWe — 가이드 파이프라인",
+  "description": "도메인=AI Pipeline. metric=drawe_llm_latency_seconds (guide/ml/llm.py complete_json 초크포인트, OTEL histogram→OTLP→AMP · 수동계측). 한 /guide 요청이 Grok 을 순차 호출(plan→select?→coach)하는 구조를 step 라벨로 분해. 이웃: drawe-vlm-latency, drawe-image-gen-latency. ⚠️ 한계: 이 대시보드는 '외부 AI 호출'만 본다. normalize/scene(CLIP)/pose(ViTPose torch)/growth 는 로컬 추론이라 계측이 없어 /guide 전체 지연의 어느 비중인지 알 수 없다 — span 추가 시 해소(자동계측·spanmetrics). 구 채팅 경로(drawe-chat-llm-latency)는 DEPRECATED.",
+  "tags": [
+    "drawe",
+    "ai-pipeline",
+    "fastapi",
+    "guide",
+    "llm"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 4,
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "links": [
+    {
+      "type": "dashboards",
+      "title": "AI Pipeline (같은 도메인)",
+      "tags": [
+        "ai-pipeline"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 999,
+      "type": "text",
+      "title": "읽는 법 — 빈 패널이 항상 고장은 아니다",
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**AI Pipeline** · `drawe_llm_latency_seconds` (FastAPI guide → Grok · 수동계측) · [VLM](/d/drawe-vlm-latency) · [이미지 생성](/d/drawe-image-gen-latency)\n\n| 관측 | 뜻 |\n|---|---|\n| 폴백 비율 `0` | **정상** — 트래픽 있고 Grok 연결됨 |\n| 폴백 비율 `No data` | 이 창에 `/guide` 트래픽 0 — **계측 고장 아님** |\n| `step=select` 선 없음 | **정상일 수 있음** — `stated_present` 가드로 조건부 호출 |\n| 전체가 빔 | `/guide` 트래픽 0. 확인: `sum(rate(http_server_requests_seconds_count{application=\"drawe-backend\", uri=\"/projects/{projectId}/guide\"}[24h]))` |\n\n**범위 한계**: 외부 AI 호출만 계측. `normalize`/`scene`(CLIP)/`pose`(ViTPose)/`growth` 는 로컬 추론이라 깜깜 — `/guide` 전체 지연의 병목이 여기 밖일 수 있다."
+      },
+      "transparent": false
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "⚠️ Grok 폴백 비율 — 유저가 템플릿 더미를 받는 비율",
+      "description": "outcome=\"fallback\" = xai_api_key 미설정 또는 Grok 호출 실패 → DummyLLM(근거 템플릿) 대체(guide/ml/llm.py). 가이드는 HTTP 200 으로 나가지만 내용은 LLM 산출물이 아니다 — 상태코드·5xx 로는 안 잡히는 무증상 장애. DoD: 0. 판정: [0(초록)] = /guide 트래픽 있고 fallback 없음 = 건강. [No data] = 이 시간창에 /guide 트래픽이 아예 0 (분모 empty). 계측 고장 아님 — 창을 넓히거나 요청을 태워라. [0 초과] = Grok 미연결. 이때는 \"결과가 이상하다\"의 원인이 프롬프트가 아니라 연결이다.",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum(rate(drawe_llm_latency_seconds_count{outcome=\"fallback\"}[5m])) or vector(0)) / clamp_min(sum(rate(drawe_llm_latency_seconds_count[5m])), 0.0000001)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Grok 지연 — P95 by step (plan · select · coach)",
+      "description": "step 라벨로 한 /guide 요청 안의 Grok 호출을 분해. plan=agent.py:257, select=agent.py:183, coach=validate.py:128. 명시 버킷(.5~90s) — 상단 90s 가 complete_json timeout 과 일치해 +Inf 쏠림이 없다. ⚠️ step=\"select\" 가 없는 게 정상일 수 있다 — agent.py decide() 는 AGENT_LLM_SELECT(configmap 에서 \"1\"=ON) 이면서 동시에 stated_present 가 False 일 때만 _llm_select 를 부른다. stated_present = 유저가 물은 축이 맥락상 성립하는 경우 → 이때는 결정적 정책으로 대체된다. AMP 실측 2026-07-15: plan·coach 만 존재 = 지금까지 모든 요청이 축을 명시했다는 뜻. 계측 고장 아님.",
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 6,
+        "y": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (step, le) (rate(drawe_llm_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{step}} p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "outcome 분포 — success · error · fallback",
+      "description": "A = 실제 존재하는 outcome. B·C = fallback/error 를 or vector(0) 로 강제 0 표시 — 시리즈가 없을 때 선이 아예 안 그려져 \"건강함\"과 \"계측 고장\"이 구분 안 되는 걸 막는다. fallback = Grok 미연결(키 없음/호출 실패), error = 호출은 했는데 실패(90s 타임아웃·5xx). A 가 통째로 비면 /guide 트래픽 자체가 0 — OTEL SDK Histogram 은 record() 전엔 데이터포인트가 없다.",
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (outcome) (rate(drawe_llm_latency_seconds_count[5m]))",
+          "legendFormat": "{{outcome}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum(rate(drawe_llm_latency_seconds_count{outcome=\"fallback\"}[5m])) or vector(0))",
+          "legendFormat": "fallback (0 = 없음)"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum(rate(drawe_llm_latency_seconds_count{outcome=\"error\"}[5m])) or vector(0))",
+          "legendFormat": "error (0 = 없음)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "★ step 별 시간 점유 — 어느 호출이 지배적인가",
+      "description": "rate(_sum) = 초당 소비된 LLM 시간(초/초). P95 는 \"한 번이 얼마나 느린가\", 이건 \"전체 지연 중 몇 %를 먹는가\". ⚠️ 단 이 비교는 Grok 호출들 사이에서만 유효하다. pose(ViTPose)·scene(CLIP) 로컬 추론은 계측이 없어 이 스택에 안 나온다 — /guide 전체의 진짜 병목은 여기 밖일 수 있다. span 추가 시 해소.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "stacking": {
+              "mode": "normal"
+            },
+            "fillOpacity": 40
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (step) (rate(drawe_llm_latency_seconds_sum[5m]))",
+          "legendFormat": "{{step}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "가이드 1건당 Grok 호출수 (step 별)",
+      "description": "분모 = plan 호출수(설계상 /guide 1건당 1회, agent.py:257) → 자동계측 무의존. plan 은 1, coach 는 1 근처가 정상. coach 가 1 을 크게 넘으면 검증 탈락 재시도가 잦다는 뜻(validate.py 신호). ⚠️ step=\"select\" 가 없는 게 정상일 수 있다 — agent.py decide() 는 AGENT_LLM_SELECT(configmap 에서 \"1\"=ON) 이면서 동시에 stated_present 가 False 일 때만 _llm_select 를 부른다. stated_present = 유저가 물은 축이 맥락상 성립하는 경우 → 이때는 결정적 정책으로 대체된다. AMP 실측 2026-07-15: plan·coach 만 존재 = 지금까지 모든 요청이 축을 명시했다는 뜻. 계측 고장 아님.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (step) (rate(drawe_llm_latency_seconds_count[5m])) / scalar(sum(rate(drawe_llm_latency_seconds_count{step=\"plan\"}[5m])))",
+          "legendFormat": "{{step}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Grok P95 (현재, 전체)",
+      "description": "지금 5분 창의 전체 P95. 임계 참고(임의값): 20s 경고 / 60s 위험 — 상단 90s timeout 대비.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 21
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_llm_latency_seconds_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "VLM P95 → drawe-vlm-latency",
+      "description": "같은 수동계측 층 요약. drawe_vlm_latency_seconds (guide/ml/vision.py _call). 상세는 전용 대시보드. 임계 8s/20s — vlm-latency 와 동일 기준.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 21
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 8
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_vlm_latency_seconds_bucket[5m])))"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "이미지 생성 P95 → drawe-image-gen-latency",
+      "description": "같은 수동계측 층 요약. drawe_image_gen_latency_seconds (guide/ml/generate.py). diffusion 이라 VLM 보다 느린 게 정상 — 버킷 상단 120s. 상세는 전용 대시보드.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 21
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(drawe_image_gen_latency_seconds_bucket[5m])))"
+        }
+      ]
+    }
+  ]
+}
