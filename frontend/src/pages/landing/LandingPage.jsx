@@ -167,10 +167,6 @@ const LandingPage = () => {
           </div>
           <div className={styles.archiveShotWrap}>
             <img className={styles.archiveShot} src={archiveShot} alt="" />
-            {/* Frame 465 — "준비 중" 반투명 배너 오버레이 */}
-            <div className={styles.archivePending}>
-              그림 여정을 기록하는 아카이브 기능은 현재 준비 중입니다.
-            </div>
           </div>
         </section>
 

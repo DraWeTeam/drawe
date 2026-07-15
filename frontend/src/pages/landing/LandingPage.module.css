@@ -515,23 +515,6 @@
   display: block;
 }
 
-/* Frame 465 — "준비 중" 반투명 배너(이미지 1154×668 기준: top 338, height 90) */
-.archivePending {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50.6%; /* 338/668 */
-  height: 13.5%; /* 90/668 */
-  background: rgba(254, 254, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2739cqw;
-  line-height: 1.7834cqw;
-  font-weight: 700;
-  color: #888685;
-}
-
 /* ===== Frame 5. 철학 ===== */
 .philoFrame {
   display: flex;
