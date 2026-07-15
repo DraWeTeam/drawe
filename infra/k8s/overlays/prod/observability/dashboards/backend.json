@@ -1,101 +1,414 @@
 {
   "uid": "drawe-backend",
-  "title": "DraWe — Backend (RED + AI 파이프라인)",
-  "tags": ["drawe", "backend"],
+  "title": "DraWe — Backend (런타임 + 레퍼런스보드)",
+  "tags": [
+    "drawe",
+    "backend",
+    "runtime"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "templating": {
     "list": [
-      { "name": "datasource", "type": "datasource", "query": "prometheus", "current": {}, "hide": 0 }
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
     ]
   },
   "panels": [
     {
-      "id": 1, "type": "timeseries", "title": "Rate — 요청수 by status",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "id": 100,
+      "type": "row",
+      "title": "① 런타임 (자동계측 · Micrometer actuator)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Rate — 요청수 by status",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum by (status) (rate(http_server_requests_seconds_count{application=\"drawe-backend\"}[5m]))",
-          "legendFormat": "{{status}}" }
+          "legendFormat": "{{status}}"
+        }
       ]
     },
     {
-      "id": 2, "type": "timeseries", "title": "Errors — 5xx 비율  ·  Duration — 평균(버킷 없음)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [
-        { "matcher": { "id": "byName", "options": "5xx ratio" }, "properties": [ { "id": "unit", "value": "percentunit" } ] },
-        { "matcher": { "id": "byName", "options": "avg latency(s)" }, "properties": [ { "id": "unit", "value": "s" } ] }
-      ] },
+      "id": 2,
+      "type": "timeseries",
+      "title": "Errors — 5xx 비율  ·  Duration — 평균(버킷 없음)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5xx ratio"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg latency(s)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          }
+        ]
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum(rate(http_server_requests_seconds_count{application=\"drawe-backend\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=\"drawe-backend\"}[5m]))",
-          "legendFormat": "5xx ratio" },
-        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "legendFormat": "5xx ratio"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum(rate(http_server_requests_seconds_sum{application=\"drawe-backend\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=\"drawe-backend\"}[5m]))",
-          "legendFormat": "avg latency(s)" }
+          "legendFormat": "avg latency(s)"
+        }
       ]
     },
     {
-      "id": 3, "type": "timeseries", "title": "LLM 호출 — provider·outcome 별 rate",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "id": 7,
+      "type": "timeseries",
+      "title": "JVM heap 사용률  ·  Hikari active",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum by (provider, outcome) (rate(drawe_llm_call_seconds_count[5m]))",
-          "legendFormat": "{{provider}}/{{outcome}}" }
-      ]
-    },
-    {
-      "id": 4, "type": "timeseries", "title": "LLM 평균 응답시간 by provider",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum by (provider) (rate(drawe_llm_call_seconds_sum[5m])) / sum by (provider) (rate(drawe_llm_call_seconds_count[5m]))",
-          "legendFormat": "{{provider}}" }
-      ]
-    },
-    {
-      "id": 5, "type": "stat", "title": "환각 인용 (1h, DoD=0)",
-      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
-      "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(increase(drawe_output_hallucinated_citation_total[1h]))" }
-      ]
-    },
-    {
-      "id": 6, "type": "stat", "title": "룰 라우터 커버리지 (15m)",
-      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 0.5 } ] } }, "overrides": [] },
-      "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(rate(drawe_intent_route_total{outcome=\"rule_hit\"}[15m])) / sum(rate(drawe_intent_route_total[15m]))" }
-      ]
-    },
-    {
-      "id": 7, "type": "timeseries", "title": "JVM heap 사용률  ·  Hikari active",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "max by (instance) (jvm_memory_used_bytes{application=\"drawe-backend\",area=\"heap\"} / (jvm_memory_max_bytes{application=\"drawe-backend\",area=\"heap\"} > 0))",
-          "legendFormat": "heap util {{instance}}" },
-        { "refId": "B", "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "legendFormat": "heap util {{instance}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "sum(hikaricp_connections_active{application=\"drawe-backend\"})",
-          "legendFormat": "hikari active" }
+          "legendFormat": "hikari active"
+        }
+      ]
+    },
+    {
+      "id": 200,
+      "type": "row",
+      "title": "② 레퍼런스보드 · 검색 (수동계측 · 실사용 경로)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "레퍼런스 검색 — P95 by result (hit/empty)",
+      "description": "drawe_reference_search_seconds (SearchService, publishPercentileHistogram). result=hit|empty 는 total()>0 여부. empty 가 hit 보다 느리면 '결과 없음'에 시간을 쓰는 것 — 질의/필터 재검토 신호. 이 메트릭은 lazy 등록인데 AMP 에 존재 = 실제 검색 트래픽이 있다는 증거.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(drawe_reference_search_seconds_bucket[5m])))",
+          "legendFormat": "{{result}} p95"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "레퍼런스 검색 — rate by outcome · result",
+      "description": "outcome=success|error, result=hit|empty. error 는 예외 경로. hit 대비 empty 비율이 높으면 검색 품질 문제.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (outcome, result) (rate(drawe_reference_search_seconds_count[5m]))",
+          "legendFormat": "{{outcome}} · {{result}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "사전 히트율 (drawe_dict_lookup)",
+      "description": "ArtTermsDictionary 조회 result=hit|miss. 히트율이 낮으면 사전 커버리지 부족 → Komoran/Grok 부담 증가. or vector(0) 로 miss 시리즈 부재 시 No data 를 막는다.",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "green",
+                "value": 0.8
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum(rate(drawe_dict_lookup_total{result=\"hit\"}[5m])) or vector(0)) / clamp_min(sum(rate(drawe_dict_lookup_total[5m])), 0.0000001)"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Komoran 폴백 → Grok 호출 (drawe_komoran_fallback)",
+      "description": "형태소 분석 실패 시 GrokKeywordExtractorFallback 이 Grok 을 부른 횟수. 백엔드 LLM 호출 중 유일하게 계측된 살아있는 지점이며, 곧 비용이다. 치솟으면 Komoran 사전/전처리 문제 — LLM 으로 때우고 있다는 뜻. ⚠ 이 카운터는 호출 '횟수'만 안다. latency·토큰은 계측 없음(향후 개선).",
+      "gridPos": {
+        "h": 7,
+        "w": 9,
+        "x": 6,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(rate(drawe_komoran_fallback_total[5m]))",
+          "legendFormat": "fallback → Grok"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "세션 캐시 히트율 (Redis)",
+      "description": "RedisSessionService — hit=Redis 적중, miss=MySQL 폴백. 히트율이 낮으면 TTL 만료가 잦거나 세션 접근 패턴이 흩어진 것. ReferenceBoardSessionService(실사용) + SessionCleanupScheduler(@Scheduled) 가 씀.",
+      "gridPos": {
+        "h": 7,
+        "w": 9,
+        "x": 15,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(sum(rate(drawe_session_cache_hit_total[5m])) or vector(0)) / clamp_min(sum(rate(drawe_session_cache_hit_total[5m])) + sum(rate(drawe_session_cache_miss_total[5m])), 0.0000001)",
+          "legendFormat": "hit ratio"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Komoran 형태소 추출 — 평균 (버킷 없음)",
+      "description": "drawe_komoran_extract_seconds. meterRegistry.timer() 로 등록돼 히스토그램이 없어 평균만 가능 (AMP 에 _bucket 부재로 확인). P95 가 필요하면 publishPercentileHistogram + min/max 지정 필요(향후 개선).",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(rate(drawe_komoran_extract_seconds_sum[5m])) / clamp_min(sum(rate(drawe_komoran_extract_seconds_count[5m])), 0.0000001)",
+          "legendFormat": "avg"
+        }
       ]
     }
-  ]
+  ],
+  "description": "①런타임: Spring HTTP·JVM·Hikari (자동계측). ②레퍼런스보드·검색: 실사용 경로의 수동계측. 2026-07-15 정리 — 구 채팅 경로(ChatLlmService) 폐기로 영구 No data 이던 4패널 제거: LLM 호출/LLM 평균/환각 인용/룰 라우터 커버리지. 해당 지표는 drawe-chat-llm-latency(DEPRECATED) 참고. AI 파이프라인은 drawe-guide-pipeline. 제외: drawe_tokens_input_tokens·drawe_history_trimmed 는 TokenAwareHistoryTrimmer 가 호출자 없는 고립 섬이라 @PostConstruct 0값만 노출 — 패널로 만들면 0 직선."
 }
