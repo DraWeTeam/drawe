@@ -7,6 +7,7 @@ import uuid
 import asyncio
 from time import perf_counter
 from sqlalchemy import text, bindparam
+from opentelemetry import trace as otel_trace
 
 from guide._trace import trace
 from guide import _shadow
@@ -56,6 +57,10 @@ from guide.contract import finalize_guide_response, growth_from_raw
 router = APIRouter()
 llm = get_llm()
 
+# 단계별 span tracer(관측 전용·동작 불변). opentelemetry-instrument 가 provider 를 세팅하며,
+#   미설정 환경(테스트·로컬)에선 no-op tracer 라 span 컨텍스트가 순수 통과 → 예외/응답 무영향.
+_tracer = otel_trace.get_tracer("guide.pipeline")
+
 
 # 동기 파이프라인(임베딩·mediapipe·손 VLM·LLM)은 asyncio.to_thread 로 오프로드해 이벤트 루프/헬스체크를
 # 비차단으로 둔다. 전역 락은 두지 않는다 — _pipeline 안에 느린 네트워크 호출(growth_context LLM·손 VLM)이
@@ -73,9 +78,10 @@ def _pipeline(
     mood=None,
 ):
     try:
-        pil = normalize(
-            BytesIO(file_bytes)
-        )  # 디코드 전 바이트/픽셀/포맷 한도 강제(upload_guard)
+        with _tracer.start_as_current_span("guide.normalize"):
+            pil = normalize(
+                BytesIO(file_bytes)
+            )  # 디코드 전 바이트/픽셀/포맷 한도 강제(upload_guard)
     except UploadRejected as e:
         return None, {
             "mode": "refused",
@@ -87,7 +93,8 @@ def _pipeline(
             "mode": "refused",
             "message": "이 업로드는 처리할 수 없어요. 작품 이미지를 올려주세요.",
         }
-    scene = analyze(pil)
+    with _tracer.start_as_current_span("guide.scene"):
+        scene = analyze(pil)
     # [경계1] scene: person 채널만 track 게이팅(resolve_profile)에 쓰이고, lighting/camera 서술은 미사용.
     #   prompt 까지 닿는 건 사실상 track 결정 1비트뿐 — 나머지 분포가 여기서 멈춘다.
     trace(
@@ -96,7 +103,8 @@ def _pipeline(
         lighting=scene["render"]["lighting"],
         camera=scene["framing"]["camera"],
     )
-    pose = extract(scene, pil)
+    with _tracer.start_as_current_span("guide.pose"):
+        pose = extract(scene, pil)
     mode, personas, user_terms = resolve(message, scene)
     if mode == "redirect":
         return None, {
@@ -117,14 +125,15 @@ def _pipeline(
         user_terms = set(user_terms) | _extra_terms
     # track 프로파일: 명시 track 우선, 없으면 scene(인물 유무)로 자동. 진단 게이팅·norm과 로드맵 커리큘럼에 동시 적용.
     profile = resolve_profile(track, scene, pil)
-    growth = growth_context(
-        user_id,
-        track=track,
-        curriculum=profile["curriculum"],
-        degraded=(pose.get("status") != "ok"),
-        llm=llm,
-        project_id=project_id,
-    )
+    with _tracer.start_as_current_span("guide.growth"):
+        growth = growth_context(
+            user_id,
+            track=track,
+            curriculum=profile["curriculum"],
+            degraded=(pose.get("status") != "ok"),
+            llm=llm,
+            project_id=project_id,
+        )
     dx = diagnose(
         scene, pose, pil, personas, user_terms, growth=growth, profile=profile
     )
@@ -417,28 +426,30 @@ def _guide_sync(
     #   mismatch 를 (A)로 삼킨다 — 여기선 순수 텍스트 관심만 필요. 발화 프레이밍 전용(진단 경로 무영향).
     user_focus = list(detect_terms(message))
     # 에이전트 선택층(grounded): 룰이 낸 후보 중에서 무엇을 먼저·어떤 레퍼런스로 보여줄지 *선택* → 검증 → 적용.
-    decision, _ = agent.decide(
-        dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
-    )
-    dx = agent.apply(dx, decision)
-    refs_by_sp = agent.order_refs(refs_by_sp, decision)
+    with _tracer.start_as_current_span("guide.agent"):
+        decision, _ = agent.decide(
+            dx, refs_by_sp, growth, intent=intent, track=track, llm=llm
+        )
+        dx = agent.apply(dx, decision)
+        refs_by_sp = agent.order_refs(refs_by_sp, decision)
     # 3D 백본(self_render) → guide_asset backbone_3d 다리. 보여줄 축 + 로드맵 집중/다음 축에 대해 후보를 모은다.
     #   적재된 self_render 가 없으면 빈 색인 → assets 가 svg 도식 바닥으로 폴백(슬롯은 안 빔).
     asset_sps = [o["sub_problem"] for o in dx.get("observations", [])]
     if growth:
         asset_sps += [growth.get("current_focus"), growth.get("next_goal")]
     asset_index = build_asset_index(asset_sps)
-    resp = run_guide(
-        dx,
-        refs_by_sp,
-        retrieved,
-        tax,
-        llm,
-        growth=growth,
-        intent=intent,
-        asset_index=asset_index,
-        user_focus=user_focus,
-    )
+    with _tracer.start_as_current_span("guide.coach"):
+        resp = run_guide(
+            dx,
+            refs_by_sp,
+            retrieved,
+            tax,
+            llm,
+            growth=growth,
+            intent=intent,
+            asset_index=asset_index,
+            user_focus=user_focus,
+        )
     # ②v1 섀도우 계측(관측 전용·동작 불변): 확정된 dx 출력 + 실현 mode + end-to-end dt 만 read-only 로 emit.
     _shadow.emit(dx, resp, perf_counter() - _t0, track=track)
     # '생성 중' 레퍼런스 신호 — 보여줄 블록(sub_problem)에 해당하는 미스 job 만 노출(없으면 빈 리스트).
