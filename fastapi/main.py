@@ -10,6 +10,10 @@ from opentelemetry.instrumentation.logging import LoggingInstrumentor
 # 출력한다. uvicorn 은 root 핸들러를 재구성하지 않아 앱 로그(propagate)에 반영된다.
 LoggingInstrumentor().instrument()
 logging.basicConfig(format=os.environ.get("OTEL_PYTHON_LOG_FORMAT"), force=True)
+# root 는 WARNING 유지(라이브러리 INFO 억제)하고 앱 로거 계열(drawe-fastapi.*)만 INFO 로
+# 올린다. 그래야 앱 로그가 trace context 를 실어 stdout·Loki 에 나온다(basicConfig 기본
+# level=WARNING 이라 안 하면 앱 INFO 가 억제됨 — 실측). 자식 로거는 prefix 상속.
+logging.getLogger("drawe-fastapi").setLevel(logging.INFO)
 
 from dotenv import load_dotenv  # noqa: E402
 from fastapi import FastAPI, File, HTTPException, UploadFile  # noqa: E402
