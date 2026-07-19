@@ -13,8 +13,17 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+
+# opentelemetry-instrument 가 startup 에 LoggingInstrumentor 를 이미 instrument 하므로
+# (중복 instrument 는 no-op) set_logging_format 인자만으론 포맷이 안 먹는다(실측). LogRecordFactory
+# 로 otelTraceID/otelSpanID 는 이미 주입되니, root 로깅 포맷만 force 로 덮어써 출력한다.
+# uvicorn 은 root 핸들러를 재구성하지 않아 앱 로그(propagate)에 반영된다.
+LoggingInstrumentor().instrument()
+logging.basicConfig(format=os.environ.get("OTEL_PYTHON_LOG_FORMAT"), force=True)
+
+from fastapi import FastAPI, Request  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
 
 log = logging.getLogger("drawe-fastapi.guide")
 

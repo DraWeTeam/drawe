@@ -16,3 +16,8 @@ data:
   OTEL_TRACES_EXPORTER: "otlp"
   OTEL_METRICS_EXPORTER: "otlp"
   OTEL_LOGS_EXPORTER: "otlp"
+  # 로그↔트레이스 상관: 앱 로그에 trace context 출력. main.py 가 이 포맷으로 root 로깅을
+  # basicConfig(force) 설정해 otelTraceID/otelSpanID 를 찍는다(auto-instrument 의 중복
+  # instrument 는 no-op 이라 env·set_logging_format 만으론 무효 — 실측).
+  # 구분자 ':' — grafana Loki derivedFields matcherRegex(trace_id["\s:]+([a-f0-9]+))와 일치.
+  OTEL_PYTHON_LOG_FORMAT: "%(asctime)s %(levelname)s [%(name)s] trace_id:%(otelTraceID)s span_id:%(otelSpanID)s - %(message)s"
