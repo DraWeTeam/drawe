@@ -24,3 +24,10 @@ data:
   OTEL_TRACES_EXPORTER: "otlp"
   OTEL_METRICS_EXPORTER: "otlp"
   OTEL_LOGS_EXPORTER: "otlp"
+  # ── 로그↔트레이스 상관: 로그 패턴에 MDC trace context 출력 ──
+  # OTel agent(2.29)가 MDC 에 trace_id/span_id(snake_case)를 넣지만 기본 Spring 콘솔
+  # 패턴이 %X 를 안 찍어 stdout·Loki 에 미출력이었다. 구분자는 ':' — Grafana Loki
+  # datasource 의 derivedFields matcherRegex(trace_id["\s:]+([a-f0-9]+))와 일치시켜
+  # 로그→트레이스 자동 점프가 되게 한다('=' 는 그 regex 에 매칭 안 됨).
+  # base 라 dev/prod 공용 — dev 는 teardown 상태로 복구 시 자동 반영된다.
+  LOGGING_PATTERN_CONSOLE: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} trace_id:%X{trace_id} span_id:%X{span_id} - %msg%n"
