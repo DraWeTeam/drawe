@@ -43,6 +43,40 @@ guide.coach ≈10s(상한 클램프) > guide.growth ≈9.5s > guide.scene ≈4.8
 가장 무거울 거라 의심하던 로컬 추론(`pose ≈0.95s`)이 아니라 순차 LLM 호출(`coach`)이
 지배적이라는 게 처음으로 드러났다.
 
+## 발견 스토리 ③ — backend 로그↔트레이스 상관 (해결 완료, 2026-07-19)
+
+Tempo trace ID 로 Loki 를 검색하면 0건이던 문제. **원인 확정 → 수정 → prod 실측 검증까지 종결.**
+
+- **증상:** Tempo 의 trace ID 로 Loki 검색 시 0건. Loki 로그에 `trace_id`/`span_id` 필드 부재.
+- **원인(확정):** **로그 패턴에 `%X{trace_id}` 누락.** OTel Java Agent(2.29)는 MDC 에
+  `trace_id`(snake_case)를 정상 주입하고 있었으나, Spring 기본 콘솔 로그 패턴이 `%X`(MDC)를
+  찍지 않아 stdout·Loki 어디에도 trace context 가 출력되지 않았다. (수집·export 자체는 정상 —
+  **패턴만의 문제**였다.)
+- **해결:** `base/backend/configmap.yaml` 의 `LOGGING_PATTERN_CONSOLE` 에
+  `trace_id:%X{trace_id} span_id:%X{span_id}` 추가. 기존 로그 필드(`[%thread]`·logger·level·ts)는
+  유지하고 trace context 만 덧붙였다. **구분자는 `:`** — `grafana-datasources.yaml` 의
+  `derivedFields` matcherRegex `trace_id["\s:]+([a-f0-9]+)` 와 일치시키기 위함(`=` 는 그 regex 에
+  매칭 안 됨. 이 방식은 datasources 를 안 건드린다). PR #106(`fb0767e`).
+- **검증(prod 실측):** span 안 로그 40요청 → 고유 `trace_id` **48개 stdout 출력** →
+  **Loki 100% 도달**(`service_name=backend`, 로그는 샘플링 없음) → **Tempo 교집합 3개**
+  (트레이스 샘플링 ~10% 에 부합). 3개 모두 동일 `trace_id` 로 로그·트레이스 양쪽 존재 =
+  **상관 성립.**
+- **부수 발견 — ConfigMap 은 파드 자동 rollout 을 안 시킨다:** `backend-config` 는 고정 이름
+  ConfigMap 이라 값이 바뀌어도 Deployment 의 pod template 은 불변 → ArgoCD 가 `Synced` 여도
+  파드는 옛 env 를 그대로 물고 있다. **`kubectl rollout restart deploy/backend` 수동 재기동**으로
+  새 env 를 로드해야 반영된다. (자동화하려면 Reloader 어노테이션 또는 kustomize
+  `configMapGenerator`(해시 이름) — 남은 트랙.)
+- **검증 함정 — 같은 요청이 로그+트레이스를 동시 생성해야 한다:** ground-truth 배치에서
+  `/auth/refresh`(span 만 생성, ERROR 로그 없음)와 `/auth/login` 비-JSON(로그+span 동시)을
+  섞으면, Loki set(login 로그)과 Tempo set(refresh 트레이스)이 서로 다른 요청이라 disjoint →
+  교집합 0 **오탐**이 난다. 상관 검증은 **동일 요청이 로그와 트레이스를 함께 만들도록** 해야 정확.
+- **남은 트랙:** fastapi(Python) 서비스의 로그↔트레이스 상관(MDC 개념 없어 별도 조사),
+  ConfigMap 자동 롤아웃(Reloader/configMapGenerator).
+
+> 교훈: **"수집됨 ≠ 상관됨".** 세 기둥(로그·트레이스·메트릭)이 각각 수집돼도, **로그에 trace_id 가
+> 실려야** 비로소 상관(자동 점프)이 성립한다. 그리고 그 trace_id 는 **로그 패턴이 `%X{}` 로 찍어줘야**
+> 나온다 — agent 가 MDC 에 넣는 것과 로그가 출력하는 것은 별개다.
+
 ## 운영 주의
 
 - **대시보드 uid 는 변경하지 않는다.** EKS/ECS Grafana 가 같은 RDS `grafana` 스키마를 공유한다.
