@@ -104,6 +104,12 @@ variable "external_secrets_chart_version" {
   type    = string
   default = "0.14.3"
 }
+# metrics-server: kubernetes-sigs.github.io/metrics-server 에서 최신 안정 버전 확인.
+#   chart 3.13.1 = app(metrics-server) 0.8.1. EKS 1.35(eks.18)에서 호환 확인.
+variable "metrics_server_chart_version" {
+  type    = string
+  default = "3.13.1"
+}
 variable "karpenter_chart_version" {
   type    = string
   default = "1.6.3" # karpenter.sh/docs/upgrading 에서 최신 v1.x 확인
