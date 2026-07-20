@@ -139,8 +139,21 @@ flowchart LR
 
 - **무중단 보장** — ArgoCD 롤링 + **PDB(minAvailable 1)** + readiness probe로 배포 중 가용성 유지.
 - **런북 기반 운영** — `runbooks/`에 반복 운영 절차를 문서화. 대표적으로 **prod 재우기/깨우기(teardown/wake)** 런북은 EKS destroy + 공유 인프라(NAT/Cache) off + RDS stop으로 **비활성 시간 비용을 시간당 ~0**으로 낮추고, 역순으로 **~1시간 내 복구**(데이터·state 보존). 가이드 스토어 백필 절차도 포함.
-- **비용 최적화** — Graviton(ARM64) 가격·전력 효율 + **spot/on-demand 혼용** + 다종 인스턴스(m6g/m7g/c6g/c7g/r6g) 빈패킹으로 단가↓·spot 중단 분산. dev는 **스케줄 자동 on/off**, prod는 재우기/깨우기 런북으로 비활성 시간 비용을 시간당 ~0까지 절감. NAT NetworkOut 알람으로 LLM 비용 폭주도 조기 감지.
+- **비용 최적화** — Graviton(ARM64) 가격·전력 효율 + **spot/on-demand 혼용** + 다종 인스턴스(m6g/m7g/c6g/c7g/r6g) 빈패킹으로 단가↓·spot 중단 분산. 비활성 시간 비용은 **dev·prod 모두 런북 기반 재우기/깨우기**로 시간당 ~0까지 절감합니다(dev는 ECS 시절 EventBridge 자동 스케줄이었음 — 아래 참조). NAT NetworkOut 알람으로 LLM 비용 폭주도 조기 감지.
 - **권한·격리** — dev/prod **AWS 계정 분리**로 blast radius·IAM·청구 격리. IRSA 파드 단위 최소권한.
+
+### 🔁 dev 비용 절감 방식의 변화 (ECS → EKS)
+
+| | ECS 시절 | EKS 전환 후 (현재) |
+| --- | --- | --- |
+| 방식 | EventBridge Scheduler 자동 on/off | 런북 + WSL에서 수동 `terraform destroy`/`apply` |
+| 재우기의 실체 | 자원 stop / ASG scale-to-zero (자원은 유지) | **클러스터 destroy → 재생성** |
+| 가동 시간 | 평일 13:00~18:00 KST (~25h/주) | 필요할 때만 기동 |
+| 제어 | `enable_cost_schedule` 토글 | `runbooks/`의 절차 문서 |
+
+- **ECS 시절** — `terraform-dev/eventbridge.tf`의 스케줄 8개가 **NAT → RDS/Valkey → ECS ASG desired 0/1** 순서로 순차 stop/start 했습니다(12:45 NAT start … 18:15 NAT stop). 순서가 중요했던 이유는 RDS start가 5~10분 걸려서, ASG를 너무 일찍 올리면 backend가 DB 연결에 실패해 배포 서킷브레이커 롤백이 걸렸기 때문입니다(그래서 기동을 12:55 → 13:05로 늦춤). `enable_cost_schedule=false`면 스케줄 전체가 `count=0`으로 생성되지 않습니다.
+- **EKS 전환 후** — 재우기의 실체가 "자원 stop"이 아니라 **클러스터 destroy/재생성**으로 바뀌면서, 순서·전제조건·복구 검증 같은 **절차의 정확성**이 중요해졌습니다. 그래서 `runbooks/`(`dev_eks_bringup.md`·`dev_full_teardown.md`·`prod_eks_teardown.md`·`prod_eks_wake.md`)에 절차를 문서화하고, **WSL에서 수동으로 `terraform destroy`/`apply`** 를 실행하는 방식으로 운영합니다.
+- **EventBridge는 왜 빠졌나** — EKS라서 쓸 수 없어서가 아닙니다(EventBridge는 Lambda·SSM·ASG API 등과 엮어 EKS 환경에서도 충분히 쓸 수 있습니다). 이 프로젝트에선 위처럼 **운영 방식 자체가 사람이 판단·검증하며 진행하는 런북 절차로 바뀌어 스케줄러가 필요 없어졌고**, 그래서 `enable_cost_schedule=false`로 비활성화한 채 두었습니다. 스케줄 정의는 레거시 ECS 스택(`terraform-dev/eventbridge.tf`)에 기록으로 남아 있습니다.
 
 ### 💰 비용 모델 (서울 리전 공시가 기준)
 
@@ -150,7 +163,7 @@ flowchart LR
 | --- | --- | --- |
 | **Graviton(ARM64) vs x86** | 요율 | m6g $0.094 vs m6i $0.118 → **~20%↓** |
 | **spot 50% 혼용** | 요율 | OD 100% 대비 **~25%↓** (100% spot 시 ~50%↓) |
-| **dev 스케줄 on/off**(평일 주간만, ~260h) | 가동시간 | **~64%↓** |
+| **dev 스케줄 on/off**(ECS 시절 · 평일 13–18시, ~108h) | 가동시간 | **~85%↓** |
 | **prod 재우기**(야간 8h) | 가동시간 | **~33%↓** (야간+주말 시 ~64%↓) |
 
 > **종합 예시 (모델 계산)** — prod 노드 1개를 *순진하게* x86·온디맨드·24/7로 두면 ≈ **$86/월**. 동일 워크로드를 **Graviton + spot 50% 혼용 + 야간 재우기**로 운영하면 ≈ **$34/월** → **이론상 약 60% 절감**(레버 곱연산). 실측 청구액이 아니라 공시 단가·가정 기반 산정이며, 실측치로 대체 권장.
@@ -160,7 +173,7 @@ flowchart LR
 
 - **단가** — AWS EC2 On-Demand, `ap-northeast-2`(Seoul), Linux 기준. us-east-1 앵커(m6g.large OD $0.077 / Spot $0.045)로 교차검증.
 - **spot** — 시점·AZ별 변동. 보수적으로 **OD 대비 50%↓** 가정(실측 통상 40~70%↓). Karpenter는 가용성을 위해 OD를 일부 유지하므로 본문은 50% 혼용 기준.
-- **가동시간** — 월 730h. dev 스케줄=평일 09–21시(~260h), prod 야간 재우기=16/24h 가동.
+- **가동시간** — 월 730h. dev 스케줄=**ECS 시절** 평일 13:00~18:00 KST(주 ~25h → 월 ~108h; 실제 스케줄은 12:45 NAT start ~ 18:15 NAT stop), prod 야간 재우기=16/24h 가동. EKS 전환 후 dev는 스케줄이 아니라 런북 기반 수동 on/off라 가동시간이 고정되지 않습니다.
 - 실제 청구액은 노드 수(Karpenter 동적)·트래픽·EBS/NAT/데이터전송에 따라 달라짐. 위는 **컴퓨트 레버 효과**를 보이는 모델이며, 실측치로 대체 권장.
 
 </details>
@@ -191,7 +204,7 @@ flowchart LR
 | NAT | NAT instance (`t4g.micro`) | fck-nat Multi-AZ (ASG) |
 | Redis | EC2 Valkey | ElastiCache |
 | 관측성 | Grafana Cloud | AMP + self-host LGTM |
-| 운영 시간 | 스케줄 자동 on/off | 24/7 (노드 스케일·런북으로 절감) |
+| 운영 시간 | 런북 기반 수동 on/off (destroy/apply) | 24/7 (노드 스케일·런북으로 절감) |
 | 벡터 저장소 | Pinecone(챗) · Qdrant Cloud(가이드) | 동일 |
 
 ---
