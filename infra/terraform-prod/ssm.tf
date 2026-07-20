@@ -14,16 +14,29 @@ resource "aws_ssm_parameter" "db_username" {
   value = var.db_username
 }
 
+# ★ db-password / redis-password 는 value 를 무시한다.
+#   TF_VAR_db_password / TF_VAR_valkey_auth_token 없이 plan 하면 random_password.*[0] 이
+#   새로 생성되어 이 파라미터를 "새 암호로 덮겠다"는 diff 가 뜬다. 그대로 apply 하면
+#   - db: RDS 와 SSM 이 함께 로테이션(앱 접속 불가),
+#   - redis: SSM 만 바뀌고 ElastiCache 는 ignore_changes=[auth_token] 이라 그대로 →
+#            SSM 과 실제 토큰이 어긋나는 split-brain.
+#   실제 암호의 소스는 이미 배포된 SSM 값이므로 여기서는 값 변경을 무시한다.
+#   회전이 필요하면 별도 절차(신규 값 주입 + 앱 재기동)로 명시적으로 수행한다.
+#   (discord_webhook 등 다른 외부 주입 파라미터와 동일 패턴)
 resource "aws_ssm_parameter" "db_password" {
   name  = "/${var.project}/${var.env}/db-password"
   type  = "SecureString"
   value = local.db_password
+
+  lifecycle { ignore_changes = [value] }
 }
 
 resource "aws_ssm_parameter" "redis_password" {
   name  = "/${var.project}/${var.env}/redis-password"
   type  = "SecureString"
   value = local.valkey_auth_token
+
+  lifecycle { ignore_changes = [value] }
 }
 
 resource "random_password" "grafana_admin" {

@@ -67,7 +67,12 @@ resource "aws_db_instance" "main" {
   tags = { Name = "${local.name_prefix}-mysql" }
 
   lifecycle {
-    ignore_changes = [final_snapshot_identifier]
+    # ★ password 를 무시한다 — TF_VAR_db_password 없이 plan 하면 random_password.db[0] 이
+    #   새로 생성되어 "암호를 바꾸겠다"는 diff 가 뜬다. 그대로 apply 하면 RDS 암호가
+    #   로테이션되고 앱은 SSM 의 옛 값을 들고 있어 즉시 접속 불가가 된다.
+    #   암호는 SSM 이 사실상의 소스이며, 회전은 별도 절차로 수행한다.
+    #   (elasticache 의 ignore_changes=[auth_token] 과 동일한 의도)
+    ignore_changes = [final_snapshot_identifier, password]
   }
 }
 
