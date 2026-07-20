@@ -1,0 +1,158 @@
+# =============================================================================
+# 인프라(시스템) 알림 룰 — node-exporter + kube-state-metrics
+# Prometheus/Mimir rule-group 포맷. 적재 경로는 backend/fastapi.rules.yaml 과 동일
+# (dev → mimirtool rules load / prod → AMP ruler).
+#
+# 왜 추가했나
+#   기존 룰 19개가 전부 app 레이어(5xx·지연·JVM·LLM)였다. 시스템 축은
+#   node-exporter 지표를 '수집만 하고' 대시보드도 알림도 없었고, K8s 오브젝트 상태
+#   (HPA/파드/노드)는 아예 수집되지 않았다. 그 사각지대에서 HPA 3개가 12일간
+#   cpu:<unknown> 으로 죽어 있었는데 아무 신호도 없었다. 이 파일이 그 축을 채운다.
+#
+# 라벨 규약 (AMP 에 실제로 들어오는 형태 — 실측 확인)
+#   node_*  : cluster="drawe-prod", job="drawe/infra-daemon", instance=<Alloy 파드명>,
+#             node=<노드명>  ← config.alloy 의 prometheus.relabel "node" 가 붙인다.
+#   ⚠ up{job="node-exporter"} 는 쓸 수 없다. OTLP 변환 경로에서 job 이
+#     "drawe/infra-daemon" 으로 재작성되기 때문. 노드 생존은 KSM 의
+#     kube_node_status_condition 으로 판정한다(아래 InfraNodeNotReady).
+#
+# 파일시스템 필터
+#   ⚠ fstype="xfs", mountpoint="/" 를 반드시 건다. 필터가 없으면 containerd 의
+#     sandbox shm(tmpfs) 마운트 수십 개가 잡혀 오탐이 폭발한다(실측 확인).
+# =============================================================================
+groups:
+  # ── 노드 호스트 자원 (node-exporter) ────────────────────────────────────
+  - name: drawe-infra-node
+    rules:
+      - alert: InfraNodeDiskHigh
+        expr: |
+          100 - (
+            node_filesystem_avail_bytes{fstype="xfs",mountpoint="/"}
+            / node_filesystem_size_bytes{fstype="xfs",mountpoint="/"} * 100
+          ) > 80
+        for: 15m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "노드 {{ $labels.node }} 루트 디스크 80% 초과"
+          description: "이미지 캐시·로그 누적이 흔한 원인. 85% 를 넘으면 kubelet 이 이미지 GC 와 파드 축출을 시작한다."
+
+      - alert: InfraNodeDiskCritical
+        expr: |
+          100 - (
+            node_filesystem_avail_bytes{fstype="xfs",mountpoint="/"}
+            / node_filesystem_size_bytes{fstype="xfs",mountpoint="/"} * 100
+          ) > 90
+        for: 5m
+        labels: { severity: critical, layer: infra }
+        annotations:
+          summary: "노드 {{ $labels.node }} 루트 디스크 90% 초과 (긴급)"
+          description: "kubelet DiskPressure 로 파드가 축출될 수 있다. 즉시 확보 필요."
+
+      # 디스크가 언제 찰지 — 임계값보다 추세가 빨리 잡힌다.
+      - alert: InfraNodeDiskFillingFast
+        expr: |
+          predict_linear(node_filesystem_avail_bytes{fstype="xfs",mountpoint="/"}[6h], 24*3600) < 0
+        for: 30m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "노드 {{ $labels.node }} 디스크 24시간 내 소진 예상"
+          description: "최근 6시간 추세 기준. 임계값에 닿기 전에 원인(로그/이미지 누적)을 확인한다."
+
+      - alert: InfraNodeMemoryHigh
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 90
+        for: 15m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "노드 {{ $labels.node }} 메모리 90% 초과"
+          description: "MemAvailable 기준. 지속되면 OOMKill·파드 축출로 이어진다."
+
+      - alert: InfraNodeCpuHigh
+        expr: |
+          100 - (avg by (node) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 20m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "노드 {{ $labels.node }} CPU 90% 초과"
+          description: "20분 지속. HPA/Karpenter 가 대응 중인지 함께 확인한다."
+
+      # 노드 재부팅 감지 — 예기치 않은 재시작(스팟 회수·커널 패닉)을 잡는다.
+      - alert: InfraNodeRebooted
+        expr: (time() - node_boot_time_seconds) < 600
+        for: 0m
+        labels: { severity: info, layer: infra }
+        annotations:
+          summary: "노드 {{ $labels.node }} 최근 10분 내 재부팅"
+          description: "Karpenter 신규 노드면 정상. 기존 노드면 스팟 회수/장애 여부를 확인한다."
+
+  # ── K8s 오브젝트 상태 (kube-state-metrics) ──────────────────────────────
+  - name: drawe-infra-kubernetes
+    rules:
+      # ★ 이번 장애(HPA 3개가 12일간 cpu:<unknown>)의 재발 방지 룰.
+      #   metrics-server 부재/오작동으로 HPA 가 메트릭을 못 읽으면 ScalingActive=false 가 된다.
+      - alert: InfraHpaScalingInactive
+        expr: |
+          kube_horizontalpodautoscaler_status_condition{condition="ScalingActive",status="true"} == 0
+        for: 15m
+        labels: { severity: critical, layer: infra }
+        annotations:
+          summary: "HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} 스케일링 비활성"
+          description: "메트릭을 읽지 못해 오토스케일이 멈춘 상태(kubectl get hpa 에서 <unknown>). metrics-server 상태를 먼저 확인한다."
+
+      # HPA 가 상한에 붙어 더 못 늘리는 상태 — 용량 재산정 신호.
+      - alert: InfraHpaAtMaxReplicas
+        expr: |
+          kube_horizontalpodautoscaler_status_current_replicas
+            >= kube_horizontalpodautoscaler_spec_max_replicas
+        for: 30m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} 최대 레플리카 도달"
+          description: "30분 지속. maxReplicas 상향 또는 리소스 튜닝을 검토한다."
+
+      - alert: InfraNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 10m
+        labels: { severity: critical, layer: infra }
+        annotations:
+          summary: "노드 {{ $labels.node }} NotReady 10분 지속"
+          description: "해당 노드의 파드가 축출될 수 있다. Karpenter 가 대체 노드를 띄우는지 확인한다."
+
+      - alert: InfraPodCrashLooping
+        expr: |
+          increase(kube_pod_container_status_restarts_total{namespace=~"drawe-.*|observability"}[15m]) > 3
+        for: 5m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "파드 {{ $labels.namespace }}/{{ $labels.pod }} 반복 재시작"
+          description: "15분간 3회 초과 재시작. OOMKill 또는 기동 실패 여부를 로그로 확인한다."
+
+      - alert: InfraPodNotReady
+        expr: |
+          sum by (namespace, pod) (
+            kube_pod_status_phase{namespace=~"drawe-.*|observability",phase=~"Pending|Unknown"}
+          ) > 0
+        for: 15m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "파드 {{ $labels.namespace }}/{{ $labels.pod }} 15분째 Pending/Unknown"
+          description: "스케줄 불가(리소스 부족·노드셀렉터 불일치) 또는 이미지 pull 실패를 확인한다."
+
+      # 배포가 의도한 replica 수를 못 채우는 상태 — 무증상 축소 배포를 잡는다.
+      - alert: InfraDeploymentReplicasMismatch
+        expr: |
+          kube_deployment_spec_replicas{namespace=~"drawe-.*|observability"}
+            != kube_deployment_status_replicas_available{namespace=~"drawe-.*|observability"}
+        for: 20m
+        labels: { severity: warning, layer: infra }
+        annotations:
+          summary: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} 레플리카 불일치 20분"
+          description: "원하는 수와 가용 수가 다르다. 스케줄 실패·probe 실패·리소스 부족을 확인한다."
+
+      # KSM 자체가 죽으면 위 룰 전부가 조용히 무력화된다 — 관측기 자신을 관측한다.
+      - alert: InfraKubeStateMetricsDown
+        expr: absent(kube_node_info)
+        for: 15m
+        labels: { severity: critical, layer: infra }
+        annotations:
+          summary: "kube-state-metrics 지표 유실 — K8s 상태 알림 전부 무력"
+          description: "이 그룹의 HPA/파드/노드 알림이 모두 동작하지 않는 상태. KSM 파드와 Alloy 스크랩을 확인한다."

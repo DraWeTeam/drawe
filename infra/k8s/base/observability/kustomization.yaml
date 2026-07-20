@@ -15,3 +15,6 @@ resources:
   - rbac.yaml
   - daemonset.yaml
   - service.yaml
+  # K8s 오브젝트 상태(HPA/파드재시작/노드Ready) — node-exporter 가 못 보는 축.
+  # 수집 컴포넌트라 base(환경 중립), 목적지는 overlay 의 config.alloy 가 정한다.
+  - kube-state-metrics.yaml
