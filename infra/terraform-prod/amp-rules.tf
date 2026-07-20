@@ -27,6 +27,17 @@ resource "aws_prometheus_rule_group_namespace" "fastapi" {
   data         = file("${path.module}/../observability/rules/fastapi.rules.yaml")
 }
 
+# 인프라(시스템) 축 — node-exporter + kube-state-metrics.
+#   기존 backend/fastapi 룰이 전부 app 레이어라, 노드 자원과 K8s 오브젝트 상태는
+#   알림이 전혀 없었다(그 사각지대에서 HPA 3개가 12일간 <unknown> 으로 방치).
+#   ★ 적재 전제: KSM 이 떠서 kube_* 가 AMP 에 도달해야 한다. 아니면
+#     InfraKubeStateMetricsDown(absent(kube_node_info))이 즉시 발화한다.
+resource "aws_prometheus_rule_group_namespace" "infra" {
+  name         = "drawe-infra"
+  workspace_id = aws_prometheus_workspace.main.id
+  data         = file("${path.module}/../observability/rules/infra.rules.yaml")
+}
+
 # 참고: 알림을 실제 통지로 보내려면 AMP alertmanager 정의가 별도로 필요하다.
 #   - 이미 Discord 등으로 통지 중이면(discord-alerts.tf) 그 경로를 재사용하거나,
 #   - aws_prometheus_alert_manager_definition 으로 AMP 자체 라우팅을 구성한다.
