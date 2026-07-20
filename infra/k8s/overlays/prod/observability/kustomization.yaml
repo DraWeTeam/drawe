@@ -54,6 +54,11 @@ configMapGenerator:
       - dashboards/llm-latency.json
       - dashboards/vlm-latency.json   # [추가] 가이드 VLM(FastAPI, Bedrock Claude Haiku) latency P50/P95/P99 (drawe_vlm_latency_seconds_bucket, OTEL→OTLP→AMP)
       - dashboards/image-gen-latency.json   # [추가] 레퍼런스 이미지 생성(FastAPI, Bedrock Stable Image) latency P50/P95/P99 (drawe_image_gen_latency_seconds_bucket, 생성용 버킷 1~120s, OTEL→OTLP→AMP)
+      # [추가] 시스템(노드) 자원 — node-exporter 지표는 진작 수집 중이었으나 이를 보는
+      #   대시보드가 하나도 없어 저장 비용만 내고 활용이 0이었다. 신규 수집 없이 소비만 추가.
+      #   노드 식별은 config.alloy 의 prometheus.relabel "node" 가 붙이는 node 라벨을 쓴다
+      #   (없으면 instance 가 Alloy 파드명이라 어느 노드인지 식별 불가).
+      - dashboards/node.json
 
 patches:
   # ① alloy SA → AMP RemoteWrite IRSA

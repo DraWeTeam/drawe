@@ -1,0 +1,160 @@
+# =============================================================================
+# kube-state-metrics — K8s 오브젝트 상태 메트릭
+#
+# 왜 필요한가: node-exporter 는 '호스트 자원'(CPU/메모리/디스크)만 본다. 파드가 재시작
+#   중인지, HPA 가 메트릭을 못 읽고 있는지, 노드가 NotReady 인지는 보이지 않는다.
+#   실제로 HPA 3개가 12일간 cpu:<unknown> 으로 죽어 있었는데 이를 잡을 신호가 없었다
+#   (ArgoCD 이벤트에서 뒤늦게 발견). KSM 의 kube_horizontalpodautoscaler_status_condition
+#   으로 그런 무증상 장애를 알림화한다.
+#
+# 배치: base — 수집 컴포넌트라 환경 중립(dev=Grafana Cloud / prod=AMP 로 목적지만 다름).
+#   Alloy 가 자기 노드의 KSM 파드만 스크랩한다(config.alloy 의 prometheus.scrape "ksm").
+#
+# 권한: 읽기 전용(get/list/watch)만. 클러스터 오브젝트 상태를 읽을 뿐 아무것도 바꾸지 않는다.
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-state-metrics
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-state-metrics
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - pods
+      - services
+      - namespaces
+      - replicationcontrollers
+      - persistentvolumeclaims
+      - persistentvolumes
+      - resourcequotas
+      - endpoints
+      - configmaps
+      - secrets           # 메타데이터만 노출(값 아님) — kube_secret_info
+      - limitranges
+    verbs: ["list", "watch"]
+  - apiGroups: ["apps"]
+    resources: [daemonsets, deployments, replicasets, statefulsets]
+    verbs: ["list", "watch"]
+  - apiGroups: ["batch"]
+    resources: [cronjobs, jobs]
+    verbs: ["list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: [horizontalpodautoscalers]      # ★ HPA 상태 — 이번 장애의 재발 방지 축
+    verbs: ["list", "watch"]
+  - apiGroups: ["policy"]
+    resources: [poddisruptionbudgets]
+    verbs: ["list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: [storageclasses, volumeattachments]
+    verbs: ["list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: [ingresses, networkpolicies]
+    verbs: ["list", "watch"]
+  - apiGroups: ["certificates.k8s.io"]
+    resources: [certificatesigningrequests]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: [mutatingwebhookconfigurations, validatingwebhookconfigurations]
+    verbs: ["list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: [leases]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-state-metrics
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-state-metrics
+subjects:
+  - kind: ServiceAccount
+    name: kube-state-metrics
+    namespace: observability
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-state-metrics
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+spec:
+  replicas: 1                      # 클러스터당 1개(중복 시계열 방지)
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-state-metrics
+    spec:
+      serviceAccountName: kube-state-metrics
+      nodeSelector:
+        kubernetes.io/arch: arm64  # 노드가 arm64(Graviton) — 다른 관측 컴포넌트와 동일
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: kube-state-metrics
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0
+          args:
+            - --port=8080
+            - --telemetry-port=8081
+            # 시계열 폭증 방지 — 쓰지 않는 리소스는 수집하지 않는다.
+            - --resources=nodes,pods,deployments,daemonsets,statefulsets,replicasets,horizontalpodautoscalers,jobs,cronjobs,persistentvolumeclaims,namespaces,services
+          ports:
+            - name: http-metrics    # ★ config.alloy 가 이 포트명으로 스크랩 대상을 고른다
+              containerPort: 8080
+            - name: telemetry
+              containerPort: 8081
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 192Mi
+          livenessProbe:
+            httpGet: { path: /livez, port: 8080 }
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8081 }
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+spec:
+  clusterIP: None                  # headless — Alloy 는 파드를 직접 스크랩한다
+  selector:
+    app.kubernetes.io/name: kube-state-metrics
+  ports:
+    - name: http-metrics
+      port: 8080
+      targetPort: http-metrics
+    - name: telemetry
+      port: 8081
+      targetPort: telemetry
