@@ -69,3 +69,88 @@ groups:
       # 참고: liveness/readiness는 k8s probe(/health)가 1차 방어선이다.
       #       파드 단위 Pod NotReady/Restart 알림을 원하면 kube-state-metrics를
       #       파이프라인에 추가해야 한다(현재 미수집).
+
+  # ─────────── 한 끗 가이드 파이프라인 (guide/_metrics.py 커스텀 OTel) ───────────
+  # 위 RED 는 spanmetrics(HTTP 단위)라 "요청은 200인데 VLM/LLM 이 느리거나 폴백"인 상태를
+  # 못 잡는다. 아래는 도메인 지표 3종(drawe_vlm / drawe_llm / drawe_image_gen)을 직접 본다.
+  #
+  # ⚠ 저볼륨 전제 — 임계·창 설계의 근거
+  #   2026-07-22 prod AMP 실측(30일): coach 125 · plan 43 · VLM 32 · image_gen 6 회.
+  #   시간당 1회 미만이라 위 RED 처럼 [5m]~[10m] 창을 쓰면 표본이 거의 0 →
+  #   histogram_quantile 은 NaN, 비율식은 에러 1건이 곧 100% 로 튄다.
+  #   그래서 (a) 창을 6h/24h 로 넓히고 (b) 비율 대신 절대건수를 쓰고
+  #   (c) 비율이 꼭 필요하면 최소볼륨 가드를 붙인다.
+  #   같은 30일간 error·fallback 은 전 지표 0건이므로 소수 건수도 유의미한 신호다.
+  #   ※ 트래픽이 늘면 창을 좁히고 임계를 비율식으로 되돌릴 것.
+  - name: drawe-guide-pipeline
+    rules:
+      # 폴백은 "조용한 열화"다 — 키 부재/예외 시 LLM 없이 코치문이 나가므로 HTTP 는 200.
+      # 실측 0건이라 1건도 이상 신호로 본다.
+      - alert: GuideLlmFallback
+        expr: |
+          sum by (step) (increase(drawe_llm_latency_seconds_count{outcome="fallback"}[1h])) > 0
+        for: 0m
+        labels: { severity: warning, service: fastapi-guide, layer: ai }
+        annotations:
+          summary: "가이드 LLM 폴백 발생 (step={{ $labels.step }}) — 코치문 열화, API 키·예외 점검"
+      - alert: GuideLlmErrors
+        expr: |
+          sum by (step) (increase(drawe_llm_latency_seconds_count{outcome="error"}[6h])) > 2
+        for: 0m
+        labels: { severity: warning, service: fastapi-guide, layer: ai }
+        annotations:
+          summary: "가이드 LLM 실패 6시간 내 3건 이상 (step={{ $labels.step }})"
+      # 실측: 30일 p95 coach 21.0s / plan 10.3s, p99 31.3s / 12.5s.
+      #   단 24h 창으로 좁히면 coach p95 가 31.7s 까지 올라간다(표본이 적어 흔들림).
+      #   그래서 임계는 30일 p95 의 2배가 아니라 버킷 경계 55s 로 잡는다 — 45s 로 두면
+      #   평상시 변동(≈32s)과의 간격이 1.4배뿐이라 오탐이 난다.
+      #   창 24h 는 표본 확보용(coach ~4.2회/일) — 더 좁히면 NaN 이 된다.
+      #   ⓘ 단일 임계라 plan(평상 12.8s)은 4배 악화까지 안 잡힌다. plan 을 촘촘히 보려면
+      #     step 별로 룰을 쪼갤 것(트래픽이 늘어 표본이 쌓인 뒤가 적절).
+      - alert: GuideLlmSlowP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (step, le) (rate(drawe_llm_latency_seconds_bucket[24h]))
+          ) > 55
+        for: 1h
+        labels: { severity: warning, service: fastapi-guide, layer: ai }
+        annotations:
+          summary: "가이드 LLM p95 45s 초과 (step={{ $labels.step }}, {{ $value }}s)"
+      - alert: GuideVlmErrors
+        expr: |
+          sum by (model) (increase(drawe_vlm_latency_seconds_count{outcome="error"}[6h])) > 2
+        for: 0m
+        labels: { severity: warning, service: fastapi-guide, layer: ai }
+        annotations:
+          summary: "가이드 VLM 실패 6시간 내 3건 이상 (model={{ $labels.model }})"
+      # 실측 p95 4.5s / 30일(24h 창으로는 2.9s). 임계 15s = 3배 이상 헤드룸.
+      # 창이 7d 인 이유: VLM 은 ~1.1회/일이라 24h 창이 자주 비어 룰이 NaN 이 된다.
+      - alert: GuideVlmSlowP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (model, le) (rate(drawe_vlm_latency_seconds_bucket[7d]))
+          ) > 15
+        for: 1h
+        labels: { severity: warning, service: fastapi-guide, layer: ai }
+        annotations:
+          summary: "가이드 VLM p95 15s 초과 ({{ $value }}s) — 모델·리전 점검"
+      - alert: ImageGenErrors
+        expr: |
+          sum by (provider) (increase(drawe_image_gen_latency_seconds_count{outcome="error"}[6h])) > 1
+        for: 0m
+        labels: { severity: warning, service: fastapi-guide, layer: ai }
+        annotations:
+          summary: "레퍼런스 이미지 생성 실패 6시간 내 2건 이상 (provider={{ $labels.provider }})"
+      # 실측 p95 7.5s (bedrock). 버킷 상한이 120s 라 임계 30s 는 충분히 안쪽이다.
+      # ⚠ 이 룰은 당분간 거의 잠들어 있다 — 생성은 0.2회/일이라 24h 창은 실측상 아예 비었고
+      #   7d 창으로도 표본이 1~2개다. 볼륨이 붙기 전까지는 ImageGenErrors(절대건수)가
+      #   실질 방어선이고, 이건 트래픽이 늘면 자동으로 유효해진다.
+      - alert: ImageGenSlowP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (provider, le) (rate(drawe_image_gen_latency_seconds_bucket[7d]))
+          ) > 30
+        for: 1h
+        labels: { severity: warning, service: fastapi-guide, layer: ai }
+        annotations:
+          summary: "레퍼런스 이미지 생성 p95 30s 초과 ({{ $value }}s)"
