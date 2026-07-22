@@ -25,6 +25,7 @@
 - [0007](0007-tone-evaluation-rubric-stylecheck.md) — 톤 평가 (Rubric 사람 6기준 + Style Check 자동 지표 분리)
 - [0008](0008-operating-cost-measured-noop.md) — 운영 비용 (측정 후 근거 있는 비개입 · 게이팅·캐싱 이미 구현)
 - [0009](0009-continuity-growth-context.md) — 연속성 아키텍처 (practice_log·growth_context 넛지·발화 지시 3층 · 구조화 이력으로 LLM 압축 대체)
+- [0010](0010-guide-llm-slowp95-regression-guard.md) — GuideLlmSlowP95: SLO가 아닌 회귀 가드 (coach 구조적 지연 → 버킷 경계 임계로 회귀만 감지 · 알림 피로 회피)
 
 ## 측정 근거 (이 디렉터리 `fastapi/docs/`)
 ADR이 링크하는 측정 md — 숫자·delta·안정성 결과의 출처. ADR은 "왜"만, 숫자는 여기.
