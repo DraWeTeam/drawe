@@ -97,7 +97,57 @@ groups:
         annotations:
           summary: "backend 서킷브레이커 OPEN (name={{ $labels.name }})"
 
+  # ─────────── 레퍼런스 무드보드 검색 (SearchService — 현재 제품 방향) ───────────
+  # ⚠ 저볼륨 전제. 2026-07-22 prod AMP 실측(30일): 33회, 전부 outcome=success·result=hit,
+  #   p95 1.9s. result="empty" 는 시리즈 자체가 존재하지 않는다(빈손 검색 0건).
+  #   시간당 1회 미만이라 짧은 창의 비율식은 무의미 → 창 6h/24h + 최소볼륨 가드를 쓴다.
+  - name: drawe-backend-reference
+    rules:
+      - alert: ReferenceSearchErrors
+        expr: |
+          sum(increase(drawe_reference_search_seconds_count{outcome="error"}[6h])) > 2
+        for: 0m
+        labels: { severity: warning, service: backend, layer: app }
+        annotations:
+          summary: "무드보드 검색 실패 6시간 내 3건 이상 — CLIP/벡터스토어 점검"
+      # 검색이 계속 빈손 = 코퍼스·임베딩 문제이거나 사용자 질의 분포 이동 신호.
+      # 최소볼륨 가드가 없으면 하루 1건이 empty 여도 100% 로 튄다.
+      - alert: ReferenceSearchEmptyRateHigh
+        expr: |
+          (
+            sum(increase(drawe_reference_search_seconds_count{result="empty"}[24h]))
+            /
+            sum(increase(drawe_reference_search_seconds_count[24h]))
+            > 0.5
+          )
+          and
+          sum(increase(drawe_reference_search_seconds_count[24h])) >= 10
+        for: 1h
+        labels: { severity: info, service: backend, layer: app }
+        annotations:
+          summary: "무드보드 검색 빈손 비율 50% 초과(24h, 10건 이상일 때만) — 코퍼스 점검"
+      # 실측 p95 1.9s → 임계 5s.
+      - alert: ReferenceSearchSlowP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(drawe_reference_search_seconds_bucket[24h]))
+          ) > 5
+        for: 1h
+        labels: { severity: warning, service: backend, layer: app }
+        annotations:
+          summary: "무드보드 검색 p95 5s 초과 ({{ $value }}s)"
+
   # ─────────── 비즈니스 / AI 파이프라인 DoD (LlmMetrics.java 기반) ───────────
+  # ⚠ DEPRECATED (2026-07-22) — 이 그룹은 전부 "대화형 채팅"(intent 분기 → COMPOSE 합성)
+  #   경로를 감시한다. 제품 방향이 무드보드 검색 + 한 끗 가이드로 바뀌어 이 경로는 사실상
+  #   쓰이지 않는다. prod AMP 실측(30일): POST /projects/{id}/chat 1건(최근 14일 0건),
+  #   intent_route·intent_classify·llm_call·workflow_step 전부 0,
+  #   drawe_chat_llm_latency 와 drawe_output_* 은 시리즈조차 없음.
+  #
+  #   그럼에도 남겨두는 이유: 코드와 prod 설정(WORKFLOW_COMPOSE_LIVE_INTENTS)이 아직 살아
+  #   있어 언제든 트래픽이 돌아올 수 있다. 트래픽이 0이면 아래 룰은 발화하지 않으므로
+  #   (비율식은 0/0=NaN) 비용도 소음도 없다. **채팅 경로를 실제로 철거할 때 이 그룹을
+  #   함께 삭제할 것** — 알림은 감시 대상 코드와 같이 죽어야 한다.
   - name: drawe-backend-ai
     rules:
       # DoD: 환각 인용 0건. 1건이라도 카운트되면 즉시.
