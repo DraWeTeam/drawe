@@ -5,10 +5,10 @@ Prometheus/Mimir rule-group 포맷. 이 디렉터리가 **룰의 단일 소스**
 
 | 파일 | 대상 | groups | alerts |
 | --- | --- | --- | --- |
-| `backend.rules.yaml` | Spring Boot (Micrometer) | `drawe-backend-red`, `-runtime`, `-ai` | 13 |
-| `fastapi.rules.yaml` | fastapi-embed / -guide (Alloy spanmetrics) | `drawe-fastapi-red`, `-availability` | 4 |
+| `backend.rules.yaml` | Spring Boot (Micrometer) | `drawe-backend-red`, `-runtime`, `-reference`, `-ai` | 16 |
+| `fastapi.rules.yaml` | fastapi-embed / -guide (spanmetrics + guide 커스텀 OTel) | `drawe-fastapi-red`, `-availability`, `drawe-guide-pipeline` | 10 |
 | `infra.rules.yaml` | 노드·K8s 오브젝트 (node-exporter + kube-state-metrics) | `drawe-infra-node`, `-kubernetes` | 13 |
-| | | **합계** | **30** |
+| | | **합계** | **39** |
 
 ## 왜 플랫폼별로 분리하지 않았나 (app 룰)
 
@@ -72,11 +72,66 @@ aws amp list-rule-groups-namespaces --workspace-id "$WS"
 aws amp describe-rule-groups-namespace --workspace-id "$WS" --name drawe-infra
 ```
 
+## 룰 그룹 구성
+
+| 그룹 | 대상 | 비고 |
+| --- | --- | --- |
+| `drawe-backend-red` · `-runtime` | HTTP RED · JVM/Hikari/CB | |
+| `drawe-backend-reference` | 무드보드 검색(`drawe_reference_search_*`) | **현재 제품 방향** |
+| `drawe-backend-ai` | 대화형 채팅 intent·COMPOSE | ⚠ **DEPRECATED** — 아래 참조 |
+| `drawe-fastapi-red` · `-availability` | spanmetrics RED | |
+| `drawe-guide-pipeline` | 한 끗 가이드 VLM·LLM·이미지생성 | **현재 제품 방향** |
+| `drawe-infra-node` · `-kubernetes` | 노드·K8s 오브젝트 | EKS 전제(위 참조) |
+
+### ⚠ 저볼륨 환경의 임계·창 설계 (2026-07-22)
+
+현재 방향 지표의 실측 볼륨은 **시간당 1회 미만**이다(30일 기준 guide coach 125 ·
+plan 43 · VLM 32 · image_gen 6 · 무드보드 검색 33회). 이 볼륨에서는 기존 RED 룰처럼
+`rate(...[5m])` 비율식을 쓰면 **표본이 0이라 `histogram_quantile` 이 NaN 이 되고,
+에러 1건이 곧 100% 로 튄다.** 그래서 새 두 그룹은:
+
+- 창을 **6h / 24h / 7d** 로 넓히고,
+- 비율 대신 **절대건수**를 기본으로 쓰고,
+- 비율이 꼭 필요한 곳(`ReferenceSearchEmptyRateHigh`)엔 **최소볼륨 가드**(`and ... >= 10`)를 붙인다.
+
+임계는 감이 아니라 **AMP 실측 분위수 + 버킷 경계 기준**이다. `histogram_quantile` 은 버킷
+경계 사이를 선형 보간하므로, 임계는 **실제 `le` 경계값**에 맞춰야 보간 오차가 없다.
+
+- `GuideLlmSlowP95`(coach) = **55s** — `drawe_llm_latency` 경계(…,34,55,90). 이건 "SLO 만족"이
+  아니라 **SLO 미달을 인지한 회귀 가드**다: coach 는 실측 p95 21s / p99 31s 로 이미 느리고
+  (원인=Grok 순차 3회 호출), SLO 기준(체감 ~15-20s)으로 잡으면 상시 발화한다. 레이턴시 개선
+  후 SLO 기준으로 재조정할 것. (annotation 에도 이 취지를 명시.)
+- `GuideVlmSlowP95` = **21s** — `drawe_vlm_latency` 경계(…,13,21,34,60). 15 는 보간값이라 21 로
+  정렬했다(관측 p95 4.1s). 더 민감하게는 13.
+- `ImageGenSlowP95` 는 **제거**했다 — 표본 희소(생성 0.2회/일)로 상시 NaN, 임계도 버킷 사이
+  보간값이라 방어선 미성립. `ImageGenErrors`(절대건수)만 실효 방어선으로 남긴다. 데이터가
+  쌓이면 경계값으로 재도입 가능.
+
+트래픽이 붙으면 창을 좁히고 임계를 비율식/SLO 기준으로 되돌릴 것.
+
+### `drawe-backend-ai` 가 DEPRECATED 인 이유
+
+이 그룹은 대화형 채팅(intent 분기 → COMPOSE) 경로만 감시하는데, 제품 방향이 무드보드
+검색 + 한 끗 가이드로 바뀌어 그 경로가 사실상 쓰이지 않는다. prod 실측(30일):
+`POST /projects/{id}/chat` **1건**(최근 14일 0건), `intent_route`·`intent_classify`·
+`llm_call`·`workflow_step` **전부 0**, `drawe_chat_llm_latency` 와 `drawe_output_*` 은
+**시리즈조차 없음**.
+
+그래도 지금 지우지 않는다 — 코드와 prod 설정(`WORKFLOW_COMPOSE_LIVE_INTENTS`)이 아직
+살아 있어 트래픽이 돌아올 수 있고, 0 트래픽에선 비율식이 `0/0=NaN` 이라 발화하지 않아
+소음이 없다. **채팅 경로를 실제로 철거할 때 이 그룹도 함께 삭제할 것.**
+
 ## 검증 현황
 
 - **infra 룰(13개)**: PromQL 13식 + 노드 대시보드 13쿼리 = **26/26 을 AMP 실제 파서로 질의해
   문법 통과** 확인. 룰이 참조하는 `kube_*` / `node_*` 시계열이 AMP 에 실재함도 함께 확인했다.
-- **backend / fastapi 룰**: 도입 시점에 PromQL 파싱 및 참조 메트릭 인벤토리 확인 완료.
+- **backend / fastapi 룰**: **prod AMP 실제 파서로 질의해 문법 통과** 확인(2026-07-22).
+  파싱만이 아니라 **임계값을 뺀 내부식이 실값을 반환하는지**까지 확인했다 — 라벨 오타로
+  룰이 조용히 무력화되는 것(아래 semconv 항목과 같은 사고)을 막기 위함. 확인된 헤드룸:
+  VLM p95 4.1s/임계 **21** · guide coach p95 31.7s/임계 55 · 무드보드 검색 p95 1.0s/임계 5.
+  (image_gen 은 표본 부재로 P95 룰 제거 — 에러 룰만 유지.)
+- **임계는 실제 버킷 경계(`le`)에 정렬**했다 — AMP 에 실재하는 경계를 열거해 대조:
+  `drawe_llm_latency`=(…,34,**55**,90), `drawe_vlm_latency`=(…,13,**21**,34,60).
 
 ### fastapi 룰의 semconv 가정 (미검증 1건)
 
