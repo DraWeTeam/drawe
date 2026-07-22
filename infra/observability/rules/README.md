@@ -27,6 +27,11 @@ node-exporter 가 만든다. ECS 에는 해당 시계열이 없다.
 > 클러스터를 teardown 할 때는 `drawe-infra` 네임스페이스도 함께 제거하거나
 > 해당 룰을 비활성화할 것.
 
+> **`InfraNodeRebooted` 는 신규 Karpenter 노드를 제외한다(2026-07).** `node_boot_time` 만 보면
+> 갓 프로비저닝된 노드도 "재부팅"으로 잡혀(부팅 시각이 방금이라) 스팟 교체가 잦은 이 클러스터에서
+> info 소음이 된다. `and on(node) (time() - kube_node_created > 600)` 으로 **생성 10분 이내 노드를 제외**해,
+> 기존 노드의 실제 재부팅(스팟 회수·커널 패닉)만 남긴다.
+
 ## 적재 방법
 
 룰 내용은 dev·prod 동일하고, **적재 경로만 다르다.**
@@ -145,3 +150,29 @@ count by (http_status_code)(traces_spanmetrics_calls_total)         # 디멘션 
 이 디렉터리는 **룰 평가**까지만 담당한다. 실제 통지는 별도다 —
 `terraform-prod/amp-rules.tf` 하단 주석 참고(`aws_prometheus_alert_manager_definition`
 또는 기존 `discord-alerts.tf` 경로 재사용).
+
+### 통지 렌더링 (Discord, 2026-07~)
+
+발화 알림은 **AMP alertmanager → SNS → Lambda(`terraform-prod/lambda/discord_notify.py`) → Discord 웹훅**
+경로로 나간다. Lambda 가 **severity 색 + 상태 필드 임베드**로 렌더한다.
+
+- **색**: critical=빨강 · warning=노랑 · info=파랑 · resolved=초록.
+- **필드**: 상태(발생/해제됨) · 심각도 · 서비스.
+- **서비스 필드**: `service` 라벨이 있는 룰(backend/fastapi)은 그 값, **없는 룰(infra 등)은 `-`** 로 뜬다(정상).
+- ⚠ **형식 계약**: AM `sns_configs.message` 는 `STATUS=/SEVERITY=/ALERTNAME=/SERVICE=` **4줄 헤더 + `---` 구분자 + 본문**
+  형식이고, 이는 Lambda `_parse_amp` 와의 **짝 계약**이다. 헤더 키·순서·`---` 를 바꾸면 **Lambda 도 함께**
+  바꿔야 하며, 안 그러면 에러 없이 **회색 폴백으로 조용히 열화**한다. (CloudWatch 알람 JSON 은 별도 경로로 기존대로 렌더.)
+- 카나리 검증: 임시 룰(`expr: vector(1)>0`)을 AMP 에 apply → Discord 실렌더 확인 → **같은 세션에서 회수**.
+  `send_resolved` 초록 알림은 룰 삭제 후 `resolve_timeout`(기본 ~5분) 뒤에 온다.
+  `humanizeDuration`/`humanizePercentage` 는 **ruler 가 평가**하므로(Lambda 이전) ruler 출력만 봐도 렌더 확인이 된다.
+
+### 알림 문구 기준 (2026-07~)
+
+`summary`/`description` 은 운영자가 5초 안에 행동하도록 쓴다.
+
+- **summary** = 무엇 + 값·임계. 원시 숫자는 `humanizeDuration`/`humanizePercentage` 로(예: `1.23s`, `5%`). 상태 중립(firing/resolved 공용).
+- **description** = 먼저 확인할 대상. 원인은 **단정 말고 가능성**으로.
+- **모델명은 문구에 박지 않는다** — 구체 모델은 `model`·`provider` 라벨로(문구는 "외부 LLM/VLM").
+- **이모지는 문구에 넣지 않는다** — 색·제목이 심각도를 표현한다.
+- **긴 설계 배경은 ADR 로 분리** — 예: `GuideLlmSlowP95`(SLO 아님·회귀 가드)의 배경은
+  [`fastapi/docs/adr/0010-guide-llm-slowp95-regression-guard.md`](../../../fastapi/docs/adr/0010-guide-llm-slowp95-regression-guard.md).

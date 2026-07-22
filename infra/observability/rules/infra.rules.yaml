@@ -77,12 +77,15 @@ groups:
 
       # 노드 재부팅 감지 — 예기치 않은 재시작(스팟 회수·커널 패닉)을 잡는다.
       - alert: InfraNodeRebooted
-        expr: (time() - node_boot_time_seconds) < 600
+        expr: |
+          (time() - node_boot_time_seconds < 600)
+          and on(node)
+          (time() - kube_node_created > 600)
         for: 0m
         labels: { severity: info, layer: infra }
         annotations:
-          summary: "노드 {{ $labels.node }} 최근 10분 내 재부팅"
-          description: "Karpenter 신규 노드면 정상. 기존 노드면 스팟 회수/장애 여부를 확인한다."
+          summary: "노드 {{ $labels.node }} 재부팅 감지 (신규 프로비저닝 제외)"
+          description: "기존 노드가 최근 10분 내 재부팅됐습니다. 스팟 회수·커널 패닉·장애 여부를 확인하세요. (갓 생성된 Karpenter 노드는 제외됩니다.)"
 
   # ── K8s 오브젝트 상태 (kube-state-metrics) ──────────────────────────────
   - name: drawe-infra-kubernetes
