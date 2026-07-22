@@ -14,4 +14,4 @@
 | **갤러리 · 아카이브** | [gallerySequenceDiagram](./sequenceDiagram/gallerySequenceDiagram.md) | 완성작 갤러리(COMPLETED 프로젝트·내 그림 drawingUrl) · 완성작 상세(회고) · 레퍼런스 아카이브 |
 | **레퍼런스 보드** | [referenceBoardSequenceDiagram](./sequenceDiagram/referenceBoardSequenceDiagram.md) | ⭐ 키워드 검색(Komoran→CLIP→Pinecone) · AI 생성(Bedrock·보드 통합) · 좋아요/싫어요(3회→생성 모달) |
 
-> 채팅 도메인의 의도 분류·라우팅 스펙(워크플로는 dormant)은 [aiPipelineDesign §5.3](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.
+> 채팅 도메인의 의도 분류·라우팅 스펙(COMPOSE 워크플로는 **미채택/retired**, 폐기된 설계)은 [aiPipelineDesign §5.3](./aiPipelineDesign.md), 의도별 단계 매핑은 [classDiagram §chatPipeline](./classDiagram/chatPipelineClassDiagram.md) 참고.

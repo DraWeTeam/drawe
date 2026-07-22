@@ -348,6 +348,6 @@ classDiagram
 5. **IntentResult 산출** — code(IntentCode) + referencedImages + hasUploadedImage + tier 를 담은 최종 분류 결과.
 6. **IntentRouting.ROUTING 매핑** — `WorkflowService` 가 `ROUTING.get(intent.code())` 로 `StepType` 시퀀스를 lookup 한다.
 
-> **주의(현행 상태·코드 실측)**: 아래 6~7번의 `WorkflowService` 라우팅→실행 경로는 `workflow.compose.live-intents` 기본값이 빈 집합이라 **미가동(dormant, 기본 off)** 이다(chatPipeline 다이어그램과 동일). 기본 배포에서는 의도 분류 결과가 legacy 직접 합성으로 흘러가며, 아래 StepType 실행 서술은 게이트가 켜졌을 때의 설계 경로다.
+> **⚠️ 폐기된 설계(historical)**: 아래 6~7번의 `WorkflowService` 라우팅→실행 경로는 **미채택(retired) COMPOSE 워크플로**다 — 제품 방향(무드보드 검색+가이드)으로 정리되며 채택되지 않았다. prod live-intents 비활성(2026-07 overlay 에서 env 제거), 코드는 dormant(빈 집합)로 잔존한다. 기본 배포에서는 의도 분류 결과가 legacy 직접 합성으로 흘러가며, 아래 StepType 실행 서술은 이력 참고용 설계 경로다(chatPipeline 다이어그램과 동일).
 
 7. **StepType 순차 실행** — 예: NEW_SEARCH(005) → `EXTRACT_KEYWORDS`(KomoranKeywordExtractor: Komoran 형태소 → ArtTermsDictionary 한영 매핑, 사전 미스율 > 30% 면 GrokKeywordExtractorFallback 폴백) → `SEARCH`(CLIP 임베딩 + Score Guard) → `COMPOSE`(페르소나 v2 + Structured Output). GENERATE(008)는 `TRANSLATE → GENERATE_IMAGE`, SELF_CRITIQUE(010)는 `CRITIQUE_UPLOAD → COMPOSE`, 그 외(KEEP·SKIP·FOLLOWUP·COMPARE·미술의도·OUT_OF_DOMAIN)는 `COMPOSE` 단독으로 종착한다.

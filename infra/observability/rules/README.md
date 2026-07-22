@@ -5,10 +5,10 @@ Prometheus/Mimir rule-group 포맷. 이 디렉터리가 **룰의 단일 소스**
 
 | 파일 | 대상 | groups | alerts |
 | --- | --- | --- | --- |
-| `backend.rules.yaml` | Spring Boot (Micrometer) | `drawe-backend-red`, `-runtime`, `-reference`, `-ai` | 16 |
+| `backend.rules.yaml` | Spring Boot (Micrometer) | `drawe-backend-red`, `-runtime`, `-reference` | 10 |
 | `fastapi.rules.yaml` | fastapi-embed / -guide (spanmetrics + guide 커스텀 OTel) | `drawe-fastapi-red`, `-availability`, `drawe-guide-pipeline` | 10 |
 | `infra.rules.yaml` | 노드·K8s 오브젝트 (node-exporter + kube-state-metrics) | `drawe-infra-node`, `-kubernetes` | 13 |
-| | | **합계** | **39** |
+| | | **합계** | **33** |
 
 ## 왜 플랫폼별로 분리하지 않았나 (app 룰)
 
@@ -78,7 +78,6 @@ aws amp describe-rule-groups-namespace --workspace-id "$WS" --name drawe-infra
 | --- | --- | --- |
 | `drawe-backend-red` · `-runtime` | HTTP RED · JVM/Hikari/CB | |
 | `drawe-backend-reference` | 무드보드 검색(`drawe_reference_search_*`) | **현재 제품 방향** |
-| `drawe-backend-ai` | 대화형 채팅 intent·COMPOSE | ⚠ **DEPRECATED** — 아래 참조 |
 | `drawe-fastapi-red` · `-availability` | spanmetrics RED | |
 | `drawe-guide-pipeline` | 한 끗 가이드 VLM·LLM·이미지생성 | **현재 제품 방향** |
 | `drawe-infra-node` · `-kubernetes` | 노드·K8s 오브젝트 | EKS 전제(위 참조) |
@@ -109,17 +108,12 @@ plan 43 · VLM 32 · image_gen 6 · 무드보드 검색 33회). 이 볼륨에서
 
 트래픽이 붙으면 창을 좁히고 임계를 비율식/SLO 기준으로 되돌릴 것.
 
-### `drawe-backend-ai` 가 DEPRECATED 인 이유
+### 채팅/COMPOSE 알림 그룹 폐지 (2026-07)
 
-이 그룹은 대화형 채팅(intent 분기 → COMPOSE) 경로만 감시하는데, 제품 방향이 무드보드
-검색 + 한 끗 가이드로 바뀌어 그 경로가 사실상 쓰이지 않는다. prod 실측(30일):
-`POST /projects/{id}/chat` **1건**(최근 14일 0건), `intent_route`·`intent_classify`·
-`llm_call`·`workflow_step` **전부 0**, `drawe_chat_llm_latency` 와 `drawe_output_*` 은
-**시리즈조차 없음**.
-
-그래도 지금 지우지 않는다 — 코드와 prod 설정(`WORKFLOW_COMPOSE_LIVE_INTENTS`)이 아직
-살아 있어 트래픽이 돌아올 수 있고, 0 트래픽에선 비율식이 `0/0=NaN` 이라 발화하지 않아
-소음이 없다. **채팅 경로를 실제로 철거할 때 이 그룹도 함께 삭제할 것.**
+COMPOSE 워크플로 미채택으로 대화형 채팅(intent 분기 → COMPOSE) 경로가 폐기되어,
+그 경로만 감시하던 `drawe-backend-ai` 그룹(채팅/COMPOSE 알림 6종)을 제거했다.
+prod overlay 의 `WORKFLOW_COMPOSE_LIVE_INTENTS` 도 함께 내려 코드 기본값(빈 집합)으로
+dormant 화했다(애플리케이션 코드는 불변). 감시 대상 경로가 없으므로 알림도 존치하지 않는다.
 
 ## 검증 현황
 
