@@ -78,10 +78,11 @@ groups:
   #   2026-07-22 prod AMP 실측(30일): coach 125 · plan 43 · VLM 32 · image_gen 6 회.
   #   시간당 1회 미만이라 위 RED 처럼 [5m]~[10m] 창을 쓰면 표본이 거의 0 →
   #   histogram_quantile 은 NaN, 비율식은 에러 1건이 곧 100% 로 튄다.
-  #   그래서 (a) 창을 6h/24h 로 넓히고 (b) 비율 대신 절대건수를 쓰고
+  #   그래서 (a) 창을 6h/24h/7d 로 넓히고 (b) 비율 대신 절대건수를 쓰고
   #   (c) 비율이 꼭 필요하면 최소볼륨 가드를 붙인다.
   #   같은 30일간 error·fallback 은 전 지표 0건이므로 소수 건수도 유의미한 신호다.
   #   ※ 트래픽이 늘면 창을 좁히고 임계를 비율식으로 되돌릴 것.
+  #   ※ image_gen 은 표본이 가장 희소해 P95 룰을 두지 않고 에러 룰만 둔다(아래 삭제 사유 참조).
   - name: drawe-guide-pipeline
     rules:
       # 폴백은 "조용한 열화"다 — 키 부재/예외 시 LLM 없이 코치문이 나가므로 HTTP 는 200.
@@ -100,13 +101,15 @@ groups:
         labels: { severity: warning, service: fastapi-guide, layer: ai }
         annotations:
           summary: "가이드 LLM 실패 6시간 내 3건 이상 (step={{ $labels.step }})"
-      # 실측: 30일 p95 coach 21.0s / plan 10.3s, p99 31.3s / 12.5s.
-      #   단 24h 창으로 좁히면 coach p95 가 31.7s 까지 올라간다(표본이 적어 흔들림).
-      #   그래서 임계는 30일 p95 의 2배가 아니라 버킷 경계 55s 로 잡는다 — 45s 로 두면
-      #   평상시 변동(≈32s)과의 간격이 1.4배뿐이라 오탐이 난다.
-      #   창 24h 는 표본 확보용(coach ~4.2회/일) — 더 좁히면 NaN 이 된다.
-      #   ⓘ 단일 임계라 plan(평상 12.8s)은 4배 악화까지 안 잡힌다. plan 을 촘촘히 보려면
-      #     step 별로 룰을 쪼갤 것(트래픽이 늘어 표본이 쌓인 뒤가 적절).
+      # ⚠ 이 룰은 "SLO 만족"이 아니라 "SLO 미달을 인지하고 회귀만 막는" 가드다.
+      #   실측 30일 p95 coach 21.0s / p99 31.3s 로 이미 사용자 체감상 느린 상태이며,
+      #   원인은 규명돼 있다 — plan/select/coach 가 Grok 을 순차로 3회 호출한다.
+      #   SLO 기준(체감 한계 ~15-20s)으로 임계를 잡으면 상시 발화하므로, 레이턴시 개선
+      #   (순차→병렬 등) 전까지는 "더 나빠지는 것"만 잡는다. 개선 후 SLO 기준으로 재조정할 것.
+      #   임계 55s = drawe_llm_latency 버킷 경계(…,34,55,90). 24h 창에서 coach p95 가
+      #   31.7s 까지 흔들리므로 45s 로 두면 오탐(간격 1.4배), 55s 가 회귀 신호로 적정.
+      #   창 24h 는 표본 확보용(coach ~4.2회/일) — 더 좁히면 NaN. plan(평상 12.8s)은 단일
+      #   임계라 4배 악화까지 안 잡힌다 → 촘촘히 보려면 step 별로 쪼갤 것(표본 쌓인 뒤).
       - alert: GuideLlmSlowP95
         expr: |
           histogram_quantile(0.95,
@@ -115,7 +118,11 @@ groups:
         for: 1h
         labels: { severity: warning, service: fastapi-guide, layer: ai }
         annotations:
-          summary: "가이드 LLM p95 45s 초과 (step={{ $labels.step }}, {{ $value }}s)"
+          summary: "가이드 LLM p95 55s 초과 (step={{ $labels.step }}, {{ $value }}s) — SLO 미달 회귀 가드"
+          description: >-
+            SLO 만족을 뜻하지 않는다. coach 는 실측 p95 21s / p99 31s 로 이미 느리며(원인:
+            Grok 순차 3회 호출), 이 룰은 그보다 더 나빠지는 회귀만 잡는다. 레이턴시 개선 후
+            SLO 기준(체감 한계 ~15-20s)으로 임계를 재조정할 것.
       - alert: GuideVlmErrors
         expr: |
           sum by (model) (increase(drawe_vlm_latency_seconds_count{outcome="error"}[6h])) > 2
@@ -123,17 +130,22 @@ groups:
         labels: { severity: warning, service: fastapi-guide, layer: ai }
         annotations:
           summary: "가이드 VLM 실패 6시간 내 3건 이상 (model={{ $labels.model }})"
-      # 실측 p95 4.5s / 30일(24h 창으로는 2.9s). 임계 15s = 3배 이상 헤드룸.
+      # 실측 p95 4.5s / 30일(24h 창으로는 2.9s). 임계 21s = 버킷 경계(회귀 가드), 관측 p95 4.1s.
+      #   drawe_vlm_latency 버킷은 (…,13,21,34,60) 이라 15 는 13~21 사이 보간값이었다 →
+      #   실제 경계 21 로 정렬해 histogram_quantile 보간 오차를 없앤다.
+      #   더 민감하게 가려면 13 으로 조정 가능(단 관측 p95 4.1s 와의 헤드룸이 3배로 줄어 오탐↑).
       # 창이 7d 인 이유: VLM 은 ~1.1회/일이라 24h 창이 자주 비어 룰이 NaN 이 된다.
       - alert: GuideVlmSlowP95
         expr: |
           histogram_quantile(0.95,
             sum by (model, le) (rate(drawe_vlm_latency_seconds_bucket[7d]))
-          ) > 15
+          ) > 21
         for: 1h
         labels: { severity: warning, service: fastapi-guide, layer: ai }
         annotations:
-          summary: "가이드 VLM p95 15s 초과 ({{ $value }}s) — 모델·리전 점검"
+          summary: "가이드 VLM p95 21s 초과 ({{ $value }}s) — 모델·리전 점검"
+      # image_gen 은 P95 룰 없이 에러 룰만 둔다 — 아래 삭제 사유 참조.
+      # 이 에러 룰이 image_gen 의 실효 방어선이며, 트래픽이 늘면 자동으로 유효해진다.
       - alert: ImageGenErrors
         expr: |
           sum by (provider) (increase(drawe_image_gen_latency_seconds_count{outcome="error"}[6h])) > 1
@@ -141,16 +153,8 @@ groups:
         labels: { severity: warning, service: fastapi-guide, layer: ai }
         annotations:
           summary: "레퍼런스 이미지 생성 실패 6시간 내 2건 이상 (provider={{ $labels.provider }})"
-      # 실측 p95 7.5s (bedrock). 버킷 상한이 120s 라 임계 30s 는 충분히 안쪽이다.
-      # ⚠ 이 룰은 당분간 거의 잠들어 있다 — 생성은 0.2회/일이라 24h 창은 실측상 아예 비었고
-      #   7d 창으로도 표본이 1~2개다. 볼륨이 붙기 전까지는 ImageGenErrors(절대건수)가
-      #   실질 방어선이고, 이건 트래픽이 늘면 자동으로 유효해진다.
-      - alert: ImageGenSlowP95
-        expr: |
-          histogram_quantile(0.95,
-            sum by (provider, le) (rate(drawe_image_gen_latency_seconds_bucket[7d]))
-          ) > 30
-        for: 1h
-        labels: { severity: warning, service: fastapi-guide, layer: ai }
-        annotations:
-          summary: "레퍼런스 이미지 생성 p95 30s 초과 ({{ $value }}s)"
+      # ⓧ ImageGenSlowP95 는 이번 PR 에서 제거함 (2026-07-22).
+      #   사유: drawe_image_gen_latency 는 표본이 희소하다(생성 0.2회/일 → instant 질의에
+      #   시리즈조차 없음). 7d 창 rate 도 대부분 비어 histogram_quantile 이 상시 NaN 이고,
+      #   임계 30s 도 버킷(…,21,34,…) 사이 보간값이라 방어선이 성립하지 않는다.
+      #   데이터가 쌓이면 버킷 경계값(예: 34)으로 재도입 가능. 그때까지는 ImageGenErrors 가 방어선.
