@@ -6,7 +6,7 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 |---|---|---|---|
 | **A. 한 끗 가이드** ⭐ | 코칭 에이전트 파이프라인(그림 관찰→코칭) | Qdrant | §5.1 |
 | **B. 레퍼런스 보드** | 키워드 의미검색 + AI 생성 + 피드백(의도 라우팅 없음) | Pinecone · Bedrock | §5.2 |
-| **C. 채팅** | 의도 분류(LIVE) · 추천 워크플로 dormant | Pinecone | §5.3 |
+| **C. 채팅** | 의도 분류(LIVE) · 추천 워크플로 **미채택(retired)** | Pinecone | §5.3 |
 
 > 검색 경로는 셋으로 분리된다: **가이드 코칭=Qdrant**(정적 축 질의), **보드·채팅 추천=Pinecone**(CLIP 의미검색), **전역 검색(SearchModal)=MySQL LIKE**(엔티티 텍스트, 벡터 아님). 본 섹션은 각 축의 실제 동작과 설계 근거를 기술한다.
 
@@ -42,11 +42,11 @@ DraWe의 **핵심·차별점**은 **한 끗 가이드(코칭 에이전트 파이
 
 ## 5.3 축 C — 채팅 (AI 이미지 생성 · 추천)
 
-**의도 분류는 매 요청 실행**(`RulePreRouter.route` 결정적 → 미스 시 Grok 폴백)되지만, 그 아래 **라우팅→COMPOSE 워크플로는 현재 미가동(dormant)** 이다 — `workflow.compose.live-intents` 기본값이 빈 집합(`liveIntents = EnumSet.noneOf`)이라, **현행 채팅 응답은 레거시 직접합성**이 만든다.
+**의도 분류는 매 요청 실행**(`RulePreRouter.route` 결정적 → 미스 시 Grok 폴백)되지만, 그 아래 **라우팅→COMPOSE 워크플로는 미채택(retired)** 이다 — 제품 방향이 무드보드 검색 + 한 끗 가이드로 정리되면서 COMPOSE 워크플로는 채택되지 않았다. prod overlay 의 `WORKFLOW_COMPOSE_LIVE_INTENTS` 를 비워 코드 기본값(빈 집합, `liveIntents = EnumSet.noneOf`)으로 dormant 화했고(애플리케이션 코드는 불변), **현행 채팅 응답은 레거시 직접합성**이 만든다.
 
 - **실제 사용자 액션**(`ChatLlmService.chat`): NEW_SEARCH · KEEP/SKIP · FOLLOWUP/COMPARE · GENERATE_NOW · PIN/REFERENCE_SIMILAR · OUT_OF_DOMAIN · SELF_CRITIQUE.
 - **AI 이미지 생성 엔진**: `ImageGenerationService.generate` → `GuideClient.generateImage`(`POST /generate-image`) → **prod Bedrock Stability**(stable-image-core). **현행 유저 surface는 레퍼런스 보드**(§5.2, `POST /reference-board/generate`)이며, 챗 `GENERATE_NOW`(게이트 이전 short-circuit)도 같은 엔진을 호출한다. PIN/REFERENCE_SIMILAR도 게이트 이전 short-circuit.
-- **워크플로(설계·미가동)**: `IntentRouting.ROUTING`은 의도→StepExecutor 시퀀스의 정적 매핑(NEW_SEARCH=`[EXTRACT_KEYWORDS,SEARCH,COMPOSE]`, 대부분 `[COMPOSE]`, GENERATE=`[TRANSLATE,GENERATE_IMAGE]`). 이는 **live 게이트가 켜졌을 때만** 도는 설계 스펙이며, 부팅 검증이 COMPOSE 미종착 의도(GENERATE 등)의 live 진입을 막는다(fail-fast).
+- **워크플로(폐기된 설계, historical)**: `IntentRouting.ROUTING`은 의도→StepExecutor 시퀀스의 정적 매핑(NEW_SEARCH=`[EXTRACT_KEYWORDS,SEARCH,COMPOSE]`, 대부분 `[COMPOSE]`, GENERATE=`[TRANSLATE,GENERATE_IMAGE]`). 이는 채택되지 않은 설계 스펙으로, live 게이트가 켜졌을 때만 도는 경로다(prod 미채택). 부팅 검증이 COMPOSE 미종착 의도(GENERATE 등)의 live 진입을 막는다(fail-fast).
 - **유령(DEAD)**: `WorkflowService`·`StepExecutor` 계열(`GenerateImageExecutor` 등)은 **미연결 골격** — 게이트가 켜지지 않는 한 실행되지 않는다. shadow 경로(Komoran 워크플로 병렬 1회)는 비교·메트릭 수집만 하며 실응답에 영향 없다.
 
 ## 5.4 설계 결정 하이라이트
