@@ -96,17 +96,17 @@ dev 에 코드로 배포되는 경로는 저장소에 없다(`overlays/dev/obser
 > `intent_route`·`intent_classify`·`llm_call`·`workflow_step{COMPOSE,SEARCH,EXTRACT_KEYWORDS}`
 > **전부 0**, `drawe_chat_llm_latency` 와 `drawe_output_*` 은 **시리즈조차 없음**.
 >
-> 다만 **코드와 배포는 살아 있다** — prod overlay 가
-> `WORKFLOW_COMPOSE_LIVE_INTENTS` 로 11개 의도를 **전부 켜 둔** 상태다
-> (`overlays/prod/backend/kustomization.yaml:29`). dev 오버레이엔 이 변수가 없어 전부 레거시 직접 합성으로 흐른다.
-> 채팅 경로를 철거할 때 이 지표·env·`drawe-backend-ai` 알림 그룹을 **함께** 정리한다.
+> **2026-07-22 — COMPOSE 미채택 확정**: prod overlay 의 `WORKFLOW_COMPOSE_LIVE_INTENTS` 를
+> 제거해(PR #117/#119) 워크플로를 코드 기본값(빈 집합=dormant)로 되돌렸고, 감시하던
+> `drawe-backend-ai` 알림 그룹(6종)도 AMP 에서 폐지했다. 앱 코드는 미변경이라 이 계측군은
+> 여전히 방출되나 소비처(알림)가 없어 고아 상태다 — 채팅 경로 코드 철거 시 함께 정리한다.
 
 | metric (code) | 타입 | 라벨 | 의미 |
 |---|---|---|---|
 | `drawe.chat_llm.latency` | Timer(**hist**) | `provider`, `outcome=success`(고정) | 채팅 LLM 응답 지연(P95/P99) |
 | `drawe.llm.call` | Timer | `provider`(GROK/GEMINI/CLAUDE), `outcome` | LLM 호출 지연·성패 |
 | `drawe.workflow.step` | Timer | `step`(EXTRACT_KEYWORDS/SEARCH/TRANSLATE/GENERATE_IMAGE/CRITIQUE_UPLOAD/COMPOSE), `code`(IntentCode `000`~`013`), `tier`(RULE/LLM_LIGHT), `outcome` | 워크플로 단계별 |
-| `drawe.workflow.shadow` | Counter | `outcome`(match/partial/miss/error) | 워크플로 shadow 비교. **prod 에선 항상 0** — shadow 를 부르는 `handleSearchDecision` 은 `isLive(code)`가 false 일 때만 도달하는데 prod 는 전부 live |
+| `drawe.workflow.shadow` | Counter | `outcome`(match/partial/miss/error) | 워크플로 shadow 비교. **COMPOSE 폐지 계측군**(prod live-intents 제거, 2026-07-22) — 채팅 트래픽 ~0 |
 | `drawe.intent.route` | Counter | `outcome`(rule_hit/rule_miss) | 규칙 라우팅 적중/미스 |
 | `drawe.intent.rule` | Counter | `rule_id`, `action` | 어떤 규칙이 어떤 액션을 냈는지 |
 | `drawe.intent.classify` | Timer | `outcome` | 의도 분류 지연·성패 (DoD ≤300ms) |
@@ -142,18 +142,23 @@ dev 에 코드로 배포되는 경로는 저장소에 없다(`overlays/dev/obser
 |---|---|---|
 | `drawe_vlm_latency_seconds` | `vlm-latency`, `guide-pipeline` | `GuideVlmErrors`·`GuideVlmSlowP95` |
 | `drawe_llm_latency_seconds` | `guide-pipeline` | `GuideLlmFallback`·`GuideLlmErrors`·`GuideLlmSlowP95` |
-| `drawe_image_gen_latency_seconds` | `image-gen-latency`, `guide-pipeline` | `ImageGenErrors`·`ImageGenSlowP95` |
+| `drawe_image_gen_latency_seconds` | `image-gen-latency`, `guide-pipeline` | `ImageGenErrors` (SlowP95는 표본 희소로 제거) |
 | `drawe_reference_search_seconds` | `backend` | `ReferenceSearchErrors`·`EmptyRateHigh`·`SlowP95` |
 | `drawe_dict_lookup`·`komoran_*`·`session_cache_hit/miss` | `backend` | — |
 | `drawe_chat_llm_latency_seconds` | `llm-latency` **[DEPRECATED]** | — |
-| `drawe_llm_call`·`intent_route`·`intent_classify`·`workflow_step`·`output_*` | — | `drawe-backend-ai` **[DEPRECATED]** |
+| `drawe_llm_call`·`intent_route`·`intent_classify`·`workflow_step`·`output_*` | — | `drawe-backend-ai` 제거됨(2026-07-22, COMPOSE 폐지) → 현재 고아 |
 
 ### 고아 메트릭 (대시보드·알림 어디에도 안 쓰임)
 
 `drawe.intent.rule` · `drawe.output.citation_removed` · `drawe.workflow.shadow` ·
 `drawe.tokens.input` · `drawe.history.trimmed` · `drawe.session.cleanup` ·
 `drawe.session.cache.restored` · `drawe.session.cache.save` — 8개.
-전부 레거시 채팅 계열이라 채팅 철거 시 함께 정리한다.
+
+여기에 더해, **`drawe-backend-ai` 폐지(2026-07-22, COMPOSE 미채택)로 알림을 잃은**
+`drawe.llm.call` · `drawe.intent.route` · `drawe.intent.classify` · `drawe.workflow.step` ·
+`drawe.output.*`(structure_violation·hallucinated_citation·citation_removed) 도 이제 고아다.
+
+전부 레거시 채팅/COMPOSE 계열이라 채팅 경로 코드 철거 시 함께 정리한다.
 
 ---
 
