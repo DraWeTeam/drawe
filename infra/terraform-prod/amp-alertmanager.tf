@@ -48,9 +48,17 @@ resource "aws_prometheus_alert_manager_definition" "main" {
                 region: '${var.aws_region}'
               send_resolved: true
               subject: '[${var.env}] {{ .CommonLabels.alertname }} ({{ .Status }})'
+              # ⚠ 계약: 아래 message 형식(STATUS=/SEVERITY=/ALERTNAME=/SERVICE= 4줄 헤더 + '---' 구분자 + 본문)은
+              #   lambda/discord_notify.py 의 _parse_amp 와 짝이다. 헤더 키·순서·'---' 를 바꾸면 Lambda 도 함께 바꿔야 하며,
+              #   안 그러면 에러 없이 회색 폴백으로 조용히 열화한다. 색은 .CommonLabels.severity(critical/warning/info),
+              #   서비스 필드는 .CommonLabels.service(없는 룰은 Lambda가 '-' 처리)에 의존한다.
               message: |
+                STATUS={{ .Status }}
+                SEVERITY={{ .CommonLabels.severity }}
+                ALERTNAME={{ .CommonLabels.alertname }}
+                SERVICE={{ .CommonLabels.service }}
+                ---
                 {{ range .Alerts -}}
-                [{{ .Status | toUpper }}] {{ .Labels.alertname }} (severity={{ .Labels.severity }}, service={{ .Labels.service }})
                 {{ .Annotations.summary }}
                 {{ with .Annotations.description }}{{ . }}
                 {{ end }}{{ end }}
