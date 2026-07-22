@@ -28,8 +28,10 @@ groups:
         for: 5m
         labels: { severity: warning, service: backend, layer: app }
         annotations:
-          summary: "backend 5xx 비율 5% 초과"
-          description: "최근 5분 5xx 비율 {{ $value | humanizePercentage }}"
+          summary: "backend 서버 오류(5xx)가 임계를 넘었습니다 — 5분 비율 {{ $value | humanizePercentage }} (임계 5%)"
+          description: >-
+            사용자가 오류를 겪는 중입니다. backend 로그와 최근 배포·의존 서비스(embed/guide/DB)
+            상태를 확인하세요.
       - alert: BackendHigh5xxRateCritical
         expr: |
           sum(rate(http_server_requests_seconds_count{application="drawe-backend",status=~"5.."}[5m]))
@@ -39,7 +41,10 @@ groups:
         for: 5m
         labels: { severity: critical, service: backend, layer: app }
         annotations:
-          summary: "backend 5xx 비율 10% 초과 (긴급)"
+          summary: "backend 서버 오류(5xx)가 심각합니다 — 5분 비율 {{ $value | humanizePercentage }} (임계 10%)"
+          description: >-
+            광범위한 장애 가능성. 즉시 backend 로그·최근 배포·의존 서비스를 확인하고 필요 시
+            롤백하세요.
       - alert: BackendHigh4xxRate
         expr: |
           sum(rate(http_server_requests_seconds_count{application="drawe-backend",status=~"4.."}[5m]))
@@ -49,7 +54,10 @@ groups:
         for: 10m
         labels: { severity: warning, service: backend, layer: app }
         annotations:
-          summary: "backend 4xx 비율 20% 초과"
+          summary: "backend 클라이언트 오류(4xx)가 임계를 넘었습니다 — 10분 비율 {{ $value | humanizePercentage }} (임계 20%)"
+          description: >-
+            잘못된 요청 급증. 인증 만료·API 계약 변경·클라이언트 버그를 의심하고, 어떤
+            엔드포인트·상태코드가 많은지 확인하세요.
       # 버킷이 없어 평균 지연으로 알림(요청 단위). p95가 필요하면 위 주석의 속성을 켤 것.
       - alert: BackendHighAvgLatency
         expr: |
@@ -60,7 +68,9 @@ groups:
         for: 10m
         labels: { severity: warning, service: backend, layer: app }
         annotations:
-          summary: "backend 평균 응답시간 1.5s 초과 ({{ $value }}s)"
+          summary: "backend 평균 응답이 느려졌습니다 — {{ $value | humanizeDuration }} (임계 1.5s)"
+          description: >-
+            평균 응답 시간을 기준으로 감지합니다. DB 쿼리·외부 호출·GC를 확인하세요.
       # 버킷 활성화 후 사용할 p95 (버킷이 없으면 데이터 없음):
       # - alert: BackendHighLatencyP95
       #   expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{application="drawe-backend"}[5m]))) > 1.5
@@ -78,7 +88,9 @@ groups:
         for: 10m
         labels: { severity: warning, service: backend, layer: runtime }
         annotations:
-          summary: "backend JVM heap 사용률 90% 초과"
+          summary: "backend JVM 힙 사용률이 높습니다 — {{ $value | humanizePercentage }} (임계 90%)"
+          description: >-
+            지속되면 GC 압박·OOM 위험. 힙 추세·메모리 누수·트래픽 급증을 확인하세요.
       - alert: BackendHikariPoolSaturated
         expr: |
           hikaricp_connections_active{application="drawe-backend"}
@@ -88,14 +100,19 @@ groups:
         for: 10m
         labels: { severity: warning, service: backend, layer: runtime }
         annotations:
-          summary: "backend Hikari 커넥션풀 90% 포화 (pool={{ $labels.pool }})"
+          summary: "backend DB 커넥션풀이 포화 상태입니다 — {{ $value | humanizePercentage }} (pool={{ $labels.pool }}, 임계 90%)"
+          description: >-
+            커넥션 고갈 시 요청이 대기·실패합니다. 느린 쿼리·커넥션 누수·풀 크기를 확인하세요.
       - alert: BackendCircuitBreakerOpen
         # resilience4j: state="open" 일 때 값 1. 외부 API(embed/guide/pinecone) 차단 의미.
         expr: resilience4j_circuitbreaker_state{application="drawe-backend",state="open"} == 1
         for: 1m
         labels: { severity: critical, service: backend, layer: runtime }
         annotations:
-          summary: "backend 서킷브레이커 OPEN (name={{ $labels.name }})"
+          summary: "backend가 외부 호출을 차단했습니다 (서킷 OPEN, name={{ $labels.name }})"
+          description: >-
+            {{ $labels.name }} 대상(embed/guide/pinecone 등)이 연속 실패해 backend가 잠시
+            호출을 끊었습니다. 해당 의존 서비스 상태를 확인하세요. 회복되면 자동 해제됩니다.
 
   # ─────────── 레퍼런스 무드보드 검색 (SearchService — 현재 제품 방향) ───────────
   # ⚠ 저볼륨 전제. 2026-07-22 prod AMP 실측(30일): 33회, 전부 outcome=success·result=hit,
@@ -109,7 +126,9 @@ groups:
         for: 0m
         labels: { severity: warning, service: backend, layer: app }
         annotations:
-          summary: "무드보드 검색 실패 6시간 내 3건 이상 — CLIP/벡터스토어 점검"
+          summary: "무드보드 검색 실패가 늘고 있습니다"
+          description: >-
+            최근 6시간 검색 실패 3건 이상. CLIP 임베딩 서비스와 벡터스토어 연결·응답을 확인하세요.
       # 검색이 계속 빈손 = 코퍼스·임베딩 문제이거나 사용자 질의 분포 이동 신호.
       # 최소볼륨 가드가 없으면 하루 1건이 empty 여도 100% 로 튄다.
       - alert: ReferenceSearchEmptyRateHigh
@@ -125,7 +144,10 @@ groups:
         for: 1h
         labels: { severity: info, service: backend, layer: app }
         annotations:
-          summary: "무드보드 검색 빈손 비율 50% 초과(24h, 10건 이상일 때만) — 코퍼스 점검"
+          summary: "무드보드 검색이 자주 빈손으로 돌아옵니다 — 24h 빈손 비율 {{ $value | humanizePercentage }}"
+          description: >-
+            검색 10건 이상일 때만 발화(소량 오탐 방지). 지속되면 코퍼스 커버리지 부족이거나
+            사용자 질의 분포가 이동한 신호입니다. 임베딩·코퍼스를 점검하세요.
       # 실측 p95 1.9s → 임계 5s.
       - alert: ReferenceSearchSlowP95
         expr: |
@@ -135,7 +157,10 @@ groups:
         for: 1h
         labels: { severity: warning, service: backend, layer: app }
         annotations:
-          summary: "무드보드 검색 p95 5s 초과 ({{ $value }}s)"
+          summary: "무드보드 검색이 느려졌습니다 — p95 {{ $value | humanizeDuration }} (임계 5s)"
+          description: >-
+            최근 24시간 p95 기준(최근 운영 기준 약 1초). CLIP 임베딩 지연·벡터스토어 응답·재랭킹
+            단계를 확인하세요.
 
   # ── drawe-backend-ai 그룹은 폐지됨 (2026-07) ──────────────────────────────
   # COMPOSE 워크플로 미채택으로 대화형 채팅(intent 분기 → COMPOSE) 경로가 폐기되어,
