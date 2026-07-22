@@ -12,7 +12,7 @@
 ## 10.2 외부 연동
 | 연동 | 용도 | 격리/비고 |
 |---|---|---|
-| Grok / Claude (Gemini=dev 폴백) | 키워드 추출 폴백(1차=Komoran, Grok=사전 미스율 초과 시 폴백) · COMPOSE·의도 워크플로는 **dormant**(설계만, 런타임=레거시 직접 합성) | provider 추상화, prod=Grok / PAID=Claude |
+| Grok / Claude (Gemini=dev 폴백) | 키워드 추출 폴백(1차=Komoran, Grok=사전 미스율 초과 시 폴백) · COMPOSE·의도 워크플로는 **미채택(retired)**(폐기된 설계, 런타임=레거시 직접 합성) | provider 추상화, prod=Grok / PAID=Claude |
 | Bedrock(Stability) | AI 이미지 생성 | 검색 결과 없을 때 |
 | Pinecone / Qdrant | 벡터 검색 (채팅 추천 / 가이드) | Resilience4j 서킷브레이커 |
 | fastapi-embed / guide | CLIP·비전 | 클러스터 내부 호출 |
@@ -22,7 +22,7 @@
 - `application.properties`는 **전부 `${ENV}` placeholder** (배포 안전).
 - 비밀 아닌 값(환경변수) + **SSM Parameter Store**(비밀).
 - 로컬은 gitignore 프로필(`application-oauth/llm.properties`)이 placeholder를 덮음.
-- **Live 전환**: 프로퍼티 `workflow.compose.live-intents`(기본 비어 있음=전부 레거시). 환경변수는 **`WORKFLOW_COMPOSE_LIVE_INTENTS`** — `application.properties`가 `${WORKFLOW_COMPOSE_LIVE_INTENTS:}`로 명시 참조한다.
+- **COMPOSE 워크플로(미채택/retired)**: 프로퍼티 `workflow.compose.live-intents`(기본 비어 있음=전부 레거시). 환경변수는 **`WORKFLOW_COMPOSE_LIVE_INTENTS`** — `application.properties`가 `${WORKFLOW_COMPOSE_LIVE_INTENTS:}`로 명시 참조한다. **prod overlay 에서 이 env 를 제거(2026-07)** 해 코드 기본값(빈 집합)으로 dormant 화했다. 애플리케이션 코드(위 프로퍼티 참조 줄 포함)는 불변으로 잔존하며, 재도입하려면 overlay 에 env 를 다시 넣으면 된다.
 
 ## 10.4 복원력 (Resilience4j)
 - 외부 호출(embed·vector)에 **서킷브레이커 + 리트라이**. 검색 실패가 호출자 트랜잭션을 오염시키지 않도록 `REQUIRES_NEW`로 격리.

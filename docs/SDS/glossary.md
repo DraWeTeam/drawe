@@ -25,9 +25,9 @@
 | **IDF re-rank** | CLIP 점수에 태그 IDF 가중 overlap을 더해 재정렬하는 하이브리드 방식. |
 | **ai_description** | 이미지의 실제 내용을 묘사하는 캡션(Unsplash 네이티브 AI alt-text). LLM 설명 근거. |
 | **할루시네이션** | LLM이 근거 없는 디테일을 지어내는 현상(예: 없는 꽃 묘사). |
-| **COMPOSE** | 페르소나·레퍼런스 컨텍스트로 최종 응답을 생성하는 LLM 합성 단계. |
+| **COMPOSE** | 페르소나·레퍼런스 컨텍스트로 최종 응답을 생성하는 LLM 합성 단계(**미채택/retired** 워크플로의 종착 단계, 폐기된 설계). |
 | **무결성 검증** | 응답의 `[N]` 인용이 실제 레퍼런스 범위인지 검사해 환각 인용 제거. |
-| **StepExecutor / 워크플로** | live 경로의 단계 실행기(EXTRACT_KEYWORDS·SEARCH·COMPOSE 등). |
+| **StepExecutor / 워크플로** | live 경로의 단계 실행기(EXTRACT_KEYWORDS·SEARCH·COMPOSE 등). **미채택(retired)** — prod live-intents 비활성, 코드는 dormant 로 잔존. |
 | **단기메모리** | Redis에 보관하는 직전 턴 레퍼런스(멀티턴 KEEP용). |
 | **점수 가드** | 검색 점수(avg/max)가 낮으면 무관 결과로 보고 차단. |
 | **legacy / live** | legacy=직접 합성, live=StepExecutor 워크플로. 의도별 게이트로 전환. |

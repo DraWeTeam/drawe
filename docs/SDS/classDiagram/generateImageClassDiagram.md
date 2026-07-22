@@ -117,5 +117,5 @@ classDiagram
 
 - **COMPOSE 종착 계약**: 라이브 게이트는 COMPOSE 로 종착하는 의도만 허용하는데, 생성은 Bedrock(guide) 호출·엔티티 영속화로 끝나 이 계약을 만족하지 못한다.
 - **엔티티 의존**: `ImageGenerationService` 가 `Image` 엔티티 생성·영속화에 강하게 묶여 있어 워크플로 executor 추상화로 그대로 옮기기 어렵다(executor 들은 아직 스켈레톤).
-- **부팅 검증**: 워크플로 compose 라이브 플래그는 기본 off 이며 부팅 시 검증을 거치므로, 생성 경로는 검증 대상에서 빠진 레거시 직접 합성으로 남는다.
+- **부팅 검증**: 워크플로 compose 라이브 플래그는 기본 off(빈 집합)이며 부팅 시 검증을 거친다. 이 COMPOSE 워크플로 자체가 **미채택(retired)** — 제품 방향(무드보드 검색+가이드)으로 정리되며 채택되지 않아 prod live-intents 를 비웠고(2026-07), 생성 경로는 그와 무관하게 레거시 직접 합성으로 남는다.
 - **short-circuit**: `chat()` 은 `GENERATE_NOW` 를 라이브 게이트보다 먼저 가로채 `handleGenerateNow(...)` 로 즉시 분기하므로, 생성은 결코 워크플로 경로에 진입하지 않는다.

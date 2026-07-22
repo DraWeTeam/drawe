@@ -55,8 +55,10 @@ stateDiagram-v2
 
 ---
 
-## 8.2 워크플로 라우팅 (의도 → Step)
+## 8.2 워크플로 라우팅 (의도 → Step) — ⚠️ 폐기된 설계(historical)
 의도(`IntentCode`)에 따라 실행 단계(`StepType`) 경로가 결정된다. (live 경로 `IntentRouting.ROUTING` 기준)
+
+> **미채택(retired)**: 이 COMPOSE 워크플로는 제품 방향(무드보드 검색+가이드)으로 정리되며 채택되지 않았다. prod live-intents 비활성(2026-07 overlay 에서 env 제거), 코드는 dormant(빈 집합)로 잔존한다. 아래 다이어그램·표는 이력 참고용이며, 현행 채팅 응답은 레거시 직접 합성이 만든다.
 
 ```mermaid
 stateDiagram-v2
