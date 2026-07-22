@@ -2,7 +2,7 @@
 
 `ProjectChatController.chat()` 가 진입점으로 `ChatLlmService.chat()` 를 호출한다. `chat()` 은 먼저 `routeIntent()` 로 의도를 분류(룰 프리라우터 → Grok 폴백)하고, `GENERATE_NOW` 면 `handleGenerateNow()` 로 단락(검색·LLM 답변 생략, 즉시 Bedrock(guide) 생성)한다. 이어서 `OUT_OF_DOMAIN`·`SELF_CRITIQUE` 게이트를 통과하면, 의도가 `WorkflowComposeProperties.isLive()` 로 켜졌는지에 따라 **live 경로(`chatViaWorkflow()` → `WorkflowService.run()`)** 와 **legacy 경로(`handleSearchDecision()` 직접 합성)** 로 갈린다. live 경로에서 `WorkflowService` 는 `IntentRouting.ROUTING` 의 step 시퀀스를 순회하며 각 `StepExecutor`(EXTRACT_KEYWORDS → SEARCH → COMPOSE 등)를 실행해 불변 `StepContext` 를 누적하고, `ComposeExecutor` 가 referenceContext 구성 → 스키마 강제 LLM 호출 → 파싱 → 무결성 검사로 `ComposedOutput` 을 만든다. 합성 결과를 받아 `chatViaWorkflow()` 가 세션 메시지 저장·Redis 단기메모리 반영·analytics·메트릭을 처리하고 `ChatResponse` 를 조립해 반환한다.
 
-> **현행 상태(코드 실측)**: `workflow.compose.live-intents` 기본값이 빈 집합(`liveIntents = EnumSet.noneOf`)이라 **live 경로는 미가동(dormant)** — 기본 배포에서는 **legacy 직접 합성이 실제 응답을 만든다**. 아래 다이어그램의 `WorkflowService`·`StepExecutor` 계열(`GenerateImageExecutor` 등)은 **설계·미연결 골격**이며 게이트가 켜지지 않는 한 실행되지 않는다.
+> **⚠️ 폐기된 설계(historical)**: 아래 `WorkflowService`·`StepExecutor`·`ComposeExecutor` 계열은 **미채택(retired) COMPOSE 워크플로**의 설계 다이어그램이다 — 제품 방향이 무드보드 검색+가이드로 정리되며 채택되지 않았다. prod overlay 의 `WORKFLOW_COMPOSE_LIVE_INTENTS` 를 비워(2026-07) 코드 기본값(빈 집합, `liveIntents = EnumSet.noneOf`)으로 dormant 화했고, 기본 배포에서는 **legacy 직접 합성이 실제 응답을 만든다**. 다이어그램 본문은 이력 참고용으로 남긴다(애플리케이션 코드 불변).
 
 ```mermaid
 classDiagram

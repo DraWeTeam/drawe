@@ -38,7 +38,7 @@ DraWe는 **프론트(React) — 백엔드(Spring Boot) — AI 서비스(FastAPI 
 | **갤러리(gallery)** | 완성작 갤러리(내 그림·COMPLETED 프로젝트), 완성작 상세(회고), 레퍼런스 아카이브(프로젝트별) |
 | **관리/분석** | 관리자 대시보드, 분석 이벤트(GA4·내부 메트릭) |
 
-> **의도→라우팅→COMPOSE 워크플로는 현재 dormant** — `IntentCode`(13종)는 설계된 카탈로그이며 런타임 분기는 아직 도입 전(`WorkflowComposeProperties.liveIntents` 기본 `noneOf`). 채팅 응답은 여전히 **레거시 직접 합성** 경로가 담당한다. 위 표의 "의도 분류 → 검색/유지/합성"은 설계된 기능 목록이며, 활성 런타임과 구분해 읽는다.
+> **의도→라우팅→COMPOSE 워크플로는 미채택(retired)** — 제품 방향이 무드보드 검색+가이드로 정리되며 채택되지 않았다. `IntentCode`(13종)는 폐기된 설계 카탈로그(historical)이며, prod live-intents 는 비활성이고 코드는 dormant(`WorkflowComposeProperties.liveIntents` 기본 `noneOf`)로 잔존한다. 채팅 응답은 여전히 **레거시 직접 합성** 경로가 담당한다. 위 표의 "의도 분류 → 검색/유지/합성"은 폐기된 설계 목록이며, 활성 런타임과 구분해 읽는다.
 
 ## 1.5 문서 구성
 [README](./README.md)의 문서 인덱스를 따른다 — 개요→용어→아키텍처→유스케이스→UI→AI 설계→클래스→시퀀스→상태→데이터→구현→참고.

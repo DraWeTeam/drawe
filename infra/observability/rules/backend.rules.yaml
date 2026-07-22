@@ -137,78 +137,9 @@ groups:
         annotations:
           summary: "무드보드 검색 p95 5s 초과 ({{ $value }}s)"
 
-  # ─────────── 비즈니스 / AI 파이프라인 DoD (LlmMetrics.java 기반) ───────────
-  # ⚠ DEPRECATED (2026-07-22) — 이 그룹은 전부 "대화형 채팅"(intent 분기 → COMPOSE 합성)
-  #   경로를 감시한다. 제품 방향이 무드보드 검색 + 한 끗 가이드로 바뀌어 이 경로는 사실상
-  #   쓰이지 않는다. prod AMP 실측(30일): POST /projects/{id}/chat 1건(최근 14일 0건),
-  #   intent_route·intent_classify·llm_call·workflow_step 전부 0,
-  #   drawe_chat_llm_latency 와 drawe_output_* 은 시리즈조차 없음.
-  #
-  #   그럼에도 남겨두는 이유: 코드와 prod 설정(WORKFLOW_COMPOSE_LIVE_INTENTS)이 아직 살아
-  #   있어 언제든 트래픽이 돌아올 수 있다. 트래픽이 0이면 아래 룰은 발화하지 않으므로
-  #   (비율식은 0/0=NaN) 비용도 소음도 없다. **채팅 경로를 실제로 철거할 때 이 그룹을
-  #   함께 삭제할 것** — 알림은 감시 대상 코드와 같이 죽어야 한다.
-  - name: drawe-backend-ai
-    rules:
-      # DoD: 환각 인용 0건. 1건이라도 카운트되면 즉시.
-      - alert: LlmHallucinatedCitation
-        expr: increase(drawe_output_hallucinated_citation_total[10m]) > 0
-        for: 0m
-        labels: { severity: critical, service: backend, layer: ai }
-        annotations:
-          summary: "환각 인용 발생 (source={{ $labels.source }}) — DoD 0건 위반"
-      # 메인 LLM 호출 실패율
-      - alert: LlmCallErrorRate
-        expr: |
-          sum(rate(drawe_llm_call_seconds_count{outcome="error"}[5m]))
-          /
-          sum(rate(drawe_llm_call_seconds_count[5m]))
-          > 0.10
-        for: 5m
-        labels: { severity: warning, service: backend, layer: ai }
-        annotations:
-          summary: "LLM 호출 실패율 10% 초과"
-      # 메인 LLM 호출 평균 지연(버킷 없음 → 평균). provider별.
-      - alert: LlmCallSlow
-        expr: |
-          sum by (provider) (rate(drawe_llm_call_seconds_sum[5m]))
-          /
-          sum by (provider) (rate(drawe_llm_call_seconds_count[5m]))
-          > 8
-        for: 10m
-        labels: { severity: warning, service: backend, layer: ai }
-        annotations:
-          summary: "LLM({{ $labels.provider }}) 평균 응답 8s 초과"
-      # COMPOSE 출력 구조 위반율 DoD ≤1% (분모: COMPOSE step 호출 수)
-      - alert: OutputStructureViolationRate
-        expr: |
-          sum(rate(drawe_output_structure_violation_total[10m]))
-          /
-          sum(rate(drawe_workflow_step_seconds_count{step="COMPOSE"}[10m]))
-          > 0.01
-        for: 10m
-        labels: { severity: warning, service: backend, layer: ai }
-        annotations:
-          summary: "COMPOSE 구조 위반율 1% 초과 — DoD 위반"
-      # 경량 분류기 DoD ≤300ms (평균)
-      - alert: IntentClassifierSlow
-        expr: |
-          sum(rate(drawe_intent_classify_seconds_sum[10m]))
-          /
-          sum(rate(drawe_intent_classify_seconds_count[10m]))
-          > 0.3
-        for: 10m
-        labels: { severity: warning, service: backend, layer: ai }
-        annotations:
-          summary: "인텐트 분류기 평균 300ms 초과 — DoD 위반"
-      # 룰 프리라우터 커버리지 저하(= LLM 폴백 급증 → 비용·지연↑). 정보성.
-      - alert: IntentRuleCoverageLow
-        expr: |
-          sum(rate(drawe_intent_route_total{outcome="rule_hit"}[15m]))
-          /
-          sum(rate(drawe_intent_route_total[15m]))
-          < 0.5
-        for: 15m
-        labels: { severity: info, service: backend, layer: ai }
-        annotations:
-          summary: "룰 라우터 커버리지 50% 미만 (LLM 폴백 증가)"
+  # ── drawe-backend-ai 그룹은 폐지됨 (2026-07) ──────────────────────────────
+  # COMPOSE 워크플로 미채택으로 대화형 채팅(intent 분기 → COMPOSE) 경로가 폐기되어,
+  # 그 경로만 감시하던 채팅/COMPOSE 알림 6종(LlmHallucinatedCitation·LlmCallErrorRate·
+  # LlmCallSlow·OutputStructureViolationRate·IntentClassifierSlow·IntentRuleCoverageLow)을
+  # 함께 제거했다. 감시 대상 코드 경로가 없으므로 알림도 존치할 이유가 없다.
+  # (drawe_llm_call·drawe_output_*·drawe_intent_* 메트릭 코드는 불변으로 남아 있다.)
