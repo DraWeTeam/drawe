@@ -15,6 +15,7 @@
 실시간:    HAND_VLM=1 python -m ml.vision <이미지>   (Gemini 실제 호출)
 """
 
+import logging
 import os
 import io
 import re
@@ -27,6 +28,8 @@ from concurrent.futures import ThreadPoolExecutor
 from guide.cache import img_hash, vlm_get, vlm_set
 from guide._trace import trace
 from guide._metrics import measure_vlm
+
+log = logging.getLogger("drawe-fastapi.guide.ml.vision")
 
 # 이미지-only·결정적인 VLM 결과(주제 분류·손 관찰)를 sha256(이미지)로 캐시(cache.vlm_*: L1 in-process
 # + L2 Redis). 같은 그림을 다른 질문으로 재요청해도 VLM 0회. 최종 가이드 결과는 message/user/growth 에도
@@ -414,7 +417,7 @@ def classify_subject(image):
         b64, mime = _to_b64(image)
         raw = _call(b64, mime, _key(), prompt=_SUBJECT_PROMPT, timeout=30)
     except Exception as e:
-        print(f"[vision] 주제 분류 실패(CLIP 폴백): {type(e).__name__}: {e}")
+        log.warning(f"[vision] 주제 분류 실패(CLIP 폴백): {type(e).__name__}: {e}")
         return None  # transient → 캐시하지 않음(다음에 재시도)
     word = re.sub(r"[^a-z]", "", (raw or "").strip().lower())
     result = None
@@ -459,7 +462,7 @@ def classify_style(image):
         b64, mime = _to_b64(image)
         raw = _call(b64, mime, _key(), prompt=_STYLE_PROMPT, timeout=30)
     except Exception as e:
-        print(f"[vision] 스타일 분류 실패(스타일 미상): {type(e).__name__}: {e}")
+        log.warning(f"[vision] 스타일 분류 실패(스타일 미상): {type(e).__name__}: {e}")
         return None  # transient → 캐시하지 않음
     word = re.sub(r"[^a-z]", "", (raw or "").strip().lower())
     result = None
@@ -645,7 +648,7 @@ def observe_face(image, runs=2):
             b64, mime = _to_b64(image)
             raw = _call(b64, mime, _key(), prompt=_FACE_PROMPT, timeout=60)
         except Exception as e:
-            print(f"[vision] 얼굴 관찰 호출 실패(무시): {type(e).__name__}: {e}")
+            log.warning(f"[vision] 얼굴 관찰 호출 실패(무시): {type(e).__name__}: {e}")
             continue
         p = _parse_face(raw)
         if p:
@@ -773,7 +776,7 @@ def observe_pose(image, runs=2):
             b64, mime = _to_b64(image)
             raw = _call(b64, mime, _key(), prompt=_POSE_PROMPT, timeout=60)
         except Exception as e:
-            print(f"[vision] 포즈 관찰 호출 실패(무시): {type(e).__name__}: {e}")
+            log.warning(f"[vision] 포즈 관찰 호출 실패(무시): {type(e).__name__}: {e}")
             continue
         p = _parse_pose(raw)
         if p:

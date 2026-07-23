@@ -1,9 +1,12 @@
+import logging
 import os
 import yaml
 import numpy as np
 from functools import lru_cache
 from guide.pipeline.profiles import POSE_DEPENDENT, ALL_AXES
 from guide._trace import trace
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.diagnose")
 
 # 파일 위치 기준 → repo 루트/CWD 어디서 실행해도 동작(eval 포함). 환경변수로 override 가능.
 TAXONOMY_PATH = os.environ.get(
@@ -243,7 +246,7 @@ def hand_signals(pil):
         if conf > 0:
             return {"_hand": (round(float(conf), 2), sig)}
     except Exception as e:
-        print(f"[diagnose] 손 신호 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[diagnose] 손 신호 실패(무시): {type(e).__name__}: {e}")
     return {}
 
 
@@ -261,7 +264,7 @@ def _vlm_hand_signal(pil):
         trace("hand.vlm.enter", stage="pre_call")  # [진단] 여기까지 오면 import 성공
         o = observe_hand(pil)
     except Exception as e:
-        print(f"[diagnose] VLM 손 관찰 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[diagnose] VLM 손 관찰 실패(무시): {type(e).__name__}: {e}")
         return None
     if not o:
         return None
@@ -302,7 +305,7 @@ def _vlm_face_signal(pil):
 
         o = observe_face(pil)
     except Exception as e:
-        print(f"[diagnose] VLM 얼굴 관찰 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[diagnose] VLM 얼굴 관찰 실패(무시): {type(e).__name__}: {e}")
         return None
     if not o or o.get("confidence") not in (
         "관찰",
@@ -337,7 +340,7 @@ def _vlm_pose_signal(pil):
 
         o = observe_pose(pil)
     except Exception as e:
-        print(f"[diagnose] VLM 포즈 관찰 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[diagnose] VLM 포즈 관찰 실패(무시): {type(e).__name__}: {e}")
         return {}
     if not o or o.get("confidence") not in (
         "관찰",
@@ -506,7 +509,9 @@ def region_signals(pil, pose):
 
             return _figure_value_signals(g, subject_mask(pil), with_bg=False)
         except Exception as e:  # 마스크 실패해도 진단은 degraded 로 정상 진행
-            print(f"[diagnose] subject_mask 폴백 실패(무시): {type(e).__name__}: {e}")
+            log.warning(
+                f"[diagnose] subject_mask 폴백 실패(무시): {type(e).__name__}: {e}"
+            )
     return {}
 
 
@@ -553,7 +558,9 @@ def _load_env_thresholds():
             }
         )
     except Exception as e:
-        print(f"[diagnose] DX_THRESHOLDS 파싱 실패(무시): {type(e).__name__}: {e}")
+        log.warning(
+            f"[diagnose] DX_THRESHOLDS 파싱 실패(무시): {type(e).__name__}: {e}"
+        )
 
 
 _load_env_thresholds()

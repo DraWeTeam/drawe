@@ -14,9 +14,12 @@
 레코드: 이미지·이미지ID·user_id·request_id·원본 픽셀·프롬프트 텍스트 0(분포만, 프라이버시).
 """
 
+import logging
 import os
 import json
 import datetime
+
+log = logging.getLogger("drawe-fastapi.guide._shadow")
 
 
 def _on() -> bool:
@@ -71,4 +74,4 @@ def emit(dx, resp, dt, track=None) -> None:
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:  # 관측기가 요청을 죽이면 안 된다(불변식)
-        print(f"[shadow] emit 실패(무시): {type(e).__name__}: {e}", flush=True)
+        log.warning(f"[shadow] emit 실패(무시): {type(e).__name__}: {e}")

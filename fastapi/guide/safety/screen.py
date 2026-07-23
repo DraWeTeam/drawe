@@ -13,7 +13,10 @@
    MODERATION_PROVIDER 로 반드시 연결하고, 민감 배포는 fail-closed 를 권장한다.
 """
 
+import logging
 import os
+
+log = logging.getLogger("drawe-fastapi.guide.safety.screen")
 
 # 대조 앵커 — '막아야 할 것' vs '정당한 작품/일상'. 후자에 '예술적 인물·해부 습작'을 포함시켜
 #   figure drawing 오차단을 줄인다(도메인 특화). 영어(CLIP ViT-B-32 영어 학습).
@@ -119,7 +122,7 @@ def screen(pil, *, embedder=None, provider=None, fail_open=None):
             r.setdefault("scores", {})
             return r
         except Exception as e:
-            print(f"[moderation] provider 실패: {type(e).__name__}: {e}")
+            log.warning(f"[moderation] provider 실패: {type(e).__name__}: {e}")
             if not fail_open:
                 return {
                     "allow": False,
@@ -131,7 +134,7 @@ def screen(pil, *, embedder=None, provider=None, fail_open=None):
         emb = embedder or _real_embedder()
         return _baseline(pil, emb)
     except Exception as e:
-        print(f"[moderation] baseline 실패: {type(e).__name__}: {e}")
+        log.warning(f"[moderation] baseline 실패: {type(e).__name__}: {e}")
         if fail_open:
             return {"allow": True, "reason": None, "scores": {"skipped": True}}
         return {

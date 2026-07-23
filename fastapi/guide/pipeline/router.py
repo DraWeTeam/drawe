@@ -18,10 +18,13 @@ persona: 인물이 보이면 [pose, anatomy], 아니면 [composition, light, col
 반환 시그니처는 기존과 동일: (mode, personas, user_terms). mode ∈ {coach, redirect, clarify}.
 """
 
+import logging
 import os
 import re
 import yaml
 from functools import lru_cache
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.router")
 
 INTAKE_PATH = os.environ.get(
     "INTAKE_PATH",
@@ -137,7 +140,7 @@ def intake_config():
         with open(INTAKE_PATH, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
     except Exception as e:
-        print(
+        log.warning(
             f"[router] intake.yaml 로드 실패 → 내장 기본값 사용: {type(e).__name__}: {e}"
         )
     return {k: (cfg.get(k) or _DEFAULTS[k]) for k in _DEFAULTS}

@@ -10,10 +10,13 @@ LLM이 켜져 있으면(AGENT_LLM_SELECT) LLM이 후보 중에서 고르고(comp
 LLM이 무엇을 뱉든 측정 밖의 것은 응답에 못 들어온다(= "환각이 성장에 개입하지 않는다").
 """
 
+import logging
 import os
 import json
 
 from guide.pipeline.profiles import POSE_DEPENDENT
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.agent")
 
 MAX_BLOCKS = (
     3  # 한 번에 보여줄 최대 블록 수(인지 부하 ↓). diagnose가 이미 상위로 좁혀 둠.
@@ -185,7 +188,7 @@ def decide(diagnosis, refs_by_sp, growth, intent="open", track=None, llm=None):
             if v and _applicable(v["lead"], ctx):
                 return v, ctx
         except Exception as e:
-            print(f"[agent] LLM 선택 실패(결정적 폴백): {type(e).__name__}: {e}")
+            log.warning(f"[agent] LLM 선택 실패(결정적 폴백): {type(e).__name__}: {e}")
     return base, ctx
 
 
@@ -296,5 +299,7 @@ def plan_next(state, candidates, llm=None):
             if v:
                 return v
         except Exception as e:
-            print(f"[agent] plan_next LLM 실패(결정적 폴백): {type(e).__name__}: {e}")
+            log.warning(
+                f"[agent] plan_next LLM 실패(결정적 폴백): {type(e).__name__}: {e}"
+            )
     return base

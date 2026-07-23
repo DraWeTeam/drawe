@@ -18,7 +18,11 @@ HumanArt 검출기 라이선스/추가 의존성 회피). 출력 COCO-17 → 33-
 어떤 단계든 실패하면(import·모델·추론) 예외 삼키고 skipped 폴백 → API 항상 기동(기존 정책 동일).
 """
 
+import logging
+
 import numpy as np
+
+log = logging.getLogger("drawe-fastapi.guide.ml.pose")
 
 # COCO-17 → 33-slot BlazePose 인덱스(어댑터). diagnose/overlay 가 참조하는 13관절만 채운다.
 #   coco: 0 nose / 5,6 어깨 / 7,8 팔꿈치 / 9,10 손목 / 11,12 골반 / 13,14 무릎 / 15,16 발목
@@ -74,9 +78,11 @@ def _get():
         _model = VitPoseForPoseEstimation.from_pretrained(_MODEL)
         _model.eval()
         _ready = True
-        print("[pose] ViTPose(vitpose-base) 준비 완료")
+        log.info("[pose] ViTPose(vitpose-base) 준비 완료")
     except Exception as e:
-        print(f"[pose] ViTPose 초기화 실패 → 포즈 비활성: {type(e).__name__}: {e}")
+        log.warning(
+            f"[pose] ViTPose 초기화 실패 → 포즈 비활성: {type(e).__name__}: {e}"
+        )
         _proc, _model, _ready = None, None, False
     return _ready
 
@@ -97,7 +103,7 @@ def extract(scene, pil):
             outputs = _model(**inputs)
         pp = _proc.post_process_pose_estimation(outputs, boxes=boxes)
     except Exception as e:
-        print(f"[pose] ViTPose 추론 실패 → skipped: {type(e).__name__}: {e}")
+        log.warning(f"[pose] ViTPose 추론 실패 → skipped: {type(e).__name__}: {e}")
         return {"status": "skipped", "reason": "pose_error"}
     if not pp or not pp[0]:
         return {"status": "skipped", "reason": "no_person_detected"}

@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, Form, Request, HTTPException
 from fastapi.responses import StreamingResponse, RedirectResponse, Response
 from pydantic import BaseModel
 from io import BytesIO
+import logging
 import json
 import uuid
 import asyncio
@@ -53,6 +54,8 @@ from guide._security import (
     PRACTICE_ACTIONS,
 )
 from guide.contract import finalize_guide_response, growth_from_raw
+
+log = logging.getLogger("drawe-fastapi.guide.routes")
 
 router = APIRouter()
 llm = get_llm()
@@ -271,7 +274,7 @@ def _log_impressions(guide_id, refs_by_sp, tax):
                     rows,
                 )
     except Exception as e:
-        print(f"[guide] 노출 로깅 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[guide] 노출 로깅 실패(무시): {type(e).__name__}: {e}")
 
 
 def _log_observable(user_id, measurable, guide_id, project_id=None):
@@ -300,7 +303,7 @@ def _log_observable(user_id, measurable, guide_id, project_id=None):
                 rows,
             )
     except Exception as e:
-        print(f"[guide] observable 로깅 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[guide] observable 로깅 실패(무시): {type(e).__name__}: {e}")
 
 
 def _claim_request(request_id, guide_id):
@@ -324,7 +327,7 @@ def _claim_request(request_id, guide_id):
             ).fetchone()
             return False, (row[0] if row and row[0] else guide_id)
     except Exception as e:
-        print(f"[dedup] claim 실패(무시, 로깅 진행): {type(e).__name__}: {e}")
+        log.warning(f"[dedup] claim 실패(무시, 로깅 진행): {type(e).__name__}: {e}")
         return True, guide_id
 
 
@@ -801,7 +804,7 @@ def _ensure_adopt_schema():
             )
         _adopt_schema_ready = True
     except Exception as e:
-        print(f"[adopt] event ENUM 확장 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[adopt] event ENUM 확장 실패(무시): {type(e).__name__}: {e}")
 
 
 @router.post("/adopt")
@@ -886,7 +889,7 @@ def svg(ref_id: str):
             return {"error": "no svg for this ref"}
         return RedirectResponse(presigned_url(row[0]))
     except Exception as e:
-        print(f"[svg] 조회 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[svg] 조회 실패(무시): {type(e).__name__}: {e}")
         return {"error": "svg lookup failed"}
 
 
@@ -907,7 +910,7 @@ def guide_asset(ref_id: str):
         if svg:
             return Response(content=svg, media_type="image/svg+xml")
         # 파일 못 찾아도 깨진 이미지 대신 빈 SVG(슬롯 신뢰 유지). 로그만 남김.
-        print(f"[guide-asset] reference 파일 없음(빈 SVG 폴백): {ref_id}")
+        log.warning(f"[guide-asset] reference 파일 없음(빈 SVG 폴백): {ref_id}")
         return Response(
             content='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180"/>',
             media_type="image/svg+xml",
@@ -924,5 +927,5 @@ def guide_asset(ref_id: str):
             return {"error": "no asset for this ref"}
         return RedirectResponse(presigned_url(row[0]))
     except Exception as e:
-        print(f"[guide-asset] 조회 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[guide-asset] 조회 실패(무시): {type(e).__name__}: {e}")
         return {"error": "asset lookup failed"}

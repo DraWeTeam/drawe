@@ -2,6 +2,7 @@
 DummyLLM은 프롬프트에 주입된 <<OBS>>/<<REFS>> 마커를 읽어 근거 있는 GuideResponse JSON을 만든다
 → API 키 없이도 end-to-end가 돌고, 출력은 §20 검증을 통과한다."""
 
+import logging
 import json
 import re
 import time
@@ -9,6 +10,8 @@ import requests
 from guide.config import settings
 from guide._trace import trace
 from guide._metrics import observe_llm
+
+log = logging.getLogger("drawe-fastapi.guide.ml.llm")
 
 _OBS = re.compile(r"<<OBS>>(.*?)<<END>>", re.S)
 _REFS = re.compile(r"<<REFS>>(.*?)<<END>>", re.S)
@@ -127,9 +130,9 @@ class RealLLM:
             data = r.json()
             choice = data["choices"][0]
             content = choice["message"]["content"]
-            # 디버그(원인 확정 후 제거 가능): 잘렸는지(finish=length) + 추론이 토큰을 얼마나 먹었는지.
+            # LLM 응답 진단(상시): 잘렸는지(finish=length) + 추론이 토큰을 얼마나 먹었는지.
             #   finish=length → max_tokens 더 올리거나 추론 줄이기. finish=stop인데도 None이면 프롬프트/grounding 문제.
-            print(
+            log.info(
                 f"[llm] grok finish={choice.get('finish_reason')} "
                 f"clen={len(content or '')} "
                 f"reasoning={(data.get('usage') or {}).get('completion_tokens_details', {}).get('reasoning_tokens')}"
@@ -145,7 +148,7 @@ class RealLLM:
             return out
         except Exception as e:
             observe_llm(time.monotonic() - t0, step=step, outcome="error")
-            print(f"[llm] Grok 호출 실패 → 템플릿 폴백: {type(e).__name__}: {e}")
+            log.warning(f"[llm] Grok 호출 실패 → 템플릿 폴백: {type(e).__name__}: {e}")
             trace("llm.out", fallback=True, reason=type(e).__name__)
             return self._fallback.complete_json(prompt)
 
@@ -162,11 +165,11 @@ def get_llm():
         key_state = (
             "set" if llm.key else "MISSING(.env XAI_API_KEY 비었음 → 템플릿 폴백)"
         )
-        print(
+        log.info(
             f"[llm] provider={settings.llm_provider} model={llm.model} key={key_state}"
         )
         return llm
-    print(
+    log.info(
         "[llm] LLM_PROVIDER 미설정 → DummyLLM(오프라인 템플릿). "
         "Grok 쓰려면 .env에 LLM_PROVIDER=grok 설정 후 컨테이너 재생성하세요."
     )

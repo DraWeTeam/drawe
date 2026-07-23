@@ -15,10 +15,13 @@ guide_asset 은 assets.py 에서 svg 도식만 쓰므로 여기서 backbone 을 
 비용: self_render 행을 한 번 색인해 메모리 캐시(행 수가 바뀌면 자동 갱신) → /guide 당 추가비용 ~0.
 """
 
+import logging
 import json
 from collections import defaultdict
 import os
 import re
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.asset_index")
 
 BACKBONE = "backbone_3d"
 LABEL = "3D 참고"
@@ -219,7 +222,7 @@ def _load_reference_index():
                     if c.get("ref_id")
                 ]
         except Exception as e:
-            print(
+            log.warning(
                 f"[asset_index] reference manifest 로드 실패(무시): {type(e).__name__}: {e}"
             )
     _REF["index"] = idx
@@ -270,7 +273,7 @@ def _load_index():
         _CACHE["count"] = cnt
         return _CACHE["index"]
     except Exception as e:
-        print(
+        log.warning(
             f"[asset_index] self_render 색인 실패(무시, 빈 색인): {type(e).__name__}: {e}"
         )
         return {}
@@ -326,7 +329,7 @@ def _load_ai_index():
             ).fetchall()
         idx = _ai_candidates_from_rows([(r[0], r[1]) for r in rows])
     except Exception as e:
-        print(
+        log.warning(
             f"[asset_index] ai_example 색인 실패(무시, 빈 색인): {type(e).__name__}: {e}"
         )
     _AI["index"] = idx

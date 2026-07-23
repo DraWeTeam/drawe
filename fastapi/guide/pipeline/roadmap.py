@@ -13,6 +13,7 @@ LLM 없이 결정적으로 동작한다. taxonomy(practice_prompt/personas) + pr
 모든 DB 작업은 예외를 삼켜 /roadmap·/practice 가 앱을 막지 않게 한다.
 """
 
+import logging
 import os
 import json
 from collections import defaultdict
@@ -27,6 +28,8 @@ from guide.pipeline.profiles import (
     ALL_AXES,
 )
 from guide.pipeline.growth_stage import estimate_stage
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.roadmap")
 
 # 구조 먼저 → 디테일. 이 순서가 "다음 목표"의 사다리.
 CURRICULUM = FIGURE_ORDER  # 단일 출처: profiles 의 인물 순서를 그대로(중복 정의 제거).
@@ -100,7 +103,7 @@ def record_practice(
                 ),
             )
     except Exception as e:
-        print(f"[roadmap] practice 기록 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] practice 기록 실패(무시): {type(e).__name__}: {e}")
 
 
 def _history(user_id, project_id=None):
@@ -179,7 +182,7 @@ def _history(user_id, project_id=None):
                     for g in reversed(recent_ids)
                 ]
     except Exception as e:
-        print(f"[roadmap] 이력 집계 실패(무시, 빈 이력): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] 이력 집계 실패(무시, 빈 이력): {type(e).__name__}: {e}")
     return tries, seen_recent, flag_count, trend, timeline
 
 
@@ -229,7 +232,7 @@ def _weekly(user_id, project_id=None, weeks=8):
             for sp in ax_wk
         }
     except Exception as e:
-        print(f"[roadmap] 주간 이력 실패(무시, 빈 이력): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] 주간 이력 실패(무시, 빈 이력): {type(e).__name__}: {e}")
     return {"points": points, "axis_weeks": axis_weeks}
 
 
@@ -351,7 +354,7 @@ def _ensure_goal_table():
             )
         _goal_table_ready = True
     except Exception as e:
-        print(f"[roadmap] user_goal 준비 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] user_goal 준비 실패(무시): {type(e).__name__}: {e}")
 
 
 # ── Layer 3 계획 영속화(user_plan) ───────────────────────────────────────────
@@ -397,7 +400,7 @@ def _ensure_plan_table():
             )
         _plan_table_ready = True
     except Exception as e:
-        print(f"[roadmap] user_plan 준비 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] user_plan 준비 실패(무시): {type(e).__name__}: {e}")
 
 
 def _save_plan(user_id, track, focus, next_goal, reason_code, candidates, plan=None):
@@ -426,7 +429,7 @@ def _save_plan(user_id, track, focus, next_goal, reason_code, candidates, plan=N
                 ),
             )
     except Exception as e:
-        print(f"[roadmap] plan 저장 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] plan 저장 실패(무시): {type(e).__name__}: {e}")
 
 
 def _load_plan(user_id, track):
@@ -452,7 +455,7 @@ def _load_plan(user_id, track):
                 path = []
             return {"focus": r[0], "next_goal": r[1], "reason_code": r[2], "path": path}
     except Exception as e:
-        print(f"[roadmap] plan 로드 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] plan 로드 실패(무시): {type(e).__name__}: {e}")
     return None
 
 
@@ -584,7 +587,9 @@ def _resolve_goal(
                 prev_ach,
             )
     except Exception as e:
-        print(f"[roadmap] goal 처리 실패(무시, 목표 비활성): {type(e).__name__}: {e}")
+        log.warning(
+            f"[roadmap] goal 처리 실패(무시, 목표 비활성): {type(e).__name__}: {e}"
+        )
         return None
 
 
@@ -724,7 +729,7 @@ def _observed(user_id, project_id=None):
                 ):
                     flagged_in_obs[sp] += 1
     except Exception as e:
-        print(f"[roadmap] 관측 집계 실패(무시, 빈 관측): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] 관측 집계 실패(무시, 빈 관측): {type(e).__name__}: {e}")
     return observed_count, flagged_in_obs
 
 
@@ -769,7 +774,7 @@ def _reduction(user_id, project_id=None):
         recent = sum(counts[-k:]) / k
         return round((early - recent) / early * 100) if early > 0 else None
     except Exception as e:
-        print(f"[roadmap] 감소율 계산 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[roadmap] 감소율 계산 실패(무시): {type(e).__name__}: {e}")
         return None
 
 
@@ -854,7 +859,7 @@ def growth_context(
             "reason_code": reason_code,
         }
     except Exception as e:
-        print(
+        log.warning(
             f"[roadmap] growth_context 실패(무시, 빈 컨텍스트): {type(e).__name__}: {e}"
         )
         return {
@@ -915,7 +920,9 @@ def growth_view(user_id="anon", track=None, degraded=False, project_id=None):
             "improved": list(improved),
         }
     except Exception as e:
-        print(f"[roadmap] growth_view 실패(무시, 빈 성장): {type(e).__name__}: {e}")
+        log.warning(
+            f"[roadmap] growth_view 실패(무시, 빈 성장): {type(e).__name__}: {e}"
+        )
         return {
             "window": RECENT_N,
             "timeline": [],
