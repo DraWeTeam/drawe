@@ -1,3 +1,11 @@
+# ⚠️ 오버레이 전용 — 반드시 docker-compose.local.yml 과 함께 사용한다.
+#   docker compose -f docker-compose.local.yml \
+#                  -f docker-compose.observability.yml up -d
+#
+# 각 서비스의 build/image 정의는 local.yml 에 있고, 이 파일은 환경변수만 덮어쓴다.
+# 따라서 이 파일 단독으로는 build/image 가 없어 실행되지 않는다 — 의도된 구조다.
+# (backend·fastapi·guide 세 블록 모두 environment 오버라이드만 갖는다)
+
 # ── 로컬 관측 스택 오버레이 ────────────────────────────
 # 사용:
 #   docker compose \
