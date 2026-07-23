@@ -31,3 +31,6 @@ data:
   # 로그→트레이스 자동 점프가 되게 한다('=' 는 그 regex 에 매칭 안 됨).
   # base 라 dev/prod 공용 — dev 는 teardown 상태로 복구 시 자동 반영된다.
   LOGGING_PATTERN_CONSOLE: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} trace_id:%X{trace_id} span_id:%X{span_id} - %msg%n"
+  # graceful shutdown: 30s < terminationGracePeriodSeconds(60s)
+  SERVER_SHUTDOWN: "graceful"
+  SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: "30s"
