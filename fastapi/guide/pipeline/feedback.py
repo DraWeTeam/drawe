@@ -9,11 +9,14 @@
 주의: 이 신호는 '레퍼런스 유용성'에 대한 것이지 사용자 실력 판정이 아니다(앱 원칙 유지).
 """
 
+import logging
 import time
 import threading
 from collections import defaultdict
 from sqlalchemy import text
 from guide.stores.db import engine
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.feedback")
 
 _TTL = 60.0  # 초. 집계 캐시 수명.
 _lock = threading.Lock()
@@ -75,7 +78,7 @@ def _ensure():
                     b, g = _recompute()
                     _cache.update(t=time.time(), boost=b, global_impr=g)
                 except Exception as e:
-                    print(
+                    log.warning(
                         f"[feedback] 집계 실패(무시, boost=0): {type(e).__name__}: {e}"
                     )
                     _cache["t"] = time.time()  # 다음 TTL까지 빈 캐시 유지(앱 안 깨짐)

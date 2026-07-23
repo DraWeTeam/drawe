@@ -11,9 +11,12 @@ qc 단계에서 이미 떨어져 들어올 수 없다.
 없으면 JSONL 파일로 폴백한다(AI_QC_AUDIT_LOG, 기본 /tmp/ai_qc_audit.jsonl).
 """
 
+import logging
 import os
 import json
 import datetime
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.ai_ingest")
 
 
 def _audit(record):
@@ -43,7 +46,7 @@ def _audit(record):
     except Exception as e:
         # 테이블 없음/DB 없음 → 파일 폴백
         if os.environ.get("AI_QC_DEBUG"):
-            print(f"[ai_qc] DB audit 실패 → 파일 폴백: {type(e).__name__}: {e}")
+            log.warning(f"[ai_qc] DB audit 실패 → 파일 폴백: {type(e).__name__}: {e}")
     try:
         path = os.environ.get("AI_QC_AUDIT_LOG", "/tmp/ai_qc_audit.jsonl")
         record = dict(record)
@@ -51,7 +54,7 @@ def _audit(record):
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception as e:
-        print(f"[ai_qc] audit 로깅 실패(무시): {type(e).__name__}: {e}")
+        log.warning(f"[ai_qc] audit 로깅 실패(무시): {type(e).__name__}: {e}")
 
 
 MEDIUMS = frozenset({"digital", "pencil", "watercolor", "sketch", "painting"})

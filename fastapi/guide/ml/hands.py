@@ -12,10 +12,13 @@ pose.py 와 같은 degraded-폴백 패턴: 모델/런타임이 없거나 손 미
 ⚠️ 2번(라이브러리 확대) 뒤에 켜세요 — region=hand ref가 없으면 손 신호가 떠도 전부 miss.
 """
 
+import logging
 import os
 import math
 import tempfile
 import urllib.request
+
+log = logging.getLogger("drawe-fastapi.guide.ml.hands")
 
 _HAND_URL = (
     "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
@@ -37,7 +40,7 @@ def _ensure_model():
         urllib.request.urlretrieve(_HAND_URL, _HAND_TASK)
         return os.path.getsize(_HAND_TASK) > 0
     except Exception as e:
-        print(f"[hands] 모델 다운로드 실패(degraded): {type(e).__name__}: {e}")
+        log.warning(f"[hands] 모델 다운로드 실패(degraded): {type(e).__name__}: {e}")
         return False
 
 
@@ -61,7 +64,7 @@ def _ensure():
         _landmarker = vision.HandLandmarker.create_from_options(opts)
         _AVAILABLE = True
     except Exception as e:
-        print(f"[hands] 초기화 실패(degraded): {type(e).__name__}: {e}")
+        log.warning(f"[hands] 초기화 실패(degraded): {type(e).__name__}: {e}")
         _AVAILABLE = False
     return _AVAILABLE
 
@@ -90,7 +93,7 @@ def detect(pil):
             hands.append({"landmarks": pts, "handedness": handed})
         return {"available": True, "hands": hands}
     except Exception as e:
-        print(f"[hands] 검출 실패(degraded): {type(e).__name__}: {e}")
+        log.warning(f"[hands] 검출 실패(degraded): {type(e).__name__}: {e}")
         return {"available": False, "hands": []}
 
 

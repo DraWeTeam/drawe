@@ -48,6 +48,23 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_SERVICE_NAME: ai-server
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=drawe
+      # 로그↔트레이스 상관: 앱 로거 포맷에 trace_id/span_id 주입(k8s configmap 과 동일 값).
+      OTEL_PYTHON_LOG_FORMAT: "%(asctime)s %(levelname)s [%(name)s] trace_id:%(otelTraceID)s span_id:%(otelSpanID)s - %(message)s"
+    depends_on:
+      otel-lgtm:
+        condition: service_started
+
+  # guide 서비스도 로컬 관측 대상에 포함(기존엔 블록 자체가 없어 로컬-prod 정합이 깨져 있었음).
+  #   fastapi 와 대칭 — OTLP 로 스팬을 otel-lgtm(Tempo)에 보내고 로그 포맷에 trace context 를 실어
+  #   Grafana 에서 log→trace 점프까지 로컬에서 검증 가능하게 한다.
+  guide:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: fastapi-guide
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=drawe
+      # 로그↔트레이스 상관: 앱 로거 포맷에 trace_id/span_id 주입(k8s configmap 과 동일 값).
+      OTEL_PYTHON_LOG_FORMAT: "%(asctime)s %(levelname)s [%(name)s] trace_id:%(otelTraceID)s span_id:%(otelSpanID)s - %(message)s"
     depends_on:
       otel-lgtm:
         condition: service_started

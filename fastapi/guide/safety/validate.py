@@ -1,6 +1,9 @@
+import logging
 import re
 from pydantic import ValidationError
 from guide.schemas import GuideResponse, GuideBlock
+
+log = logging.getLogger("drawe-fastapi.guide.safety.validate")
 
 
 class Grounding(Exception):
@@ -133,7 +136,7 @@ def coach_with_guardrails(
             last_err = e
             prompt += f"\n[수정 필요] {e}. 스키마와 근거(주어진 sub_problem·ref만)를 지켜 다시."
     # 왜 LLM 출력이 거부됐는지 한 줄 남김: Policy=금지표현, Grounding=근거(ref/sub_problem), ValidationError=스키마
-    print(
+    log.warning(
         f"[guide] 검증 탈락 {max_retries + 1}회 → 템플릿 폴백: {type(last_err).__name__}: {last_err}"
     )
     return template_fallback(diagnosis, refs_by_sp, taxonomy)

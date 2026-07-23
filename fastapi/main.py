@@ -39,13 +39,13 @@ if DEVICE_PREF == "auto":
 else:
     device = DEVICE_PREF
 
-print(f"CLIP 모델 로딩 중... model={MODEL_NAME}, device={device}")
-print("첫 실행 시 다운로드에 5-10분 소요")
+logger.info(f"CLIP 모델 로딩 중... model={MODEL_NAME}, device={device}")
+logger.info("첫 실행 시 다운로드에 5-10분 소요")
 
 model = CLIPModel.from_pretrained(MODEL_NAME).to(device)
 processor = CLIPProcessor.from_pretrained(MODEL_NAME)
 model.eval()
-print(f"로드 완료. device: {device}")
+logger.info(f"로드 완료. device: {device}")
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10MB

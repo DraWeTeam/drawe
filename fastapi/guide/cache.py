@@ -1,10 +1,13 @@
 from functools import lru_cache
+import logging
 import hashlib
 import json
 import os
 from collections import OrderedDict
 import numpy as np
 from guide.ml.embed import embedder
+
+log = logging.getLogger("drawe-fastapi.guide.cache")
 
 
 @lru_cache(maxsize=4096)
@@ -60,9 +63,9 @@ def _client():
                 )
                 c.ping()
                 _redis_client = c
-                print("[cache] VLM 캐시 Redis(L2) 연결 OK")
+                log.info("[cache] VLM 캐시 Redis(L2) 연결 OK")
             except Exception as e:
-                print(
+                log.warning(
                     f"[cache] Redis 연결 실패 → L1(in-process)만 사용: {type(e).__name__}: {e}"
                 )
     return _redis_client

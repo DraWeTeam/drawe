@@ -12,8 +12,11 @@
 이 모듈은 무거운 의존이 없다(redis 는 있을 때만 lazy import) → 단위 테스트가 쉽다.
 """
 
+import logging
 import time
 import threading
+
+log = logging.getLogger("drawe-fastapi.guide._ratelimit")
 
 _PERIODS = {
     "second": 1,
@@ -126,5 +129,7 @@ def _maybe_redis(redis_url):
         c.ping()
         return c
     except Exception as e:
-        print(f"[ratelimit] Redis 연결 실패 → in-process 폴백: {type(e).__name__}: {e}")
+        log.warning(
+            f"[ratelimit] Redis 연결 실패 → in-process 폴백: {type(e).__name__}: {e}"
+        )
         return None

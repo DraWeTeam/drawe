@@ -8,7 +8,10 @@
 보기:  docker compose logs api | grep '\\[trace:'
 """
 
+import logging
 import os
+
+log = logging.getLogger("drawe-fastapi.guide._trace")
 
 
 def _on() -> bool:
@@ -36,4 +39,4 @@ def trace(stage: str, /, **fields) -> None:
             parts.append(f"{k}={len(v)}:{sample}")
         else:
             parts.append(f"{k}={v}")
-    print(f"[trace:{stage}] " + " ".join(parts), flush=True)
+    log.info(f"[trace:{stage}] " + " ".join(parts))

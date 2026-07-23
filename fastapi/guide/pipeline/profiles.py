@@ -16,6 +16,10 @@
   스타일별 레퍼런스 렌더(애니/치비 등신)는 3D 백본(MakeHuman 파라미터)에서 생성하는 오프라인 자산 과제.
 """
 
+import logging
+
+log = logging.getLogger("drawe-fastapi.guide.pipeline.profiles")
+
 # 인물 track 기본 순서(구조 먼저). 전체 taxonomy를 커리큘럼으로 사용.
 _FIGURE_ORDER = [
     "proportion",
@@ -204,7 +208,7 @@ def _resolve_style(pil):
         )
         return None  # CLIP·VLM 불일치 → 미상(abstain)
     except Exception as e:
-        print(f"[profiles] 스타일 분류 실패(미상 처리): {type(e).__name__}: {e}")
+        log.warning(f"[profiles] 스타일 분류 실패(미상 처리): {type(e).__name__}: {e}")
         return None
 
 

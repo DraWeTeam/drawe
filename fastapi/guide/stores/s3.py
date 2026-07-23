@@ -1,7 +1,10 @@
+import logging
 import os
 import boto3
 from botocore.config import Config
 from guide.config import settings
+
+log = logging.getLogger("drawe-fastapi.guide.stores.s3")
 
 # 로컬(MinIO)은 endpoint+key+secret 명시, AWS(ECS)는 비워두면 IAM task role + 리전 기본 엔드포인트.
 #   - endpoint_url=None → boto3 가 AWS S3 기본(리전) 엔드포인트 사용
@@ -58,7 +61,7 @@ def ensure_bucket():
     except Exception:
         if not _HAS_KEYS:
             # 매니지드 버킷(Terraform) 전제 — 생성 시도 금지(권한 없음). 로그만.
-            print(
+            log.warning(
                 f"[s3] head_bucket 실패(매니지드 버킷 전제로 생성 건너뜀): {settings.s3_bucket}"
             )
             return
