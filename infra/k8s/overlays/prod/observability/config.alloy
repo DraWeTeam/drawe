@@ -34,10 +34,11 @@ prometheus.relabel "node" {
   //   node-exporter 기본 컬렉터 수백 종 중 대시보드(node.json)·룰(infra.rules)이 쓰는 계열만 keep.
   //   도출: dashboards/node.json + rules/infra.rules.yaml 전수 대조(node 11종).
   //   넉넉한 계열 접두사로 잡아 향후 패널 추가 여유. ★ node_* 지표를 새로 쓰면 이 정규식도 갱신할 것.
+  //   ★ load 는 별도 처리: node_load1/5/15 는 패밀리 뒤에 언더스코어 없이 숫자라 `load_.*` 로는 안 잡힌다.
   rule {
     source_labels = ["__name__"]
     action        = "keep"
-    regex         = "node_(cpu|memory|filesystem|disk|network|load|boot)_.*|up"
+    regex         = "node_(cpu|memory|filesystem|disk|network|boot)_.*|node_load.*|up"
   }
   rule {
     target_label = "node"
