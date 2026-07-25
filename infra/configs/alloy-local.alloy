@@ -1,0 +1,90 @@
+// ─────────────────────────────────────────────────────────
+// Grafana Alloy — LOCAL 검증용 (docker-compose 오버레이 전용)
+//
+// 목적: prod 배포(3단계) 전에 spanmetrics 변경을 로컬에서 검증한다.
+//   A ) spanmetrics 입력을 SERVER 스팬만으로 제한 (otelcol.processor.filter)
+//   B1) spanmetrics 히스토그램 버킷 6개 (50ms/250ms/1s/3s/10s/90s)
+//       └ 상한 10s→90s 는 절감이 아니라 버그 수정(실측 72s 요청이 +Inf로만 잡히던 문제).
+//         3s 경계는 알림 임계(FastapiHighLatencyP95 > 3000ms)에 정렬.
+//
+// prod(k8s/overlays/prod/observability/config.alloy)와 다른 점 — 로컬에서 못 도는 것 제거:
+//   · prometheus.exporter.unix / prometheus.scrape "node"  → 로컬에 노드 없음(C안 대상, 여기선 무관)
+//   · discovery.kubernetes / discovery.relabel / sys.env("NODE_NAME") → K8s API 없음(KSM·pod log)
+//   · otelcol.processor.k8sattributes "app"                → K8s API 없음(엔리치 불가 → 기동 실패)
+//   · prometheus.remote_write "amp" (SigV4)                → AMP/AWS 자격 없음
+//   · otelcol.exporter.otlp "tempo" / loki.write "self"    → in-cluster svc DNS → 로컬은 otel-lgtm 단일 OTLP
+//   · otelcol.processor.attributes "redact" / probabilistic_sampler → 로컬은 100% 트레이스로
+//                                                            스팬 수를 검증하므로 생략(샘플링·마스킹 없음)
+// 즉 이 파일은 prod 의 "앱 OTLP → (트레이스 그대로) + (SERVER 필터 → spanmetrics)" 부분만 재현한다.
+//
+// ⚠ prod config.alloy 의 spanmetrics(dimension·namespace·버킷)를 바꾸면 이 파일도 함께 바꿔라.
+//    (선례: infra/configs/alloy-daemon.alloy vs alloy-daemon-prod.alloy — 비-prod 변형 분리 관리)
+//
+// ⚠⚠ 로컬 검증 시 측정 함정 2가지 (실측으로 확인, 2026-07-25):
+//   1) otel-lgtm 내부 Tempo metrics-generator 가 동일 이름 `traces_spanmetrics_calls_total` 을
+//      (필터 안 거친) 전체 트레이스에서 자체 생성한다 → 이 metric 으로 필터 효과를 측정하면 안 된다.
+//      대신 (a) 이 커넥터 고유 metric `traces_spanmetrics_duration_milliseconds_*` 로 보거나
+//           (b) Alloy 내부 metric `otelcol_processor_filter_spans_filtered_total`(:12345/metrics) 로 본다.
+//      (prod/AMP 에는 metrics-generator 가 없어 이 충돌이 없다 — 로컬 전용 함정)
+//   2) spanmetrics 커넥터 flush 주기 ~60s → 트래픽 후 60s+ 기다린 뒤 조회할 것(아니면 빈 값 오판).
+//   ※ 필터 표현식은 반드시 `kind.string != "Server"` (검증됨). `kind != SPAN_KIND_SERVER` 등 다른 형태는
+//     이 버전에서 의도대로 안 걸러졌다. error_mode="ignore" 는 잘못된 OTTL 을 조용히 무시(무필터)하므로
+//     prod 반영 전 표현식이 실제로 거르는지 확인이 필수다(이 파일이 그 확인 도구).
+// ─────────────────────────────────────────────────────────
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// ════════ 앱 텔레메트리 수신 (OTLP — 앱이 4317/4318 로 전송) ════════
+otelcol.receiver.otlp "app" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+  output {
+    // 트레이스는 두 가지로 분기 (prod 에서 Tempo 경로를 안 건드리는 것과 같은 구조):
+    //   (1) 그대로 otel-lgtm → Tempo  [스팬 수 보존 — filter 전과 동일해야 검증 통과]
+    //   (2) SERVER 필터 → spanmetrics
+    traces  = [otelcol.exporter.otlp.lgtm.input, otelcol.processor.filter.spanmetrics_input.input]
+    metrics = [otelcol.exporter.otlp.lgtm.input]
+    logs    = [otelcol.exporter.otlp.lgtm.input]
+  }
+}
+
+// ════════ A) spanmetrics 입력 필터 — SERVER 스팬만 통과 ════════
+// filterprocessor 는 "조건이 true 인 스팬을 버린다" → SERVER 가 아닌 스팬(DB CLIENT·내부 INTERNAL)을 drop.
+// 트레이스 자체(위 가지 1)에는 영향이 없다 — spanmetrics 입력만 거른다.
+otelcol.processor.filter "spanmetrics_input" {
+  error_mode = "ignore"
+  traces {
+    span = [
+      `kind.string != "Server"`,
+    ]
+  }
+  output {
+    traces = [otelcol.connector.spanmetrics.default.input]
+  }
+}
+
+// ════════ spanmetrics (prod 와 동일 dimension·namespace; 버킷만 B1) ════════
+otelcol.connector.spanmetrics "default" {
+  histogram {
+    explicit {
+      buckets = ["50ms", "250ms", "1s", "3s", "10s", "90s"]   // B1 (prod: 5ms/10ms/25ms/50ms/100ms/250ms/500ms/1s/2.5s/5s/10s)
+    }
+  }
+  dimension { name = "http.method" }
+  dimension { name = "http.status_code" }
+  dimension { name = "http.route" }
+  namespace = "traces.spanmetrics"
+  output {
+    metrics = [otelcol.exporter.otlp.lgtm.input]
+  }
+}
+
+// ════════ Export → otel-lgtm (올인원: Tempo/Prometheus/Loki) ════════
+otelcol.exporter.otlp "lgtm" {
+  client {
+    endpoint = "otel-lgtm:4317"
+    tls { insecure = true }
+  }
+}

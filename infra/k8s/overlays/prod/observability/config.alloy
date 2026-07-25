@@ -21,7 +21,7 @@ prometheus.exporter.unix "node" {
 prometheus.scrape "node" {
   targets         = prometheus.exporter.unix.node.targets
   forward_to      = [prometheus.relabel.node.receiver]
-  scrape_interval = "30s"
+  scrape_interval = "60s"   // AMP 절감: 30s→60s (샘플 절반). 최단 rate 창 [5m](InfraNodeCpuHigh)이라 안전.
   job_name        = "node-exporter"
 }
 
@@ -30,6 +30,16 @@ prometheus.scrape "node" {
 // DaemonSet 이 파드마다 주입하는 NODE_NAME(spec.nodeName)을 node 라벨로 붙인다.
 prometheus.relabel "node" {
   forward_to = [otelcol.receiver.prometheus.infra.receiver]
+  // ── C) AMP 절감: 실제 쓰는 node-exporter 지표만 유지 ──
+  //   node-exporter 기본 컬렉터 수백 종 중 대시보드(node.json)·룰(infra.rules)이 쓰는 계열만 keep.
+  //   도출: dashboards/node.json + rules/infra.rules.yaml 전수 대조(node 11종).
+  //   넉넉한 계열 접두사로 잡아 향후 패널 추가 여유. ★ node_* 지표를 새로 쓰면 이 정규식도 갱신할 것.
+  //   ★ load 는 별도 처리: node_load1/5/15 는 패밀리 뒤에 언더스코어 없이 숫자라 `load_.*` 로는 안 잡힌다.
+  rule {
+    source_labels = ["__name__"]
+    action        = "keep"
+    regex         = "node_(cpu|memory|filesystem|disk|network|boot)_.*|node_load.*|up"
+  }
   rule {
     target_label = "node"
     replacement  = sys.env("NODE_NAME")
@@ -69,9 +79,22 @@ discovery.relabel "ksm" {
 
 prometheus.scrape "ksm" {
   targets         = discovery.relabel.ksm.output
-  forward_to      = [otelcol.receiver.prometheus.infra.receiver]
-  scrape_interval = "30s"
+  forward_to      = [prometheus.relabel.ksm.receiver]
+  scrape_interval = "60s"   // AMP 절감: 30s→60s. 최단 rate 창 [5m]·[15m]이라 안전.
   job_name        = "kube-state-metrics"
+}
+
+// ── C) AMP 절감: 실제 쓰는 kube-state-metrics 지표만 유지 ──
+//   KSM 은 kube_* 종류가 많아(수백) 넉넉한 접두사 대신 룰이 실제 쓰는 10종만 명시 keep.
+//   도출: rules/infra.rules.yaml 전수 대조. ★ kube_node_info 는 absent() 룰(InfraKubeStateMetricsDown)이
+//   쓰므로 반드시 유지. ★ 룰에 kube_* 지표를 새로 쓰면 이 정규식도 갱신할 것.
+prometheus.relabel "ksm" {
+  forward_to = [otelcol.receiver.prometheus.infra.receiver]
+  rule {
+    source_labels = ["__name__"]
+    action        = "keep"
+    regex         = "kube_(node_info|node_created|node_status_condition|horizontalpodautoscaler_status_condition|horizontalpodautoscaler_status_current_replicas|horizontalpodautoscaler_spec_max_replicas|pod_container_status_restarts_total|pod_status_phase|deployment_spec_replicas|deployment_status_replicas_available)|up"
+  }
 }
 
 // ════════ Pod 로그 (이 노드의 pod만, K8s API tail) ════════
@@ -196,9 +219,30 @@ otelcol.processor.transform "app" {
     ]
   }
   output {
-    traces  = [otelcol.processor.attributes.redact.input, otelcol.connector.spanmetrics.default.input]
+    // 트레이스 두 갈래: (1) redact→sampler→Tempo (그대로) (2) SERVER 필터→spanmetrics
+    traces  = [otelcol.processor.attributes.redact.input, otelcol.processor.filter.spanmetrics_input.input]
     metrics = [otelcol.processor.batch.default.input]
     logs    = [otelcol.processor.attributes.redact.input]
+  }
+}
+
+// ── A) spanmetrics 입력 필터 — SERVER 스팬만 (AMP 최대 절감) ──
+//   spanmetrics 는 모든 스팬(HTTP SERVER + DB CLIENT + 내부 INTERNAL)에서 오퍼레이션을 만들어
+//   카디널리티가 폭증한다(가이드 트레이스 1건 159스팬, 대부분 DB·내부). RED 는 SERVER 스팬만으로
+//   성립하고, DB·내부 스팬을 빼면 요청 지연 p95 정확도가 오히려 오른다.
+//   ⚠ 트레이스(위 redact→sampler→Tempo)에는 영향 없음 — spanmetrics '입력'만 거른다.
+//   ⚠ 표현식은 반드시 `kind.string != "Server"` (로컬 실증). error_mode=ignore 는 잘못된 OTTL 을
+//      조용히 무시(무필터)하므로, 표현식 변경 시 실제로 걸러지는지 반드시 확인할 것.
+//      (검증 도구: infra/configs/alloy-local.alloy — Tempo metrics-generator 이름충돌 주의)
+otelcol.processor.filter "spanmetrics_input" {
+  error_mode = "ignore"
+  traces {
+    span = [
+      `kind.string != "Server"`,
+    ]
+  }
+  output {
+    traces = [otelcol.connector.spanmetrics.default.input]
   }
 }
 
@@ -314,7 +358,10 @@ otelcol.processor.probabilistic_sampler "default" {
 otelcol.connector.spanmetrics "default" {
   histogram {
     explicit {
-      buckets = ["5ms", "10ms", "25ms", "50ms", "100ms", "250ms", "500ms", "1s", "2.5s", "5s", "10s"]
+      // B1) 11→6 버킷 (AMP 절감). 상한 10s→90s = 절감이 아니라 버그 수정:
+      //     실측 가이드 요청 72s 가 기존 상한 10s 초과분이 +Inf 로만 잡혀 p95 부정확했다.
+      //     3s 경계는 알림 임계(FastapiHighLatencyP95 > 3000ms)에 정렬(보간 오차 0).
+      buckets = ["50ms", "250ms", "1s", "3s", "10s", "90s"]
     }
   }
   dimension { name = "http.method" }

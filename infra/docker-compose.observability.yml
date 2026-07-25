@@ -13,13 +13,19 @@
 #     -f docker-compose.observability.yml \
 #     up -d
 #
-# Grafana UI: http://localhost:3000  (anonymous Admin)
-# OTLP gRPC:  otel-lgtm:4317 (컴포즈 네트워크 내부)
+# Grafana UI: http://localhost:3000   (anonymous Admin)
+# Alloy  UI : http://localhost:12345  (파이프라인 그래프·컴포넌트 상태)
+# OTLP gRPC : alloy:4317 (컴포즈 네트워크 내부) → alloy 가 otel-lgtm:4317 로 재전송
 #
-# 백엔드/FastAPI 컨테이너의 OTEL_EXPORTER_OTLP_ENDPOINT 를 otel-lgtm 으로 덮어쓴다.
-# 로컬엔 Alloy 사이드카가 없으므로 actuator scrape 는 작동 안 함 — Spring Boot
-# 커스텀 metric 은 prod/dev 에서만 보인다. 단, OTel Java Agent 의 micrometer
-# bridge 가 JVM/Hikari 등을 OTLP 로 같이 보내주므로 로컬 디버깅엔 충분.
+# 앱(backend·fastapi·guide)의 OTEL_EXPORTER_OTLP_ENDPOINT 를 **alloy** 로 덮어쓴다.
+#   흐름: 앱 → Alloy(configs/alloy-local.alloy) ┬→ 트레이스 그대로 → otel-lgtm(Tempo)
+#                                               └→ SERVER 필터 → spanmetrics → otel-lgtm
+#   이는 prod config.alloy 의 spanmetrics 파이프라인을 로컬에서 재현해 A(SERVER 필터)·
+#   B1(버킷 6개) 변경을 배포 전에 검증하기 위한 것이다. (prod 미수정 — 로컬 구성만)
+#
+# 참고: 로컬엔 node-exporter·KSM·actuator scrape 가 없으므로 그 지표는 prod/dev 에서만 보인다.
+#   단, OTel Java Agent 의 micrometer bridge 가 JVM/Hikari 등을 OTLP 로 같이 보내주므로
+#   로컬 디버깅엔 충분.
 
 services:
   otel-lgtm:
@@ -37,29 +43,50 @@ services:
     networks:
       - drawe-net
 
+  # ── Alloy: prod config.alloy 의 spanmetrics 파이프라인을 로컬 재현 (A·B1 검증용) ──
+  #   앱 OTLP 를 받아 (1) 트레이스 그대로 otel-lgtm 으로, (2) SERVER 필터→spanmetrics→otel-lgtm.
+  #   설정: configs/alloy-local.alloy (read-only 마운트). UI: http://localhost:12345
+  alloy:
+    image: grafana/alloy:latest
+    container_name: drawe-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "127.0.0.1:12345:12345"   # Alloy UI
+    volumes:
+      - ./configs/alloy-local.alloy:/etc/alloy/config.alloy:ro
+    depends_on:
+      otel-lgtm:
+        condition: service_started
+    networks:
+      - drawe-net
+
   backend:
     environment:
       # OTel Java Agent 가 자동으로 잡음 — agent 는 항상 attach 되어 있음
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317   # ← alloy 경유 (spanmetrics 파생)
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_SERVICE_NAME: backend
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=drawe
       OTEL_TRACES_SAMPLER: always_on   # 로컬은 항상 100%
     depends_on:
-      otel-lgtm:
+      alloy:
         condition: service_started
 
   fastapi:
     environment:
       # §A 작업 (opentelemetry-distro 설치) 적용 후에만 효과
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317   # ← alloy 경유 (spanmetrics 파생)
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_SERVICE_NAME: ai-server
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=drawe
       # 로그↔트레이스 상관: 앱 로거 포맷에 trace_id/span_id 주입(k8s configmap 과 동일 값).
       OTEL_PYTHON_LOG_FORMAT: "%(asctime)s %(levelname)s [%(name)s] trace_id:%(otelTraceID)s span_id:%(otelSpanID)s - %(message)s"
     depends_on:
-      otel-lgtm:
+      alloy:
         condition: service_started
 
   # guide 서비스도 로컬 관측 대상에 포함(기존엔 블록 자체가 없어 로컬-prod 정합이 깨져 있었음).
@@ -67,14 +94,14 @@ services:
   #   Grafana 에서 log→trace 점프까지 로컬에서 검증 가능하게 한다.
   guide:
     environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317   # ← alloy 경유 (spanmetrics 파생)
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_SERVICE_NAME: fastapi-guide
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=drawe
       # 로그↔트레이스 상관: 앱 로거 포맷에 trace_id/span_id 주입(k8s configmap 과 동일 값).
       OTEL_PYTHON_LOG_FORMAT: "%(asctime)s %(levelname)s [%(name)s] trace_id:%(otelTraceID)s span_id:%(otelSpanID)s - %(message)s"
     depends_on:
-      otel-lgtm:
+      alloy:
         condition: service_started
 
 volumes:
