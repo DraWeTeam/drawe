@@ -12,23 +12,36 @@ resources:
   - grafana-externalsecret.yaml
   - grafana-sgp.yaml
 
-# config 파일들을 CM 으로 생성. disableNameSuffixHash → 이름 고정(volume 참조 일치).
+# config 파일들을 CM 으로 생성.
+#   ★ 해시 정책: 기본(해시 ON)으로 두고, alloy-config 만 해시를 유지한다.
+#     alloy-config 는 내용이 바뀌면 CM 이름(alloy-config-<hash>)이 바뀌고 kustomize 가
+#     DaemonSet volume 참조를 그 이름으로 재작성 → 스펙 변경 → **Alloy 자동 롤링 재시작**.
+#     (이름 고정이면 config 변경이 파드에 반영되려면 수동 rollout restart 필요 = 조용히 미적용 위험.
+#      base/observability/daemonset.yaml 의 checksum/config placeholder 가 의도한 그 동작이 이것.)
+#     나머지(loki/tempo/grafana)는 per-generator 로 해시를 꺼 이름 고정(불필요한 롤링 회피).
+#   ※ 전역 true 는 per-generator false 로 못 되돌린다(kustomize 동작). 그래서 기본을 켜고 개별로 끈다.
 generatorOptions:
-  disableNameSuffixHash: true
   labels:
     app.kubernetes.io/part-of: drawe-observability
 configMapGenerator:
+  # ★ alloy-config 만 해시 유지(기본) → config.alloy 변경 시 자동 롤링.
   - name: alloy-config            # Alloy prod(self-host) 설정
     files:
       - config.alloy
       - backend-actuator-scrape.alloy   # [추가] EKS 전용 backend 스크랩 (ECS configs/*.alloy 와 분리)
   - name: loki-config             # Loki monolithic 설정
+    options:
+      disableNameSuffixHash: true   # 이름 고정
     files:
       - loki-config.yaml
   - name: tempo-config            # Tempo monolithic 설정
+    options:
+      disableNameSuffixHash: true   # 이름 고정
     files:
       - tempo-config.yaml
   - name: grafana-datasources     # Grafana datasource provisioning
+    options:
+      disableNameSuffixHash: true   # 이름 고정
     files:
       - datasources.yaml=grafana-datasources.yaml
 
@@ -36,9 +49,13 @@ configMapGenerator:
   #   dashboards-provider.yaml 은 disableDeletion=true / allowUiUpdates=false /
   #   고정 folderUid 로 하드닝되어 있다. 자세한 이유는 dashboards/ROLLBACK.md 참고.
   - name: drawe-grafana-dashboard-provider
+    options:
+      disableNameSuffixHash: true   # 이름 고정
     files:
       - dashboards-provider.yaml=dashboards/dashboards-provider.yaml
   - name: drawe-grafana-dashboards
+    options:
+      disableNameSuffixHash: true   # 이름 고정
     files:
       - dashboards/backend.json
       - dashboards/fastapi.json
