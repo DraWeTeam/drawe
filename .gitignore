@@ -20,6 +20,9 @@ tfplan
 crash.log
 crash.*.log
 
+# Python 바이트코드 캐시 (예: infra/terraform-prod/lambda/__pycache__)
+__pycache__/
+
 # IntelliJ IDEA
 .idea/
 
