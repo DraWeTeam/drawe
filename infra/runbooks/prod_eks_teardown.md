@@ -1,5 +1,10 @@
 # DraWe prod 재우기(teardown) 런북
 
+> ⚠️ **2026-07-28 부로 이 문서는 실행 대상이 아니다.** prod 자원은 `prod_full_teardown.md` 로
+> **완전 정리(destroy)** 됐다 — EKS·RDS·ElastiCache·NAT·ALB·VPC·ECR·SSM 모두 존재하지 않으므로
+> 아래 절차는 지금 돌릴 대상이 없다. 남은 용도는 ① 재구축 후 다시 "재우기"를 할 때의 절차
+> ② `prod_eks_wake.md` 의 짝. **현재 상태 확인은 `prod_full_teardown.md` 5장을 볼 것.**
+
 > prod 전체를 시간당 비용 ~0 으로 내린다. **destroy 가 아니라 "재우기"** — 데이터·코드·state 는 보존되고, 재기동(`prod_eks_wake`)으로 ~1시간 내 복구.
 환경: WSL `~/projects/drawe-projects/drawe-deploy/` (terraform/kubectl/aws), git 은 PowerShell.
 계정: prod=933832340498 / dev=570515227314. region ap-northeast-2.
